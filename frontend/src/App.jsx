@@ -1,13 +1,21 @@
-// import { useState } from "react";
-// import reactLogo from "./assets/react.svg";
-// import viteLogo from "./assets/vite.svg";
-// import heroImg from "./assets/hero.png";
+import LoginPage from "./pages/Auth/LoginPage";
+import SignUpPage from "./pages/Auth/SignUpPage";
+
+import { Routes, Route, Navigate } from "react-router-dom";
+
 
 function App() {
   return (
-    <>
-      <h1 className="text-green-500 text-3xl font-bold">Hello Tailwind</h1>
-    </>
+    <Routes>
+      {/* Mặc định vào web sẽ hiện trang Login */}
+      <Route path="/" element={<Navigate to="/login" />} />
+      
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/signup" element={<SignUpPage />} />
+      
+      {/* Trang Dashboard sau khi login thành công */}
+      {/* <Route path="/dashboard" element={<Dashboard />} /> */}
+    </Routes>
   );
 }
 
