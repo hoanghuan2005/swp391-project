@@ -133,11 +133,12 @@ const LoginPage = () => {
             </label>
             <button
               type="button"
-              onClick={() => navigate("/verify-account")} // Điều hướng sang page verify
+              onClick={() => navigate("/forgot-password")} // Nhảy sang trang nhập email
               className="text-[#f26522] hover:underline font-semibold"
             >
               Forgot password?
-            </button>          </div>
+            </button>
+          </div>
 
           <div className="space-y-3 pt-0">
             <button
