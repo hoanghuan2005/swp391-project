@@ -44,8 +44,8 @@ const ChangePasswordPage = () => {
 
             <div className="relative z-10 w-full max-w-sm bg-white rounded-[40px] p-8 shadow-2xl text-center">
                 <div className="flex justify-center mb-4">
-                    <div className="w-14 h-14 bg-[#f26522]/10 rounded-2xl flex items-center justify-center rotate-12 shadow-sm">
-                        <ShieldCheck className="text-[#f26522] -rotate-12" size={32} />
+                    <div className="w-14 h-14 bg-[#f26522]/10 rounded-2xl flex items-center justify-center">
+                        <ShieldCheck className="text-[#f26522]" size={32} />
                     </div>
                 </div>
 
