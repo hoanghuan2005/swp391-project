@@ -10,13 +10,13 @@ export default function LandingPage() {
       <header className="absolute top-0 w-full z-10 py-6 border-b border-gray-100 bg-white/80 backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex justify-between items-center">
           <div className="flex items-center gap-2 font-bold text-xl text-slate-800 tracking-tight">
-            <BookOpen className="h-6 w-6 text-[#1B89FC]" />
-            StuShare
+            <BookOpen className="h-6 w-6 text-[#f26522]" />
+            MinDoCu
           </div>
           <div className="flex items-center gap-4">
             <Link to="/login" className="text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors hidden sm:block">Log in</Link>
             <Link to="/dashboard">
-              <Button className="rounded-full bg-[#1B89FC] hover:bg-[#1B89FC]/90 text-white font-semibold">
+              <Button className="rounded-full bg-[#f26522] hover:bg-[#f26522]/90 text-white font-semibold">
                 Go to Dashboard
               </Button>
             </Link>
@@ -27,14 +27,14 @@ export default function LandingPage() {
       {/* Hero Section */}
       <section className="pt-32 pb-20 w-full min-h-[90vh] flex flex-col items-center justify-center text-center px-4">
         <div className="max-w-4xl mx-auto space-y-8">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-600 text-sm font-semibold mb-4 border border-blue-100">
-            <span className="flex h-2 w-2 rounded-full bg-blue-600 animate-pulse"></span>
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-50 text-orange-600 text-sm font-semibold mb-4 border border-orange-100">
+            <span className="flex h-2 w-2 rounded-full bg-orange-600 animate-pulse"></span>
             Elevate your study game
           </div>
           
           <h1 className="text-5xl md:text-7xl font-extrabold text-slate-900 tracking-tight leading-[1.1]">
             Share documents. <br className="hidden md:block"/>
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#1B89FC] to-[#6C3DE8]">
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#f26522] to-[#ff985c]">
               Master your exams.
             </span>
           </h1>
@@ -45,7 +45,7 @@ export default function LandingPage() {
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-6">
             <Link to="/dashboard">
-              <Button size="lg" className="rounded-full bg-[#1B89FC] hover:bg-[#1B89FC]/90 text-white h-14 px-8 text-lg font-semibold w-full sm:w-auto shadow-lg shadow-blue-500/20">
+              <Button size="lg" className="rounded-full bg-[#f26522] hover:bg-[#f26522]/90 text-white h-14 px-8 text-lg font-semibold w-full sm:w-auto shadow-lg shadow-orange-500/20">
                 Explore Documents
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
@@ -68,7 +68,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="grid md:grid-cols-3 gap-12">
             <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 space-y-4">
-              <div className="h-12 w-12 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center mb-6">
+              <div className="h-12 w-12 rounded-2xl bg-orange-100 text-orange-600 flex items-center justify-center mb-6">
                 <BookOpen className="h-6 w-6" />
               </div>
               <h3 className="text-xl font-bold text-slate-900">Massive Library</h3>

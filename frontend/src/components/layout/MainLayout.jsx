@@ -7,27 +7,21 @@ export default function MainLayout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   return (
-    <div className="min-h-screen bg-white text-slate-900 font-sans flex flex-col">
+    <div className="h-screen bg-slate-50 text-slate-900 font-sans flex flex-col overflow-hidden">
+      {/* Fixed Full-Width Navbar */}
       <Navbar onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
 
-      <div className="flex-1 w-full px-4 sm:px-6 lg:px-8">
-        <div className="flex gap-8 py-6 h-full relative max-w-[1700px] mx-auto">
-          {/* Sidebar Area */}
-          <div
-            className={`hidden lg:block shrink-0 transition-all duration-300 ease-in-out ${
-              isSidebarOpen ? "w-[260px]" : "w-[68px]"
-            }`}
-          >
-            <div className="sticky top-[88px]">
-              <Sidebar isOpen={isSidebarOpen} onToggle={() => setIsSidebarOpen(!isSidebarOpen)} />
-            </div>
-          </div>
+      {/* Main Content Area */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Fixed Sidebar */}
+        <Sidebar isOpen={isSidebarOpen} />
 
-          {/* Main Content Area */}
-          <main className="flex-1 min-w-0">
+        {/* Scrollable Content */}
+        <main className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="max-w-[1700px] w-full mx-auto relative rounded-3xl min-h-full">
             <Outlet />
-          </main>
-        </div>
+          </div>
+        </main>
       </div>
     </div>
   );
