@@ -131,8 +131,13 @@ const LoginPage = () => {
               <input type="checkbox" className="rounded border-slate-300 text-[#f26522] focus:ring-[#f26522]" />
               Remember me
             </label>
-            <button type="button" className="text-[#f26522] hover:underline">Forgot password?</button>
-          </div>
+            <button
+              type="button"
+              onClick={() => navigate("/verify-account")} // Điều hướng sang page verify
+              className="text-[#f26522] hover:underline font-semibold"
+            >
+              Forgot password?
+            </button>          </div>
 
           <div className="space-y-3 pt-0">
             <button
