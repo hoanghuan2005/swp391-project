@@ -2,7 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import MainLayout from "./components/layout/MainLayout";
 import Homepage from "./pages/Homepage";
 import LandingPage from "./pages/LandingPage";
-
+import ProfilePage from "./pages/ProfilePage";
 import LoginPage from "./pages/Auth/LoginPage";
 import SignUpPage from "./pages/Auth/SignUpPage";
 import VerifyOTPPage from "./pages/Auth/VerifyOTPPage";
@@ -35,6 +35,7 @@ function App() {
         {/* Dashboard layout */}
         <Route element={<MainLayout />}>
           <Route path="/home" element={<Homepage />} />
+          <Route path="/profile" element={<ProfilePage />} />
           <Route
             path="/my-library"
             element={<ComingSoon pageName="My Library" />}

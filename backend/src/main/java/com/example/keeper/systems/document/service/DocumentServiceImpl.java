@@ -26,23 +26,24 @@ public class DocumentServiceImpl implements DocumentService {
 
 //        Subject subject = subjectRepository.findById(request.getSubjectId())
 //                .orElseThrow();
-
-        Document document = new Document();
-
-        document.setTitle(request.getTitle());
-        document.setDescription(request.getDescription());
-        document.setFileUrl(request.getFileUrl());
-        document.setThumbnailUrl(request.getThumbnailUrl());
-        document.setFileType(request.getFileType());
-        document.setFileSize(request.getFileSize());
-        document.setVisibility(request.getVisibility());
-
+//
+//        Document document = new Document();
+//
+//        document.setTitle(request.getTitle());
+//        document.setDescription(request.getDescription());
+//        document.setFileUrl(request.getFileUrl());
+//        document.setThumbnailUrl(request.getThumbnailUrl());
+//        document.setFileType(request.getFileType());
+//        document.setFileSize(request.getFileSize());
+//        document.setVisibility(request.getVisibility());
+//
 //        document.setUploadStatus(UploadStatus.DONE);
 //
 //        document.setUploadedBy(user);
 //        document.setSubject(subject);
-
-        return documentRepository.save(document);
+//
+//        return documentRepository.save(document);
+        return null;
     }
 
     @Override
