@@ -46,9 +46,11 @@ const SignUpPage = () => {
 
     setIsLoading(true);
     try {
-      const response = await axiosClient.post("/api/auth/register", {
+      // SỬA CHỖ NÀY: Thêm username gán bằng formData.email (hoặc lấy phần trước chữ @)
+      const response = await axiosClient.post("/api/auth/signup", {
         fullName: formData.fullName,
         email: formData.email,
+        username: formData.email, // Ép Backend nhận email làm username luôn
         password: formData.password,
       });
 
@@ -59,9 +61,10 @@ const SignUpPage = () => {
       }
     } catch (error) {
       console.error("SignUp error:", error.response?.data || error.message);
-      alert(
-        "Sign up failed! The email might already be in use or there's a connection issue.",
-      );
+      
+      // CẬP NHẬT: Hiện tin nhắn lỗi chi tiết từ Backend trả về để dễ debug
+      const serverMessage = error.response?.data?.message || "Sign up failed! Please check your connection.";
+      alert("Lỗi: " + serverMessage);
     } finally {
       setIsLoading(false);
     }
