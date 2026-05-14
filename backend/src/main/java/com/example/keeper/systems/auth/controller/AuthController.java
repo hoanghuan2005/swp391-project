@@ -1,7 +1,8 @@
-package com.example.keeper.controller;
+package com.example.keeper.systems.auth.controller;
 
-import com.example.keeper.dto.RegisterRequest;
-import com.example.keeper.service.AuthService;
+import com.example.keeper.systems.auth.dto.LoginRequest;
+import com.example.keeper.systems.auth.dto.RegisterRequest;
+import com.example.keeper.systems.auth.service.AuthService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -20,7 +21,7 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<String> login(@RequestBody com.example.keeper.dto.LoginRequest request) {
+    public ResponseEntity<String> login(@RequestBody LoginRequest request) {
         String token = authService.login(request);
         return ResponseEntity.ok(token);
     }

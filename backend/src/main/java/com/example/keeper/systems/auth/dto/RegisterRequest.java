@@ -1,4 +1,4 @@
-package com.example.keeper.dto;
+package com.example.keeper.systems.auth.dto;
 import lombok.Data;
 
 @Data

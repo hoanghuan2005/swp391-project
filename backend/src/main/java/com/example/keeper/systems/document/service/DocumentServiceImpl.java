@@ -3,6 +3,7 @@ package com.example.keeper.systems.document.service;
 import com.example.keeper.systems.document.dto.request.CreateDocumentRequest;
 import com.example.keeper.systems.document.entity.Document;
 import com.example.keeper.systems.document.repository.DocumentRepository;
+import com.example.keeper.systems.subject.entity.Subject;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -20,11 +21,11 @@ public class DocumentServiceImpl implements DocumentService {
     @Override
     public Document create(CreateDocumentRequest request) {
 
-        User user = userRepository.findById(request.getUploadedById())
-                .orElseThrow();
+//        User user = userRepository.findById(request.getUploadedById())
+//                .orElseThrow();
 
-        Subject subject = subjectRepository.findById(request.getSubjectId())
-                .orElseThrow();
+//        Subject subject = subjectRepository.findById(request.getSubjectId())
+//                .orElseThrow();
 
         Document document = new Document();
 
@@ -36,10 +37,10 @@ public class DocumentServiceImpl implements DocumentService {
         document.setFileSize(request.getFileSize());
         document.setVisibility(request.getVisibility());
 
-        document.setUploadStatus(UploadStatus.DONE);
-
-        document.setUploadedBy(user);
-        document.setSubject(subject);
+//        document.setUploadStatus(UploadStatus.DONE);
+//
+//        document.setUploadedBy(user);
+//        document.setSubject(subject);
 
         return documentRepository.save(document);
     }

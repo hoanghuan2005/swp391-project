@@ -1,6 +1,6 @@
 package com.example.keeper.config;
 
-import com.example.keeper.service.JwtService;
+import com.example.keeper.systems.auth.service.JwtService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;

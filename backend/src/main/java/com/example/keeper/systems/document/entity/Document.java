@@ -2,13 +2,18 @@ package com.example.keeper.systems.document.entity;
 
 import com.example.keeper.systems.base.BaseEntity;
 import com.example.keeper.systems.document.enums.Visibility;
+import com.example.keeper.systems.subject.entity.Subject;
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Getter
 @Setter
 @Entity
+@NoArgsConstructor
+@AllArgsConstructor
 @Table(name = "documents")
 public class Document extends BaseEntity {
 
@@ -45,7 +50,7 @@ public class Document extends BaseEntity {
 //    @JoinColumn(name = "uploaded_by", nullable = false)
 //    private User uploadedBy;
 
-//    @ManyToOne
-//    @JoinColumn(name = "subject_id", nullable = false)
-//    private Subject subject;
+    @ManyToOne
+    @JoinColumn(name = "student_id", nullable = false)
+    private Subject subject;
 }
