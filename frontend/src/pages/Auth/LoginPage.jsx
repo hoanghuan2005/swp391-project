@@ -32,14 +32,18 @@ const LoginPage = () => {
         email: email,
         password: password,
       });
-      if (response.data.token) {
-        localStorage.setItem("token", response.data.token);
+
+      if (response.data) {
+        const token = response.data;
+        localStorage.setItem("token", token);
         fireSuccessConfetti();
         setTimeout(() => navigate("/dashboard"), 1500);
       }
     } catch (error) {
-      console.error("Login error:", error.response?.data || error.message);
-      alert("Failed to log in!");
+      const errorMsg = error.response?.data || error.message;
+      console.error("Login error detail:", errorMsg);
+
+      alert("Login Failed: " + errorMsg);
     } finally {
       setIsLoading(false);
     }
@@ -60,7 +64,7 @@ const LoginPage = () => {
         console.error("Error:", err.response?.data || err.message);
         alert(
           "Error: " +
-            (err.response?.data?.message || "Cannot connect to Backend"),
+          (err.response?.data?.message || "Cannot connect to Backend"),
         );
       }
     },

@@ -1,13 +1,18 @@
 import React, { useState, useRef, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import backgroundImage from "../../assets/picture-study.png";
 import { Lock } from "lucide-react";
+import axiosClient from "../../api/axiosClient"; // Đảm bảo bạn đã import axiosClient
 
 const VerifyOTPPage = () => {
     const [otp, setOtp] = useState(new Array(6).fill(""));
     const [timer, setTimer] = useState(59);
+    const [isResending, setIsResending] = useState(false); // THÊM DÒNG NÀY
     const inputRefs = useRef([]);
     const navigate = useNavigate();
+
+    const location = useLocation();
+    const email = location.state?.email || "your email";
 
     useEffect(() => {
         if (timer > 0) {
@@ -38,8 +43,7 @@ const VerifyOTPPage = () => {
             inputRefs.current[index - 1].focus();
         } else if (e.key === "ArrowRight" && index < 5) {
             inputRefs.current[index + 1].focus();
-        }
-        else if (e.key === "Enter") {
+        } else if (e.key === "Enter") {
             handleVerify(e);
         }
     };
@@ -54,19 +58,49 @@ const VerifyOTPPage = () => {
             if (index < 6) newOtp[index] = char;
         });
         setOtp(newOtp);
-
         const nextIndex = data.length < 6 ? data.length : 5;
         inputRefs.current[nextIndex].focus();
     };
 
-    const handleVerify = (e) => {
+    // HÀM VERIFY ĐÃ CẬP NHẬT GỌI API
+    const handleVerify = async (e) => {
         e.preventDefault();
         const code = otp.join("");
         if (code.length < 6) {
-            alert("Input 6 numbers!");
+            alert("Please input all 6 numbers!");
             return;
         }
-        navigate("/change-password");
+
+        try {
+            // Gọi API kiểm tra OTP (Sử dụng đúng Endpoint bạn vừa tạo ở Controller)
+            // TRONG VerifyOTPPage.jsx
+            const response = await axiosClient.post(`/api/auth/verify-otp?email=${email}&otp=${code}`);
+            if (response.status === 200) {
+                // ĐÚNG MÃ -> Mới cho sang trang đổi mật khẩu
+                navigate("/change-password", { state: { email, otp: code } });
+            }
+        } catch (error) {
+            console.error("Verify error:", error.response?.data);
+            alert(error.response?.data || "Invalid OTP Code!");
+
+            // Tùy chọn: Xóa OTP cũ để người dùng nhập lại từ đầu
+            setOtp(new Array(6).fill(""));
+            inputRefs.current[0].focus();
+        }
+    };
+
+    const handleResendOTP = async () => {
+        setIsResending(true);
+        try {
+            await axiosClient.post(`/api/auth/forgot-password?email=${email}`);
+            alert("A new OTP Code has been sent!");
+            setTimer(59);
+        } catch (error) {
+            console.error("Resend error:", error);
+            alert("Can't resend OTP, please try again later.");
+        } finally {
+            setIsResending(false);
+        }
     };
 
     return (
@@ -76,17 +110,15 @@ const VerifyOTPPage = () => {
 
             <div className="relative z-10 w-full max-w-sm bg-white rounded-[40px] p-8 shadow-2xl text-center">
                 <div className="flex justify-center mb-6">
-                    <div className="flex justify-center mb-4">
-                        <div className="w-14 h-14 bg-[#f26522]/10 rounded-2xl flex items-center justify-center">
-                            <Lock className="text-[#f26522]" size={32} />
-                        </div>
+                    <div className="w-14 h-14 bg-[#f26522]/10 rounded-2xl flex items-center justify-center">
+                        <Lock className="text-[#f26522]" size={32} />
                     </div>
                 </div>
 
                 <h2 className="text-3xl font-bold text-slate-900 mb-2">Verify Account</h2>
                 <p className="text-slate-400 text-xs mb-8 leading-relaxed">
                     Check your email for the code sent to<br />
-                    <span className="text-[#f26522] font-semibold">user@gmail.com</span>
+                    <span className="text-[#f26522] font-semibold">{email}</span>
                 </p>
 
                 <div className="flex justify-between gap-2 mb-8" onPaste={handlePaste}>
@@ -113,10 +145,18 @@ const VerifyOTPPage = () => {
                 </button>
 
                 <p className="text-xs text-slate-400 font-medium">
-                    Didn't receive code? <button disabled={timer > 0} className="text-[#f26522] font-bold hover:underline disabled:opacity-50">Resend ({timer}s)</button>
+                    Didn't receive code?{" "}
+                    <button
+                        onClick={handleResendOTP}
+                        disabled={timer > 0 || isResending}
+                        className="text-[#f26522] font-bold hover:underline disabled:opacity-50"
+                    >
+                        {isResending ? "Sending..." : `Resend (${timer}s)`}
+                    </button>
                 </p>
             </div>
         </div>
     );
 };
+
 export default VerifyOTPPage;

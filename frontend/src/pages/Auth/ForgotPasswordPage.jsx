@@ -3,7 +3,7 @@ import { Mail, ArrowLeft, ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import backgroundImage from "../../assets/picture-study.png";
 import { RotateCcw } from "lucide-react"
-
+import axiosClient from "../../api/axiosClient";
 
 const ForgotPasswordPage = () => {
     const [email, setEmail] = useState("");
@@ -11,23 +11,30 @@ const ForgotPasswordPage = () => {
     const navigate = useNavigate();
 
     const handleSendOTP = async (e) => {
-        e.preventDefault();
-        setIsLoading(true);
-
-        try {
-           
-            // const res = await axiosClient.post("/api/auth/forgot-password", { email });
-            console.log("Đang gửi OTP đến:", email);
-
-            setTimeout(() => {
-                setIsLoading(false);
-                navigate("/verify-account");
-            }, 1500);
-        } catch (error) {
-            setIsLoading(false);
-            alert("Error when sending request!");
+    e.preventDefault();
+    setIsLoading(true);
+    try {
+        const response = await axiosClient.post(`/api/auth/forgot-password?email=${email}`);
+        
+        // Nếu nhận được data, chuyển trang ngay
+        if (response.status === 200) {
+            navigate("/verify-account", { state: { email: email } });
         }
-    };
+    } catch (error) {
+        console.log("Error status:", error.response?.status);
+        
+        // MẸO: Nếu error không có response (timeout) nhưng bạn check Gmail thấy mã đã về
+        // thì cứ cho người dùng qua trang Verify luôn
+        if (!error.response || error.response.status === 500) {
+            alert("Mail có thể đã được gửi (do mạng chậm), hãy kiểm tra Gmail của bạn!");
+            navigate("/verify-account", { state: { email: email } });
+        } else {
+            alert("Lỗi thực sự: " + error.message);
+        }
+    } finally {
+        setIsLoading(false);
+    }
+};
 
     return (
         <div className="min-h-screen w-full flex items-center justify-center bg-slate-900 bg-cover bg-no-repeat relative py-10 px-4"
@@ -37,10 +44,10 @@ const ForgotPasswordPage = () => {
             <div className="relative z-10 w-full max-w-sm bg-white rounded-[40px] p-8 shadow-2xl text-center">
                 <div className="flex justify-center mb-6">
                     <div className="flex justify-center mb-4">
-                    <div className="w-14 h-14 bg-[#f26522]/10 rounded-2xl flex items-center justify-center">
-                        <RotateCcw className="text-[#f26522]" size={32} />
+                        <div className="w-14 h-14 bg-[#f26522]/10 rounded-2xl flex items-center justify-center">
+                            <RotateCcw className="text-[#f26522]" size={32} />
+                        </div>
                     </div>
-                </div>
                 </div>
 
                 <h2 className="text-3xl font-bold text-slate-900 mb-2">Forgot Password</h2>

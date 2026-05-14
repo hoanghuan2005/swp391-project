@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { Lock, Eye, EyeOff, ShieldCheck } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom"; // Thêm useLocation
 import backgroundImage from "../../assets/picture-study.png";
+import axiosClient from "../../api/axiosClient"; // Import axiosClient của bạn
 
 const ChangePasswordPage = () => {
     const [showPass, setShowPass] = useState(false);
@@ -10,6 +11,10 @@ const ChangePasswordPage = () => {
     const [confirmPassword, setConfirmPassword] = useState("");
     
     const navigate = useNavigate();
+    const location = useLocation();
+
+    // Lấy email và otp đã được truyền từ trang VerifyOTP sang
+    const { email, otp } = location.state || {};
 
     const handleUpdatePassword = async (e) => {
         e.preventDefault();
@@ -19,18 +24,31 @@ const ChangePasswordPage = () => {
             return;
         }
 
+        if (!email || !otp) {
+            alert("Missing session information. Please start over.");
+            navigate("/forgot-password");
+            return;
+        }
+
         setIsLoading(true);
 
         try {
-            console.log("Updating new password...");
-            
-            // Đợi 1.5s cho nó giống thật
-            await new Promise(resolve => setTimeout(resolve, 1500));
+            // GỌI API THẬT ĐỂ ĐỔI MẬT KHẨU TRONG DATABASE
+            const response = await axiosClient.post("/api/auth/reset-password", null, {
+                params: {
+                    email: email,
+                    otp: otp,
+                    newPassword: password
+                }
+            });
 
-            alert("Password changed successfully! Please log in again.");
-            navigate("/login");
+            if (response.status === 200) {
+                alert("Password changed successfully! Please log in with your new password.");
+                navigate("/login");
+            }
         } catch (error) {
-            alert("Something went wrong, please try again later!");
+            console.error("Update password error:", error.response?.data);
+            alert(error.response?.data || "Something went wrong, please try again later!");
         } finally {
             setIsLoading(false);
         }
@@ -49,8 +67,10 @@ const ChangePasswordPage = () => {
                     </div>
                 </div>
 
-                <h2 className="text-3xl font-bold text-slate-900 mb-2">Change Password</h2>
-                <p className="text-slate-400 text-xs mb-8">Secure your account by updating your password.</p>
+                <h2 className="text-3xl font-bold text-slate-900 mb-2">New Password</h2>
+                <p className="text-slate-400 text-xs mb-8">
+                    Resetting password for: <span className="text-[#f26522] font-semibold">{email}</span>
+                </p>
 
                 <form onSubmit={handleUpdatePassword} className="space-y-4 text-left">
                     {/* New Password */}
