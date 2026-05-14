@@ -1,16 +1,16 @@
-package com.example.keeper.entity;
+package com.example.keeper.systems.auth.entity;
 
+import com.example.keeper.systems.base.BaseEntity;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 @Entity
 @Table(name = "users") //
 @Data
-public class User {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+@EqualsAndHashCode(callSuper = true)
+public class User extends BaseEntity {
 
     @Column(unique = true, nullable = false)
     private String username;
@@ -23,4 +23,8 @@ public class User {
     private String password;
 
     private String resetToken;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "role_id")
+    private Role role;
 }

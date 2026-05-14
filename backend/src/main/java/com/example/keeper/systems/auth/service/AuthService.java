@@ -1,9 +1,9 @@
-package com.example.keeper.service;
+package com.example.keeper.systems.auth.service;
 
-import com.example.keeper.dto.RegisterRequest;
-import com.example.keeper.dto.LoginRequest; // Đã thêm import cho gọn
-import com.example.keeper.entity.User;
-import com.example.keeper.repository.UserRepository;
+import com.example.keeper.systems.auth.dto.RegisterRequest;
+import com.example.keeper.systems.auth.dto.LoginRequest; // Đã thêm import cho gọn
+import com.example.keeper.systems.auth.entity.User;
+import com.example.keeper.systems.auth.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -26,6 +26,12 @@ public class AuthService {
         user.setEmail(request.getEmail());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
 
+        // Thêm role mặc định khi đăng ký (ở đây để STUDENT mặc định)
+        // Lưu ý: Import RoleRepository nếu cần, hoặc tự set
+        // Hiện tại tạm comment, nếu project có form register cần truyền Role thì thêm
+        // sau
+        // user.setRole(roleRepository.findByName("STUDENT").orElse(null));
+
         userRepository.save(user);
         return "User registered successfully!";
     }
@@ -38,7 +44,11 @@ public class AuthService {
             return "Invalid email or password!";
         }
 
-        return jwtService.generateToken(user.getEmail());
+        // Return token and Role separated by colon or in json, but existing code
+        // returns String token
+        // We will include role in JWT Token body next, but for simplicity we will
+        // return Token
+        return jwtService.generateToken(user);
     }
 
     public String forgotPassword(String email) {
@@ -86,4 +96,3 @@ public class AuthService {
         return user.getResetToken() != null && user.getResetToken().equals(otp);
     }
 }
-

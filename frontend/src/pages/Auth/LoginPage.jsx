@@ -3,6 +3,7 @@ import { Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useGoogleLogin } from "@react-oauth/google";
 import confetti from "canvas-confetti";
+import { jwtDecode } from "jwt-decode";
 
 import axiosClient from "../../api/axiosClient";
 import backgroundImage from "../../assets/picture-study.png";
@@ -36,8 +37,23 @@ const LoginPage = () => {
       if (response.data) {
         const token = response.data;
         localStorage.setItem("token", token);
-        fireSuccessConfetti();
-        setTimeout(() => navigate("/dashboard"), 1500);
+
+        try {
+          const decoded = jwtDecode(token);
+          const role = decoded.role;
+
+          fireSuccessConfetti();
+          setTimeout(() => {
+            if (role === "ADMIN") {
+              navigate("/dashboard");
+            } else {
+              navigate("/home");
+            }
+          }, 1500);
+        } catch (e) {
+          console.error("Token decode error", e);
+          navigate("/home");
+        }
       }
     } catch (error) {
       const errorMsg = error.response?.data || error.message;
@@ -57,14 +73,29 @@ const LoginPage = () => {
         });
         if (res.data.token) {
           localStorage.setItem("token", res.data.token);
-          fireSuccessConfetti();
-          setTimeout(() => navigate("/dashboard"), 1500);
+
+          try {
+            const decoded = jwtDecode(res.data.token);
+            const role = decoded.role;
+
+            fireSuccessConfetti();
+            setTimeout(() => {
+              if (role === "ADMIN") {
+                navigate("/dashboard");
+              } else {
+                navigate("/home");
+              }
+            }, 1500);
+          } catch (e) {
+            console.error("Token decode error", e);
+            navigate("/home");
+          }
         }
       } catch (err) {
         console.error("Error:", err.response?.data || err.message);
         alert(
           "Error: " +
-          (err.response?.data?.message || "Cannot connect to Backend"),
+            (err.response?.data?.message || "Cannot connect to Backend"),
         );
       }
     },

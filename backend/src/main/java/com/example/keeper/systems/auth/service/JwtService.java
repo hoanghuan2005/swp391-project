@@ -1,5 +1,6 @@
-package com.example.keeper.service;
+package com.example.keeper.systems.auth.service;
 
+import com.example.keeper.systems.auth.entity.User;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
@@ -8,18 +9,25 @@ import org.springframework.stereotype.Service;
 
 import java.security.Key;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 
 @Service
 public class JwtService {
 
-    private static final String SECRET_KEY = "404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970";
+    // Mã bí mật dài hơn (ít nhất 512 bits / 64 bytes) được mã hóa Base64
+    private static final String SECRET_KEY = "ZXhhbXBsZVNlY3JldEtleVRoYXRJc1ZlcnlMb25nQW5kU2VjdXJlRW5vdWdoVG9CZVVzZWRGb3JIUzUxMlNpZ25hdHVyZXNTb0l0TmVlZHNUb0JlQXRMZWFzdDY0Qnl0ZXM=";
 
-    public String generateToken(String email) {
+    public String generateToken(User user) {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("role", user.getRole() != null ? user.getRole().getName() : "STUDENT");
+
         return Jwts.builder()
-                .setSubject(email)
+                .setClaims(claims)
+                .setSubject(user.getEmail())
                 .setIssuedAt(new Date(System.currentTimeMillis()))
                 .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60 * 24))
-                .signWith(getSignInKey(), SignatureAlgorithm.HS256)
+                .signWith(getSignInKey(), SignatureAlgorithm.HS512)
                 .compact();
     }
 

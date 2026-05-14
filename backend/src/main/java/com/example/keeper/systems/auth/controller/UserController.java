@@ -1,7 +1,7 @@
-package com.example.keeper.controller;
+package com.example.keeper.systems.auth.controller;
 
-import com.example.keeper.entity.User;
-import com.example.keeper.repository.UserRepository;
+import com.example.keeper.systems.auth.entity.User;
+import com.example.keeper.systems.auth.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;

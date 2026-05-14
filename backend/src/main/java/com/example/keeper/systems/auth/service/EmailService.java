@@ -1,4 +1,4 @@
-package com.example.keeper.service;
+package com.example.keeper.systems.auth.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.mail.SimpleMailMessage;
