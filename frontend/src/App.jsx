@@ -3,11 +3,13 @@ import MainLayout from "./components/layout/MainLayout";
 import Homepage from "./pages/Homepage";
 import LandingPage from "./pages/LandingPage";
 import ProfilePage from "./pages/ProfilePage";
+import MyLibrary from "./pages/MyLibrary";
 import LoginPage from "./pages/Auth/LoginPage";
 import SignUpPage from "./pages/Auth/SignUpPage";
 import VerifyOTPPage from "./pages/Auth/VerifyOTPPage";
 import ChangePasswordPage from "./pages/Auth/ChangePasswordPage";
 import ForgotPasswordPage from "./pages/Auth/ForgotPasswordPage";
+import Survey from "./pages/Survey";
 
 function ComingSoon({ pageName }) {
   return (
@@ -31,15 +33,13 @@ function App() {
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/verify-account" element={<VerifyOTPPage />} />
         <Route path="/change-password" element={<ChangePasswordPage />} />
+        <Route path="/survey" element={<Survey />} />
 
         {/* Dashboard layout */}
         <Route element={<MainLayout />}>
           <Route path="/home" element={<Homepage />} />
           <Route path="/profile" element={<ProfilePage />} />
-          <Route
-            path="/my-library"
-            element={<ComingSoon pageName="My Library" />}
-          />
+          <Route path="/my-library" element={<MyLibrary />} />
           <Route
             path="/ai-notes"
             element={<ComingSoon pageName="AI Notes" />}

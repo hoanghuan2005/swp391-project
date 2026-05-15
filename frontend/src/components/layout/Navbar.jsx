@@ -12,7 +12,7 @@ export default function Navbar({ onMenuClick }) {
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
   return (
-    <div className="w-full bg-white border-b border-gray-100 py-2.5 sticky top-0 z-50">
+    <div className="w-full bg-white border-b border-gray-100 py-2.5 sticky top-0 z-50 shadow-sm/5 backdrop-blur-sm">
       <div className="w-full pr-4 sm:pr-6 flex items-center justify-between gap-2">
 
         <div className="flex items-center shrink-0">

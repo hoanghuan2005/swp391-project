@@ -29,7 +29,6 @@ import {
 } from "lucide-react";
 
 export default function Homepage() {
-  const [quickActionOpen, setQuickActionOpen] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
 
   const sampleDocs = new Array(6).fill(0).map((_, i) => ({
@@ -38,68 +37,12 @@ export default function Homepage() {
     desc: "Short description or course name",
   }));
 
-  const handleOpenUpload = () => {
-    setQuickActionOpen(false);
-    setTimeout(() => {
-      setUploadOpen(true);
-    }, 150);
-  };
-
   return (
     <>
       <div className="flex items-center justify-between mb-8">
         <h2 className="text-[26px] font-bold text-slate-800 tracking-tight font-sans">
           ShareDocs — Chia sẻ tài liệu
         </h2>
-        <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            className="hidden sm:inline-flex rounded-full border-gray-200"
-            onClick={() => setUploadOpen(true)}
-          >
-            Upload
-          </Button>
-
-          <Dialog open={quickActionOpen} onOpenChange={setQuickActionOpen}>
-            <DialogTrigger asChild>
-              <Button className="rounded-full bg-[#f26522] hover:bg-[#d95316] text-white font-medium px-5">
-                New Create
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-md rounded-2xl">
-              <DialogHeader>
-                <DialogTitle className="text-xl">Quick Actions</DialogTitle>
-                <DialogDescription>
-                  Choose what you want to create or explore today.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid grid-cols-2 gap-4 py-4">
-                <Button
-                  variant="outline"
-                  className="h-24 flex flex-col items-center justify-center gap-2 rounded-xl hover:border-[#f26522] hover:text-[#f26522] transition-colors"
-                  onClick={handleOpenUpload}
-                >
-                  <UploadCloud size={28} />
-                  <span className="font-semibold">Upload Document</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  className="h-24 flex flex-col items-center justify-center gap-2 rounded-xl hover:border-blue-500 hover:text-blue-500 transition-colors"
-                >
-                  <Bot size={28} />
-                  <span className="font-semibold">AI Ask</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  className="h-24 flex flex-col items-center justify-center gap-2 rounded-xl hover:border-green-500 hover:text-green-500 transition-colors"
-                >
-                  <FileQuestion size={28} />
-                  <span className="font-semibold">AI Quiz</span>
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-        </div>
       </div>
 
       <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>

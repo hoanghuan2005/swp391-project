@@ -4,6 +4,7 @@ import com.example.keeper.systems.document.enums.Visibility;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.List;
 import java.util.UUID;
 
 @Getter
@@ -27,4 +28,10 @@ public class CreateDocumentRequest {
     private UUID uploadedById;
 
     private UUID subjectId;
+
+    private String subjectCode;
+
+    private String subjectName;
+
+    private List<String> tagNames;
 }

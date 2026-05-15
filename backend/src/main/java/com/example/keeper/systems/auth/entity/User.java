@@ -6,6 +6,9 @@ import jakarta.persistence.*;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
+import java.util.HashSet;
+import java.util.Set;
+
 @Entity
 @Table(name = "users") //
 @Data
@@ -23,6 +26,19 @@ public class User extends BaseEntity {
     private String password;
 
     private String resetToken;
+
+    private String school;
+
+    @Column(name = "study_start_year")
+    private Integer studyStartYear;
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "user_preferred_languages", joinColumns = @JoinColumn(name = "user_id"))
+    @Column(name = "language")
+    private Set<String> preferredLanguages = new HashSet<>();
+
+    @Column(name = "survey_completed")
+    private boolean surveyCompleted;
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "role_id")

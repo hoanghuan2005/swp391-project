@@ -1,13 +1,18 @@
 package com.example.keeper.systems.document.entity;
 
+import com.example.keeper.systems.auth.entity.User;
 import com.example.keeper.systems.base.BaseEntity;
 import com.example.keeper.systems.document.enums.Visibility;
 import com.example.keeper.systems.subject.entity.Subject;
+import com.example.keeper.systems.tag.entity.Tag;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+
+import java.util.HashSet;
+import java.util.Set;
 
 @Getter
 @Setter
@@ -26,6 +31,9 @@ public class Document extends BaseEntity {
     @Column(name = "file_url", nullable = false)
     private String fileUrl;
 
+    @Column(name = "file_public_id")
+    private String filePublicId;
+
     @Column(name = "thumbnail_url")
     private String thumbnailUrl;
 
@@ -39,18 +47,22 @@ public class Document extends BaseEntity {
     @Column(nullable = false)
     private Visibility visibility;
 
-//    @Enumerated(EnumType.STRING)
-//    @Column(name = "upload_status", nullable = false)
-//    private UploadStatus uploadStatus;
+    // @Enumerated(EnumType.STRING)
+    // @Column(name = "upload_status", nullable = false)
+    // private UploadStatus uploadStatus;
 
     @Column(name = "download_count")
     private Integer downloadCount = 0;
 
-//    @ManyToOne
-//    @JoinColumn(name = "uploaded_by", nullable = false)
-//    private User uploadedBy;
+    @ManyToOne
+    @JoinColumn(name = "uploaded_by", nullable = false)
+    private User uploadedBy;
 
     @ManyToOne
     @JoinColumn(name = "student_id", nullable = false)
     private Subject subject;
+
+    @ManyToMany
+    @JoinTable(name = "document_tags", joinColumns = @JoinColumn(name = "document_id"), inverseJoinColumns = @JoinColumn(name = "tag_id"))
+    private Set<Tag> tags = new HashSet<>();
 }

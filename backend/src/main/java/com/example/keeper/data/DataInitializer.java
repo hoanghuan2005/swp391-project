@@ -4,6 +4,12 @@ import com.example.keeper.systems.auth.entity.Role;
 import com.example.keeper.systems.auth.entity.User;
 import com.example.keeper.systems.auth.repository.RoleRepository;
 import com.example.keeper.systems.auth.repository.UserRepository;
+import com.example.keeper.systems.school.entity.School;
+import com.example.keeper.systems.school.repository.SchoolRepository;
+import com.example.keeper.systems.subject.entity.Subject;
+import com.example.keeper.systems.subject.repository.SubjectRepository;
+import com.example.keeper.systems.tag.entity.Tag;
+import com.example.keeper.systems.tag.repository.TagRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -16,6 +22,9 @@ public class DataInitializer implements CommandLineRunner {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
+    private final SchoolRepository schoolRepository;
+    private final SubjectRepository subjectRepository;
+    private final TagRepository tagRepository;
 
     @Override
     public void run(String... args) throws Exception {
@@ -51,6 +60,27 @@ public class DataInitializer implements CommandLineRunner {
             System.out.println("   - Student ($STUDENT) : student / student123");
         } else {
             System.out.println("⚡ Dữ liệu người dùng đã tồn tại, bỏ qua DataInitializer.");
+        }
+
+        if (schoolRepository.count() == 0) {
+            schoolRepository.save(School.builder()
+                    .code("FPT")
+                    .name("FPT University")
+                    .description("FPT University")
+                    .build());
+        }
+
+        if (subjectRepository.count() == 0) {
+            subjectRepository.save(new Subject(
+                    "SWP391",
+                    "Software Architecture and Design",
+                    "Core architecture concepts and design patterns"));
+        }
+
+        if (tagRepository.count() == 0) {
+            tagRepository.save(new Tag("Final Exam"));
+            tagRepository.save(new Tag("Slide"));
+            tagRepository.save(new Tag("Assignment"));
         }
     }
 }
