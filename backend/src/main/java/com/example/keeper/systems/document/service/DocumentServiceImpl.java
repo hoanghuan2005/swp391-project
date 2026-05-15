@@ -3,6 +3,7 @@ package com.example.keeper.systems.document.service;
 import com.example.keeper.systems.document.dto.request.CreateDocumentRequest;
 import com.example.keeper.systems.document.entity.Document;
 import com.example.keeper.systems.document.repository.DocumentRepository;
+import com.example.keeper.systems.subject.entity.Subject;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
