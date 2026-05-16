@@ -3,14 +3,15 @@ import { Outlet } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import Navbar from "./Navbar";
 import Survey from "@/pages/Survey";
+import LogoutModal from "@/components/ui/LogoutModal"; // 1. Import LogoutModal vào đây
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
 export default function MainLayout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-
   const [showSurvey, setShowSurvey] = useState(false);
   const [showSurveyReminder, setShowSurveyReminder] = useState(false);
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false); // 2. Quản lý state mở modal ở đây
 
   useEffect(() => {
     const surveyCompleted = localStorage.getItem("surveyCompleted") === "true";
@@ -27,8 +28,11 @@ export default function MainLayout() {
 
   return (
     <div className="h-screen bg-white text-slate-900 font-sans flex flex-col overflow-hidden">
-      {/* Navbar */}
-      <Navbar onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
+      {/* Navbar - 3. Truyền prop onLogoutClick xuống cho Navbar */}
+      <Navbar 
+        onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} 
+        onLogoutClick={() => setIsLogoutModalOpen(true)} 
+      />
 
       {/* Main */}
       <div className="flex-1 flex overflow-hidden">
@@ -69,6 +73,12 @@ export default function MainLayout() {
           }}
         />
       )}
+
+      {/* 4. Đặt LogoutModal ở đây - Tầng cao nhất của toàn bộ Layout, z-50 là đủ bao trọn màn hình */}
+      <LogoutModal
+        isOpen={isLogoutModalOpen}
+        onClose={() => setIsLogoutModalOpen(false)}
+      />
     </div>
   );
 }

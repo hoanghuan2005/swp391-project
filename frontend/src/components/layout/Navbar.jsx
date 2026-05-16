@@ -3,18 +3,16 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, Mic, Menu, BookOpen, LogOut, User, Settings } from "lucide-react";
 import { Link } from "react-router-dom";
-import LogoutModal from "@/components/ui/LogoutModal"; 
-// //import { cn } from "@/lib/utils";
+// FIX: Xóa bỏ dòng import LogoutModal không cần thiết ở đây nữa
 
-
-export default function Navbar({ onMenuClick }) {
+export default function Navbar({ onMenuClick, onLogoutClick }) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
   return (
     <div className="w-full bg-white border-b border-gray-100 py-2.5 sticky top-0 z-50 shadow-sm/5 backdrop-blur-sm">
       <div className="w-full pr-4 sm:pr-6 flex items-center justify-between gap-2">
 
+        {/* Logo & Menu Button */}
         <div className="flex items-center shrink-0">
           <div className="w-[72px] flex items-center justify-center shrink-0">
             <Button
@@ -33,6 +31,7 @@ export default function Navbar({ onMenuClick }) {
           </Link>
         </div>
 
+        {/* Search Bar */}
         <div className="flex-1 max-w-2xl flex items-center gap-4 px-2">
           <div className="relative w-full">
             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
@@ -52,6 +51,7 @@ export default function Navbar({ onMenuClick }) {
           </Button>
         </div>
 
+        {/* User Profile Dropdown */}
         <div className="relative flex items-center gap-4 shrink-0">
           <div className="hidden sm:flex flex-col items-end mr-1">
             <span className="text-sm font-bold text-slate-800 leading-tight">Huân Hoàng</span>
@@ -67,19 +67,21 @@ export default function Navbar({ onMenuClick }) {
 
           {isDropdownOpen && (
             <>
+              {/* Overlay ẩn để bấm ra ngoài dropdown thì tự đóng */}
               <div className="fixed inset-0 z-30 bg-transparent cursor-default" onClick={() => setIsDropdownOpen(false)} />
 
+              {/* Menu con */}
               <div className="absolute right-0 top-12 w-48 bg-white rounded-xl shadow-xl border border-slate-100 py-1.5 z-40">
                 <Link
                   to="/profile"
-                  onClick={() => setIsDropdownOpen(false)} 
+                  onClick={() => setIsDropdownOpen(false)}
                   className="w-full px-4 py-2 text-left text-xs font-semibold text-slate-600 hover:bg-slate-50 flex items-center gap-2.5 transition-colors block rounded-t-xl"
                 >
                   <User size={15} className="text-slate-400" />
                   My Profile
                 </Link>
 
-                <button className="w-full px-4 py-2 text-left text-xs font-semibold text-slate-600 hover:bg-slate-50 flex items-center gap-2.5 transition-colors">
+                <button className="w-full px-4 py-2 text-left text-xs font-semibold text-slate-600 hover:bg-slate-50 flex items-center gap-2.5 transition-colors cursor-pointer">
                   <Settings size={15} className="text-slate-400" />
                   Account Settings
                 </button>
@@ -89,9 +91,9 @@ export default function Navbar({ onMenuClick }) {
                 <button
                   onClick={() => {
                     setIsDropdownOpen(false);
-                    setIsLogoutModalOpen(true);
+                    onLogoutClick(); // Kích hoạt hàm mở modal truyền từ MainLayout xuống
                   }}
-                  className="w-full px-4 py-2 text-left text-xs font-bold text-red-500 hover:bg-red-50 flex items-center gap-2.5 transition-colors rounded-b-xl"
+                  className="w-full px-4 py-2 text-left text-xs font-bold text-red-500 hover:bg-red-50 flex items-center gap-2.5 transition-colors rounded-b-xl cursor-pointer"
                 >
                   <LogOut size={15} className="text-red-500" />
                   Log Out
@@ -102,11 +104,8 @@ export default function Navbar({ onMenuClick }) {
         </div>
 
       </div>
-
-      <LogoutModal
-        isOpen={isLogoutModalOpen}
-        onClose={() => setIsLogoutModalOpen(false)}
-      />
+      
+      {/* FIX: Đã xóa hoàn toàn component LogoutModal cũ bị thừa ở đây */}
     </div>
   );
 }
