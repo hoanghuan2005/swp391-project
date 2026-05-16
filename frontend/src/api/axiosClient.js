@@ -16,4 +16,21 @@ axiosClient.interceptors.request.use((config) => {
   return config;
 });
 
+axiosClient.interceptors.response.use(
+  (response) => {
+    // Nếu API thành công (mã 200), cho đi tiếp bình thường
+    return response;
+  },
+  (error) => {
+    if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+      alert("Your session has expired or your account has been banned by Admin.");
+
+      localStorage.removeItem("token");
+
+      window.location.href = "/login";
+    }
+    return Promise.reject(error);
+  }
+);
+
 export default axiosClient;

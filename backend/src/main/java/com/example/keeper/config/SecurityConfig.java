@@ -30,6 +30,7 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+                .cors(org.springframework.security.config.Customizer.withDefaults())
                 .csrf(csrf -> csrf.disable()) // Vô hiệu hóa CSRF vì dùng JWT
                 .cors(Customizer.withDefaults()) // Sử dụng cấu hình corsConfigurationSource ở dưới
                 .sessionManagement(session ->

@@ -15,7 +15,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.Collections;
 
 @Component
 @RequiredArgsConstructor
@@ -45,7 +44,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             var user = userRepository.findByEmail(userEmail).orElseThrow();
 
-            // Lấy quyền từ Role của User (Ví dụ: "ADMIN")
+            // Tịch thu quyền truy cập nếu tài khoản bị khóa
+            if (user.isBanned()) {
+                response.sendError(HttpServletResponse.SC_FORBIDDEN, "Your account has been banned.");
+                return; // Dừng xử lý request tại đây
+            }
+
+            // Lấy quyền từ Role của User
             var authority = new org.springframework.security.core.authority
                     .SimpleGrantedAuthority(user.getRole().getName());
 

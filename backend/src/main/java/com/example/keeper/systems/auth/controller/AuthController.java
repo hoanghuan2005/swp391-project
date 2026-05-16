@@ -50,7 +50,7 @@ public class AuthController {
         boolean isValid = authService.verifyOtp(email, otp);
 
         if (isValid) {
-            return ResponseEntity.ok(java.util.Map.of("message", "OTP hợp lệ!"));
+            return ResponseEntity.ok(java.util.Map.of("message", "OTP is valid!"));
         } else {
             return ResponseEntity.status(org.springframework.http.HttpStatus.BAD_REQUEST)
                     .body("OTP code is not correct!");

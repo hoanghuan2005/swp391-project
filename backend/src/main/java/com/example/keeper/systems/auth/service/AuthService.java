@@ -1,7 +1,7 @@
 package com.example.keeper.systems.auth.service;
 
 import com.example.keeper.systems.auth.dto.RegisterRequest;
-import com.example.keeper.systems.auth.dto.LoginRequest; // Đã thêm import cho gọn
+import com.example.keeper.systems.auth.dto.LoginRequest;
 import com.example.keeper.systems.auth.entity.User;
 import com.example.keeper.systems.auth.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +16,7 @@ public class AuthService {
     private final JwtService jwtService;
     private final EmailService emailService;
 
+    // Đăng ký tài khoản
     public String register(RegisterRequest request) {
         if (userRepository.findByEmail(request.getEmail()).isPresent()) {
             return "Email already exists!";
@@ -26,34 +27,31 @@ public class AuthService {
         user.setEmail(request.getEmail());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
 
-        // Thêm role mặc định khi đăng ký (ở đây để STUDENT mặc định)
-        // Lưu ý: Import RoleRepository nếu cần, hoặc tự set
-        // Hiện tại tạm comment, nếu project có form register cần truyền Role thì thêm
-        // sau
-        // user.setRole(roleRepository.findByName("STUDENT").orElse(null));
-
         userRepository.save(user);
         return "User registered successfully!";
     }
 
+    // Đăng nhập bằng Email/Password
     public String login(LoginRequest request) {
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new RuntimeException("User not found!"));
+
+        // 🛑 CHỐT CHẶN: Kiểm tra xem tài khoản có bị khóa không
+        if (user.isBanned()) {
+            throw new RuntimeException("Your account has been banned by the Admin.");
+        }
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             return "Invalid email or password!";
         }
 
-        // Return token and Role separated by colon or in json, but existing code
-        // returns String token
-        // We will include role in JWT Token body next, but for simplicity we will
-        // return Token
         return jwtService.generateToken(user);
     }
 
+    // Quên mật khẩu
     public String forgotPassword(String email) {
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("Email không tồn tại!"));
+                .orElseThrow(() -> new RuntimeException("Email not found!"));
 
         // 1. Tạo mã OTP 6 số
         String otp = String.valueOf((int) (Math.random() * 900000) + 100000);
@@ -62,24 +60,24 @@ public class AuthService {
         user.setResetToken(otp);
         userRepository.save(user);
 
-        // 3. Gửi mail (Sử dụng đúng hàm trong EmailService của bạn)
+        // 3. Gửi mail
         try {
             emailService.sendResetPasswordEmail(email, otp);
         } catch (Exception e) {
-            // Nếu lỗi gửi mail, in ra log để debug nhưng vẫn báo cho user check
-            System.err.println("Lỗi gửi mail: " + e.getMessage());
-            throw new RuntimeException("Không thể gửi mail, vui lòng kiểm tra lại cấu hình SMTP!");
+            System.err.println("Error sending email: " + e.getMessage());
+            throw new RuntimeException("Failed to send email, please check SMTP configuration!");
         }
 
-        return "Mã OTP đã được gửi!";
+        return "OTP sent successfully!";
     }
 
+    // Đặt lại mật khẩu mới
     public String resetPassword(String email, String otp, String newPassword) {
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new RuntimeException("User not found!"));
 
         if (user.getResetToken() == null || !user.getResetToken().equals(otp)) {
-            throw new RuntimeException("Invalid OTP");
+            throw new RuntimeException("Invalid OTP!");
         }
 
         user.setPassword(passwordEncoder.encode(newPassword));
@@ -89,9 +87,10 @@ public class AuthService {
         return "Password updated successfully!";
     }
 
+    // Xác thực OTP
     public boolean verifyOtp(String email, String otp) {
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("Email not found"));
+                .orElseThrow(() -> new RuntimeException("Email not found!"));
 
         return user.getResetToken() != null && user.getResetToken().equals(otp);
     }

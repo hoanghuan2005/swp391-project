@@ -22,4 +22,12 @@ public class AdminUserController {
         List<User> users = userRepository.findAll();
         return ResponseEntity.ok(users);
     }
+
+    @org.springframework.web.bind.annotation.PutMapping("/{id}/ban")
+    public ResponseEntity<String> toggleBanUser(@org.springframework.web.bind.annotation.PathVariable java.util.UUID id) {
+        User user = userRepository.findById(id).orElseThrow(() -> new RuntimeException("User not found"));
+        user.setBanned(!user.isBanned());
+        userRepository.save(user);
+        return ResponseEntity.ok(user.isBanned() ? "Banned successfully" : "Unbanned successfully");
+    }
 }
