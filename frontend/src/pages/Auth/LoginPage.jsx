@@ -45,7 +45,7 @@ const LoginPage = () => {
           fireSuccessConfetti();
           setTimeout(() => {
             if (role === "ADMIN") {
-              navigate("/dashboard");
+              navigate("/admin/dashboard");
             } else {
               navigate("/home");
             }
@@ -81,7 +81,7 @@ const LoginPage = () => {
             fireSuccessConfetti();
             setTimeout(() => {
               if (role === "ADMIN") {
-                navigate("/dashboard");
+                navigate("/admin/dashboard");
               } else {
                 navigate("/home");
               }

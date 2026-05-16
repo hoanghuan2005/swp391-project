@@ -43,4 +43,7 @@ public class User extends BaseEntity {
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "role_id")
     private Role role;
+
+    @Column(nullable = false)
+    private boolean isBanned = false;
 }

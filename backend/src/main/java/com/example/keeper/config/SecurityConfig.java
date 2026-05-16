@@ -42,6 +42,7 @@ public class SecurityConfig {
                                 "/v3/api-docs/**",
                                 "/error"             // Nên permitAll "/error" để thấy lỗi cụ thể thay vì 403
                         ).permitAll()
+                        .requestMatchers("/api/admin/**").hasAuthority("ADMIN")
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import MainLayout from "./components/layout/MainLayout";
+import AdminLayout from "./components/layout/AdminLayout";
 import Homepage from "./pages/Homepage";
 import LandingPage from "./pages/LandingPage";
 import ProfilePage from "./pages/ProfilePage";
@@ -10,6 +11,8 @@ import VerifyOTPPage from "./pages/Auth/VerifyOTPPage";
 import ChangePasswordPage from "./pages/Auth/ChangePasswordPage";
 import ForgotPasswordPage from "./pages/Auth/ForgotPasswordPage";
 import Survey from "./pages/Survey";
+import DashboardPage from "./pages/Admin/DashboardPage";
+import UserListPage from "./pages/Admin/UserListPage";
 
 function ComingSoon({ pageName }) {
   return (
@@ -35,7 +38,7 @@ function App() {
         <Route path="/change-password" element={<ChangePasswordPage />} />
         <Route path="/survey" element={<Survey />} />
 
-        {/* Dashboard layout */}
+        {/* (Student) Dashboard layout */}
         <Route element={<MainLayout />}>
           <Route path="/home" element={<Homepage />} />
           <Route path="/profile" element={<ProfilePage />} />
@@ -51,6 +54,13 @@ function App() {
             path="/projects"
             element={<ComingSoon pageName="Projects" />}
           />
+        </Route>
+
+        {/* Admin dashboard layout */}
+        <Route element={<AdminLayout />}>
+          <Route path="/admin/dashboard" element={<DashboardPage />} />
+          <Route path="/admin/users" element={<UserListPage />} />
+          {/* Sau này thêm Quản lý tài liệu, môn học vào đây */}
         </Route>
 
         {/* fallback */}

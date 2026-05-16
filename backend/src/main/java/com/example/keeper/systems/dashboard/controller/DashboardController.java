@@ -1,0 +1,33 @@
+package com.example.keeper.systems.dashboard.controller;
+
+import com.example.keeper.systems.auth.repository.UserRepository;
+import com.example.keeper.systems.dashboard.dto.DashboardStatsResponse;
+import com.example.keeper.systems.document.repository.DocumentRepository;
+import com.example.keeper.systems.subject.repository.SubjectRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+@RequestMapping("/api/admin/dashboard")
+@RequiredArgsConstructor
+public class DashboardController {
+    // Tiêm (Inject) 3 Repository vào để đếm số lượng
+    private final UserRepository userRepository;
+    private final SubjectRepository subjectRepository;
+    private final DocumentRepository documentRepository;
+
+    @GetMapping("/stats")
+    public ResponseEntity<DashboardStatsResponse> getDashboardStats() {
+        // Gọi hàm .count() của Spring Data JPA để lấy tổng số lượng
+        DashboardStatsResponse stats = DashboardStatsResponse.builder()
+                .totalUsers(userRepository.count())
+                .totalSubjects(subjectRepository.count())
+                .totalDocuments(documentRepository.count())
+                .build();
+
+        return ResponseEntity.ok(stats);
+    }
+}

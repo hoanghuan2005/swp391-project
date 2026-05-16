@@ -1,5 +1,6 @@
 package com.example.keeper.config;
 
+import com.example.keeper.systems.auth.repository.UserRepository;
 import com.example.keeper.systems.auth.service.JwtService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -21,6 +22,7 @@ import java.util.Collections;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
+    private final UserRepository userRepository;
 
     @Override
     protected void doFilterInternal(
@@ -41,8 +43,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         userEmail = jwtService.extractUsername(jwt);
 
         if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+            var user = userRepository.findByEmail(userEmail).orElseThrow();
+
+            // Lấy quyền từ Role của User (Ví dụ: "ADMIN")
+            var authority = new org.springframework.security.core.authority
+                    .SimpleGrantedAuthority(user.getRole().getName());
+
             UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                    userEmail, null, Collections.emptyList()
+                    userEmail, null, java.util.Collections.singletonList(authority)
             );
             authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
             SecurityContextHolder.getContext().setAuthentication(authToken);
