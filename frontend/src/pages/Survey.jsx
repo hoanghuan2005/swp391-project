@@ -1,134 +1,281 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { X } from "lucide-react";
-import axiosClient from "../api/axiosClient";
+import axiosClient from "@/api/axiosClient";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 
-export default function Survey() {
+export default function Survey({ onClose }) {
+  const [open, setOpen] = useState(true);
   const [school, setSchool] = useState("");
   const [startYear, setStartYear] = useState("");
-  const [languages, setLanguages] = useState([]);
-  
-  // 1. Thêm biến này để kiểm soát việc hiển thị ngay tại chỗ
-  const [isVisible, setIsVisible] = useState(true);
+  const [languageOptions, setLanguageOptions] = useState([]);
+  const [selectedLanguageIds, setSelectedLanguageIds] = useState([]);
+  const [loadingLanguages, setLoadingLanguages] = useState(true);
+  const [schoolOptions, setSchoolOptions] = useState([]);
+  const [loadingSchools, setLoadingSchools] = useState(true);
 
-  // Nếu isVisible là false, component này sẽ biến mất (trả về null)
-  // giúp bạn nhìn thấy trang Admin ở phía sau ngay lập tức
-  if (!isVisible) return null;
+  const years = useMemo(
+    () => Array.from({ length: 12 }, (_, i) => new Date().getFullYear() - i),
+    [],
+  );
 
-  const languageOptions = ["English", "Japanese", "Chinese", "Korean", "Vietnamese"];
+  useEffect(() => {
+    let isMounted = true;
 
-  const years = Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i);
+    const loadData = async () => {
+      try {
+        const [languagesResponse, schoolsResponse] = await Promise.all([
+          axiosClient.get("/api/languages"),
+          axiosClient.get("/api/schools"),
+        ]);
 
-  const toggleLanguage = (lang) => {
-    if (languages.includes(lang)) {
-      setLanguages(languages.filter((l) => l !== lang));
+        if (isMounted) {
+          setLanguageOptions(languagesResponse.data || []);
+          setSchoolOptions(schoolsResponse.data || []);
+        }
+      } catch (error) {
+        console.error("Failed to load survey data:", error);
+      } finally {
+        if (isMounted) {
+          setLoadingLanguages(false);
+          setLoadingSchools(false);
+        }
+      }
+    };
+
+    loadData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const toggleLanguage = (languageId) => {
+    if (selectedLanguageIds.includes(languageId)) {
+      setSelectedLanguageIds(
+        selectedLanguageIds.filter((id) => id !== languageId),
+      );
     } else {
-      setLanguages([...languages, lang]);
+      setSelectedLanguageIds([...selectedLanguageIds, languageId]);
     }
   };
 
-  // Hàm xử lý chung để "tắt" khảo sát
-  const closeSurvey = async (data = null) => {
-    // 2. Tắt giao diện ngay lập tức để người dùng làm việc tiếp
-    setIsVisible(false);
+  const closeSurvey = () => {
+    setOpen(false);
+  };
+
+  const handleComplete = async (payload) => {
+    closeSurvey();
+    localStorage.setItem("surveyCompleted", "true");
+    localStorage.removeItem("surveySkipped");
+    if (onClose) {
+      onClose({ completed: true });
+    }
 
     try {
-      // 3. Vẫn âm thầm gửi API để Backend lưu lại (lần sau ko hiện nữa)
-      if (data) {
-        await axiosClient.put("/api/users/preferences", data);
-      } else {
-        // Trường hợp Skip: gửi dữ liệu rỗng
-        await axiosClient.put("/api/users/preferences", {
-          school: null,
-          studyStartYear: null,
-          preferredLanguages: []
-        });
-      }
+      await axiosClient.post("/api/survey", payload);
     } catch (error) {
-      console.error("Lỗi lưu trạng thái khảo sát:", error);
+      console.error("Failed to submit survey:", error);
     }
   };
 
   const handleSubmit = () => {
     const payload = {
-      school: school,
-      studyStartYear: startYear ? parseInt(startYear) : null,
-      preferredLanguages: languages,
+      schoolName: school.trim() || null,
+      startYear: startYear ? Number(startYear) : null,
+      languageIds: selectedLanguageIds,
     };
-    closeSurvey(payload);
+    handleComplete(payload);
   };
 
   const handleSkip = () => {
-    closeSurvey(); // Gọi hàm tắt mà không truyền data
+    closeSurvey();
+    localStorage.setItem("surveySkipped", "true");
+    localStorage.removeItem("surveyCompleted");
+    if (onClose) {
+      onClose({ completed: false });
+    }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="relative w-full max-w-xl rounded-3xl bg-white p-7 shadow-xl">
-        {/* Nút X Close */}
-        <button 
-          className="absolute right-4 top-4 text-gray-400 hover:text-gray-600 cursor-pointer" 
-          onClick={handleSkip}
-        >
-          <X size={22} />
-        </button>
-
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-[#f26522]">Personalized Learning Survey</h1>
-          <p className="mt-2 text-gray-500">Help us recommend better learning materials for you.</p>
-        </div>
-
-        {/* Input School */}
-        <div className="mb-6">
-          <label className="mb-2 block text-sm font-semibold text-gray-700">School / University</label>
-          <input
-            type="text"
-            value={school}
-            onChange={(e) => setSchool(e.target.value)}
-            placeholder="Enter your school"
-            className="w-full rounded-2xl border border-gray-200 px-4 py-3 outline-none transition focus:border-black"
-          />
-        </div>
-
-        {/* Các phần khác giữ nguyên... */}
-        <div className="mb-6">
-          <label className="mb-2 block text-sm font-semibold text-gray-700">Start Year</label>
-          <select
-            value={startYear}
-            onChange={(e) => setStartYear(e.target.value)}
-            className="w-full rounded-2xl border border-gray-200 px-4 py-3 outline-none transition focus:border-black"
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) {
+          handleSkip();
+          return;
+        }
+        setOpen(true);
+      }}
+    >
+      <DialogContent
+        showCloseButton={false}
+        className="!max-w-[500px] rounded-xl p-0 overflow-hidden bg-white shadow-xl"
+      >
+        <div className="relative">
+          <div className="absolute inset-0 bg-white" />
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={handleSkip}
+            className="absolute right-4 top-4 z-10 rounded-full"
           >
-            <option value="">Select year</option>
-            {years.map((year) => <option key={year} value={year}>{year}</option>)}
-          </select>
-        </div>
+            <X className="size-4" />
+          </Button>
 
-        <div className="mb-8">
-          <label className="mb-3 block text-sm font-semibold text-gray-700">Languages You Are Learning</label>
-          <div className="flex flex-wrap gap-3">
-            {languageOptions.map((lang) => (
-              <button
-                key={lang}
-                type="button"
-                onClick={() => toggleLanguage(lang)}
-                className={`rounded-full border px-4 py-2 text-sm font-medium transition cursor-pointer ${
-                  languages.includes(lang) ? "border-[#f0ac8c] bg-[#f26522] text-white" : "border-gray-300 bg-white text-gray-700 hover:border-black/20"
-                }`}
-              >
-                {lang}
-              </button>
-            ))}
-          </div>
-        </div>
+          <Card className="relative border-0 bg-transparent shadow-none">
+            <CardHeader className="px-8 pt-9">
+              <Badge className="w-fit rounded-full bg-[#f26522]/10 text-[#f26522]">
+                Personalized
+              </Badge>
+              <CardTitle className="mt-4 text-3xl font-semibold text-slate-900">
+                Learning Survey
+              </CardTitle>
+              <CardDescription className="text-sm text-slate-600">
+                Tell us a bit about your background so we can recommend better
+                materials.
+              </CardDescription>
+            </CardHeader>
 
-        <div className="flex items-center justify-between gap-4">
-          <button onClick={handleSkip} className="w-full rounded-xl border cursor-pointer border-gray-300 px-4 py-2 font-medium text-gray-700 transition hover:bg-gray-100">
-            Skip for now
-          </button>
-          <button onClick={handleSubmit} className="w-full rounded-xl bg-[#f26522] cursor-pointer px-4 py-2 font-semibold text-white transition hover:opacity-90">
-            Complete Survey
-          </button>
+            <CardContent className="px-8 pb-2">
+              <div className="grid gap-6">
+                <div className="grid gap-2">
+                  <Label className="text-sm font-semibold text-slate-700">
+                    School / University
+                  </Label>
+                  <Select value={school} onValueChange={setSchool}>
+                    <SelectTrigger className="w-full rounded-xl border-slate-200">
+                      <SelectValue placeholder="Select school" />
+                    </SelectTrigger>
+
+                    <SelectContent>
+                      {loadingSchools ? (
+                        <div className="p-2 text-sm text-slate-500">
+                          Loading schools...
+                        </div>
+                      ) : (
+                        schoolOptions.map((school) => (
+                          <SelectItem key={school.id} value={school.name}>
+                            {school.name}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label className="text-sm font-semibold text-slate-700">
+                    Start year
+                  </Label>
+                  <Select value={startYear} onValueChange={setStartYear}>
+                    <SelectTrigger className="w-full rounded-xl border-slate-200">
+                      <SelectValue placeholder="Select year" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {years.map((year) => (
+                        <SelectItem key={year} value={String(year)}>
+                          {year}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid gap-3">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-semibold text-slate-700">
+                      Languages you are learning
+                    </Label>
+                    <span className="text-xs text-slate-500">
+                      {selectedLanguageIds.length} selected
+                    </span>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    {loadingLanguages &&
+                      Array.from({ length: 5 }).map((_, index) => (
+                        <Skeleton
+                          key={`language-skeleton-${index}`}
+                          className="h-9 w-24 rounded-full"
+                        />
+                      ))}
+
+                    {!loadingLanguages && languageOptions.length === 0 && (
+                      <p className="text-sm text-slate-500">
+                        No languages available yet. You can skip for now.
+                      </p>
+                    )}
+
+                    {!loadingLanguages &&
+                      languageOptions.map((language) => {
+                        const isSelected = selectedLanguageIds.includes(
+                          language.id,
+                        );
+                        return (
+                          <Button
+                            key={language.id}
+                            type="button"
+                            variant={isSelected ? "default" : "outline"}
+                            onClick={() => toggleLanguage(language.id)}
+                            className={`rounded-full px-4 text-sm font-semibold transition ${
+                              isSelected
+                                ? "bg-[#f26522] text-white hover:bg-[#d95316]"
+                                : "border-slate-200 text-slate-700 hover:border-slate-400"
+                            }`}
+                          >
+                            {language.name}
+                          </Button>
+                        );
+                      })}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+
+            <CardFooter className="flex justify-center px-8 pb-8 pt-6">
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleSkip}
+                  className="rounded-lg w-[210px] border-slate-200 text-slate-700 cursor-pointer hover:border-slate-400 hover:bg-slate-50"
+                >
+                  Skip for now
+                </Button>
+
+                <Button
+                  type="button"
+                  onClick={handleSubmit}
+                  className="rounded-lg w-[210px] bg-[#f26522] text-white hover:bg-[#d95316] cursor-pointer"
+                  disabled={loadingLanguages}
+                >
+                  Complete survey
+                </Button>
+              </div>
+            </CardFooter>
+          </Card>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

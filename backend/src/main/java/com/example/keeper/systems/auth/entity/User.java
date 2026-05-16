@@ -27,16 +27,6 @@ public class User extends BaseEntity {
 
     private String resetToken;
 
-    private String school;
-
-    @Column(name = "study_start_year")
-    private Integer studyStartYear;
-
-    @ElementCollection(fetch = FetchType.EAGER)
-    @CollectionTable(name = "user_preferred_languages", joinColumns = @JoinColumn(name = "user_id"))
-    @Column(name = "language")
-    private Set<String> preferredLanguages = new HashSet<>();
-
     @Column(name = "survey_completed")
     private boolean surveyCompleted;
 
@@ -46,4 +36,11 @@ public class User extends BaseEntity {
 
     @Column(nullable = false)
     private boolean isBanned = false;
+
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
+    private UserProfile profile;
+
+    @ManyToMany
+    @JoinTable(name = "user_languages", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "language_id"))
+    private Set<Language> languages = new HashSet<>();
 }

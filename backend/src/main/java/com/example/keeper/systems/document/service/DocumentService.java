@@ -23,7 +23,7 @@ public interface DocumentService {
 
     List<Document> getRecentViewed(String email, int limit);
 
-    List<Document> getRecommended(String email, int limit);
+//    List<Document> getRecommended(String email, int limit);
 
     Document delete(UUID id);
 }

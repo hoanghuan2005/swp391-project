@@ -29,37 +29,6 @@ public class UserController {
         return ResponseEntity.ok(user);
     }
 
-    @GetMapping("/preferences")
-    public ResponseEntity<UserPreferenceResponse> getPreferences() {
-        User user = getCurrentUser();
-        if (!user.isSurveyCompleted()) {
-            return ResponseEntity.notFound().build();
-        }
-
-        return ResponseEntity.ok(new UserPreferenceResponse(
-                user.getSchool(),
-                user.getStudyStartYear(),
-                user.getPreferredLanguages(),
-                user.isSurveyCompleted()));
-    }
-
-    @PutMapping("/preferences")
-    public ResponseEntity<UserPreferenceResponse> updatePreferences(
-            @org.springframework.web.bind.annotation.RequestBody UserPreferenceRequest request) {
-        User user = getCurrentUser();
-        user.setSchool(request.getSchool());
-        user.setStudyStartYear(request.getStudyStartYear());
-        user.setPreferredLanguages(request.getPreferredLanguages());
-        user.setSurveyCompleted(true);
-        userRepository.save(user);
-
-        return ResponseEntity.ok(new UserPreferenceResponse(
-                user.getSchool(),
-                user.getStudyStartYear(),
-                user.getPreferredLanguages(),
-                user.isSurveyCompleted()));
-    }
-
     private User getCurrentUser() {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         return userRepository.findByEmail(email)

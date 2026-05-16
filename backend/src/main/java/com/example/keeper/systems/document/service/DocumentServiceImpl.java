@@ -231,26 +231,26 @@ public class DocumentServiceImpl implements DocumentService {
         return documentViewRepository.findRecentDocuments(user.getId(), PageRequest.of(0, limit));
     }
 
-    @Override
-    public List<Document> getRecommended(String email, int limit) {
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
-        List<String> preferredLanguages = user.getPreferredLanguages()
-                .stream()
-                .map(value -> value == null ? "" : value.trim().toLowerCase())
-                .filter(value -> !value.isEmpty())
-                .collect(Collectors.toList());
-
-        if (user.isSurveyCompleted() && !preferredLanguages.isEmpty()) {
-            List<Document> matches = documentRepository.findByTagNames(preferredLanguages, PageRequest.of(0, limit));
-            if (!matches.isEmpty()) {
-                return matches;
-            }
-        }
-
-        return documentRepository.findTopByDownloadCount(PageRequest.of(0, limit));
-    }
+//    @Override
+//    public List<Document> getRecommended(String email, int limit) {
+//        User user = userRepository.findByEmail(email)
+//                .orElseThrow(() -> new RuntimeException("User not found"));
+//
+//        List<String> preferredLanguages = user.getPreferredLanguages()
+//                .stream()
+//                .map(value -> value == null ? "" : value.trim().toLowerCase())
+//                .filter(value -> !value.isEmpty())
+//                .collect(Collectors.toList());
+//
+//        if (user.isSurveyCompleted() && !preferredLanguages.isEmpty()) {
+//            List<Document> matches = documentRepository.findByTagNames(preferredLanguages, PageRequest.of(0, limit));
+//            if (!matches.isEmpty()) {
+//                return matches;
+//            }
+//        }
+//
+//        return documentRepository.findTopByDownloadCount(PageRequest.of(0, limit));
+//    }
 
     @Override
     public Document delete(UUID id) {

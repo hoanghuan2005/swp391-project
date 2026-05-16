@@ -3,19 +3,25 @@ import { Outlet } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import Navbar from "./Navbar";
 import Survey from "@/pages/Survey";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 export default function MainLayout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   const [showSurvey, setShowSurvey] = useState(false);
+  const [showSurveyReminder, setShowSurveyReminder] = useState(false);
 
   useEffect(() => {
-    // giả sử lấy từ localStorage hoặc API user profile
-    const onboardingCompleted =
-      localStorage.getItem("onboardingCompleted") === "true";
+    const surveyCompleted = localStorage.getItem("surveyCompleted") === "true";
+    const surveySkipped = localStorage.getItem("surveySkipped") === "true";
 
-    if (!onboardingCompleted) {
+    if (!surveyCompleted && !surveySkipped) {
       setShowSurvey(true);
+    }
+
+    if (!surveyCompleted && surveySkipped) {
+      setShowSurveyReminder(true);
     }
   }, []);
 
@@ -30,6 +36,21 @@ export default function MainLayout() {
 
         <main className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="max-w-[1700px] w-full mx-auto relative rounded-3xl min-h-full">
+            {showSurveyReminder && (
+              <div className="flex justify-end mb-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowSurvey(true)}
+                  className="rounded-full border-slate-200 bg-white/90 text-slate-700 hover:border-[#f26522] hover:text-[#f26522]"
+                >
+                  <Badge className="mr-2 rounded-full bg-[#f26522]/10 text-[#f26522]">
+                    Survey
+                  </Badge>
+                  Finish your learning survey
+                </Button>
+              </div>
+            )}
             <Outlet />
           </div>
         </main>
@@ -37,7 +58,16 @@ export default function MainLayout() {
 
       {/* Survey Popup */}
       {showSurvey && (
-        <Survey onClose={() => setShowSurvey(false)} />
+        <Survey
+          onClose={({ completed }) => {
+            setShowSurvey(false);
+            if (completed) {
+              setShowSurveyReminder(false);
+            } else {
+              setShowSurveyReminder(true);
+            }
+          }}
+        />
       )}
     </div>
   );

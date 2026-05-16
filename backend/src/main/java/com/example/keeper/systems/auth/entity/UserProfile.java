@@ -1,0 +1,26 @@
+package com.example.keeper.systems.auth.entity;
+
+import com.example.keeper.systems.base.BaseEntity;
+
+import jakarta.persistence.*;
+import lombok.*;
+
+@Entity
+@Table(name = "user_profiles")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class UserProfile extends BaseEntity {
+
+    @OneToOne
+    @JoinColumn(name = "user_id", nullable = false, unique = true)
+    private User user;
+
+    @Column(name = "school_name")
+    private String schoolName;
+
+    @Column(name = "start_year")
+    private Integer startYear;
+}

@@ -2,6 +2,8 @@ package com.example.keeper.data;
 
 import com.example.keeper.systems.auth.entity.Role;
 import com.example.keeper.systems.auth.entity.User;
+import com.example.keeper.systems.auth.entity.Language;
+import com.example.keeper.systems.auth.repository.LanguageRepository;
 import com.example.keeper.systems.auth.repository.RoleRepository;
 import com.example.keeper.systems.auth.repository.UserRepository;
 import com.example.keeper.systems.school.entity.School;
@@ -11,6 +13,9 @@ import com.example.keeper.systems.subject.repository.SubjectRepository;
 import com.example.keeper.systems.tag.entity.Tag;
 import com.example.keeper.systems.tag.repository.TagRepository;
 import lombok.RequiredArgsConstructor;
+
+import java.util.List;
+
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
@@ -22,6 +27,7 @@ public class DataInitializer implements CommandLineRunner {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
+    private final LanguageRepository languageRepository;
     private final SchoolRepository schoolRepository;
     private final SubjectRepository subjectRepository;
     private final TagRepository tagRepository;
@@ -63,11 +69,24 @@ public class DataInitializer implements CommandLineRunner {
         }
 
         if (schoolRepository.count() == 0) {
-            schoolRepository.save(School.builder()
-                    .code("FPT")
-                    .name("FPT University")
-                    .description("FPT University")
-                    .build());
+            schoolRepository.saveAll(List.of(
+                    School.builder()
+                            .code("FPT")
+                            .name("FPT University")
+                            .description("FPT University Vietnam")
+                            .build(),
+
+                    School.builder()
+                            .code("HCMUS")
+                            .name("University of Science")
+                            .description("VNUHCM - University of Science")
+                            .build(),
+
+                    School.builder()
+                            .code("UIT")
+                            .name("University of Information Technology")
+                            .description("VNUHCM - UIT")
+                            .build()));
         }
 
         if (subjectRepository.count() == 0) {
@@ -81,6 +100,29 @@ public class DataInitializer implements CommandLineRunner {
             tagRepository.save(new Tag("Final Exam"));
             tagRepository.save(new Tag("Slide"));
             tagRepository.save(new Tag("Assignment"));
+        }
+
+        if (languageRepository.count() == 0) {
+            languageRepository.save(Language.builder()
+                    .code("EN")
+                    .name("English")
+                    .build());
+            languageRepository.save(Language.builder()
+                    .code("JA")
+                    .name("Japanese")
+                    .build());
+            languageRepository.save(Language.builder()
+                    .code("ZH")
+                    .name("Chinese")
+                    .build());
+            languageRepository.save(Language.builder()
+                    .code("KO")
+                    .name("Korean")
+                    .build());
+            languageRepository.save(Language.builder()
+                    .code("VI")
+                    .name("Vietnamese")
+                    .build());
         }
     }
 }
