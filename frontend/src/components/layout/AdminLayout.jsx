@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Outlet } from "react-router-dom";
 import AdminSidebar from "./AdminSidebar";
 import AdminNavbar from "./AdminNavbar";
-
+import LogoutModal from "@/components/ui/LogoutModal";
 export default function AdminLayout() {
   // Quản lý trạng thái đóng/mở sidebar ngay tại Layout (Chuẩn Vercel Practices)
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
