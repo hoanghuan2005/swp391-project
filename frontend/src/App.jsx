@@ -13,6 +13,7 @@ import ForgotPasswordPage from "./pages/Auth/ForgotPasswordPage";
 import Survey from "./pages/Survey";
 import DashboardPage from "./pages/Admin/DashboardPage";
 import UserListPage from "./pages/Admin/UserListPage";
+import DocumentListPage from "./pages/Admin/DocumentListPage";
 
 function ComingSoon({ pageName }) {
   return (
@@ -60,7 +61,7 @@ function App() {
         <Route element={<AdminLayout />}>
           <Route path="/admin/dashboard" element={<DashboardPage />} />
           <Route path="/admin/users" element={<UserListPage />} />
-          {/* Sau này thêm Quản lý tài liệu, môn học vào đây */}
+          <Route path="/admin/documents" element={<DocumentListPage />} />
         </Route>
 
         {/* fallback */}

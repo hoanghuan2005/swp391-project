@@ -83,4 +83,11 @@ public class DocumentController {
             @PathVariable UUID id) {
         return documentService.delete(id);
     }
+
+    // API Tải tài liệu
+    @GetMapping("/{id}/download")
+    public org.springframework.http.ResponseEntity<java.util.Map<String, String>> downloadDocument(@PathVariable UUID id) {
+        String fileUrl = documentService.getDownloadUrl(id);
+        return org.springframework.http.ResponseEntity.ok(java.util.Map.of("fileUrl", fileUrl));
+    }
 }
