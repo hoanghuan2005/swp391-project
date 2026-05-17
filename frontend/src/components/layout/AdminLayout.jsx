@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Outlet } from "react-router-dom";
 import AdminSidebar from "./AdminSidebar";
-import Navbar from "./Navbar"; 
+import AdminNavbar from "./AdminNavbar";
 
 export default function AdminLayout() {
   // Quản lý trạng thái đóng/mở sidebar ngay tại Layout (Chuẩn Vercel Practices)
@@ -10,7 +10,7 @@ export default function AdminLayout() {
   return (
     <div className="h-screen bg-slate-50 text-slate-900 font-sans flex flex-col overflow-hidden">
       {/* Tái sử dụng Navbar, truyền hàm bật/tắt vào prop onMenuClick */}
-      <Navbar onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
+      <AdminNavbar onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
 
       {/* Main Content Area */}
       <div className="flex-1 flex overflow-hidden">

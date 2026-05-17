@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import axiosClient from "@/api/axiosClient";
-import { FileText } from "lucide-react";
+import { FileText, Download, Eye } from "lucide-react";
 
 export default function MyLibrary() {
   const [uploads, setUploads] = useState([]);
@@ -32,6 +32,25 @@ export default function MyLibrary() {
       window.removeEventListener("documents:uploaded", handleUploaded);
     };
   }, [fetchUploads]);
+
+  const handleDownload = async (id, title) => {
+    try {
+      // 1. Gọi API Backend để tăng lượt download
+      const res = await axiosClient.get(`/api/documents/${id}/download`);
+      let url = res.data.fileUrl;
+
+      // 2. Ép Cloudinary tự động tải file xuống (thêm fl_attachment)
+      if (url.includes("/upload/")) {
+        url = url.replace("/upload/", "/upload/fl_attachment/");
+      }
+
+      // 3. Mở link để tải
+      window.open(url, "_blank");
+    } catch (error) {
+      console.error("Download failed:", error);
+      alert("Error downloading document!");
+    }
+  };
 
   return (
     <div className="space-y-9 m-1">
@@ -73,21 +92,35 @@ export default function MyLibrary() {
                               {tag.name}
                             </Badge>
                           ))}
-                        </div>
+                        </div>  
                       )}
                     </div>
                   </div>
-                  {doc.fileUrl && (
-                    <Button
-                      asChild
-                      variant="outline"
-                      className="rounded-full text-xs"
-                    >
-                      <a href={doc.fileUrl} target="_blank" rel="noreferrer">
-                        Open
-                      </a>
-                    </Button>
-                  )}
+                  <div className="flex gap-2">
+                    {doc.fileUrl && (
+                      <>
+                        <Button
+                          asChild
+                          variant="ghost"
+                          size="sm"
+                          className="text-xs text-slate-500 hover:text-blue-600 hover:bg-blue-50 cursor-pointer"
+                        >
+                          <a href={doc.fileUrl} target="_blank" rel="noreferrer">
+                            <Eye className="w-3.5 h-3.5 mr-1" /> View
+                          </a>
+                        </Button>
+
+                        <Button
+                          onClick={() => handleDownload(doc.id, doc.title)}
+                          variant="outline"
+                          size="sm"
+                          className="rounded-full text-xs text-[#f26522] border-[#f26522]/20 hover:bg-[#f26522] hover:text-white cursor-pointer transition-all"
+                        >
+                          <Download className="w-3.5 h-3.5 mr-1" /> Download
+                        </Button>
+                      </>
+                    )}
+                  </div>
                 </div>
                 {index < uploads.length - 1 && (
                   <Separator className="bg-slate-100" />

@@ -26,4 +26,6 @@ public interface DocumentService {
 //    List<Document> getRecommended(String email, int limit);
 
     Document delete(UUID id);
+
+    String getDownloadUrl(UUID id);
 }

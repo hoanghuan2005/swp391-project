@@ -67,8 +67,11 @@ public class DocumentServiceImpl implements DocumentService {
     }
 
     private Document buildDocument(CreateDocumentRequest request) {
-        User user = userRepository.findById(request.getUploadedById())
-                .orElseThrow();
+        String currentUserEmail = org.springframework.security.core.context.SecurityContextHolder
+                .getContext().getAuthentication().getName();
+
+        User user = userRepository.findByEmail(currentUserEmail)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy user đăng nhập!"));
 
         Subject subject = resolveSubject(request);
 
@@ -257,8 +260,28 @@ public class DocumentServiceImpl implements DocumentService {
 
         Document document = getById(id);
 
+        if (document.getFilePublicId() != null) {
+            try {
+                cloudinary.uploader().destroy(document.getFilePublicId(), com.cloudinary.utils.ObjectUtils.emptyMap());
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to delete file from Cloudinary", e);
+            }
+        }
+
         documentRepository.delete(document);
 
         return document;
+    }
+
+    @Override
+    public String getDownloadUrl(UUID id) {
+        Document document = getById(id);
+
+        // Tăng số lượt tải lên 1
+        int currentCount = document.getDownloadCount() != null ? document.getDownloadCount() : 0;
+        document.setDownloadCount(currentCount + 1);
+        documentRepository.save(document);
+
+        return document.getFileUrl();
     }
 }
