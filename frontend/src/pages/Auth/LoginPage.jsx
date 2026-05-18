@@ -25,6 +25,7 @@ const LoginPage = () => {
 
   const navigate = useNavigate();
 
+  // 🛠️ HÀM XỬ LÝ ĐĂNG NHẬP THƯỜNG (CẬP NHẬT REFRESH TOKEN)
   const handleLogin = async (e) => {
     e.preventDefault();
     setIsLoading(true);
@@ -35,47 +36,67 @@ const LoginPage = () => {
       });
 
       if (response.data) {
-        const token = response.data;
-        localStorage.setItem("token", token);
+        // 💥 BÓC TÁCH: Lấy cặp bài trùng accessToken và refreshToken từ Object JSON mới của Backend
+        const { accessToken, refreshToken } = response.data;
 
-        try {
-          const decoded = jwtDecode(token);
-          const role = decoded.role;
+        if (accessToken) {
+          // Lưu cả 2 mã vào localStorage bảo mật
+          localStorage.setItem("token", accessToken);
+          if (refreshToken) {
+            localStorage.setItem("refreshToken", refreshToken);
+          }
 
-          fireSuccessConfetti();
-          setTimeout(() => {
-            if (role === "ADMIN") {
-              navigate("/admin/dashboard");
-            } else {
-              navigate("/home");
-            }
-          }, 1500);
-        } catch (e) {
-          console.error("Token decode error", e);
-          navigate("/home");
+          try {
+            // Giải mã Access Token mới để check Role quyền hạn
+            const decoded = jwtDecode(accessToken);
+            const role = decoded.role;
+
+            fireSuccessConfetti();
+            setTimeout(() => {
+              if (role === "ADMIN") {
+                navigate("/admin/dashboard");
+              } else {
+                navigate("/home");
+              }
+            }, 1500);
+          } catch (e) {
+            console.error("Token decode error", e);
+            navigate("/home");
+          }
         }
       }
     } catch (error) {
+      // Vì Backend mới đã quăng Http Status 401 khi gõ sai tài khoản, lỗi sẽ tự nhảy vào block catch này
       const errorMsg = error.response?.data || error.message;
       console.error("Login error detail:", errorMsg);
-
-      alert("Login Failed: " + errorMsg);
+      
+      // Hiện thông báo đẹp đẽ cho người dùng thay vì nuốt trọn cục chữ lỗi lưu vào máy
+      alert("Đăng nhập thất bại: " + (typeof errorMsg === "string" ? errorMsg : "Sai tài khoản hoặc mật khẩu!"));
     } finally {
       setIsLoading(false);
     }
   };
 
+  // 🛠️ HÀM XỬ LÝ ĐĂNG NHẬP GOOGLE (CẬP NHẬT ĐỒNG BỘ REFRESH TOKEN)
   const loginWithGoogle = useGoogleLogin({
     onSuccess: async (tokenResponse) => {
       try {
         const res = await axiosClient.post("/api/auth/google", {
           token: tokenResponse.access_token,
         });
-        if (res.data.token) {
-          localStorage.setItem("token", res.data.token);
+        
+        if (res.data) {
+          // Hỗ trợ phòng hờ cả 2 cấu trúc (accessToken mới hoặc token cũ của BE Google)
+          const accessToken = res.data.accessToken || res.data.token || res.data;
+          const refreshToken = res.data.refreshToken;
+
+          localStorage.setItem("token", accessToken);
+          if (refreshToken) {
+            localStorage.setItem("refreshToken", refreshToken);
+          }
 
           try {
-            const decoded = jwtDecode(res.data.token);
+            const decoded = jwtDecode(accessToken);
             const role = decoded.role;
 
             fireSuccessConfetti();
@@ -181,7 +202,7 @@ const LoginPage = () => {
             </label>
             <button
               type="button"
-              onClick={() => navigate("/forgot-password")} // Nhảy sang trang nhập email
+              onClick={() => navigate("/forgot-password")}
               className="text-[#f26522] hover:underline font-semibold"
             >
               Forgot password?

@@ -37,6 +37,9 @@ public class User extends BaseEntity {
     @Column(nullable = false)
     private boolean isBanned = false;
 
+    @Column(name = "avatar_url")
+    private String avatarUrl;
+
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
     private UserProfile profile;
 

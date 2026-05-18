@@ -16,7 +16,6 @@ public class AuthService {
     private final JwtService jwtService;
     private final EmailService emailService;
 
-    // Đăng ký tài khoản
     public String register(RegisterRequest request) {
         if (userRepository.findByEmail(request.getEmail()).isPresent()) {
             return "Email already exists!";
@@ -31,12 +30,10 @@ public class AuthService {
         return "User registered successfully!";
     }
 
-    // Đăng nhập bằng Email/Password
     public String login(LoginRequest request) {
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new RuntimeException("User not found!"));
 
-        // 🛑 CHỐT CHẶN: Kiểm tra xem tài khoản có bị khóa không
         if (user.isBanned()) {
             throw new RuntimeException("Your account has been banned by the Admin.");
         }
@@ -48,19 +45,15 @@ public class AuthService {
         return jwtService.generateToken(user);
     }
 
-    // Quên mật khẩu
     public String forgotPassword(String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Email not found!"));
 
-        // 1. Tạo mã OTP 6 số
         String otp = String.valueOf((int) (Math.random() * 900000) + 100000);
 
-        // 2. Lưu vào DB
         user.setResetToken(otp);
         userRepository.save(user);
 
-        // 3. Gửi mail
         try {
             emailService.sendResetPasswordEmail(email, otp);
         } catch (Exception e) {
@@ -71,7 +64,6 @@ public class AuthService {
         return "OTP sent successfully!";
     }
 
-    // Đặt lại mật khẩu mới
     public String resetPassword(String email, String otp, String newPassword) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found!"));
@@ -87,7 +79,6 @@ public class AuthService {
         return "Password updated successfully!";
     }
 
-    // Xác thực OTP
     public boolean verifyOtp(String email, String otp) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Email not found!"));
