@@ -14,21 +14,59 @@ axiosClient.interceptors.request.use((config) => {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
+}, (error) => {
+  return Promise.reject(error);
 });
 
 axiosClient.interceptors.response.use(
   (response) => {
-    // Nếu API thành công (mã 200), cho đi tiếp bình thường
     return response;
   },
-  (error) => {
-    if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+  async (error) => {
+    const originalRequest = error.config;
+
+    if (error.response && error.response.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true; 
+
+      try {
+        const refreshToken = localStorage.getItem('refreshToken');
+        
+        if (!refreshToken) {
+          throw new Error("No refresh token available");
+        }
+
+        const res = await axios.post("http://localhost:8080/api/auth/refresh-token", {
+          refreshToken: refreshToken,
+        });
+
+        if (res.status === 200) {
+          const { accessToken } = res.data;
+
+          localStorage.setItem("token", accessToken);
+
+          originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+
+          return axiosClient(originalRequest);
+        }
+      } catch (refreshError) {
+        console.error("Refresh token expired or invalid:", refreshError);
+        alert("Phiên đăng nhập đã hết hạn hoàn toàn. Vui lòng đăng nhập lại!");
+        
+        localStorage.removeItem("token");
+        localStorage.removeItem("refreshToken");
+        window.location.href = "/login";
+        return Promise.reject(refreshError);
+      }
+    }
+
+    if (error.response && error.response.status === 403) {
       alert("Your session has expired or your account has been banned by Admin.");
-
+      
       localStorage.removeItem("token");
-
+      localStorage.removeItem("refreshToken");
       window.location.href = "/login";
     }
+
     return Promise.reject(error);
   }
 );

@@ -62,7 +62,7 @@ export default function ProfilePage() {
         const [languagesResponse, schoolsResponse, profileResponse] = await Promise.all([
           axiosClient.get("/api/languages"),
           axiosClient.get("/api/schools"),
-          axiosClient.get("/api/profile/me").catch(() => null), // Gọi API lấy thông tin cá nhân
+          axiosClient.get("/api/users/profile").catch(() => null), 
         ]);
 
         const langs = languagesResponse.data || [];
@@ -138,7 +138,7 @@ export default function ProfilePage() {
         const formData = new FormData();
         formData.append("file", selectedFile);
 
-        const response = await fetch("http://localhost:8080/api/user/upload-avatar", {
+        const response = await fetch("http://localhost:8080/api/users/upload-avatar", {
           method: "POST",
           body: formData,
         });
