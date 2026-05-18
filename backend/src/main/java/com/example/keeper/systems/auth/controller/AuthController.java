@@ -2,10 +2,19 @@ package com.example.keeper.systems.auth.controller;
 
 import com.example.keeper.systems.auth.dto.LoginRequest;
 import com.example.keeper.systems.auth.dto.RegisterRequest;
+import com.example.keeper.systems.auth.entity.User;
+import com.example.keeper.systems.auth.entity.RefreshToken;
+import com.example.keeper.systems.auth.repository.UserRepository;
 import com.example.keeper.systems.auth.service.AuthService;
+import com.example.keeper.systems.auth.service.JwtService;
+import com.example.keeper.systems.auth.service.RefreshTokenService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.HashMap;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -13,6 +22,9 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final AuthService authService;
+    private final RefreshTokenService refreshTokenService;
+    private final UserRepository userRepository;
+    private final JwtService jwtService;
 
     @PostMapping("/signup")
     public ResponseEntity<String> register(@RequestBody RegisterRequest request) {
@@ -20,10 +32,56 @@ public class AuthController {
         return ResponseEntity.ok(result);
     }
 
+    // 💥 SỬA HÀM NÀY: Trả về Object JSON chứa cả 2 Token thay vì chỉ trả về 1 chuỗi String token trơn
     @PostMapping("/login")
-    public ResponseEntity<String> login(@RequestBody LoginRequest request) {
-        String token = authService.login(request);
-        return ResponseEntity.ok(token);
+    public ResponseEntity<?> login(@RequestBody LoginRequest request) {
+        // 1. Gọi hàm login cũ để lấy Access Token (chuỗi JWT)
+        String accessToken = authService.login(request);
+
+        // Chốt chặn nếu tài khoản gõ sai mật khẩu/sai email (tránh lưu chữ lỗi vào localStorage)
+        if ("Invalid email or password!".equals(accessToken) || "User not found!".equals(accessToken)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(accessToken);
+        }
+
+        // 2. Tìm User trong DB dựa vào Email đăng nhập để lấy ID tạo Refresh Token
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new RuntimeException("User not found with email: " + request.getEmail()));
+
+        // 3. Tạo Refresh Token lưu xuống database
+        RefreshToken refreshToken = refreshTokenService.createRefreshToken(user.getId());
+
+        // 4. Đóng gói cả 2 mã trả về cho Frontend dưới dạng JSON
+        Map<String, String> response = new HashMap<>();
+        response.put("accessToken", accessToken);
+        response.put("refreshToken", refreshToken.getToken());
+
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/refresh-token")
+    public ResponseEntity<?> refreshToken(@RequestBody Map<String, String> request) {
+        String requestRefreshToken = request.get("refreshToken");
+
+        if (requestRefreshToken == null || requestRefreshToken.isEmpty()) {
+            return ResponseEntity.badRequest().body("Refresh Token is missing!");
+        }
+
+        try {
+            return refreshTokenService.findByToken(requestRefreshToken)
+                    .map(refreshTokenService::verifyExpiration)
+                    .map(RefreshToken::getUser)
+                    .map(user -> {
+                        String newAccessToken = jwtService.generateToken(user);
+
+                        Map<String, String> response = new HashMap<>();
+                        response.put("accessToken", newAccessToken);
+                        response.put("refreshToken", requestRefreshToken);
+                        return ResponseEntity.ok(response);
+                    })
+                    .orElseThrow(() -> new RuntimeException("Refresh token is not in database!"));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+        }
     }
 
     @PostMapping("/forgot-password")
@@ -56,5 +114,4 @@ public class AuthController {
                     .body("OTP code is not correct!");
         }
     }
-
 }

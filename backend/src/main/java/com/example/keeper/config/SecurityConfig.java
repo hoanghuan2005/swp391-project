@@ -30,20 +30,20 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .cors(org.springframework.security.config.Customizer.withDefaults())
-                .csrf(csrf -> csrf.disable()) // Vô hiệu hóa CSRF vì dùng JWT
-                .cors(Customizer.withDefaults()) // Sử dụng cấu hình corsConfigurationSource ở dưới
+                .csrf(csrf -> csrf.disable())
+                .cors(Customizer.withDefaults())
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
-                                "/api/auth/**",      // MỞ CỬA cho tất cả API Login, Signup, Forgot, Verify, Reset
+                                "/api/auth/**",
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
-                                "/error"             // Nên permitAll "/error" để thấy lỗi cụ thể thay vì 403
+                                "/error",
+                                "/api/documents"
                         ).permitAll()
-                        .requestMatchers("/api/admin/**").hasAuthority("ADMIN")
+                        .requestMatchers("/api/users/upload-avatar").authenticated()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
