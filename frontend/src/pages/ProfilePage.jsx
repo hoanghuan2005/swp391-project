@@ -73,7 +73,7 @@ export default function ProfilePage() {
                     const data = profileResponse.data;
                     setProfileData((prev) => ({
                         ...prev,
-                        ffullName: data.fullName || data.username || prev.fullName,
+                        fullName: data.fullName || data.username || prev.fullName,
                         email: data.email || data.username || prev.email,
                         school: data.schoolName || "",
                         startYear: data.startYear ? String(data.startYear) : "",
