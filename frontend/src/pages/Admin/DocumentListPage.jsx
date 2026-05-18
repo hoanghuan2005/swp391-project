@@ -59,7 +59,7 @@ export default function DocumentListPage() {
   const filteredDocuments = documents.filter(
     (doc) =>
       doc.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      doc.subjectCode?.toLowerCase().includes(searchQuery.toLowerCase()),
+      doc.course?.code?.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   return (
@@ -84,7 +84,7 @@ export default function DocumentListPage() {
             <div className="relative w-full sm:w-80">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
               <Input
-                placeholder="Search by title or subject..."
+                placeholder="Search by title or course..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9 bg-slate-50 border-transparent focus-visible:ring-[#f26522]/20 focus-visible:border-[#f26522] rounded-xl"
@@ -114,7 +114,7 @@ export default function DocumentListPage() {
                     </TableHead>
                     <TableHead className="w-[30%] font-bold">Title</TableHead>
                     <TableHead className="w-[15%] text-center font-bold">
-                      Subject Code
+                      Course Code
                     </TableHead>
                     <TableHead className="w-[15%] text-center font-bold">
                       Visibility
@@ -156,7 +156,7 @@ export default function DocumentListPage() {
                             variant="outline"
                             className="bg-blue-50 text-blue-600 border-blue-200"
                           >
-                            {doc.subjectCode || "N/A"}
+                            {doc.course?.code || "N/A"}
                           </Badge>
                         </TableCell>
 

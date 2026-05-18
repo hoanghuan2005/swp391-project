@@ -5,7 +5,7 @@ import com.example.keeper.systems.dashboard.dto.DashboardStatsResponse;
 import com.example.keeper.systems.document.repository.DocumentRepository;
 import com.example.keeper.systems.auth.repository.LanguageRepository;
 import com.example.keeper.systems.school.repository.SchoolRepository;
-import com.example.keeper.systems.subject.repository.SubjectRepository;
+import com.example.keeper.systems.course.repository.CourseRepository;
 import com.example.keeper.systems.tag.repository.TagRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class DashboardController {
     // Tiêm (Inject) 3 Repository vào để đếm số lượng
     private final UserRepository userRepository;
-    private final SubjectRepository subjectRepository;
+    private final CourseRepository courseRepository;
     private final DocumentRepository documentRepository;
     private final SchoolRepository schoolRepository;
     private final TagRepository tagRepository;
@@ -30,7 +30,7 @@ public class DashboardController {
         // Gọi hàm .count() của Spring Data JPA để lấy tổng số lượng
         DashboardStatsResponse stats = DashboardStatsResponse.builder()
                 .totalUsers(userRepository.count())
-                .totalSubjects(subjectRepository.count())
+                .totalCourses(courseRepository.count())
                 .totalDocuments(documentRepository.count())
                 .totalSchools(schoolRepository.count())
                 .totalTags(tagRepository.count())

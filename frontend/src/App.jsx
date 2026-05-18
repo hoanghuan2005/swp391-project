@@ -69,6 +69,10 @@ function App() {
           <Route path="/admin/documents" element={<DocumentListPage />} />
           <Route path="/admin/documents/:id" element={<DocumentDetailPage />} />
           <Route
+            path="/admin/courses"
+            element={<ComingSoon pageName="Courses" />}
+          />
+          <Route
             path="/admin/catalog/schools"
             element={<CatalogSchoolsPage />}
           />

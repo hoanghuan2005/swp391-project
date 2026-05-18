@@ -1,4 +1,4 @@
-package com.example.keeper.systems.subject.entity;
+package com.example.keeper.systems.course.entity;
 
 import com.example.keeper.systems.base.BaseEntity;
 import jakarta.persistence.Column;
@@ -14,15 +14,15 @@ import lombok.Setter;
 @Entity
 @NoArgsConstructor
 @AllArgsConstructor
-@Table(name = "subjects")
-public class Subject extends BaseEntity {
+@Table(name = "courses")
+public class Course extends BaseEntity {
 
     @Column(nullable = false, unique = true, length = 50)
-    private String code; // Mã môn học, vd: SWP391
+    private String code; // Course code, e.g. SWP391
 
     @Column(nullable = false)
-    private String name; // Tên môn học
+    private String name; // Course name
 
     @Column(columnDefinition = "TEXT")
-    private String description; // Mô tả môn học
+    private String description; // Course description
 }

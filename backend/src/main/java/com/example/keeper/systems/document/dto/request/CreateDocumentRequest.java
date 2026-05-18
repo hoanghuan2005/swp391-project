@@ -31,11 +31,11 @@ public class CreateDocumentRequest {
 
     private UUID uploadedById;
 
-    private UUID subjectId;
+    private UUID courseId;
 
-    private String subjectCode;
+    private String courseCode;
 
-    private String subjectName;
+    private String courseName;
 
     private List<String> tagNames;
 }

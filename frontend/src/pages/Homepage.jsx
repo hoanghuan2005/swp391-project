@@ -127,10 +127,10 @@ export default function Homepage() {
             </div>
             <div className="space-y-2">
               <Label className="flex items-center gap-2 text-slate-700 font-semibold">
-                <BookOpen size={16} className="text-[#f26522]" /> Subject
+                <BookOpen size={16} className="text-[#f26522]" /> Course
               </Label>
               <Input
-                placeholder="Enter subject code or name"
+                placeholder="Enter course code or name"
                 className="rounded-lg focus-visible:ring-[#f26522]"
               />
             </div>
@@ -195,7 +195,7 @@ export default function Homepage() {
 
                   <CardDescription className="text-xs text-slate-500 font-medium mb-3 flex items-center gap-1.5">
                     <BookOpen className="w-3.5 h-3.5" />{" "}
-                    {doc.subject?.code || "General"}
+                    {doc.course?.code || "General"}
                   </CardDescription>
 
                   <div className="text-[11px] text-slate-400 -mt-1 flex justify-between items-center">

@@ -11,8 +11,8 @@ import com.example.keeper.systems.document.repository.DocumentRepository;
 import com.example.keeper.systems.document.repository.DocumentViewRepository;
 import com.example.keeper.systems.document.service.storage.FileStorageService;
 import com.example.keeper.systems.document.service.storage.FileUploadResult;
-import com.example.keeper.systems.subject.entity.Subject;
-import com.example.keeper.systems.subject.repository.SubjectRepository;
+import com.example.keeper.systems.course.entity.Course;
+import com.example.keeper.systems.course.repository.CourseRepository;
 import com.example.keeper.systems.tag.entity.Tag;
 import com.example.keeper.systems.tag.repository.TagRepository;
 import lombok.RequiredArgsConstructor;
@@ -35,7 +35,7 @@ public class DocumentServiceImpl implements DocumentService {
     private final DocumentRepository documentRepository;
     private final DocumentViewRepository documentViewRepository;
     private final UserRepository userRepository;
-    private final SubjectRepository subjectRepository;
+    private final CourseRepository courseRepository;
     private final TagRepository tagRepository;
     private final FileStorageService fileStorageService;
 
@@ -96,7 +96,7 @@ public class DocumentServiceImpl implements DocumentService {
         User user = userRepository.findByEmail(currentUserEmail)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy user đăng nhập!"));
 
-        Subject subject = resolveSubject(request);
+        Course course = resolveCourse(request);
 
         Document document = new Document();
 
@@ -114,35 +114,35 @@ public class DocumentServiceImpl implements DocumentService {
         // document.setUploadStatus(UploadStatus.DONE);
 
         document.setUploadedBy(user);
-        document.setSubject(subject);
+        document.setCourse(course);
         document.setTags(resolveTags(request));
 
         return document;
     }
 
-    private Subject resolveSubject(CreateDocumentRequest request) {
-        if (request.getSubjectId() != null) {
-            return subjectRepository.findById(request.getSubjectId())
+    private Course resolveCourse(CreateDocumentRequest request) {
+        if (request.getCourseId() != null) {
+            return courseRepository.findById(request.getCourseId())
                     .orElseThrow();
         }
 
-        String subjectCode = safeTrim(request.getSubjectCode());
-        if (subjectCode == null) {
-            throw new IllegalArgumentException("Subject code is required");
+        String courseCode = safeTrim(request.getCourseCode());
+        if (courseCode == null) {
+            throw new IllegalArgumentException("Course code is required");
         }
 
-        return subjectRepository.findByCode(subjectCode)
+        return courseRepository.findByCode(courseCode)
                 .orElseGet(() -> {
-                    String subjectName = safeTrim(request.getSubjectName());
-                    if (subjectName == null) {
-                        throw new IllegalArgumentException("Subject name is required for new subject code");
+                    String courseName = safeTrim(request.getCourseName());
+                    if (courseName == null) {
+                        throw new IllegalArgumentException("Course name is required for new course code");
                     }
 
-                    Subject subject = new Subject();
-                    subject.setCode(subjectCode);
-                    subject.setName(subjectName);
-                    subject.setDescription(null);
-                    return subjectRepository.save(subject);
+                    Course course = new Course();
+                    course.setCode(courseCode);
+                    course.setName(courseName);
+                    course.setDescription(null);
+                    return courseRepository.save(course);
                 });
     }
 
@@ -354,10 +354,10 @@ public class DocumentServiceImpl implements DocumentService {
                         : document.getVisibility().name())
                 .downloadCount(document.getDownloadCount())
                 .createdAt(document.getCreatedAt())
-                .subject(DocumentDetailResponse.SubjectInfo.builder()
-                        .id(document.getSubject() == null ? null : document.getSubject().getId())
-                        .code(document.getSubject() == null ? null : document.getSubject().getCode())
-                        .name(document.getSubject() == null ? null : document.getSubject().getName())
+                .course(DocumentDetailResponse.CourseInfo.builder()
+                        .id(document.getCourse() == null ? null : document.getCourse().getId())
+                        .code(document.getCourse() == null ? null : document.getCourse().getCode())
+                        .name(document.getCourse() == null ? null : document.getCourse().getName())
                         .build())
                 .uploadedBy(DocumentDetailResponse.UserInfo.builder()
                         .id(document.getUploadedBy() == null ? null : document.getUploadedBy().getId())
@@ -391,10 +391,10 @@ public class DocumentServiceImpl implements DocumentService {
                         : document.getVisibility().name())
                 .downloadCount(document.getDownloadCount())
                 .createdAt(document.getCreatedAt())
-                .subject(DocumentResponse.SubjectInfo.builder()
-                        .id(document.getSubject() == null ? null : document.getSubject().getId())
-                        .code(document.getSubject() == null ? null : document.getSubject().getCode())
-                        .name(document.getSubject() == null ? null : document.getSubject().getName())
+                .course(DocumentResponse.CourseInfo.builder()
+                        .id(document.getCourse() == null ? null : document.getCourse().getId())
+                        .code(document.getCourse() == null ? null : document.getCourse().getCode())
+                        .name(document.getCourse() == null ? null : document.getCourse().getName())
                         .build())
                 .tags(document.getTags() == null
                         ? List.of()

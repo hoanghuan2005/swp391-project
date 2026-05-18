@@ -94,7 +94,7 @@ export default function MyLibrary() {
                         {doc.title || "Untitled document"}
                       </p>
                       <p className="text-xs text-slate-500">
-                        {doc.subject?.name || doc.subject?.code || "No subject"}
+                        {doc.course?.name || doc.course?.code || "No course"}
                       </p>
                       {doc.tags?.length > 0 && (
                         <div className="mt-2 flex flex-wrap gap-2">

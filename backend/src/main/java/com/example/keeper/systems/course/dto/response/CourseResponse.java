@@ -1,4 +1,4 @@
-package com.example.keeper.systems.subject.dto.response;
+package com.example.keeper.systems.course.dto.response;
 
 import lombok.Builder;
 import lombok.Getter;
@@ -10,7 +10,7 @@ import java.util.UUID;
 @Getter
 @Setter
 @Builder
-public class SubjectResponse {
+public class CourseResponse {
     private UUID id;
     private String code;
     private String name;

@@ -3,7 +3,7 @@ package com.example.keeper.systems.document.entity;
 import com.example.keeper.systems.auth.entity.User;
 import com.example.keeper.systems.base.BaseEntity;
 import com.example.keeper.systems.document.enums.Visibility;
-import com.example.keeper.systems.subject.entity.Subject;
+import com.example.keeper.systems.course.entity.Course;
 import com.example.keeper.systems.tag.entity.Tag;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -71,8 +71,8 @@ public class Document extends BaseEntity {
     private User uploadedBy;
 
     @ManyToOne
-    @JoinColumn(name = "student_id", nullable = false)
-    private Subject subject;
+    @JoinColumn(name = "course_id", nullable = false)
+    private Course course;
 
     @ManyToMany
     @JoinTable(name = "document_tags", joinColumns = @JoinColumn(name = "document_id"), inverseJoinColumns = @JoinColumn(name = "tag_id"))

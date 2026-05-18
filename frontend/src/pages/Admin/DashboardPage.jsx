@@ -14,7 +14,7 @@ import axiosClient from "@/api/axiosClient";
 export default function DashboardPage() {
   const [stats, setStats] = useState({
     totalUsers: 0,
-    totalSubjects: 0,
+    totalCourses: 0,
     totalDocuments: 0,
     totalSchools: 0,
     totalTags: 0,
@@ -69,11 +69,11 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Total Subjects Card */}
+        {/* Total Courses Card */}
         <Card className="rounded-2xl shadow-sm border-slate-100 hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
             <CardTitle className="text-sm font-semibold text-slate-500 uppercase tracking-wider">
-              Total Subjects
+              Total Courses
             </CardTitle>
             <div className="p-2.5 bg-purple-50 text-purple-600 rounded-xl">
               <BookOpen className="w-5 h-5" />
@@ -81,10 +81,10 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-slate-800">
-              {isLoading ? "..." : stats.totalSubjects}
+              {isLoading ? "..." : stats.totalCourses}
             </div>
             <p className="text-xs text-slate-400 mt-1 font-medium">
-              Active subjects
+              Active courses
             </p>
           </CardContent>
         </Card>

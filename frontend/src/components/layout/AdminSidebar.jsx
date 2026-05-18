@@ -123,9 +123,9 @@ export default function AdminSidebar({ isOpen = true }) {
           pathname={location.pathname}
         />
         <AdminNavItem
-          to="/admin/subjects"
+          to="/admin/courses"
           icon={BookOpen}
-          label="Subjects"
+          label="Courses"
           isOpen={isOpen}
           pathname={location.pathname}
         />

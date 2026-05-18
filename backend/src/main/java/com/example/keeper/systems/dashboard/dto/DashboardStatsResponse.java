@@ -7,7 +7,7 @@ import lombok.Data;
 @Builder
 public class DashboardStatsResponse {
     private long totalUsers;
-    private long totalSubjects;
+    private long totalCourses;
     private long totalDocuments;
     private long totalSchools;
     private long totalTags;

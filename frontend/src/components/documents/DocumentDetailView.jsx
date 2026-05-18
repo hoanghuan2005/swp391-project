@@ -195,12 +195,12 @@ export default function DocumentDetailView({
 
                 <div className="grid gap-3">
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-500">Subject</span>
+                    <span className="text-slate-500">Course</span>
                     <Badge
                       variant="outline"
                       className="border-slate-200 text-slate-600"
                     >
-                      {documentDetail.subject?.code || "N/A"}
+                      {documentDetail.course?.code || "N/A"}
                     </Badge>
                   </div>
                   <div className="flex items-center justify-between text-sm">

@@ -1,11 +1,11 @@
-package com.example.keeper.systems.subject.dto.request;
+package com.example.keeper.systems.course.dto.request;
 
 import lombok.Getter;
 import lombok.Setter;
 
 @Getter
 @Setter
-public class CreateSubjectRequest {
+public class CreateCourseRequest {
 
     private String code;
 

@@ -8,8 +8,8 @@ import com.example.keeper.systems.auth.repository.RoleRepository;
 import com.example.keeper.systems.auth.repository.UserRepository;
 import com.example.keeper.systems.school.entity.School;
 import com.example.keeper.systems.school.repository.SchoolRepository;
-import com.example.keeper.systems.subject.entity.Subject;
-import com.example.keeper.systems.subject.repository.SubjectRepository;
+import com.example.keeper.systems.course.entity.Course;
+import com.example.keeper.systems.course.repository.CourseRepository;
 import com.example.keeper.systems.tag.entity.Tag;
 import com.example.keeper.systems.tag.repository.TagRepository;
 import lombok.RequiredArgsConstructor;
@@ -29,7 +29,7 @@ public class DataInitializer implements CommandLineRunner {
         private final PasswordEncoder passwordEncoder;
         private final LanguageRepository languageRepository;
         private final SchoolRepository schoolRepository;
-        private final SubjectRepository subjectRepository;
+        private final CourseRepository courseRepository;
         private final TagRepository tagRepository;
 
         @Override
@@ -104,11 +104,48 @@ public class DataInitializer implements CommandLineRunner {
                                                         .build()));
                 }
 
-                if (subjectRepository.count() == 0) {
-                        subjectRepository.save(new Subject(
-                                        "SWP391",
-                                        "Software Architecture and Design",
-                                        "Core architecture concepts and design patterns"));
+                if (courseRepository.count() == 0) {
+                        courseRepository.saveAll(List.of(
+                                        new Course(
+                                                        "SWP391",
+                                                        "Software Architecture and Design",
+                                                        "Core architecture concepts and design patterns"),
+                                        new Course(
+                                                        "PRF192",
+                                                        "Programming Fundamentals",
+                                                        "Introduction to programming using Java"),
+                                        new Course(
+                                                        "SSG104",
+                                                        "Understanding Group Dynamics",
+                                                        "Teamwork, collaboration, and communication"),
+                                        new Course(
+                                                        "ECO111",
+                                                        "Micro Economics",
+                                                        "Basic microeconomic theory and applications"),
+                                        new Course(
+                                                        "FIN202",
+                                                        "Corporate Finance",
+                                                        "Financial management and corporate decision-making"),
+                                        new Course(
+                                                        "CEA201",
+                                                        "Computer Architecture",
+                                                        "Computer organization and hardware fundamentals"),
+                                        new Course(
+                                                        "DBI202",
+                                                        "Database Systems",
+                                                        "Relational database design and SQL"),
+                                        new Course(
+                                                        "WEB301",
+                                                        "Web Application Development",
+                                                        "Building modern web apps with Java and JS"),
+                                        new Course(
+                                                        "MAD101",
+                                                        "Mobile App Development",
+                                                        "Foundations of mobile application development"),
+                                        new Course(
+                                                        "AI101",
+                                                        "Introduction to AI",
+                                                        "Core AI concepts and problem solving")));
                 }
 
                 if (tagRepository.count() == 0) {

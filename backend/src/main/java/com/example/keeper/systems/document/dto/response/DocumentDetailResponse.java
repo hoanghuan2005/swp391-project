@@ -25,13 +25,13 @@ public class DocumentDetailResponse {
     private String visibility;
     private Integer downloadCount;
     private LocalDateTime createdAt;
-    private SubjectInfo subject;
+    private CourseInfo course;
     private UserInfo uploadedBy;
     private List<String> tags;
 
     @Data
     @Builder
-    public static class SubjectInfo {
+    public static class CourseInfo {
         private UUID id;
         private String code;
         private String name;

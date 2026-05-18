@@ -39,9 +39,9 @@ public class DocumentController {
             @RequestParam(required = false) String description,
             @RequestParam(required = false) Visibility visibility,
             @RequestParam(required = false) UUID uploadedById,
-            @RequestParam(required = false) UUID subjectId,
-            @RequestParam(required = false) String subjectCode,
-            @RequestParam(required = false) String subjectName,
+            @RequestParam(required = false) UUID courseId,
+            @RequestParam(required = false) String courseCode,
+            @RequestParam(required = false) String courseName,
             @RequestParam(required = false) List<String> tagNames) {
         UUID resolvedUploadedById = uploadedById;
         if (resolvedUploadedById == null) {
@@ -56,9 +56,9 @@ public class DocumentController {
         request.setDescription(description);
         request.setVisibility(visibility != null ? visibility : Visibility.PUBLIC);
         request.setUploadedById(resolvedUploadedById);
-        request.setSubjectId(subjectId);
-        request.setSubjectCode(subjectCode);
-        request.setSubjectName(subjectName);
+        request.setCourseId(courseId);
+        request.setCourseCode(courseCode);
+        request.setCourseName(courseName);
         request.setTagNames(tagNames);
 
         Document document = documentService.uploadAndCreate(file, request);
