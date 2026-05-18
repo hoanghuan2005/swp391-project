@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/schools")
@@ -26,20 +27,19 @@ public class SchoolController {
     }
 
     @GetMapping("/{id}")
-    public SchoolResponse getSchoolById(@PathVariable Long id) {
+    public SchoolResponse getSchoolById(@PathVariable UUID id) {
         return schoolService.getSchoolById(id);
     }
 
     @PutMapping("/{id}")
     public SchoolResponse updateSchool(
-            @PathVariable Long id,
-            @RequestBody SchoolRequest request
-    ) {
+            @PathVariable UUID id,
+            @RequestBody SchoolRequest request) {
         return schoolService.updateSchool(id, request);
     }
 
     @DeleteMapping("/{id}")
-    public void deleteSchool(@PathVariable Long id) {
+    public void deleteSchool(@PathVariable UUID id) {
         schoolService.deleteSchool(id);
     }
 }

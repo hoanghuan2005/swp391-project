@@ -32,13 +32,25 @@ public class Document extends BaseEntity {
     private String fileUrl;
 
     @Column(name = "file_public_id")
-    private String filePublicId;
+    private String cloudinaryPublicId;
 
     @Column(name = "thumbnail_url")
     private String thumbnailUrl;
 
     @Column(name = "file_type")
-    private String fileType;
+    private String mimeType;
+
+    @Column(name = "file_resource_type")
+    private String resourceType;
+
+    @Column(name = "preview_url")
+    private String previewUrl;
+
+    @Column(name = "download_url")
+    private String downloadUrl;
+
+    @Column(name = "original_file_name")
+    private String originalFileName;
 
     @Column(name = "file_size")
     private Long fileSize;

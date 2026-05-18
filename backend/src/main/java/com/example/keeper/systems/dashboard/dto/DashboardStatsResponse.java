@@ -9,4 +9,7 @@ public class DashboardStatsResponse {
     private long totalUsers;
     private long totalSubjects;
     private long totalDocuments;
+    private long totalSchools;
+    private long totalTags;
+    private long totalLanguages;
 }

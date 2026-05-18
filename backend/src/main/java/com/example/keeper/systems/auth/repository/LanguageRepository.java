@@ -9,5 +9,9 @@ import com.example.keeper.systems.auth.entity.Language;
 
 @Repository
 public interface LanguageRepository
-        extends JpaRepository<Language, UUID> {
+                extends JpaRepository<Language, UUID> {
+
+        boolean existsByCodeIgnoreCase(String code);
+
+        boolean existsByNameIgnoreCase(String name);
 }

@@ -1,6 +1,7 @@
 package com.example.keeper.systems.document.controller;
 
-import com.example.keeper.systems.document.entity.Document;
+import com.example.keeper.systems.document.dto.response.DocumentDetailResponse;
+import com.example.keeper.systems.document.dto.response.DocumentResponse;
 import com.example.keeper.systems.document.service.DocumentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -16,8 +17,14 @@ public class AdminDocumentController {
     private final DocumentService documentService;
 
     @GetMapping
-    public ResponseEntity<List<Document>> getAllDocuments() {
+    public ResponseEntity<List<DocumentResponse>> getAllDocuments() {
         return ResponseEntity.ok(documentService.getAll());
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<DocumentDetailResponse> getDocumentDetail(
+            @PathVariable UUID id) {
+        return ResponseEntity.ok(documentService.getDetail(id));
     }
 
     @DeleteMapping("/{id}")

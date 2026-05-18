@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { X } from "lucide-react";
+import { Calendar, GraduationCap, Search, X } from "lucide-react";
 import axiosClient from "@/api/axiosClient";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,16 +12,14 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 export default function Survey({ onClose }) {
   const [open, setOpen] = useState(true);
@@ -32,11 +30,33 @@ export default function Survey({ onClose }) {
   const [loadingLanguages, setLoadingLanguages] = useState(true);
   const [schoolOptions, setSchoolOptions] = useState([]);
   const [loadingSchools, setLoadingSchools] = useState(true);
+  const [schoolOpen, setSchoolOpen] = useState(false);
+  const [yearOpen, setYearOpen] = useState(false);
 
   const years = useMemo(
     () => Array.from({ length: 12 }, (_, i) => new Date().getFullYear() - i),
     [],
   );
+
+  const filteredSchools = useMemo(() => {
+    const query = school.trim().toLowerCase();
+    if (!query) {
+      return schoolOptions;
+    }
+
+    return schoolOptions.filter((item) =>
+      `${item.name} ${item.code}`.toLowerCase().includes(query),
+    );
+  }, [school, schoolOptions]);
+
+  const filteredYears = useMemo(() => {
+    const query = startYear.trim();
+    if (!query) {
+      return years;
+    }
+
+    return years.filter((year) => String(year).includes(query));
+  }, [startYear, years]);
 
   useEffect(() => {
     let isMounted = true;
@@ -159,46 +179,123 @@ export default function Survey({ onClose }) {
             <CardContent className="px-8 pb-2">
               <div className="grid gap-6">
                 <div className="grid gap-2">
-                  <Label className="text-sm font-semibold text-slate-700">
+                  <Label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                    <GraduationCap className="h-4 w-4 text-[#f26522]" />
                     School / University
                   </Label>
-                  <Select value={school} onValueChange={setSchool}>
-                    <SelectTrigger className="w-full rounded-xl border-slate-200">
-                      <SelectValue placeholder="Select school" />
-                    </SelectTrigger>
+                  <div className="relative">
+                    <InputGroup className="rounded-xl border-slate-200 bg-white/90">
+                      <InputGroupAddon>
+                        <Search className="h-4 w-4 text-slate-400" />
+                      </InputGroupAddon>
+                      <InputGroupInput
+                        value={school}
+                        placeholder="Search your school"
+                        onChange={(event) => {
+                          setSchool(event.target.value);
+                          setSchoolOpen(true);
+                        }}
+                        onFocus={() => setSchoolOpen(true)}
+                        onBlur={() => {
+                          setTimeout(() => setSchoolOpen(false), 120);
+                        }}
+                      />
+                    </InputGroup>
 
-                    <SelectContent>
-                      {loadingSchools ? (
-                        <div className="p-2 text-sm text-slate-500">
-                          Loading schools...
-                        </div>
-                      ) : (
-                        schoolOptions.map((school) => (
-                          <SelectItem key={school.id} value={school.name}>
-                            {school.name}
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
+                    {schoolOpen && (
+                      <div className="absolute z-20 mt-2 w-full rounded-xl border border-slate-200 bg-white shadow-md">
+                        <ScrollArea className="max-h-48">
+                          {loadingSchools ? (
+                            <div className="p-3 text-xs text-slate-500">
+                              Loading schools...
+                            </div>
+                          ) : filteredSchools.length === 0 ? (
+                            <div className="p-3 text-xs text-slate-500">
+                              No schools match your search.
+                            </div>
+                          ) : (
+                            filteredSchools.map((item) => (
+                              <Button
+                                key={item.id}
+                                type="button"
+                                variant="ghost"
+                                onMouseDown={(event) => {
+                                  event.preventDefault();
+                                  setSchool(item.name);
+                                  setSchoolOpen(false);
+                                }}
+                                className="w-full justify-between rounded-none px-3 py-2 text-xs hover:bg-slate-50"
+                              >
+                                <span className="text-slate-700">
+                                  {item.name}
+                                </span>
+                                <Badge
+                                  variant="outline"
+                                  className="border-slate-200 text-slate-500"
+                                >
+                                  {item.code}
+                                </Badge>
+                              </Button>
+                            ))
+                          )}
+                        </ScrollArea>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="grid gap-2">
-                  <Label className="text-sm font-semibold text-slate-700">
+                  <Label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                    <Calendar className="h-4 w-4 text-[#f26522]" />
                     Start year
                   </Label>
-                  <Select value={startYear} onValueChange={setStartYear}>
-                    <SelectTrigger className="w-full rounded-xl border-slate-200">
-                      <SelectValue placeholder="Select year" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {years.map((year) => (
-                        <SelectItem key={year} value={String(year)}>
-                          {year}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="relative">
+                    <InputGroup className="rounded-xl border-slate-200 bg-white/90">
+                      <InputGroupAddon>
+                        <Search className="h-4 w-4 text-slate-400" />
+                      </InputGroupAddon>
+                      <InputGroupInput
+                        value={startYear}
+                        placeholder="Search start year"
+                        onChange={(event) => {
+                          setStartYear(event.target.value);
+                          setYearOpen(true);
+                        }}
+                        onFocus={() => setYearOpen(true)}
+                        onBlur={() => {
+                          setTimeout(() => setYearOpen(false), 120);
+                        }}
+                      />
+                    </InputGroup>
+
+                    {yearOpen && (
+                      <div className="absolute z-20 mt-2 w-full rounded-xl border border-slate-200 bg-white shadow-md">
+                        <ScrollArea className="max-h-40">
+                          {filteredYears.length === 0 ? (
+                            <div className="p-3 text-xs text-slate-500">
+                              No years match your search.
+                            </div>
+                          ) : (
+                            filteredYears.map((year) => (
+                              <Button
+                                key={year}
+                                type="button"
+                                variant="ghost"
+                                onMouseDown={(event) => {
+                                  event.preventDefault();
+                                  setStartYear(String(year));
+                                  setYearOpen(false);
+                                }}
+                                className="w-full justify-start rounded-none px-3 py-2 text-xs hover:bg-slate-50"
+                              >
+                                {year}
+                              </Button>
+                            ))
+                          )}
+                        </ScrollArea>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="grid gap-3">

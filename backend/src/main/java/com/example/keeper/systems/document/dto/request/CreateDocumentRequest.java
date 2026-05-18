@@ -21,6 +21,10 @@ public class CreateDocumentRequest {
 
     private String fileType;
 
+    private String mimeType;
+
+    private String originalFileName;
+
     private Long fileSize;
 
     private Visibility visibility;

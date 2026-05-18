@@ -1,6 +1,8 @@
 package com.example.keeper.systems.document.controller;
 
 import com.example.keeper.systems.document.dto.request.CreateDocumentRequest;
+import com.example.keeper.systems.document.dto.response.DocumentDetailResponse;
+import com.example.keeper.systems.document.dto.response.DocumentResponse;
 import com.example.keeper.systems.document.entity.Document;
 import com.example.keeper.systems.document.enums.Visibility;
 import com.example.keeper.systems.document.service.DocumentService;
@@ -24,13 +26,14 @@ public class DocumentController {
     private final UserRepository userRepository;
 
     @PostMapping
-    public Document create(
+    public DocumentDetailResponse create(
             @RequestBody CreateDocumentRequest request) {
-        return documentService.create(request);
+        Document document = documentService.create(request);
+        return documentService.getDetail(document.getId());
     }
 
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public Document upload(
+    public DocumentDetailResponse upload(
             @RequestPart("file") MultipartFile file,
             @RequestParam(required = false) String title,
             @RequestParam(required = false) String description,
@@ -58,24 +61,31 @@ public class DocumentController {
         request.setSubjectName(subjectName);
         request.setTagNames(tagNames);
 
-        return documentService.uploadAndCreate(file, request);
+        Document document = documentService.uploadAndCreate(file, request);
+        return documentService.getDetail(document.getId());
     }
 
     @GetMapping
-    public List<Document> getAll() {
+    public List<DocumentResponse> getAll() {
         return documentService.getAll();
     }
 
     @GetMapping("/my-uploads")
-    public List<Document> getMyUploads() {
+    public List<DocumentResponse> getMyUploads() {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         return documentService.getMyUploads(email);
     }
 
     @GetMapping("/{id}")
-    public Document getById(
+    public DocumentDetailResponse getById(
             @PathVariable UUID id) {
-        return documentService.getById(id);
+        return documentService.getDetail(id);
+    }
+
+    @GetMapping("/{id}/detail")
+    public DocumentDetailResponse getDetail(
+            @PathVariable UUID id) {
+        return documentService.getDetail(id);
     }
 
     @DeleteMapping("/{id}")
@@ -86,8 +96,9 @@ public class DocumentController {
 
     // API Tải tài liệu
     @GetMapping("/{id}/download")
-    public org.springframework.http.ResponseEntity<java.util.Map<String, String>> downloadDocument(@PathVariable UUID id) {
+    public org.springframework.http.ResponseEntity<java.util.Map<String, String>> downloadDocument(
+            @PathVariable UUID id) {
         String fileUrl = documentService.getDownloadUrl(id);
-        return org.springframework.http.ResponseEntity.ok(java.util.Map.of("fileUrl", fileUrl));
+        return org.springframework.http.ResponseEntity.ok(java.util.Map.of("downloadUrl", fileUrl));
     }
 }

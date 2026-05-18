@@ -3,26 +3,26 @@ package com.example.keeper.systems.document.service;
 import com.example.keeper.systems.auth.entity.User;
 import com.example.keeper.systems.auth.repository.UserRepository;
 import com.example.keeper.systems.document.dto.request.CreateDocumentRequest;
+import com.example.keeper.systems.document.dto.response.DocumentDetailResponse;
+import com.example.keeper.systems.document.dto.response.DocumentResponse;
 import com.example.keeper.systems.document.entity.Document;
 import com.example.keeper.systems.document.entity.DocumentView;
 import com.example.keeper.systems.document.repository.DocumentRepository;
 import com.example.keeper.systems.document.repository.DocumentViewRepository;
+import com.example.keeper.systems.document.service.storage.FileStorageService;
+import com.example.keeper.systems.document.service.storage.FileUploadResult;
 import com.example.keeper.systems.subject.entity.Subject;
 import com.example.keeper.systems.subject.repository.SubjectRepository;
 import com.example.keeper.systems.tag.entity.Tag;
 import com.example.keeper.systems.tag.repository.TagRepository;
-import com.cloudinary.Cloudinary;
-import com.cloudinary.utils.ObjectUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -37,7 +37,7 @@ public class DocumentServiceImpl implements DocumentService {
     private final UserRepository userRepository;
     private final SubjectRepository subjectRepository;
     private final TagRepository tagRepository;
-    private final Cloudinary cloudinary;
+    private final FileStorageService fileStorageService;
 
     @Override
     public Document create(CreateDocumentRequest request) {
@@ -48,16 +48,39 @@ public class DocumentServiceImpl implements DocumentService {
 
     @Override
     public Document uploadAndCreate(MultipartFile file, CreateDocumentRequest request) {
-        Map<String, Object> uploadResult = uploadToCloudinary(file);
-        String fileUrl = (String) uploadResult.get("secure_url");
-        String publicId = (String) uploadResult.get("public_id");
+        FileUploadResult uploadResult = fileStorageService.uploadFile(file, "documents");
+        String fileUrl = uploadResult.getSecureUrl();
+        String publicId = uploadResult.getPublicId();
+        String resourceType = uploadResult.getResourceType();
 
         Document document = buildDocument(request);
 
         document.setFileUrl(fileUrl);
-        document.setFilePublicId(publicId);
-        document.setFileType(file.getContentType());
+        document.setCloudinaryPublicId(publicId);
+        document.setMimeType(uploadResult.getMimeType());
         document.setFileSize(file.getSize());
+        document.setResourceType(resourceType);
+        document.setOriginalFileName(uploadResult.getOriginalFileName());
+        String originalFilename = uploadResult.getOriginalFileName();
+
+        String extension = "";
+
+        if (originalFilename != null && originalFilename.contains(".")) {
+            extension = originalFilename.substring(
+                    originalFilename.lastIndexOf('.') + 1).toLowerCase();
+        }
+
+        document.setPreviewUrl(
+                fileStorageService.generatePreviewUrl(
+                        publicId,
+                        resourceType,
+                        extension));
+
+        document.setDownloadUrl(
+                fileStorageService.generateDownloadUrl(
+                        publicId,
+                        resourceType,
+                        extension));
 
         if (document.getTitle() == null || document.getTitle().trim().isEmpty()) {
             document.setTitle(resolveTitle(file));
@@ -80,7 +103,11 @@ public class DocumentServiceImpl implements DocumentService {
         document.setTitle(request.getTitle());
         document.setDescription(request.getDescription());
         document.setThumbnailUrl(request.getThumbnailUrl());
-        document.setFileType(request.getFileType());
+        String mimeType = request.getMimeType() != null && !request.getMimeType().isBlank()
+                ? request.getMimeType()
+                : request.getFileType();
+        document.setMimeType(mimeType);
+        document.setOriginalFileName(request.getOriginalFileName());
         document.setFileSize(request.getFileSize());
         document.setVisibility(request.getVisibility());
 
@@ -148,43 +175,6 @@ public class DocumentServiceImpl implements DocumentService {
         return trimmed.isEmpty() ? null : trimmed;
     }
 
-    private Map<String, Object> uploadToCloudinary(MultipartFile file) {
-        try {
-
-            String originalFilename = file.getOriginalFilename();
-
-            // tách tên file và extension
-            String fileName = originalFilename != null
-                    ? originalFilename.substring(0, originalFilename.lastIndexOf("."))
-                    : "file";
-
-            // sanitize tên file
-            String cleanFileName = fileName
-                    .trim()
-                    .toLowerCase()
-                    .replaceAll("[^a-zA-Z0-9\\s-_]", "") // xóa ký tự đặc biệt
-                    .replaceAll("\\s+", "-"); // space -> -
-
-            // thêm timestamp tránh trùng tên
-            String publicId = System.currentTimeMillis() + "-" + cleanFileName;
-
-            return cloudinary.uploader().upload(
-                    file.getBytes(),
-                    ObjectUtils.asMap(
-                            "folder", "documents",
-                            "public_id", publicId,
-                            "resource_type", "auto",
-                            "use_filename", true,
-                            "unique_filename", false,
-                            "overwrite", false));
-
-        } catch (IOException exception) {
-            throw new IllegalStateException(
-                    "Failed to upload document to Cloudinary",
-                    exception);
-        }
-    }
-
     private String resolveTitle(MultipartFile file) {
         String originalName = file.getOriginalFilename();
         if (originalName == null || originalName.isBlank()) {
@@ -195,23 +185,95 @@ public class DocumentServiceImpl implements DocumentService {
         return extensionIndex > 0 ? originalName.substring(0, extensionIndex) : originalName;
     }
 
-    @Override
-    public List<Document> getAll() {
-        return documentRepository.findAll();
+    private String resolveResourceType(Document document) {
+        if (document.getResourceType() != null && !document.getResourceType().isBlank()) {
+            return document.getResourceType();
+        }
+
+        String mimeType = document.getMimeType();
+        if (mimeType != null && !mimeType.isBlank()) {
+            return fileStorageService.detectResourceType(mimeType);
+        }
+
+        String fileUrl = document.getFileUrl();
+        if (fileUrl == null) {
+            return "raw";
+        }
+
+        if (fileUrl.contains("/image/upload/")) {
+            return "image";
+        }
+
+        if (fileUrl.contains("/video/upload/")) {
+            return "video";
+        }
+
+        return "raw";
+    }
+
+    private String resolvePreviewUrl(Document document) {
+        if (document.getPreviewUrl() != null && !document.getPreviewUrl().isBlank()) {
+            return document.getPreviewUrl();
+        }
+
+        String publicId = document.getCloudinaryPublicId();
+        if (publicId == null || publicId.isBlank()) {
+            return document.getFileUrl();
+        }
+
+        String resourceType = resolveResourceType(document);
+        return fileStorageService.generatePreviewUrl(
+                publicId,
+                resourceType,
+                resolveExtension(document));
+    }
+
+    private String resolveDownloadUrl(Document document) {
+        if (document.getDownloadUrl() != null && !document.getDownloadUrl().isBlank()) {
+            return document.getDownloadUrl();
+        }
+
+        String publicId = document.getCloudinaryPublicId();
+        if (publicId == null || publicId.isBlank()) {
+            return document.getFileUrl();
+        }
+
+        String resourceType = resolveResourceType(document);
+        return fileStorageService.generateDownloadUrl(
+                publicId,
+                resourceType,
+                resolveExtension(document));
     }
 
     @Override
-    public List<Document> getMyUploads(String email) {
+    public List<DocumentResponse> getAll() {
+        return documentRepository.findAll()
+                .stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<DocumentResponse> getMyUploads(String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        return documentRepository.findByUploadedById(user.getId());
+        return documentRepository.findByUploadedById(user.getId())
+                .stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
     }
 
     @Override
     public Document getById(UUID id) {
         return documentRepository.findById(id)
                 .orElseThrow();
+    }
+
+    @Override
+    public DocumentDetailResponse getDetail(UUID id) {
+        Document document = getById(id);
+        return mapToDetail(document);
     }
 
     @Override
@@ -234,43 +296,136 @@ public class DocumentServiceImpl implements DocumentService {
         return documentViewRepository.findRecentDocuments(user.getId(), PageRequest.of(0, limit));
     }
 
-//    @Override
-//    public List<Document> getRecommended(String email, int limit) {
-//        User user = userRepository.findByEmail(email)
-//                .orElseThrow(() -> new RuntimeException("User not found"));
-//
-//        List<String> preferredLanguages = user.getPreferredLanguages()
-//                .stream()
-//                .map(value -> value == null ? "" : value.trim().toLowerCase())
-//                .filter(value -> !value.isEmpty())
-//                .collect(Collectors.toList());
-//
-//        if (user.isSurveyCompleted() && !preferredLanguages.isEmpty()) {
-//            List<Document> matches = documentRepository.findByTagNames(preferredLanguages, PageRequest.of(0, limit));
-//            if (!matches.isEmpty()) {
-//                return matches;
-//            }
-//        }
-//
-//        return documentRepository.findTopByDownloadCount(PageRequest.of(0, limit));
-//    }
+    // @Override
+    // public List<Document> getRecommended(String email, int limit) {
+    // User user = userRepository.findByEmail(email)
+    // .orElseThrow(() -> new RuntimeException("User not found"));
+    //
+    // List<String> preferredLanguages = user.getPreferredLanguages()
+    // .stream()
+    // .map(value -> value == null ? "" : value.trim().toLowerCase())
+    // .filter(value -> !value.isEmpty())
+    // .collect(Collectors.toList());
+    //
+    // if (user.isSurveyCompleted() && !preferredLanguages.isEmpty()) {
+    // List<Document> matches =
+    // documentRepository.findByTagNames(preferredLanguages, PageRequest.of(0,
+    // limit));
+    // if (!matches.isEmpty()) {
+    // return matches;
+    // }
+    // }
+    //
+    // return documentRepository.findTopByDownloadCount(PageRequest.of(0, limit));
+    // }
 
     @Override
     public Document delete(UUID id) {
 
         Document document = getById(id);
 
-        if (document.getFilePublicId() != null) {
-            try {
-                cloudinary.uploader().destroy(document.getFilePublicId(), com.cloudinary.utils.ObjectUtils.emptyMap());
-            } catch (IOException e) {
-                throw new RuntimeException("Failed to delete file from Cloudinary", e);
-            }
-        }
+        fileStorageService.deleteFile(document.getCloudinaryPublicId(), resolveResourceType(document));
 
         documentRepository.delete(document);
 
         return document;
+    }
+
+    private DocumentDetailResponse mapToDetail(Document document) {
+        String previewUrl = resolvePreviewUrl(document);
+        String downloadUrl = resolveDownloadUrl(document);
+        String resourceType = resolveResourceType(document);
+        String mimeType = document.getMimeType();
+
+        return DocumentDetailResponse.builder()
+                .id(document.getId())
+                .title(document.getTitle())
+                .description(document.getDescription())
+                .fileUrl(document.getFileUrl())
+                .previewUrl(previewUrl)
+                .downloadUrl(downloadUrl)
+                .fileType(resolveFileType(document))
+                .resourceType(resourceType)
+                .mimeType(mimeType)
+                .originalFileName(document.getOriginalFileName())
+                .fileSize(document.getFileSize())
+                .visibility(document.getVisibility() == null
+                        ? null
+                        : document.getVisibility().name())
+                .downloadCount(document.getDownloadCount())
+                .createdAt(document.getCreatedAt())
+                .subject(DocumentDetailResponse.SubjectInfo.builder()
+                        .id(document.getSubject() == null ? null : document.getSubject().getId())
+                        .code(document.getSubject() == null ? null : document.getSubject().getCode())
+                        .name(document.getSubject() == null ? null : document.getSubject().getName())
+                        .build())
+                .uploadedBy(DocumentDetailResponse.UserInfo.builder()
+                        .id(document.getUploadedBy() == null ? null : document.getUploadedBy().getId())
+                        .username(document.getUploadedBy() == null ? null : document.getUploadedBy().getUsername())
+                        .email(document.getUploadedBy() == null ? null : document.getUploadedBy().getEmail())
+                        .build())
+                .tags(document.getTags() == null
+                        ? List.of()
+                        : document.getTags().stream()
+                                .map(Tag::getName)
+                                .sorted(String::compareToIgnoreCase)
+                                .toList())
+                .build();
+    }
+
+    private DocumentResponse mapToResponse(Document document) {
+        String previewUrl = resolvePreviewUrl(document);
+        String downloadUrl = resolveDownloadUrl(document);
+        String resourceType = resolveResourceType(document);
+
+        return DocumentResponse.builder()
+                .id(document.getId())
+                .title(document.getTitle())
+                .fileType(resolveFileType(document))
+                .resourceType(resourceType)
+                .previewUrl(previewUrl)
+                .downloadUrl(downloadUrl)
+                .mimeType(document.getMimeType())
+                .visibility(document.getVisibility() == null
+                        ? null
+                        : document.getVisibility().name())
+                .downloadCount(document.getDownloadCount())
+                .createdAt(document.getCreatedAt())
+                .subject(DocumentResponse.SubjectInfo.builder()
+                        .id(document.getSubject() == null ? null : document.getSubject().getId())
+                        .code(document.getSubject() == null ? null : document.getSubject().getCode())
+                        .name(document.getSubject() == null ? null : document.getSubject().getName())
+                        .build())
+                .tags(document.getTags() == null
+                        ? List.of()
+                        : document.getTags().stream()
+                                .map(Tag::getName)
+                                .sorted(String::compareToIgnoreCase)
+                                .toList())
+                .build();
+    }
+
+    private String resolveFileType(Document document) {
+        String originalFileName = document.getOriginalFileName();
+        if (originalFileName != null) {
+            int extensionIndex = originalFileName.lastIndexOf('.');
+            if (extensionIndex > 0 && extensionIndex < originalFileName.length() - 1) {
+                return originalFileName.substring(extensionIndex + 1).toLowerCase();
+            }
+        }
+
+        return document.getMimeType();
+    }
+
+    private String resolveExtension(Document document) {
+        String originalFileName = document.getOriginalFileName();
+        if (originalFileName != null) {
+            int extensionIndex = originalFileName.lastIndexOf('.');
+            if (extensionIndex > 0 && extensionIndex < originalFileName.length() - 1) {
+                return originalFileName.substring(extensionIndex + 1).toLowerCase();
+            }
+        }
+        return "";
     }
 
     @Override
@@ -282,6 +437,11 @@ public class DocumentServiceImpl implements DocumentService {
         document.setDownloadCount(currentCount + 1);
         documentRepository.save(document);
 
-        return document.getFileUrl();
+        String downloadUrl = resolveDownloadUrl(document);
+        if (downloadUrl == null || downloadUrl.isBlank()) {
+            return document.getFileUrl();
+        }
+
+        return downloadUrl;
     }
 }

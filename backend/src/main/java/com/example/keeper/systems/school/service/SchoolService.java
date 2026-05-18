@@ -4,6 +4,7 @@ import com.example.keeper.systems.school.dto.request.SchoolRequest;
 import com.example.keeper.systems.school.dto.response.SchoolResponse;
 
 import java.util.List;
+import java.util.UUID;
 
 public interface SchoolService {
 
@@ -11,9 +12,9 @@ public interface SchoolService {
 
     List<SchoolResponse> getAllSchools();
 
-    SchoolResponse getSchoolById(Long id);
+    SchoolResponse getSchoolById(UUID id);
 
-    SchoolResponse updateSchool(Long id, SchoolRequest request);
+    SchoolResponse updateSchool(UUID id, SchoolRequest request);
 
-    void deleteSchool(Long id);
+    void deleteSchool(UUID id);
 }

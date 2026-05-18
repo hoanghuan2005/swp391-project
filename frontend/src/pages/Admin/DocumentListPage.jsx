@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import axiosClient from "@/api/axiosClient";
 import {
   Table,
@@ -37,7 +38,11 @@ export default function DocumentListPage() {
 
   // Xử lý xóa tài liệu
   const handleDelete = async (id, title) => {
-    if (!window.confirm(`Are you sure you want to delete the document: "${title}"?`)) {
+    if (
+      !window.confirm(
+        `Are you sure you want to delete the document: "${title}"?`,
+      )
+    ) {
       return;
     }
 
@@ -51,9 +56,10 @@ export default function DocumentListPage() {
   };
 
   // Tính năng tìm kiếm trên Frontend (Lọc theo tên hoặc mã môn)
-  const filteredDocuments = documents.filter((doc) =>
-    doc.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    doc.subjectCode?.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredDocuments = documents.filter(
+    (doc) =>
+      doc.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      doc.subjectCode?.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   return (
@@ -69,8 +75,10 @@ export default function DocumentListPage() {
       <Card className="rounded-2xl shadow-sm border-slate-100">
         {/* Thanh công cụ (Toolbar) theo chuẩn Base CRUD của Leader */}
         <CardHeader className="flex flex-col sm:flex-row items-center justify-between gap-4 pb-4 border-b border-slate-100">
-          <CardTitle className="text-lg text-slate-700">All Documents</CardTitle>
-          
+          <CardTitle className="text-lg text-slate-700">
+            All Documents
+          </CardTitle>
+
           <div className="flex items-center gap-3 w-full sm:w-auto">
             {/* Ô tìm kiếm */}
             <div className="relative w-full sm:w-80">
@@ -82,7 +90,7 @@ export default function DocumentListPage() {
                 className="pl-9 bg-slate-50 border-transparent focus-visible:ring-[#f26522]/20 focus-visible:border-[#f26522] rounded-xl"
               />
             </div>
-            
+
             {/* Nút Thêm mới */}
             <Button className="bg-[#f26522] hover:bg-[#d9541a] text-white rounded-xl flex items-center gap-2 shadow-md shadow-[#f26522]/20 transition-all cursor-pointer">
               <Plus className="w-4 h-4" />
@@ -93,60 +101,91 @@ export default function DocumentListPage() {
 
         <CardContent className="pt-4">
           {isLoading ? (
-            <div className="text-center py-10 text-slate-500 font-medium">Loading documents...</div>
+            <div className="text-center py-10 text-slate-500 font-medium">
+              Loading documents...
+            </div>
           ) : (
             <div className="rounded-xl border border-slate-100 overflow-hidden">
               <Table>
                 <TableHeader className="bg-slate-50/50">
                   <TableRow>
-                    <TableHead className="w-[50px] text-center font-bold">No.</TableHead>
+                    <TableHead className="w-[50px] text-center font-bold">
+                      No.
+                    </TableHead>
                     <TableHead className="w-[30%] font-bold">Title</TableHead>
-                    <TableHead className="w-[15%] text-center font-bold">Subject Code</TableHead>
-                    <TableHead className="w-[15%] text-center font-bold">Visibility</TableHead>
-                    <TableHead className="w-[15%] text-center font-bold">Date</TableHead>
-                    <TableHead className="text-right font-bold pr-4">Actions</TableHead>
+                    <TableHead className="w-[15%] text-center font-bold">
+                      Subject Code
+                    </TableHead>
+                    <TableHead className="w-[15%] text-center font-bold">
+                      Visibility
+                    </TableHead>
+                    <TableHead className="w-[15%] text-center font-bold">
+                      Date
+                    </TableHead>
+                    <TableHead className="text-right font-bold pr-4">
+                      Actions
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredDocuments.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8 text-slate-500">
+                      <TableCell
+                        colSpan={6}
+                        className="text-center py-8 text-slate-500"
+                      >
                         No documents found.
                       </TableCell>
                     </TableRow>
                   ) : (
                     filteredDocuments.map((doc, index) => (
-                      <TableRow key={doc.id} className="hover:bg-slate-50/50 transition-colors">
+                      <TableRow
+                        key={doc.id}
+                        className="hover:bg-slate-50/50 transition-colors"
+                      >
                         <TableCell className="font-medium text-center text-slate-500">
                           {index + 1}
                         </TableCell>
-                        
+
                         <TableCell className="font-semibold text-slate-700">
                           {doc.title || "Untitled Document"}
                         </TableCell>
-                        
+
                         <TableCell className="text-center">
-                          <Badge variant="outline" className="bg-blue-50 text-blue-600 border-blue-200">
+                          <Badge
+                            variant="outline"
+                            className="bg-blue-50 text-blue-600 border-blue-200"
+                          >
                             {doc.subjectCode || "N/A"}
                           </Badge>
                         </TableCell>
-                        
+
                         <TableCell className="text-center">
                           {doc.visibility === "PUBLIC" ? (
-                            <Badge variant="outline" className="bg-green-50 text-green-600 border-green-200">
+                            <Badge
+                              variant="outline"
+                              className="bg-green-50 text-green-600 border-green-200"
+                            >
                               Public
                             </Badge>
                           ) : (
-                            <Badge variant="outline" className="bg-slate-100 text-slate-600 border-slate-200">
+                            <Badge
+                              variant="outline"
+                              className="bg-slate-100 text-slate-600 border-slate-200"
+                            >
                               Private
                             </Badge>
                           )}
                         </TableCell>
-                        
+
                         <TableCell className="text-center text-sm text-slate-500">
-                          {doc.createdAt ? new Date(doc.createdAt).toLocaleDateString("en-GB") : "N/A"}
+                          {doc.createdAt
+                            ? new Date(doc.createdAt).toLocaleDateString(
+                                "en-GB",
+                              )
+                            : "N/A"}
                         </TableCell>
-                        
+
                         <TableCell className="text-right pr-4">
                           <div className="flex justify-end gap-2">
                             {/* Nút Xem (View) */}
@@ -155,10 +194,13 @@ export default function DocumentListPage() {
                               variant="ghost"
                               className="h-8 w-8 text-slate-500 hover:text-[#f26522] hover:bg-[#f26522]/10 rounded-lg cursor-pointer transition-colors"
                               title="View Document"
+                              asChild
                             >
-                              <Eye className="w-4 h-4" />
+                              <Link to={`/admin/documents/${doc.id}`}>
+                                <Eye className="w-4 h-4" />
+                              </Link>
                             </Button>
-                            
+
                             {/* Nút Xóa (Delete) */}
                             <Button
                               size="icon"

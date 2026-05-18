@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -42,7 +43,7 @@ public class SchoolServiceImpl implements SchoolService {
     }
 
     @Override
-    public SchoolResponse getSchoolById(Long id) {
+    public SchoolResponse getSchoolById(UUID id) {
 
         School school = schoolRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("School not found"));
@@ -51,7 +52,7 @@ public class SchoolServiceImpl implements SchoolService {
     }
 
     @Override
-    public SchoolResponse updateSchool(Long id, SchoolRequest request) {
+    public SchoolResponse updateSchool(UUID id, SchoolRequest request) {
 
         School school = schoolRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("School not found"));
@@ -66,7 +67,7 @@ public class SchoolServiceImpl implements SchoolService {
     }
 
     @Override
-    public void deleteSchool(Long id) {
+    public void deleteSchool(UUID id) {
 
         School school = schoolRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("School not found"));

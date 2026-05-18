@@ -3,7 +3,10 @@ package com.example.keeper.systems.dashboard.controller;
 import com.example.keeper.systems.auth.repository.UserRepository;
 import com.example.keeper.systems.dashboard.dto.DashboardStatsResponse;
 import com.example.keeper.systems.document.repository.DocumentRepository;
+import com.example.keeper.systems.auth.repository.LanguageRepository;
+import com.example.keeper.systems.school.repository.SchoolRepository;
 import com.example.keeper.systems.subject.repository.SubjectRepository;
+import com.example.keeper.systems.tag.repository.TagRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,6 +21,9 @@ public class DashboardController {
     private final UserRepository userRepository;
     private final SubjectRepository subjectRepository;
     private final DocumentRepository documentRepository;
+    private final SchoolRepository schoolRepository;
+    private final TagRepository tagRepository;
+    private final LanguageRepository languageRepository;
 
     @GetMapping("/stats")
     public ResponseEntity<DashboardStatsResponse> getDashboardStats() {
@@ -26,6 +32,9 @@ public class DashboardController {
                 .totalUsers(userRepository.count())
                 .totalSubjects(subjectRepository.count())
                 .totalDocuments(documentRepository.count())
+                .totalSchools(schoolRepository.count())
+                .totalTags(tagRepository.count())
+                .totalLanguages(languageRepository.count())
                 .build();
 
         return ResponseEntity.ok(stats);

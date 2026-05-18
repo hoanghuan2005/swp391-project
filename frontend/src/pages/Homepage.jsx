@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { forceDownload } from "@/lib/downloadHelper";
 import {
   Card,
   CardHeader,
@@ -25,7 +27,8 @@ import {
   BookOpen,
   Download,
   Eye,
-  FileText
+  FileText,
+  Heart,
 } from "lucide-react";
 import axiosClient from "@/api/axiosClient";
 
@@ -40,7 +43,9 @@ export default function Homepage() {
       setIsLoading(true);
       const response = await axiosClient.get("/api/documents");
       // Lọc ra những tài liệu PUBLIC để hiển thị trên Home
-      const publicDocs = response.data.filter(doc => doc.visibility === "PUBLIC");
+      const publicDocs = response.data.filter(
+        (doc) => doc.visibility === "PUBLIC",
+      );
       setDocuments(publicDocs);
     } catch (error) {
       console.error("Error fetching documents:", error);
@@ -51,20 +56,23 @@ export default function Homepage() {
 
   useEffect(() => {
     fetchDocuments();
+
+    const handleUploaded = () => fetchDocuments();
+    window.addEventListener("documents:uploaded", handleUploaded);
+
+    return () => {
+      window.removeEventListener("documents:uploaded", handleUploaded);
+    };
   }, [fetchDocuments]);
 
   // Hàm xử lý tải file (Tăng view và tải về máy)
-  const handleDownload = async (id) => {
+  const handleDownload = async (id, title) => {
     try {
       const res = await axiosClient.get(`/api/documents/${id}/download`);
-      let url = res.data.fileUrl;
-
-      // Ép Cloudinary tự động tải file xuống
-      if (url.includes("/upload/")) {
-        url = url.replace("/upload/", "/upload/fl_attachment/");
+      const url = res.data.downloadUrl;
+      if (url) {
+        await forceDownload(url, title || "document");
       }
-
-      window.open(url, "_blank");
     } catch (error) {
       console.error("Download failed:", error);
       alert("Error downloading document!");
@@ -83,9 +91,12 @@ export default function Homepage() {
       <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>
         <DialogContent className="sm:max-w-lg rounded-2xl">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-bold">Upload Document</DialogTitle>
+            <DialogTitle className="text-2xl font-bold">
+              Upload Document
+            </DialogTitle>
             <DialogDescription>
-              Share your knowledge. Fill out the specific areas so others can easily find it.
+              Share your knowledge. Fill out the specific areas so others can
+              easily find it.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-5 py-4">
@@ -96,8 +107,12 @@ export default function Homepage() {
                 </div>
               </div>
               <div>
-                <p className="text-sm font-semibold text-slate-800">Click to upload or drag and drop</p>
-                <p className="text-xs text-slate-500 mt-1">PDF, DOCX, PPTX or Text files (max. 10MB)</p>
+                <p className="text-sm font-semibold text-slate-800">
+                  Click to upload or drag and drop
+                </p>
+                <p className="text-xs text-slate-500 mt-1">
+                  PDF, DOCX, PPTX or Text files (max. 10MB)
+                </p>
               </div>
             </div>
             {/* Các Input Fields */}
@@ -105,23 +120,36 @@ export default function Homepage() {
               <Label className="flex items-center gap-2 text-slate-700 font-semibold">
                 <GraduationCap size={16} className="text-[#f26522]" /> School
               </Label>
-              <Input placeholder="Enter your school name" className="rounded-lg focus-visible:ring-[#f26522]" />
+              <Input
+                placeholder="Enter your school name"
+                className="rounded-lg focus-visible:ring-[#f26522]"
+              />
             </div>
             <div className="space-y-2">
               <Label className="flex items-center gap-2 text-slate-700 font-semibold">
                 <BookOpen size={16} className="text-[#f26522]" /> Subject
               </Label>
-              <Input placeholder="Enter subject code or name" className="rounded-lg focus-visible:ring-[#f26522]" />
+              <Input
+                placeholder="Enter subject code or name"
+                className="rounded-lg focus-visible:ring-[#f26522]"
+              />
             </div>
             <div className="space-y-2">
               <Label className="flex items-center gap-2 text-slate-700 font-semibold">
                 <Tags size={16} className="text-[#f26522]" /> Tags
               </Label>
-              <Input placeholder="Enter tags, separated by comma" className="rounded-lg focus-visible:ring-[#f26522]" />
+              <Input
+                placeholder="Enter tags, separated by comma"
+                className="rounded-lg focus-visible:ring-[#f26522]"
+              />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setUploadOpen(false)} className="rounded-lg font-semibold cursor-pointer">
+            <Button
+              variant="ghost"
+              onClick={() => setUploadOpen(false)}
+              className="rounded-lg font-semibold cursor-pointer"
+            >
               Cancel
             </Button>
             <Button className="rounded-lg bg-[#f26522] hover:bg-[#d95316] text-white font-semibold cursor-pointer">
@@ -136,11 +164,13 @@ export default function Homepage() {
         <h3 className="text-xl font-bold mb-4 text-slate-800 tracking-tight">
           Explore Public Documents
         </h3>
-        
+
         {isLoading ? (
-          <div className="text-center py-10 text-slate-500 font-medium">Loading documents...</div>
+          <div className="text-center text-slate-500 font-medium">
+            Loading documents...
+          </div>
         ) : documents.length === 0 ? (
-          <div className="text-center py-10 bg-slate-50 rounded-2xl text-slate-500 border border-slate-100">
+          <div className="text-center bg-slate-50 rounded-2xl text-slate-500 border border-slate-100">
             No public documents available yet.
           </div>
         ) : (
@@ -152,38 +182,52 @@ export default function Homepage() {
               >
                 <CardContent className="p-4 flex-1 flex flex-col">
                   {/* Thumbnail ảo mờ mờ cho đẹp */}
-                  <div className="w-full aspect-[4/3] bg-slate-50 rounded-xl mb-4 border border-slate-100 group-hover:border-[#f26522]/20 transition-colors flex items-center justify-center text-slate-300">
+                  <div className="w-full aspect-[4/3] bg-slate-50 rounded-xl mb-3 -mt-4 border border-slate-200 group-hover:border-[#f26522]/20 transition-colors flex items-center justify-center text-slate-300">
                     <FileText className="w-12 h-12" />
                   </div>
-                  
-                  <CardTitle className="text-[15px] mb-1 font-bold text-slate-800 line-clamp-1" title={doc.title}>
+
+                  <CardTitle
+                    className="text-[15px] mb-1 font-bold text-slate-800 line-clamp-1"
+                    title={doc.title}
+                  >
                     {doc.title || "Untitled Document"}
                   </CardTitle>
-                  
+
                   <CardDescription className="text-xs text-slate-500 font-medium mb-3 flex items-center gap-1.5">
-                    <BookOpen className="w-3.5 h-3.5" /> {doc.subjectCode || "General"}
+                    <BookOpen className="w-3.5 h-3.5" />{" "}
+                    {doc.subject?.code || "General"}
                   </CardDescription>
-                  
-                  <div className="text-[11px] text-slate-400 mt-auto flex justify-between items-center">
-                    <span>{new Date(doc.createdAt).toLocaleDateString("en-GB")}</span>
+
+                  <div className="text-[11px] text-slate-400 -mt-1 flex justify-between items-center">
+                    <span>
+                      {new Date(doc.createdAt).toLocaleDateString("en-GB")}
+                    </span>
                     <span>{doc.downloadCount || 0} downloads</span>
                   </div>
                 </CardContent>
-                
+
                 {/* Khu vực nút bấm */}
-                <CardFooter className="px-4 pb-4 pt-0 mt-auto flex gap-2">
+                <CardFooter className="-mt-3 px-4 py-3 flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => alert("Added to favorites")}
+                    className="flex-none px-2.5 rounded-xl border-slate-200 text-slate-500 hover:text-[#f22222] hover:bg-[#f22222]/10 transition-colors cursor-pointer h-9"
+                  >
+                    <Heart className="w-4 h-4" />
+                  </Button>
+
                   <Button
                     asChild
                     variant="secondary"
                     className="flex-1 bg-slate-100 text-slate-700 hover:bg-slate-200 font-semibold text-xs rounded-xl h-9 cursor-pointer"
                   >
-                    <a href={doc.fileUrl} target="_blank" rel="noreferrer">
+                    <Link to={`/documents/${doc.id}`}>
                       <Eye className="w-3.5 h-3.5 mr-1.5" /> View
-                    </a>
+                    </Link>
                   </Button>
-                  
+
                   <Button
-                    onClick={() => handleDownload(doc.id)}
+                    onClick={() => handleDownload(doc.id, doc.title)}
                     className="flex-1 bg-[#f26522]/10 text-[#f26522] hover:bg-[#f26522] hover:text-white font-semibold text-xs rounded-xl h-9 transition-colors cursor-pointer"
                   >
                     <Download className="w-3.5 h-3.5 mr-1.5" /> Download

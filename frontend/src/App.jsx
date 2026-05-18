@@ -5,6 +5,7 @@ import Homepage from "./pages/Homepage";
 import LandingPage from "./pages/LandingPage";
 import ProfilePage from "./pages/ProfilePage";
 import MyLibrary from "./pages/MyLibrary";
+import DocumentDetailPage from "./pages/DocumentDetailPage";
 import LoginPage from "./pages/Auth/LoginPage";
 import SignUpPage from "./pages/Auth/SignUpPage";
 import VerifyOTPPage from "./pages/Auth/VerifyOTPPage";
@@ -14,6 +15,9 @@ import Survey from "./pages/Survey";
 import DashboardPage from "./pages/Admin/DashboardPage";
 import UserListPage from "./pages/Admin/UserListPage";
 import DocumentListPage from "./pages/Admin/DocumentListPage";
+import CatalogSchoolsPage from "./pages/Admin/CatalogSchoolsPage";
+import CatalogTagsPage from "./pages/Admin/CatalogTagsPage";
+import CatalogLanguagesPage from "./pages/Admin/CatalogLanguagesPage";
 
 function ComingSoon({ pageName }) {
   return (
@@ -42,6 +46,7 @@ function App() {
         {/* (Student) Dashboard layout */}
         <Route element={<MainLayout />}>
           <Route path="/home" element={<Homepage />} />
+          <Route path="/documents/:id" element={<DocumentDetailPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/my-library" element={<MyLibrary />} />
           <Route
@@ -62,6 +67,20 @@ function App() {
           <Route path="/admin/dashboard" element={<DashboardPage />} />
           <Route path="/admin/users" element={<UserListPage />} />
           <Route path="/admin/documents" element={<DocumentListPage />} />
+          <Route path="/admin/documents/:id" element={<DocumentDetailPage />} />
+          <Route
+            path="/admin/catalog/schools"
+            element={<CatalogSchoolsPage />}
+          />
+          <Route path="/admin/catalog/tags" element={<CatalogTagsPage />} />
+          <Route
+            path="/admin/catalog/languages"
+            element={<CatalogLanguagesPage />}
+          />
+          <Route
+            path="/admin/settings"
+            element={<Navigate to="/admin/catalog/schools" replace />}
+          />
         </Route>
 
         {/* fallback */}

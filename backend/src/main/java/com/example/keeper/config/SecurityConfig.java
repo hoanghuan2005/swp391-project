@@ -12,6 +12,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.http.HttpMethod;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -33,19 +34,17 @@ public class SecurityConfig {
                 .cors(org.springframework.security.config.Customizer.withDefaults())
                 .csrf(csrf -> csrf.disable()) // Vô hiệu hóa CSRF vì dùng JWT
                 .cors(Customizer.withDefaults()) // Sử dụng cấu hình corsConfigurationSource ở dưới
-                .sessionManagement(session ->
-                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-                )
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
-                                "/api/auth/**",      // MỞ CỬA cho tất cả API Login, Signup, Forgot, Verify, Reset
+                                "/api/auth/**", // MỞ CỬA cho tất cả API Login, Signup, Forgot, Verify, Reset
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
-                                "/error"             // Nên permitAll "/error" để thấy lỗi cụ thể thay vì 403
+                                "/error" // Nên permitAll "/error" để thấy lỗi cụ thể thay vì 403
                         ).permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/documents/**").permitAll()
                         .requestMatchers("/api/admin/**").hasAuthority("ADMIN")
-                        .anyRequest().authenticated()
-                )
+                        .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
