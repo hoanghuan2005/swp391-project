@@ -18,6 +18,7 @@ import DocumentListPage from "./pages/Admin/DocumentListPage";
 import CatalogSchoolsPage from "./pages/Admin/CatalogSchoolsPage";
 import CatalogTagsPage from "./pages/Admin/CatalogTagsPage";
 import CatalogLanguagesPage from "./pages/Admin/CatalogLanguagesPage";
+import CatalogCoursesPage from "./pages/Admin/CatalogCoursesPage";
 
 function ComingSoon({ pageName }) {
   return (
@@ -70,7 +71,7 @@ function App() {
           <Route path="/admin/documents/:id" element={<DocumentDetailPage />} />
           <Route
             path="/admin/courses"
-            element={<ComingSoon pageName="Courses" />}
+            element={<CatalogCoursesPage />}
           />
           <Route
             path="/admin/catalog/schools"

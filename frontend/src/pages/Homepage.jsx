@@ -181,7 +181,6 @@ export default function Homepage() {
                 className="shadow-sm border-slate-100 hover:shadow-md transition-all group flex flex-col h-full rounded-[20px] overflow-hidden bg-white"
               >
                 <CardContent className="p-4 flex-1 flex flex-col">
-                  {/* Thumbnail ảo mờ mờ cho đẹp */}
                   <div className="w-full aspect-[4/3] bg-slate-50 rounded-xl mb-3 -mt-4 border border-slate-200 group-hover:border-[#f26522]/20 transition-colors flex items-center justify-center text-slate-300">
                     <FileText className="w-12 h-12" />
                   </div>

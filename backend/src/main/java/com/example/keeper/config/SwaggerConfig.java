@@ -11,7 +11,7 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 @OpenAPIDefinition(
         info = @Info(title = "Keeper API", version = "1.0"),
-        security = @SecurityRequirement(name = "bearerAuth") // Yêu cầu bảo mật toàn cầu cho các API
+        security = @SecurityRequirement(name = "bearerAuth")
 )
 @SecurityScheme(
         name = "bearerAuth",
