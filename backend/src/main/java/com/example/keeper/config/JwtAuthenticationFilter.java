@@ -50,8 +50,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 return; // Dừng xử lý request tại đây
             }
 
-            // Lấy quyền từ Role của User
-            String roleName = (user.getRole() != null) ? "ROLE_" + user.getRole().getName() : "STUDENT";
+            // Lấy quyền từ Role của User (Luôn đảm bảo có prefix ROLE_)
+            String rawRole = (user.getRole() != null) ? user.getRole().getName() : "STUDENT";
+            String roleName = rawRole.startsWith("ROLE_") ? rawRole : "ROLE_" + rawRole;
+            
             var authority = new org.springframework.security.core.authority.SimpleGrantedAuthority(roleName);
 
             UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(

@@ -42,11 +42,14 @@ public class SecurityConfig {
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
                                 "/error",
-                                "/api/documents"
+                                "/api/documents/**",
+                                "/api/courses/**",
+                                "/api/languages/**",
+                                "/api/schools/**",
+                                "/api/tags/**"
                         ).permitAll()
                         .requestMatchers("/api/users/upload-avatar").authenticated()
-                        .requestMatchers(HttpMethod.GET, "/api/documents/**").permitAll()
-                        .requestMatchers("/api/admin/**").hasAuthority("ADMIN")
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

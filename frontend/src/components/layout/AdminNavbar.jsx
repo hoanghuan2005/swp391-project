@@ -4,9 +4,8 @@ import { Menu, BookOpen, LogOut, Settings } from "lucide-react";
 import { Link } from "react-router-dom";
 import LogoutModal from "@/components/ui/LogoutModal";
 
-export default function AdminNavbar({ onMenuClick }) {
+export default function AdminNavbar({ onMenuClick, onLogoutClick }) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
   return (
     <div className="w-full bg-white border-b border-gray-100 py-2.5 sticky top-0 z-50 shadow-sm/5 backdrop-blur-sm">
@@ -68,7 +67,7 @@ export default function AdminNavbar({ onMenuClick }) {
                 <button
                   onClick={() => {
                     setIsDropdownOpen(false);
-                    setIsLogoutModalOpen(true);
+                    onLogoutClick();
                   }}
                   className="w-full px-4 py-2 text-left text-xs font-bold text-red-500 hover:bg-red-50 flex items-center gap-2.5 transition-colors rounded-b-xl cursor-pointer"
                 >
@@ -81,11 +80,6 @@ export default function AdminNavbar({ onMenuClick }) {
         </div>
 
       </div>
-
-      <LogoutModal
-        isOpen={isLogoutModalOpen}
-        onClose={() => setIsLogoutModalOpen(false)}
-      />
     </div>
   );
 }

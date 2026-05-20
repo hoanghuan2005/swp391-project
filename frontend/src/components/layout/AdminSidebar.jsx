@@ -111,14 +111,14 @@ export default function AdminSidebar({ isOpen = true }) {
         <AdminNavItem
           to="/admin/users"
           icon={Users}
-          label="Manage Users"
+          label="Users"
           isOpen={isOpen}
           pathname={location.pathname}
         />
         <AdminNavItem
           to="/admin/documents"
           icon={FileText}
-          label="Manage Documents"
+          label="Documents"
           isOpen={isOpen}
           pathname={location.pathname}
         />
