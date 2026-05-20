@@ -3,6 +3,9 @@ package com.example.keeper.systems.course.service;
 import com.example.keeper.systems.course.dto.request.CreateCourseRequest;
 import com.example.keeper.systems.course.entity.Course;
 import com.example.keeper.systems.course.repository.CourseRepository;
+import com.example.keeper.systems.document.entity.Document;
+import com.example.keeper.systems.document.repository.DocumentRepository;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -16,6 +19,7 @@ import java.util.UUID;
 public class CourseServiceImpl implements CourseService {
 
     private final CourseRepository courseRepository;
+    private final DocumentRepository documentRepository;
 
     @Override
     public Course create(CreateCourseRequest request) {
@@ -55,5 +59,14 @@ public class CourseServiceImpl implements CourseService {
         Course course = getById(id);
         courseRepository.delete(course);
         return course;
+    }
+
+    @Override
+    public Page<Document> getDocumentsByCourse(UUID courseId, Pageable pageable) {
+
+        Course course = courseRepository.findById(courseId)
+                .orElseThrow(() -> new RuntimeException("Course not found"));
+
+        return documentRepository.findByCourseId(course.getId(), pageable);
     }
 }

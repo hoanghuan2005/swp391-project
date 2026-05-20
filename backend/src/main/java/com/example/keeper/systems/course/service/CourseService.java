@@ -2,6 +2,8 @@ package com.example.keeper.systems.course.service;
 
 import com.example.keeper.systems.course.dto.request.CreateCourseRequest;
 import com.example.keeper.systems.course.entity.Course;
+import com.example.keeper.systems.document.entity.Document;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -19,4 +21,6 @@ public interface CourseService {
     Course getById(UUID id);
 
     Course delete(UUID id);
+
+    Page<Document> getDocumentsByCourse(UUID courseId, Pageable pageable);
 }

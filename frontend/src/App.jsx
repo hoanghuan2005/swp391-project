@@ -18,6 +18,7 @@ import DocumentListPage from "./pages/Admin/DocumentListPage";
 import CatalogSchoolsPage from "./pages/Admin/CatalogSchoolsPage";
 import CatalogTagsPage from "./pages/Admin/CatalogTagsPage";
 import CatalogLanguagesPage from "./pages/Admin/CatalogLanguagesPage";
+import CourseDetailPage from "./pages/CourseDetailPage";
 
 function ComingSoon({ pageName }) {
   return (
@@ -60,6 +61,7 @@ function App() {
             path="/projects"
             element={<ComingSoon pageName="Projects" />}
           />
+          <Route path="/courses/:id" element={<CourseDetailPage />} />
         </Route>
 
         {/* Admin dashboard layout */}

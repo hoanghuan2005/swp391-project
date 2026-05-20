@@ -1,6 +1,8 @@
 package com.example.keeper.systems.document.repository;
 
 import com.example.keeper.systems.document.entity.Document;
+
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -10,6 +12,9 @@ import java.util.List;
 import java.util.UUID;
 
 public interface DocumentRepository extends JpaRepository<Document, UUID> {
+
+	Page<Document> findByCourseId(UUID courseId, Pageable pageable);
+
 	List<Document> findByUploadedById(UUID uploadedById);
 
 	@Query("select d from Document d order by d.downloadCount desc")
