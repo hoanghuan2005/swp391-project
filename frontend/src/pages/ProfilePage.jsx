@@ -31,10 +31,10 @@ export default function ProfilePage() {
     const [profileData, setProfileData] = useState({
         fullName: "Huân Hoàng",
         email: "huanhoang@gmail.com",
-        school: "",
+        school: "", // Sẽ luôn lưu sch.code ở đây
         startYear: "",
         followers: 0,
-        uploads: 3,
+        uploads: 0,
         upvotes: 0,
         avatarUrl: "",
         languages: [],
@@ -74,15 +74,11 @@ export default function ProfilePage() {
 
             if (profileResponse && profileResponse.data) {
                 const data = profileResponse.data;
-                
                 const backendSchoolStr = (data.schoolName || "").trim().toLowerCase();
                 
-               
                 const matchedSchool = schools.find((sch) => {
                     const schName = (sch.name || "").trim().toLowerCase();
                     const schCode = (sch.code || "").trim().toLowerCase();
-                    
-                    
                     return schName === backendSchoolStr || 
                            schCode === backendSchoolStr || 
                            schName.includes(backendSchoolStr) || 
@@ -94,12 +90,14 @@ export default function ProfilePage() {
                     fullName: data.fullName || data.username || prev.fullName,
                     email: data.email || data.username || prev.email,
                     avatarUrl: data.avatarUrl || prev.avatarUrl,
-                    
-                    
-                    school: matchedSchool ? matchedSchool.name : (data.schoolName || ""),
-                    
+                    school: matchedSchool ? matchedSchool.code : (data.schoolName || ""),
                     startYear: data.startYear ? String(data.startYear) : "",
                     languages: data.languages || [],
+                    
+                    // 🔥 FIX 1: Lấy số liệu đếm từ Backend để hiển thị ở cục Dashboard Stats
+                    uploads: data.uploads || 0,
+                    followers: data.followers || 0,
+                    upvotes: data.upvotes || 0,
                 }));
 
                 const currentLangIds = langs
@@ -132,10 +130,20 @@ export default function ProfilePage() {
 
             if (result.surveyData) {
                 const survey = result.surveyData;
+                const backendSchoolStr = (survey.schoolName || "").trim().toLowerCase();
+
+                const matchedSchool = schoolOptions.find((sch) => {
+                    const schName = (sch.name || "").trim().toLowerCase();
+                    const schCode = (sch.code || "").trim().toLowerCase();
+                    return schName === backendSchoolStr || 
+                           schCode === backendSchoolStr || 
+                           schName.includes(backendSchoolStr) || 
+                           backendSchoolStr.includes(schName);
+                });
 
                 setProfileData((prev) => ({
                     ...prev,
-                    school: survey.schoolName || "",
+                    school: matchedSchool ? matchedSchool.code : (survey.schoolName || ""),
                     startYear: survey.startYear ? String(survey.startYear) : "",
                     languages: Array.from(survey.languages || []),
                 }));
@@ -236,7 +244,6 @@ export default function ProfilePage() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* CỘT TRÁI: AVATAR & THỐNG KÊ */}
                 <div className="space-y-6">
                     <Card className="border-gray-100 shadow-md overflow-hidden bg-white rounded-2xl">
                         <CardContent className="pt-8 pb-6 flex flex-col items-center text-center">
@@ -255,7 +262,7 @@ export default function ProfilePage() {
                                         alt={profileData.fullName}
                                         className="object-cover"
                                     />
-                                    <AvatarFallback className="bg-[#f26522] text-white font-bold text-3xl">
+                                    <AvatarFallback className="bg-[#f26522] text-white font-bold text-3xl uppercase">
                                         {profileData.fullName.charAt(0)}
                                     </AvatarFallback>
                                 </Avatar>
@@ -271,7 +278,7 @@ export default function ProfilePage() {
                                 Free Plan
                             </p>
                             <p className="text-xs text-slate-400 font-medium mt-2">
-                                {profileData.school || "No School Selected"}
+                                {schoolOptions.find(s => s.code === profileData.school)?.name || profileData.school || "No School Selected"}
                             </p>
 
                             <div className="flex flex-wrap gap-1 justify-center mt-3">
@@ -310,7 +317,6 @@ export default function ProfilePage() {
                     </Card>
                 </div>
 
-                {/* CỘT PHẢI: FORM CẬP NHẬT TÀI KHOẢN & HỌC VẤN */}
                 <div className="lg:col-span-2">
                     <Card className="border-gray-100 shadow-md bg-white rounded-2xl h-full">
                         <CardHeader className="px-6 pt-6 pb-2 border-b border-slate-50">
@@ -350,6 +356,7 @@ export default function ProfilePage() {
                                     <label className="text-sm font-bold text-slate-700 ml-0.5 flex items-center gap-1.5">
                                         <Shield size={15} className="text-slate-400" /> Organization / School
                                     </label>
+                                    {/* 🔥 FIX 2: Sửa profileData.schoolName thành profileData.school */}
                                     <Select
                                         value={profileData.school}
                                         onValueChange={(val) => setProfileData((prev) => ({ ...prev, school: val }))}
