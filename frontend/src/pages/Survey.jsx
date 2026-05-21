@@ -11,7 +11,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+// Bổ sung import DialogTitle và DialogDescription vào danh sách destructuring
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import {
   InputGroup,
   InputGroupAddon,
@@ -34,26 +35,22 @@ export default function Survey({ onClose }) {
   const [yearOpen, setYearOpen] = useState(false);
 
   const years = useMemo(
-    () => Array.from({ length: 12 }, (_, i) => new Date().getFullYear() - i),
-    [],
+    () => Array.from({ length: 12 }, (_, i) => 2026 - i),
+    []
   );
 
   const filteredSchools = useMemo(() => {
     const query = school.trim().toLowerCase();
-    if (!query) {
-      return schoolOptions;
-    }
+    if (!query) return schoolOptions;
 
     return schoolOptions.filter((item) =>
-      `${item.name} ${item.code}`.toLowerCase().includes(query),
+      `${item.name} ${item.code}`.toLowerCase().includes(query)
     );
   }, [school, schoolOptions]);
 
   const filteredYears = useMemo(() => {
     const query = startYear.trim();
-    if (!query) {
-      return years;
-    }
+    if (!query) return years;
 
     return years.filter((year) => String(year).includes(query));
   }, [startYear, years]);
@@ -92,7 +89,7 @@ export default function Survey({ onClose }) {
   const toggleLanguage = (languageId) => {
     if (selectedLanguageIds.includes(languageId)) {
       setSelectedLanguageIds(
-        selectedLanguageIds.filter((id) => id !== languageId),
+        selectedLanguageIds.filter((id) => id !== languageId)
       );
     } else {
       setSelectedLanguageIds([...selectedLanguageIds, languageId]);
@@ -107,12 +104,13 @@ export default function Survey({ onClose }) {
     closeSurvey();
     localStorage.setItem("surveyCompleted", "true");
     localStorage.removeItem("surveySkipped");
-    if (onClose) {
-      onClose({ completed: true });
-    }
 
     try {
-      await axiosClient.post("/api/survey", payload);
+      const response = await axiosClient.post("/api/survey", payload);
+
+      if (onClose) {
+        onClose({ completed: true, surveyData: response.data });
+      }
     } catch (error) {
       console.error("Failed to submit survey:", error);
     }
@@ -151,6 +149,12 @@ export default function Survey({ onClose }) {
         showCloseButton={false}
         className="!max-w-[500px] rounded-xl p-0 overflow-hidden bg-white shadow-xl"
       >
+        {/* Thêm thẻ ẩn giải quyết triệt để lỗi Radix UI trên Console */}
+        <DialogTitle className="sr-only">Learning Survey</DialogTitle>
+        <DialogDescription className="sr-only">
+          Please fill out this background survey to help us recommend better study materials.
+        </DialogDescription>
+
         <div className="relative">
           <div className="absolute inset-0 bg-white" />
           <Button
@@ -326,7 +330,7 @@ export default function Survey({ onClose }) {
                     {!loadingLanguages &&
                       languageOptions.map((language) => {
                         const isSelected = selectedLanguageIds.includes(
-                          language.id,
+                          language.id
                         );
                         return (
                           <Button
@@ -334,11 +338,10 @@ export default function Survey({ onClose }) {
                             type="button"
                             variant={isSelected ? "default" : "outline"}
                             onClick={() => toggleLanguage(language.id)}
-                            className={`rounded-full px-4 text-sm font-semibold transition ${
-                              isSelected
+                            className={`rounded-full px-4 text-sm font-semibold transition ${isSelected
                                 ? "bg-[#f26522] text-white hover:bg-[#d95316]"
                                 : "border-slate-200 text-slate-700 hover:border-slate-400"
-                            }`}
+                              }`}
                           >
                             {language.name}
                           </Button>
