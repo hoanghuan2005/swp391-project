@@ -20,6 +20,7 @@ import CatalogTagsPage from "./pages/Admin/CatalogTagsPage";
 import CatalogLanguagesPage from "./pages/Admin/CatalogLanguagesPage";
 import CourseDetailPage from "./pages/CourseDetailPage";
 import CatalogCoursesPage from "./pages/Admin/CatalogCoursesPage";
+import AskAIPage from "./pages/AskAIPage";
 
 function ComingSoon({ pageName }) {
   return (
@@ -55,7 +56,7 @@ function App() {
             path="/ai-notes"
             element={<ComingSoon pageName="AI Notes" />}
           />
-          <Route path="/ask-ai" element={<ComingSoon pageName="Ask AI" />} />
+          <Route path="/ask-ai" element={<AskAIPage />} />
           <Route path="/ai-quiz" element={<ComingSoon pageName="AI Quiz" />} />
           <Route path="/courses" element={<ComingSoon pageName="Courses" />} />
           <Route

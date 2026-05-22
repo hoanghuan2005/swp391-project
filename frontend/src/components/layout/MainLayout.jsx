@@ -6,6 +6,7 @@ import Survey from "@/pages/Survey";
 import LogoutModal from "@/components/ui/LogoutModal"; // 1. Import LogoutModal vào đây
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useLocation } from "react-router-dom";
 
 export default function MainLayout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -13,7 +14,12 @@ export default function MainLayout() {
   const [showSurveyReminder, setShowSurveyReminder] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false); // 2. Quản lý state mở modal ở đây
 
+  const location = useLocation();
+  const isAiAskPage = location.pathname.startsWith("/ask-ai");
+
   useEffect(() => {
+    if (isAiAskPage) return; // Không hiển thị survey nếu đang ở trang Ask AI
+
     const surveyCompleted = localStorage.getItem("surveyCompleted") === "true";
     const surveySkipped = localStorage.getItem("surveySkipped") === "true";
 
@@ -29,9 +35,9 @@ export default function MainLayout() {
   return (
     <div className="h-screen bg-white text-slate-900 font-sans flex flex-col overflow-hidden">
       {/* Navbar - 3. Truyền prop onLogoutClick xuống cho Navbar */}
-      <Navbar 
-        onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} 
-        onLogoutClick={() => setIsLogoutModalOpen(true)} 
+      <Navbar
+        onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)}
+        onLogoutClick={() => setIsLogoutModalOpen(true)}
       />
 
       {/* Main */}

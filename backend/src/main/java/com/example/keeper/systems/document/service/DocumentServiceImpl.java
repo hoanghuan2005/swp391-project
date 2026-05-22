@@ -11,6 +11,8 @@ import com.example.keeper.systems.document.repository.DocumentRepository;
 import com.example.keeper.systems.document.repository.DocumentViewRepository;
 import com.example.keeper.systems.document.service.storage.FileStorageService;
 import com.example.keeper.systems.document.service.storage.FileUploadResult;
+import com.example.keeper.systems.document.service.storage.FileUploadResult;
+import com.example.keeper.systems.ai_ask.service.DocumentParserService;
 import com.example.keeper.systems.course.entity.Course;
 import com.example.keeper.systems.course.repository.CourseRepository;
 import com.example.keeper.systems.tag.entity.Tag;
@@ -38,6 +40,7 @@ public class DocumentServiceImpl implements DocumentService {
     private final CourseRepository courseRepository;
     private final TagRepository tagRepository;
     private final FileStorageService fileStorageService;
+    private final DocumentParserService documentParserService;
 
     @Override
     public Document create(CreateDocumentRequest request) {
@@ -86,7 +89,14 @@ public class DocumentServiceImpl implements DocumentService {
             document.setTitle(resolveTitle(file));
         }
 
-        return documentRepository.save(document);
+        Document savedDocument = documentRepository.save(document);
+        
+        // Asynchronously parse document for AI Ask
+        java.util.concurrent.CompletableFuture.runAsync(() -> {
+            documentParserService.parseAndChunkDocument(file, savedDocument.getId());
+        });
+
+        return savedDocument;
     }
 
     private Document buildDocument(CreateDocumentRequest request) {
