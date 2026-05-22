@@ -1,23 +1,27 @@
 import React from "react";
 import { LogOut } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 
 const LogoutModal = ({ isOpen, onClose }) => {
-  const navigate = useNavigate();
 
   if (!isOpen) return null;
 
   const handleLogout = () => {
-    // 1. Xóa sạch bách các thể loại token bám trên local để tránh lỗi ExpiredJwtException 500
+    // 1. 🔥 XÓA SẠCH BÁCH TẤT CẢ TOKEN VÀ TRẠNG THÁI SURVEY ĐỂ LÀM LẠI TỪ ĐẦU
     localStorage.removeItem("token");
     localStorage.removeItem("accessToken"); 
-    localStorage.removeItem("user"); // Xóa thông tin user nếu có lưu
+    localStorage.removeItem("refreshToken");    // Thêm dòng này: Xóa Refresh Token
+    localStorage.removeItem("user");           // Xóa thông tin user cũ
+    localStorage.removeItem("surveyCompleted"); // Thêm dòng này: Xóa trạng thái hoàn thành khảo sát
+    localStorage.removeItem("surveySkipped");   // Thêm dòng này: Xóa trạng thái bỏ qua khảo sát
+
+    // Mẹo xóa bạo tay (Nếu không sợ mất các cấu hình cấu trúc UI khác):
+    // localStorage.clear();
 
     // 2. Đóng modal
     onClose();
 
-    // 3. Đá người dùng về thẳng trang login
-    navigate("/login");
+    // 3. 🔥 ĐÁ THẲNG VỀ LOGIN VÀ TẢI LẠI TRANG: Ép dọn sạch State React bám trên ProfilePage
+    window.location.href = "/login";
   };
 
   return (

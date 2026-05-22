@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState, useRef } from "react";
 import axiosClient from "@/api/axiosClient";
+import Survey from "@/pages/Survey";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,13 +31,13 @@ export default function ProfilePage() {
     const [profileData, setProfileData] = useState({
         fullName: "Huân Hoàng",
         email: "huanhoang@gmail.com",
-        school: "", // Sẽ map với schoolName từ BE
+        school: "", // Sẽ luôn lưu sch.code ở đây
         startYear: "",
         followers: 0,
-        uploads: 3,
+        uploads: 0,
         upvotes: 0,
         avatarUrl: "",
-        languages: [], // Danh sách tên ngôn ngữ hiển thị ["English"]
+        languages: [],
     });
 
     const [isLoading, setIsLoading] = useState(false);
@@ -44,58 +45,123 @@ export default function ProfilePage() {
     const [previewUrl, setPreviewUrl] = useState("");
     const fileInputRef = useRef(null);
 
-    // States quản lý dữ liệu danh sách chọn
     const [schoolOptions, setSchoolOptions] = useState([]);
     const [languageOptions, setLanguageOptions] = useState([]);
     const [selectedLanguageIds, setSelectedLanguageIds] = useState([]);
     const [loadingOptions, setLoadingOptions] = useState(true);
 
+    const [showSurvey, setShowSurvey] = useState(false);
+
     const years = useMemo(
-        () => Array.from({ length: 12 }, (_, i) => new Date().getFullYear() - i),
+        () => Array.from({ length: 12 }, (_, i) => 2026 - i),
         []
     );
 
-    // 1. Tự động load dữ liệu khi mở trang Profile
-    useEffect(() => {
-        const loadProfileAndOptions = async () => {
-            try {
-                const [languagesResponse, schoolsResponse, profileResponse] = await Promise.all([
-                    axiosClient.get("/api/languages"),
-                    axiosClient.get("/api/schools"),
-                    axiosClient.get("/api/users/profile").catch(() => null),
-                ]);
+    const loadProfileAndOptions = async () => {
+        try {
+            setLoadingOptions(true);
+            const [languagesResponse, schoolsResponse, profileResponse] = await Promise.all([
+                axiosClient.get("/api/languages"),
+                axiosClient.get("/api/schools"),
+                axiosClient.get("/api/users/profile").catch(() => null),
+            ]);
 
-                const langs = languagesResponse.data || [];
-                setLanguageOptions(langs);
-                setSchoolOptions(schoolsResponse.data || []);
+            const langs = languagesResponse.data || [];
+            const schools = schoolsResponse.data || [];
 
-                if (profileResponse && profileResponse.data) {
-                    const data = profileResponse.data;
-                    setProfileData((prev) => ({
-                        ...prev,
-                        fullName: data.fullName || data.username || prev.fullName,
-                        email: data.email || data.username || prev.email,
-                        school: data.schoolName || "",
-                        startYear: data.startYear ? String(data.startYear) : "",
-                        avatarUrl: data.avatarUrl || prev.avatarUrl,
-                        languages: data.languages || [],
-                    }));
+            setLanguageOptions(langs);
+            setSchoolOptions(schools);
 
-                    // Khớp tên các ngôn ngữ đang có để lấy ra list ID phục vụ việc chỉnh sửa
-                    const currentLangIds = langs
-                        .filter((lang) => data.languages?.includes(lang.name))
-                        .map((lang) => lang.id);
-                    setSelectedLanguageIds(currentLangIds);
-                }
-            } catch (error) {
-                console.error("Failed to load profile details:", error);
-            } finally {
-                setLoadingOptions(false);
+            if (profileResponse && profileResponse.data) {
+                const data = profileResponse.data;
+                const backendSchoolStr = (data.schoolName || "").trim().toLowerCase();
+                
+                const matchedSchool = schools.find((sch) => {
+                    const schName = (sch.name || "").trim().toLowerCase();
+                    const schCode = (sch.code || "").trim().toLowerCase();
+                    return schName === backendSchoolStr || 
+                           schCode === backendSchoolStr || 
+                           schName.includes(backendSchoolStr) || 
+                           backendSchoolStr.includes(schName);
+                });
+
+                setProfileData((prev) => ({
+                    ...prev,
+                    fullName: data.fullName || data.username || prev.fullName,
+                    email: data.email || data.username || prev.email,
+                    avatarUrl: data.avatarUrl || prev.avatarUrl,
+                    school: matchedSchool ? matchedSchool.code : (data.schoolName || ""),
+                    startYear: data.startYear ? String(data.startYear) : "",
+                    languages: data.languages || [],
+                    
+                    // 🔥 FIX 1: Lấy số liệu đếm từ Backend để hiển thị ở cục Dashboard Stats
+                    uploads: data.uploads || 0,
+                    followers: data.followers || 0,
+                    upvotes: data.upvotes || 0,
+                }));
+
+                const currentLangIds = langs
+                    .filter((lang) => data.languages?.includes(lang.name))
+                    .map((lang) => lang.id);
+                setSelectedLanguageIds(currentLangIds);
             }
-        };
+        } catch (error) {
+            console.error("Failed to load profile details:", error);
+        } finally {
+            setLoadingOptions(false);
+        }
+    };
 
+    useEffect(() => {
         loadProfileAndOptions();
+
+        const isCompleted = localStorage.getItem("surveyCompleted") === "true";
+        const isSkipped = localStorage.getItem("surveySkipped") === "true";
+        if (!isCompleted && !isSkipped) {
+            setShowSurvey(true);
+        }
     }, []);
+
+    const handleSurveyClose = async (result) => {
+        setShowSurvey(false);
+
+        if (result && result.completed) {
+            await loadProfileAndOptions();
+
+            if (result.surveyData) {
+                const survey = result.surveyData;
+                const backendSchoolStr = (survey.schoolName || "").trim().toLowerCase();
+
+                const matchedSchool = schoolOptions.find((sch) => {
+                    const schName = (sch.name || "").trim().toLowerCase();
+                    const schCode = (sch.code || "").trim().toLowerCase();
+                    return schName === backendSchoolStr || 
+                           schCode === backendSchoolStr || 
+                           schName.includes(backendSchoolStr) || 
+                           backendSchoolStr.includes(schName);
+                });
+
+                setProfileData((prev) => ({
+                    ...prev,
+                    school: matchedSchool ? matchedSchool.code : (survey.schoolName || ""),
+                    startYear: survey.startYear ? String(survey.startYear) : "",
+                    languages: Array.from(survey.languages || []),
+                }));
+
+                setLanguageOptions((currentOptions) => {
+                    if (currentOptions && currentOptions.length > 0) {
+                        const updatedLangIds = currentOptions
+                            .filter((lang) => survey.languages?.includes(lang.name))
+                            .map((lang) => lang.id);
+                        setSelectedLanguageIds(updatedLangIds);
+                    }
+                    return currentOptions;
+                });
+            }
+
+            alert("Đã cập nhật và đồng bộ dữ liệu khảo sát vào hồ sơ của bạn! 🎉");
+        }
+    };
 
     const handleFileChange = (e) => {
         const file = e.target.files[0];
@@ -103,7 +169,6 @@ export default function ProfilePage() {
             setSelectedFile(file);
             const imageUrl = URL.createObjectURL(file);
             setPreviewUrl(imageUrl);
-            console.log("File thực tế chuẩn bị upload:", file);
         }
     };
 
@@ -124,7 +189,6 @@ export default function ProfilePage() {
         }
     };
 
-    // Hàm xử lý lưu toàn bộ thông tin (Avatar + Background Survey)
     const handleSaveProfile = async (e) => {
         e.preventDefault();
         setIsLoading(true);
@@ -132,23 +196,18 @@ export default function ProfilePage() {
         try {
             let uploadedAvatarUrl = profileData.avatarUrl;
 
-            // 🛠️ Bước A: Xử lý Upload Avatar - ĐÃ ĐỔI SANG AXIOSCLIENT ĐỂ KHÔNG BỊ 403
             if (selectedFile) {
                 const formData = new FormData();
                 formData.append("file", selectedFile);
 
-                // Chạy qua axiosClient để đính kèm Token giải cứu bồ khỏi chốt chặn 403
                 const response = await axiosClient.post("/api/users/upload-avatar", formData, {
                     headers: {
                         "Content-Type": "multipart/form-data",
                     },
                 });
-
-                // Lấy đường dẫn url ảnh do Cloudinary trả về từ cục data của Axios
                 uploadedAvatarUrl = response.data.fileUrl;
             }
 
-            // Bước B: Đồng bộ gửi các trường học vấn lên API /api/survey
             const surveyPayload = {
                 schoolName: profileData.school || null,
                 startYear: profileData.startYear ? Number(profileData.startYear) : null,
@@ -157,7 +216,6 @@ export default function ProfilePage() {
 
             await axiosClient.post("/api/survey", surveyPayload);
 
-            // Cập nhật lại State hiển thị cục bộ
             setProfileData((prev) => ({
                 ...prev,
                 avatarUrl: uploadedAvatarUrl,
@@ -178,7 +236,6 @@ export default function ProfilePage() {
 
     return (
         <div className="w-full max-w-6xl mx-auto p-4 md:p-6 space-y-6 animate-in fade-in duration-300">
-            {/* Tiêu đề trang */}
             <div>
                 <h1 className="text-3xl font-black text-slate-800 tracking-tight">My Profile</h1>
                 <p className="text-sm text-slate-500 font-medium">
@@ -187,7 +244,6 @@ export default function ProfilePage() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* CỘT TRÁI: AVATAR & THỐNG KÊ */}
                 <div className="space-y-6">
                     <Card className="border-gray-100 shadow-md overflow-hidden bg-white rounded-2xl">
                         <CardContent className="pt-8 pb-6 flex flex-col items-center text-center">
@@ -206,7 +262,7 @@ export default function ProfilePage() {
                                         alt={profileData.fullName}
                                         className="object-cover"
                                     />
-                                    <AvatarFallback className="bg-[#f26522] text-white font-bold text-3xl">
+                                    <AvatarFallback className="bg-[#f26522] text-white font-bold text-3xl uppercase">
                                         {profileData.fullName.charAt(0)}
                                     </AvatarFallback>
                                 </Avatar>
@@ -222,7 +278,7 @@ export default function ProfilePage() {
                                 Free Plan
                             </p>
                             <p className="text-xs text-slate-400 font-medium mt-2">
-                                {profileData.school || "No School Selected"}
+                                {schoolOptions.find(s => s.code === profileData.school)?.name || profileData.school || "No School Selected"}
                             </p>
 
                             <div className="flex flex-wrap gap-1 justify-center mt-3">
@@ -261,7 +317,6 @@ export default function ProfilePage() {
                     </Card>
                 </div>
 
-                {/* CỘT PHẢI: FORM CẬP NHẬT TÀI KHOẢN & HỌC VẤN */}
                 <div className="lg:col-span-2">
                     <Card className="border-gray-100 shadow-md bg-white rounded-2xl h-full">
                         <CardHeader className="px-6 pt-6 pb-2 border-b border-slate-50">
@@ -269,7 +324,6 @@ export default function ProfilePage() {
                         </CardHeader>
                         <CardContent className="p-6">
                             <form onSubmit={handleSaveProfile} className="space-y-5">
-                                {/* Họ và tên */}
                                 <div className="space-y-1.5">
                                     <label className="text-sm font-bold text-slate-700 ml-0.5 flex items-center gap-1.5">
                                         <User size={15} className="text-slate-400" /> Full Name
@@ -284,7 +338,6 @@ export default function ProfilePage() {
                                     />
                                 </div>
 
-                                {/* Email */}
                                 <div className="space-y-1.5">
                                     <label className="text-sm font-bold text-slate-700 ml-0.5 flex items-center gap-1.5">
                                         <Mail size={15} className="text-slate-400" /> Email Address
@@ -299,11 +352,11 @@ export default function ProfilePage() {
                                     />
                                 </div>
 
-                                {/* Trường học */}
                                 <div className="space-y-1.5">
                                     <label className="text-sm font-bold text-slate-700 ml-0.5 flex items-center gap-1.5">
                                         <Shield size={15} className="text-slate-400" /> Organization / School
                                     </label>
+                                    {/* 🔥 FIX 2: Sửa profileData.schoolName thành profileData.school */}
                                     <Select
                                         value={profileData.school}
                                         onValueChange={(val) => setProfileData((prev) => ({ ...prev, school: val }))}
@@ -316,7 +369,7 @@ export default function ProfilePage() {
                                                 <div className="p-2 text-sm text-slate-500">Loading schools...</div>
                                             ) : (
                                                 schoolOptions.map((sch) => (
-                                                    <SelectItem key={sch.id} value={sch.name}>
+                                                    <SelectItem key={sch.id} value={sch.code}>
                                                         {sch.name}
                                                     </SelectItem>
                                                 ))
@@ -325,7 +378,6 @@ export default function ProfilePage() {
                                     </Select>
                                 </div>
 
-                                {/* Năm bắt đầu */}
                                 <div className="space-y-1.5">
                                     <label className="text-sm font-bold text-slate-700 ml-0.5 flex items-center gap-1.5">
                                         <Calendar size={15} className="text-slate-400" /> Start Year
@@ -347,7 +399,6 @@ export default function ProfilePage() {
                                     </Select>
                                 </div>
 
-                                {/* Ngôn ngữ học tập */}
                                 <div className="space-y-2.5">
                                     <label className="text-sm font-bold text-slate-700 ml-0.5 flex items-center gap-1.5">
                                         <BookOpen size={15} className="text-slate-400" /> Languages Learning
@@ -367,8 +418,8 @@ export default function ProfilePage() {
                                                         variant={isSelected ? "default" : "outline"}
                                                         onClick={() => toggleLanguage(language.id)}
                                                         className={`rounded-full h-8 px-4 text-xs font-semibold transition ${isSelected
-                                                                ? "bg-[#f26522] text-white hover:bg-[#d95316]"
-                                                                : "border-slate-200 text-slate-700 hover:border-slate-400 bg-white"
+                                                            ? "bg-[#f26522] text-white hover:bg-[#d95316]"
+                                                            : "border-slate-200 text-slate-700 hover:border-slate-400 bg-white"
                                                             }`}
                                                     >
                                                         {language.name}
@@ -378,7 +429,6 @@ export default function ProfilePage() {
                                     </div>
                                 </div>
 
-                                {/* Nút Submit lưu dữ liệu */}
                                 <div className="pt-4 flex justify-end">
                                     <Button
                                         type="submit"
@@ -393,6 +443,8 @@ export default function ProfilePage() {
                     </Card>
                 </div>
             </div>
+
+            {showSurvey && <Survey onClose={handleSurveyClose} />}
         </div>
     );
 }

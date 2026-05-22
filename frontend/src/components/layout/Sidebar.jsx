@@ -195,12 +195,50 @@ export default function Sidebar({ isOpen = true }) {
   const [subjectOptions, setSubjectOptions] = useState([]);
   const [tagOptions, setTagOptions] = useState([]);
 
+  // 🔥 STATE LƯU TRỮ THÔNG TIN PROFILE DÀNH CHO SIDEBAR
+  const [sidebarProfile, setSidebarProfile] = useState({
+    fullName: "Student",
+    schoolCode: "...",
+    followers: 0,
+    uploads: 0,
+    upvotes: 0,
+  });
+
   const fileInputRef = useRef(null);
 
   // FIX: Tạo các refs để quản lý sự kiện click ngoài dropdown danh sách kết quả
   const schoolRef = useRef(null);
   const subjectRef = useRef(null);
   const tagRef = useRef(null);
+
+  // 🔥 LẤY DỮ LIỆU PROFILE & LẮNG NGHE SỰ KIỆN UPLOAD ĐỂ CẬP NHẬT SỐ LƯỢNG FILE
+  useEffect(() => {
+    const fetchSidebarProfile = async () => {
+      try {
+        const res = await axiosClient.get("/api/users/profile");
+        if (res.data) {
+          setSidebarProfile({
+            fullName: res.data.fullName || "Student",
+            schoolCode: res.data.schoolName || "N/A",
+            followers: res.data.followers || 0,
+            uploads: res.data.uploads || 0,
+            upvotes: res.data.upvotes || 0,
+          });
+        }
+      } catch (error) {
+        console.error("Failed to load sidebar profile", error);
+      }
+    };
+
+    // Chạy lần đầu khi load component
+    fetchSidebarProfile();
+
+    // Lắng nghe sự kiện "documents:uploaded" từ hàm handleUploadDocument bên dưới
+    window.addEventListener("documents:uploaded", fetchSidebarProfile);
+    
+    // Cleanup event khi component unmount
+    return () => window.removeEventListener("documents:uploaded", fetchSidebarProfile);
+  }, []);
 
   useEffect(() => {
     const fetchOptions = async () => {
@@ -397,7 +435,9 @@ export default function Sidebar({ isOpen = true }) {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
+      // Bắn sự kiện này để cái useEffect ở trên tự động đếm lại file
       window.dispatchEvent(new CustomEvent("documents:uploaded"));
+      
       setSelectedFile(null);
       setSubjectQuery("");
       setSubjectName("");
@@ -432,8 +472,8 @@ export default function Sidebar({ isOpen = true }) {
             isOpen ? "justify-start gap-4 mb-5" : "justify-center",
           )}
         >
-          <div className="h-[42px] w-[42px] shrink-0 rounded-full bg-[#f26522] text-white flex items-center justify-center font-bold text-lg shadow-sm">
-            H
+          <div className="h-[42px] w-[42px] shrink-0 rounded-full bg-[#f26522] text-white flex items-center justify-center font-bold text-lg shadow-sm uppercase">
+            {sidebarProfile.fullName.charAt(0)}
           </div>
           <div
             className={cn(
@@ -441,10 +481,10 @@ export default function Sidebar({ isOpen = true }) {
               isOpen ? "w-auto opacity-100 pr-4" : "w-0 opacity-0",
             )}
           >
-            <div className="text-sm font-bold text-slate-800">Huân Hoàng</div>
+            <div className="text-sm font-bold text-slate-800">{sidebarProfile.fullName}</div>
             <div className="text-xs text-[#f26522] font-semibold flex items-center gap-1 mt-0.5">
               <House className="w-3 h-3 shrink-0" />
-              <span>FPT</span>
+              <span className="truncate max-w-[120px]">{sidebarProfile.schoolCode}</span>
             </div>
           </div>
         </div>
@@ -457,19 +497,19 @@ export default function Sidebar({ isOpen = true }) {
           )}
         >
           <div className="flex flex-col items-center">
-            <div className="text-base font-extrabold text-slate-800">0</div>
+            <div className="text-base font-extrabold text-slate-800">{sidebarProfile.followers}</div>
             <div className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide">
               Followers
             </div>
           </div>
           <div className="flex flex-col items-center">
-            <div className="text-base font-extrabold text-slate-800">3</div>
+            <div className="text-base font-extrabold text-slate-800">{sidebarProfile.uploads}</div>
             <div className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide">
               Uploads
             </div>
           </div>
           <div className="flex flex-col items-center">
-            <div className="text-base font-extrabold text-slate-800">0</div>
+            <div className="text-base font-extrabold text-slate-800">{sidebarProfile.upvotes}</div>
             <div className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide">
               Upvotes
             </div>
