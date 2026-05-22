@@ -1,5 +1,6 @@
 package com.example.keeper.systems.document.service;
 
+import com.example.keeper.systems.ai_ask.repository.DocumentChunkRepository;
 import com.example.keeper.systems.auth.entity.User;
 import com.example.keeper.systems.auth.repository.UserRepository;
 import com.example.keeper.systems.document.dto.request.CreateDocumentRequest;
@@ -41,6 +42,7 @@ public class DocumentServiceImpl implements DocumentService {
     private final TagRepository tagRepository;
     private final FileStorageService fileStorageService;
     private final DocumentParserService documentParserService;
+    private final DocumentChunkRepository documentChunkRepository;
 
     @Override
     public Document create(CreateDocumentRequest request) {
@@ -300,10 +302,17 @@ public class DocumentServiceImpl implements DocumentService {
     }
 
     @Override
-    public List<Document> getRecentViewed(String email, int limit) {
+    public List<DocumentResponse> getRecentViewed(String email, int limit) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
-        return documentViewRepository.findRecentDocuments(user.getId(), PageRequest.of(0, limit));
+        return documentViewRepository.findRecentDocuments(user.getId(), PageRequest.of(0, limit))
+                .stream()
+                .map(dv -> {
+                    DocumentResponse res = mapToResponse(dv.getDocument());
+                    res.setLastViewedAt(dv.getLastViewedAt());
+                    return res;
+                })
+                .toList();
     }
 
     // @Override
@@ -330,11 +339,16 @@ public class DocumentServiceImpl implements DocumentService {
     // }
 
     @Override
+    @org.springframework.transaction.annotation.Transactional
     public Document delete(UUID id) {
 
         Document document = getById(id);
 
         fileStorageService.deleteFile(document.getCloudinaryPublicId(), resolveResourceType(document));
+
+        documentViewRepository.deleteByDocumentId(document.getId());
+        
+        documentChunkRepository.deleteByDocumentId(document.getId());
 
         documentRepository.delete(document);
 

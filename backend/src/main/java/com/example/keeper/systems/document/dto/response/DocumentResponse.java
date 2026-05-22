@@ -21,6 +21,7 @@ public class DocumentResponse {
     private String visibility;
     private Integer downloadCount;
     private LocalDateTime createdAt;
+    private LocalDateTime lastViewedAt;
     private CourseInfo course;
     private List<String> tags;
 

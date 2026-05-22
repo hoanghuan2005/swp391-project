@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import FilePreview from "@/components/documents/FilePreview";
 import { forceDownload } from "@/lib/downloadHelper";
+import { recordDocumentView } from "@/api/documentApi";
 
 const formatFileSize = (bytes) => {
   if (!bytes && bytes !== 0) {
@@ -72,6 +73,11 @@ export default function DocumentDetailView({
         setLoading(true);
         const response = await axiosClient.get(fetchUrl);
         setDocumentDetail(response.data);
+        
+        // Ghi nhận lượt xem tài liệu
+        if (documentId) {
+          recordDocumentView(documentId).catch(console.error);
+        }
       } catch (error) {
         console.error("Failed to load document detail:", error);
       } finally {

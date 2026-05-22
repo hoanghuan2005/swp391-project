@@ -31,6 +31,7 @@ import {
   Heart,
 } from "lucide-react";
 import axiosClient from "@/api/axiosClient";
+import RecentDocuments from "@/components/documents/RecentDocuments";
 
 export default function Homepage() {
   const [uploadOpen, setUploadOpen] = useState(false);
@@ -99,6 +100,8 @@ export default function Homepage() {
             ShareDocs — Knowledge Base
           </h2>
         </div>
+
+        <RecentDocuments />
 
         {/* Modal Upload (Giữ nguyên UI của bạn) */}
         <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>

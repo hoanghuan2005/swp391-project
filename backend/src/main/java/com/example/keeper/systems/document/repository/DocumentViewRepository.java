@@ -15,6 +15,8 @@ public interface DocumentViewRepository extends JpaRepository<DocumentView, UUID
 
     Optional<DocumentView> findByUserIdAndDocumentId(UUID userId, UUID documentId);
 
-    @Query("select dv.document from DocumentView dv where dv.user.id = :userId order by dv.lastViewedAt desc")
-    List<Document> findRecentDocuments(@Param("userId") UUID userId, Pageable pageable);
+    @Query("select dv from DocumentView dv where dv.user.id = :userId order by dv.lastViewedAt desc")
+    List<DocumentView> findRecentDocuments(@Param("userId") UUID userId, Pageable pageable);
+
+    void deleteByDocumentId(UUID documentId);
 }
