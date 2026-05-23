@@ -13,13 +13,15 @@ import java.util.UUID;
 
 public interface DocumentRepository extends JpaRepository<Document, UUID> {
 
-	Page<Document> findByCourseId(UUID courseId, Pageable pageable);
+    Page<Document> findByCourseId(UUID courseId, Pageable pageable);
 
-	List<Document> findByUploadedById(UUID uploadedById);
+    List<Document> findByUploadedById(UUID uploadedById);
 
-	@Query("select d from Document d order by d.downloadCount desc")
-	List<Document> findTopByDownloadCount(Pageable pageable);
+    long countByUploadedById(UUID uploadedById);
 
-	@Query("select distinct d from Document d join d.tags t where lower(t.name) in :tagNames order by d.downloadCount desc")
-	List<Document> findByTagNames(@Param("tagNames") List<String> tagNames, Pageable pageable);
+    @Query("select d from Document d order by d.downloadCount desc")
+    List<Document> findTopByDownloadCount(Pageable pageable);
+
+    @Query("select distinct d from Document d join d.tags t where lower(t.name) in :tagNames order by d.downloadCount desc")
+    List<Document> findByTagNames(@Param("tagNames") List<String> tagNames, Pageable pageable);
 }
