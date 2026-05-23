@@ -1,6 +1,7 @@
 package com.example.keeper.systems.ai_ask.service.impl;
 
 import com.example.keeper.systems.ai_ask.service.GeminiService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -13,57 +14,74 @@ import java.util.List;
 import java.util.Map;
 
 @Service
+@RequiredArgsConstructor
 public class GeminiServiceImpl implements GeminiService {
 
-    @Value("${gemini.api.key:}")
-    private String geminiApiKey;
+    @Value("${groq.api.key}")
+    private String groqApiKey;
 
-    @Value("${gemini.api.url:https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent}")
-    private String geminiApiUrl;
+    @Value("${groq.api.url}")
+    private String groqApiUrl;
+
+    @Value("${groq.model}")
+    private String model;
 
     private final RestTemplate restTemplate;
 
-    public GeminiServiceImpl() {
-        this.restTemplate = new RestTemplate();
-    }
-
     @Override
-    public String ask(String prompt) {
-        if (geminiApiKey == null || geminiApiKey.isEmpty()) {
-            return "Gemini API key is not configured.";
-        }
-
-        String url = geminiApiUrl + "?key=" + geminiApiKey;
+    public String generateContent(String prompt) {
 
         HttpHeaders headers = new HttpHeaders();
+
         headers.setContentType(MediaType.APPLICATION_JSON);
 
+        headers.setBearerAuth(groqApiKey);
+
         Map<String, Object> requestBody = Map.of(
-                "contents", List.of(
-                        Map.of("parts", List.of(
-                                Map.of("text", prompt)
-                        ))
+                "model", model,
+                "messages", List.of(
+                        Map.of(
+                                "role", "user",
+                                "content", prompt
+                        )
                 )
         );
 
-        HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
+        HttpEntity<Map<String, Object>> request =
+                new HttpEntity<>(requestBody, headers);
 
         try {
-            ResponseEntity<Map> response = restTemplate.postForEntity(url, request, Map.class);
+
+            ResponseEntity<Map> response =
+                    restTemplate.postForEntity(
+                            groqApiUrl,
+                            request,
+                            Map.class
+                    );
+
             Map<String, Object> body = response.getBody();
-            if (body != null && body.containsKey("candidates")) {
-                List<Map<String, Object>> candidates = (List<Map<String, Object>>) body.get("candidates");
-                if (!candidates.isEmpty()) {
-                    Map<String, Object> content = (Map<String, Object>) candidates.get(0).get("content");
-                    List<Map<String, Object>> parts = (List<Map<String, Object>>) content.get("parts");
-                    if (!parts.isEmpty()) {
-                        return (String) parts.get(0).get("text");
-                    }
+
+            if (body != null && body.containsKey("choices")) {
+
+                List<Map<String, Object>> choices =
+                        (List<Map<String, Object>>) body.get("choices");
+
+                if (!choices.isEmpty()) {
+
+                    Map<String, Object> message =
+                            (Map<String, Object>)
+                                    choices.get(0).get("message");
+
+                    return (String) message.get("content");
                 }
             }
+
         } catch (Exception e) {
+
             e.printStackTrace();
-            return "Failed to get response from Gemini API: " + e.getMessage();
+
+            return "Failed to get response from Groq API: "
+                    + e.getMessage();
         }
 
         return "No response generated.";

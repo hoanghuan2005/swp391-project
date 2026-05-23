@@ -1,7 +1,9 @@
 package com.example.keeper.systems.ai_ask.service;
 
-import java.util.UUID;
+import com.example.keeper.systems.ai_ask.dto.request.AskAIRequest;
+import com.example.keeper.systems.ai_ask.dto.response.AskAIResponse;
 
 public interface AiAskService {
-    String ask(UUID userId, UUID documentId, String question);
+
+    AskAIResponse ask(AskAIRequest request);
 }
