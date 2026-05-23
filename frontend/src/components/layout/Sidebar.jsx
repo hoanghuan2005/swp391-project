@@ -631,17 +631,6 @@ export default function Sidebar({ isOpen = true }) {
             Add Course
           </Button>
         </SidebarDropdown>
-
-        {/* Projects */}
-        <SidebarDropdown icon={BookMarked} label="Projects" isOpen={isOpen}>
-          <Button
-            variant="ghost"
-            className="justify-start rounded-lg text-sm text-slate-600 hover:bg-slate-100 hover:text-[#f26522] cursor-pointer"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Add Project
-          </Button>
-        </SidebarDropdown>
       </nav>
 
       {/* Course Library Dialog */}

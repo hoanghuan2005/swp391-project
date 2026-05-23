@@ -9,8 +9,9 @@ import java.util.UUID;
 @Data
 public class AskRequest {
 
-    @NotNull
     private UUID documentId;
+
+    private UUID projectId;
 
     @NotBlank
     private String question;

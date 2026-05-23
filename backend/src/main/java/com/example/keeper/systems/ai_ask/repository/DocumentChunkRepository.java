@@ -11,5 +11,7 @@ import java.util.UUID;
 public interface DocumentChunkRepository extends JpaRepository<DocumentChunk, UUID> {
     List<DocumentChunk> findByDocumentId(UUID documentId);
     
+    List<DocumentChunk> findByDocumentIdIn(List<UUID> documentIds);
+    
     void deleteByDocumentId(UUID documentId);
 }

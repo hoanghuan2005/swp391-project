@@ -21,6 +21,7 @@ import CatalogLanguagesPage from "./pages/Admin/CatalogLanguagesPage";
 import CourseDetailPage from "./pages/CourseDetailPage";
 import CatalogCoursesPage from "./pages/Admin/CatalogCoursesPage";
 import AskAIPage from "./pages/AskAIPage";
+import ProjectWorkspacePage from "./pages/ProjectWorkspacePage";
 
 function ComingSoon({ pageName }) {
   return (
@@ -64,7 +65,11 @@ function App() {
             element={<ComingSoon pageName="Projects" />}
           />
           <Route path="/courses/:id" element={<CourseDetailPage />} />
+          <Route path="/workspace/:projectId" element={<ProjectWorkspacePage />} />
         </Route>
+
+        {/* Public Project Workspace (No Sidebar Layout) */}
+        <Route path="/workspace/shared/:token" element={<ProjectWorkspacePage />} />
 
         {/* Admin dashboard layout */}
         <Route element={<AdminLayout />}>

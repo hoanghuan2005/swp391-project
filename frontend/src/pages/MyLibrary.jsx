@@ -1,184 +1,178 @@
-import React, { useCallback, useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import axiosClient from "@/api/axiosClient";
-import { FileText, Download, Eye, Trash2 } from "lucide-react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { forceDownload } from "@/lib/downloadHelper";
+import { 
+  FileText, 
+  FolderPlus, 
+  Plus, 
+  Layout, 
+  ChevronRight, 
+  Search,
+  BookOpen,
+  Calendar
+} from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import axiosClient from "@/api/axiosClient";
+import { getMyProjects } from "@/api/projectApi";
+import CreateProjectModal from "@/components/projects/CreateProjectModal";
 
 export default function MyLibrary() {
-  const [uploads, setUploads] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [documents, setDocuments] = useState([]);
+  const [projects, setProjects] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isProjectsLoading, setIsProjectsLoading] = useState(false);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
 
-  const fetchUploads = useCallback(async () => {
+  const fetchMyUploads = useCallback(async () => {
     try {
-      setLoading(true);
-      const res = await axiosClient.get("/api/documents/my-uploads");
-      setUploads(Array.isArray(res.data) ? res.data : []);
+      setIsLoading(true);
+      const response = await axiosClient.get("/api/documents/my-uploads");
+      setDocuments(response.data);
     } catch (error) {
-      console.error("Failed to load uploads", error);
-      setUploads([]);
+      console.error("Error fetching uploads:", error);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
+    }
+  }, []);
+
+  const fetchProjects = useCallback(async () => {
+    try {
+      setIsProjectsLoading(true);
+      const data = await getMyProjects();
+      setProjects(data);
+    } catch (error) {
+      console.error("Error fetching projects:", error);
+    } finally {
+      setIsProjectsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchUploads();
-
-    const handleUploaded = () => fetchUploads();
-    window.addEventListener("documents:uploaded", handleUploaded);
-
-    return () => {
-      window.removeEventListener("documents:uploaded", handleUploaded);
-    };
-  }, [fetchUploads]);
-
-  const handleDownload = async (id, title) => {
-    try {
-      // 1. Gọi API Backend để tăng lượt download
-      const res = await axiosClient.get(`/api/documents/${id}/download`);
-      const url = res.data.downloadUrl;
-
-      if (url) {
-        await forceDownload(url, title || "document");
-      }
-    } catch (error) {
-      console.error("Download failed:", error);
-      alert("Error downloading document!");
-    }
-  };
-
-  const handleDelete = async (id) => {
-    if (
-      !window.confirm(
-        "Are you sure you want to delete this document? This action cannot be undone.",
-      )
-    )
-      return;
-    try {
-      await axiosClient.delete(`/api/documents/${id}`);
-      setUploads(uploads.filter((doc) => doc.id !== id));
-      alert("Document deleted successfully!");
-    } catch (error) {
-      console.error("Failed to delete document:", error);
-      alert("Failed to delete document.");
-    }
-  };
+    fetchMyUploads();
+    fetchProjects();
+  }, [fetchMyUploads, fetchProjects]);
 
   return (
-    <div className="space-y-9 m-1">
-      <section className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold text-slate-800">My Uploads</h2>
+    <div className="p-6 max-w-7xl mx-auto space-y-8">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-800 tracking-tight">My Library</h1>
+          <p className="text-slate-500 text-sm mt-1">Manage your uploaded materials and study workspaces.</p>
         </div>
+        
+        <Button 
+          onClick={() => setCreateModalOpen(true)}
+          className="rounded-xl bg-[#f26522] hover:bg-[#d95316] text-white font-bold gap-2 shadow-lg shadow-orange-100"
+        >
+          <FolderPlus className="w-5 h-5" />
+          New Workspace
+        </Button>
+      </div>
 
-        {loading ? (
-          <p className="text-sm text-slate-500">Loading uploads...</p>
-        ) : uploads.length === 0 ? (
-          <div className="rounded-xl bg-slate-50 p-6 text-sm text-slate-500">
-            You have not uploaded any documents yet.
-          </div>
-        ) : (
-          <div className="space-y-0">
-            {uploads.map((doc, index) => (
-              <React.Fragment key={doc.id}>
-                <div className="flex items-start justify-between gap-4 py-4">
-                  <div className="flex items-start gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#f26522]/10 text-[#f26522]">
-                      <FileText className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-slate-800">
-                        {doc.title || "Untitled document"}
-                      </p>
-                      <p className="text-xs text-slate-500">
-                        {doc.course?.name || doc.course?.code || "No course"}
-                      </p>
-                      {doc.tags?.length > 0 && (
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {doc.tags.map((tag) => (
-                            <Badge
-                              key={
-                                typeof tag === "string"
-                                  ? tag
-                                  : tag.id || tag.name
-                              }
-                              variant="secondary"
-                              className="rounded-full bg-slate-100 text-slate-600"
-                            >
-                              {typeof tag === "string" ? tag : tag.name}
-                            </Badge>
-                          ))}
+      <Tabs defaultValue="projects" className="w-full">
+        <TabsList className="bg-slate-100/50 p-1 rounded-2xl mb-8">
+          <TabsTrigger value="projects" className="rounded-xl px-8 data-[state=active]:bg-white data-[state=active]:shadow-sm font-bold">
+            <Layout className="w-4 h-4 mr-2" /> My Workspaces
+          </TabsTrigger>
+          <TabsTrigger value="documents" className="rounded-xl px-8 data-[state=active]:bg-white data-[state=active]:shadow-sm font-bold">
+            <FileText className="w-4 h-4 mr-2" /> My Uploads
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="projects" className="mt-0">
+          {isProjectsLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[1, 2, 3].map((i) => <Skeleton key={i} className="h-48 w-full rounded-3xl" />)}
+            </div>
+          ) : projects.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-center bg-slate-50 rounded-[32px] border border-dashed border-slate-200">
+              <div className="w-16 h-16 rounded-3xl bg-white shadow-sm flex items-center justify-center mb-4">
+                <Layout className="w-8 h-8 text-slate-300" />
+              </div>
+              <h3 className="text-xl font-bold text-slate-800 mb-1">No Workspaces Yet</h3>
+              <p className="text-slate-500 mb-6 max-w-sm">Create a workspace to group documents and use multi-document AI chat.</p>
+              <Button onClick={() => setCreateModalOpen(true)} variant="outline" className="rounded-xl border-slate-200 gap-2">
+                <Plus className="w-4 h-4" /> Create first workspace
+              </Button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {projects.map((project) => (
+                <Link key={project.id} to={`/workspace/${project.id}`}>
+                  <Card className="rounded-[28px] border-slate-100 hover:border-[#f26522]/20 hover:shadow-xl hover:shadow-orange-50 transition-all group overflow-hidden bg-white h-full border-2">
+                    <CardContent className="p-6 flex flex-col h-full">
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="w-12 h-12 rounded-2xl bg-orange-50 flex items-center justify-center group-hover:bg-[#f26522] transition-colors">
+                          <Layout className="w-6 h-6 text-[#f26522] group-hover:text-white transition-colors" />
                         </div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    {doc.id && (
-                      <>
-                        <Button
-                          asChild
-                          variant="ghost"
-                          size="sm"
-                          className="rounded-full text-xs text-slate-500 hover:text-blue-600 hover:bg-blue-50 cursor-pointer"
-                        >
-                          <Link to={`/documents/${doc.id}`}>
-                            <Eye className="w-3.5 h-3.5 mr-1" /> View
-                          </Link>
-                        </Button>
+                        <div className="flex items-center gap-1 text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100">
+                          <FileText className="w-3 h-3" /> {project.documents?.length || 0} Docs
+                        </div>
+                      </div>
 
-                        <Button
-                          onClick={() => handleDownload(doc.id, doc.title)}
-                          variant="outline"
-                          size="sm"
-                          className="rounded-full text-xs text-[#f26522] border-[#f26522]/20 hover:bg-[#f26522] hover:text-white cursor-pointer transition-all"
-                        >
-                          <Download className="w-3.5 h-3.5 mr-1" /> Download
-                        </Button>
+                      <h3 className="text-lg font-bold text-slate-800 group-hover:text-[#f26522] transition-colors mb-2 truncate">
+                        {project.name}
+                      </h3>
+                      <p className="text-sm text-slate-500 line-clamp-2 mb-6 flex-1">
+                        {project.description || "No description provided."}
+                      </p>
 
-                        <Button
-                          onClick={() => handleDelete(doc.id)}
-                          variant="outline"
-                          size="sm"
-                          className="rounded-full text-xs text-red-500 border-red-500/20 hover:bg-red-500 hover:text-white cursor-pointer transition-all"
-                        >
-                          <Trash2 className="w-3.5 h-3.5 mr-1" /> Delete
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                </div>
-                {index < uploads.length - 1 && (
-                  <Separator className="bg-slate-100" />
-                )}
-              </React.Fragment>
-            ))}
-          </div>
-        )}
-      </section>
+                      <div className="pt-4 border-t border-slate-50 flex items-center justify-between text-xs text-slate-400">
+                        <span className="flex items-center gap-1.5 font-medium">
+                          <Calendar className="w-3.5 h-3.5" />
+                          {new Date(project.createdAt).toLocaleDateString("en-GB")}
+                        </span>
+                        <span className="flex items-center font-bold text-[#f26522] opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0">
+                          Open Workspace <ChevronRight className="w-4 h-4 ml-0.5" />
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          )}
+        </TabsContent>
 
-      <Separator className="bg-slate-100" />
+        <TabsContent value="documents" className="mt-0">
+          {isLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 gap-6">
+              {[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-40 w-full rounded-2xl" />)}
+            </div>
+          ) : documents.length === 0 ? (
+             <div className="text-center py-20 bg-slate-50 rounded-[32px]">
+               <FileText className="w-12 h-12 text-slate-200 mx-auto mb-4" />
+               <p className="text-slate-500 font-medium">You haven't uploaded any documents yet.</p>
+             </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 gap-6">
+              {documents.map((doc) => (
+                <Link key={doc.id} to={`/documents/${doc.id}`}>
+                  <Card className="rounded-2xl border-slate-100 hover:shadow-md transition-all h-full bg-white group">
+                    <CardContent className="p-4">
+                      <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center mb-3 group-hover:bg-orange-50">
+                        <FileText className="w-5 h-5 text-slate-400 group-hover:text-[#f26522]" />
+                      </div>
+                      <h4 className="font-bold text-slate-800 text-sm truncate">{doc.title}</h4>
+                      <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
+                        <BookOpen className="w-3 h-3" /> {doc.course?.code || "General"}
+                      </p>
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
 
-      <section className="space-y-2">
-        <h2 className="text-xl font-bold text-slate-800">My Quiz</h2>
-        <p className="text-sm text-slate-500">You have no quizzes yet.</p>
-      </section>
-
-      <Separator className="bg-slate-100" />
-
-      <section className="space-y-2">
-        <h2 className="text-xl font-bold text-slate-800">My Flashcard</h2>
-        <p className="text-sm text-slate-500">You have no flashcards yet.</p>
-      </section>
-
-      <Separator className="bg-slate-100" />
-
-      <section className="space-y-2">
-        <h2 className="text-xl font-bold text-slate-800">My Notes</h2>
-        <p className="text-sm text-slate-500">You have no notes yet.</p>
-      </section>
+      <CreateProjectModal 
+        open={createModalOpen} 
+        onOpenChange={setCreateModalOpen} 
+        onSuccess={fetchProjects}
+      />
     </div>
   );
 }

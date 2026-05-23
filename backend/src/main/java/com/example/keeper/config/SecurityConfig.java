@@ -39,14 +39,19 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/api/auth/**",
-                                "/swagger-ui/**",
+                                "/v3/api-docs",
                                 "/v3/api-docs/**",
+                                "/swagger-ui/**",
+                                "/swagger-ui.html",
+                                "/swagger-resources/**",
+                                "/webjars/**",
                                 "/error",
                                 "/api/documents/**",
                                 "/api/courses/**",
                                 "/api/languages/**",
                                 "/api/schools/**",
-                                "/api/tags/**"
+                                "/api/tags/**",
+                                "/api/projects/shared/**"
                         ).permitAll()
                         .requestMatchers("/api/users/upload-avatar").authenticated()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")

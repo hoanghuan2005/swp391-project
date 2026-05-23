@@ -348,7 +348,7 @@ public class DocumentServiceImpl implements DocumentService {
 
         documentViewRepository.deleteByDocumentId(document.getId());
         
-        documentChunkRepository.deleteByDocumentId(document.getId());
+        documentChunkRepository .deleteByDocumentId(document.getId());
 
         documentRepository.delete(document);
 

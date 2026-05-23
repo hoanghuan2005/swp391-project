@@ -22,23 +22,18 @@ import {
   Music,
   Video,
   Heart,
+  FolderPlus,
 } from "lucide-react";
 import FilePreview from "@/components/documents/FilePreview";
 import { forceDownload } from "@/lib/downloadHelper";
 import { recordDocumentView } from "@/api/documentApi";
+import AddToProjectModal from "@/components/projects/AddToProjectModal";
 
 const formatFileSize = (bytes) => {
-  if (!bytes && bytes !== 0) {
-    return "-";
-  }
-  if (bytes === 0) {
-    return "0 B";
-  }
+  if (!bytes && bytes !== 0) return "-";
+  if (bytes === 0) return "0 B";
   const units = ["B", "KB", "MB", "GB"];
-  const index = Math.min(
-    Math.floor(Math.log(bytes) / Math.log(1024)),
-    units.length - 1,
-  );
+  const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
   const value = bytes / 1024 ** index;
   return `${value.toFixed(value >= 10 || index === 0 ? 0 : 1)} ${units[index]}`;
 };
@@ -53,14 +48,12 @@ export default function DocumentDetailView({
 }) {
   const [documentDetail, setDocumentDetail] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [addToProjectOpen, setAddToProjectOpen] = useState(false);
 
   const handleDownloadFile = async () => {
     try {
       await axiosClient.get(`/api/documents/${documentDetail.id}/download`);
-      await forceDownload(
-        documentDetail.downloadUrl,
-        documentDetail.title || "document",
-      );
+      await forceDownload(documentDetail.downloadUrl, documentDetail.title || "document");
     } catch (error) {
       console.error("Failed to download:", error);
       alert("Error downloading file!");
@@ -73,11 +66,7 @@ export default function DocumentDetailView({
         setLoading(true);
         const response = await axiosClient.get(fetchUrl);
         setDocumentDetail(response.data);
-        
-        // Ghi nhận lượt xem tài liệu
-        if (documentId) {
-          recordDocumentView(documentId).catch(console.error);
-        }
+        if (documentId) recordDocumentView(documentId).catch(console.error);
       } catch (error) {
         console.error("Failed to load document detail:", error);
       } finally {
@@ -85,9 +74,7 @@ export default function DocumentDetailView({
       }
     };
 
-    if (documentId && fetchUrl) {
-      loadDetail();
-    }
+    if (documentId && fetchUrl) loadDetail();
   }, [documentId, fetchUrl]);
 
   const previewUrl = documentDetail?.previewUrl || documentDetail?.fileUrl;
@@ -100,19 +87,14 @@ export default function DocumentDetailView({
         <div className="flex items-center gap-3">
           <FileText className="w-8 h-8 text-[#f26522]" />
           <div>
-            <h1 className="text-3xl font-bold tracking-tight text-slate-800">
-              {headerTitle}
-            </h1>
+            <h1 className="text-3xl font-bold tracking-tight text-slate-800">{headerTitle}</h1>
             <p className="text-sm text-slate-500">{headerDescription}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           {backTo && (
             <Button asChild variant="outline" className="rounded-xl">
-              <Link to={backTo}>
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                {backLabel}
-              </Link>
+              <Link to={backTo}><ArrowLeft className="w-4 h-4 mr-2" />{backLabel}</Link>
             </Button>
           )}
           {downloadUrl && (
@@ -120,17 +102,22 @@ export default function DocumentDetailView({
               <Button
                 variant="outline"
                 className="rounded-xl text-[#f26522] border-[#f26522]/20 hover:bg-[#f26522] hover:text-white"
+                onClick={() => setAddToProjectOpen(true)}
+              >
+                <FolderPlus className="w-4 h-4 mr-2" /> Save to Project
+              </Button>
+              <Button
+                variant="outline"
+                className="rounded-xl text-[#f26522] border-[#f26522]/20 hover:bg-[#f26522] hover:text-white"
                 onClick={() => alert("Added to favorites!")}
               >
-                <Heart className="w-4 h-4 mr-2" />
-                Favorite
+                <Heart className="w-4 h-4 mr-2" /> Favorite
               </Button>
               <Button
                 onClick={handleDownloadFile}
                 className="rounded-xl bg-[#f26522] text-white hover:bg-[#d95316] cursor-pointer"
               >
-                <Download className="w-4 h-4 mr-2" />
-                Download
+                <Download className="w-4 h-4 mr-2" /> Download
               </Button>
             </div>
           )}
@@ -141,10 +128,7 @@ export default function DocumentDetailView({
         <Card className="rounded-2xl border-slate-100 shadow-sm">
           <CardHeader>
             <CardTitle className="text-lg text-slate-700">Preview</CardTitle>
-            <CardDescription>
-              Supports images, PDF, audio, video, and Office files. Other
-              formats open in a new tab.
-            </CardDescription>
+            <CardDescription>Supported formats will display here.</CardDescription>
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -167,9 +151,7 @@ export default function DocumentDetailView({
         <Card className="rounded-2xl border-slate-100 shadow-sm">
           <CardHeader>
             <CardTitle className="text-lg text-slate-700">Details</CardTitle>
-            <CardDescription>
-              File information, tags, and visibility status.
-            </CardDescription>
+            <CardDescription>File information and metadata.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {loading || !documentDetail ? (
@@ -181,133 +163,42 @@ export default function DocumentDetailView({
             ) : (
               <div className="space-y-4">
                 <div>
-                  <p className="text-xs font-semibold uppercase text-slate-400">
-                    Title
-                  </p>
-                  <p className="text-sm font-semibold text-slate-800">
-                    {documentDetail.title || "Untitled document"}
-                  </p>
+                  <p className="text-xs font-semibold uppercase text-slate-400">Title</p>
+                  <p className="text-sm font-semibold text-slate-800">{documentDetail.title || "Untitled"}</p>
                 </div>
                 <div>
-                  <p className="text-xs font-semibold uppercase text-slate-400">
-                    Description
-                  </p>
-                  <p className="text-sm text-slate-600">
-                    {documentDetail.description || "No description provided."}
-                  </p>
+                  <p className="text-xs font-semibold uppercase text-slate-400">Description</p>
+                  <p className="text-sm text-slate-600 line-clamp-4">{documentDetail.description || "No description."}</p>
                 </div>
-
                 <Separator />
-
                 <div className="grid gap-3">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-slate-500">Course</span>
-                    <Badge
-                      variant="outline"
-                      className="border-slate-200 text-slate-600"
-                    >
-                      {documentDetail.course?.code || "N/A"}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-500">Visibility</span>
-                    <Badge className="bg-slate-100 text-slate-600">
-                      {documentDetail.visibility || "-"}
-                    </Badge>
+                    <Badge variant="outline">{documentDetail.course?.code || "N/A"}</Badge>
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-slate-500">File size</span>
-                    <span className="font-medium text-slate-700">
-                      {formatFileSize(documentDetail.fileSize)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-500">Downloads</span>
-                    <span className="font-medium text-slate-700">
-                      {documentDetail.downloadCount ?? 0}
-                    </span>
+                    <span className="font-medium">{formatFileSize(documentDetail.fileSize)}</span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-slate-500">Uploaded</span>
-                    <span className="font-medium text-slate-700 flex items-center gap-1">
-                      <Calendar className="w-4 h-4 text-slate-400" />
-                      {documentDetail.createdAt
-                        ? new Date(documentDetail.createdAt).toLocaleDateString(
-                            "en-GB",
-                          )
-                        : "-"}
+                    <span className="font-medium flex items-center gap-1">
+                      <Calendar className="w-3.5 h-3.5" />
+                      {new Date(documentDetail.createdAt).toLocaleDateString("en-GB")}
                     </span>
                   </div>
-                </div>
-
-                <Separator />
-
-                <div className="space-y-2">
-                  <p className="text-xs font-semibold uppercase text-slate-400">
-                    Uploader
-                  </p>
-                  <div className="rounded-xl border border-slate-100 bg-slate-50 p-3 text-sm">
-                    <p className="font-semibold text-slate-700">
-                      {documentDetail.uploadedBy?.username || "Unknown user"}
-                    </p>
-                    <p className="text-slate-500 text-xs">
-                      {documentDetail.uploadedBy?.email || "-"}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <p className="text-xs font-semibold uppercase text-slate-400">
-                    Tags
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {documentDetail.tags?.length ? (
-                      documentDetail.tags.map((tag) => (
-                        <Badge
-                          key={tag}
-                          variant="outline"
-                          className="border-slate-200 text-slate-600"
-                        >
-                          {tag}
-                        </Badge>
-                      ))
-                    ) : (
-                      <span className="text-sm text-slate-500">
-                        No tags assigned.
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                <Separator />
-
-                <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                  <span className="flex items-center gap-1">
-                    <ImageIcon className="w-4 h-4 text-slate-400" />
-                    Image
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <FileText className="w-4 h-4 text-slate-400" />
-                    PDF
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Video className="w-4 h-4 text-slate-400" />
-                    Video
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Music className="w-4 h-4 text-slate-400" />
-                    Audio
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Globe className="w-4 h-4 text-slate-400" />
-                    Office/Other
-                  </span>
                 </div>
               </div>
             )}
           </CardContent>
         </Card>
       </div>
+
+      <AddToProjectModal 
+        open={addToProjectOpen} 
+        onOpenChange={setAddToProjectOpen} 
+        documentId={documentId} 
+      />
     </div>
   );
 }

@@ -28,8 +28,7 @@ public class AiAskController {
 
         String answer = aiAskService.ask(
                 user.getId(),
-                request.getDocumentId(),
-                request.getQuestion()
+                request
         );
 
         return ResponseEntity.ok(
