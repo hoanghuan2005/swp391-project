@@ -70,6 +70,19 @@ public class DocumentController {
         return documentService.getAll();
     }
 
+    @GetMapping("/recent")
+    public List<DocumentResponse> getRecentDocuments(
+            @RequestParam(defaultValue = "10") int limit) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        return documentService.getRecentViewed(email, limit);
+    }
+
+    @PostMapping("/{id}/view")
+    public void recordView(@PathVariable UUID id) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        documentService.recordView(id, email);
+    }
+
     @GetMapping("/my-uploads")
     public List<DocumentResponse> getMyUploads() {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();

@@ -25,7 +25,7 @@ public interface DocumentService {
 
     void recordView(UUID id, String email);
 
-    List<Document> getRecentViewed(String email, int limit);
+    List<DocumentResponse> getRecentViewed(String email, int limit);
 
     // List<Document> getRecommended(String email, int limit);
 

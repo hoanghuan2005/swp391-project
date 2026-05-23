@@ -14,11 +14,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Trash2, Eye, Search, Plus, FileText } from "lucide-react";
+import UploadDocumentDialog from "@/components/documents/UploadDocumentDialog";
 
 export default function DocumentListPage() {
   const [documents, setDocuments] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
 
   // Lấy danh sách tài liệu từ Backend
   const fetchDocuments = async () => {
@@ -92,7 +94,10 @@ export default function DocumentListPage() {
             </div>
 
             {/* Nút Thêm mới */}
-            <Button className="bg-[#f26522] hover:bg-[#d9541a] text-white rounded-xl flex items-center gap-2 shadow-md shadow-[#f26522]/20 transition-all cursor-pointer">
+            <Button 
+              className="bg-[#f26522] hover:bg-[#d9541a] text-white rounded-xl flex items-center gap-2 shadow-md shadow-[#f26522]/20 transition-all cursor-pointer"
+              onClick={() => setIsUploadDialogOpen(true)}
+            >
               <Plus className="w-4 h-4" />
               Add New
             </Button>
@@ -222,6 +227,11 @@ export default function DocumentListPage() {
           )}
         </CardContent>
       </Card>
+      <UploadDocumentDialog
+        open={isUploadDialogOpen}
+        onOpenChange={setIsUploadDialogOpen}
+        onUploadSuccess={fetchDocuments}
+      />
     </div>
   );
 }
