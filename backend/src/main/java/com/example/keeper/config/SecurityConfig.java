@@ -51,7 +51,8 @@ public class SecurityConfig {
                                 "/api/languages/**",
                                 "/api/schools/**",
                                 "/api/tags/**",
-                                "/api/projects/shared/**"
+                                "/api/projects/shared/**",
+                                "/api/ai/flashcards/**"
                         ).permitAll()
                         .requestMatchers("/api/users/upload-avatar").authenticated()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
