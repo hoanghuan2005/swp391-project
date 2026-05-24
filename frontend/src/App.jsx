@@ -22,6 +22,8 @@ import CourseDetailPage from "./pages/CourseDetailPage";
 import CatalogCoursesPage from "./pages/Admin/CatalogCoursesPage";
 import AskAIPage from "./pages/AskAIPage";
 import ProjectWorkspacePage from "./pages/ProjectWorkspacePage";
+import AIFlashcard from './pages/AICreateFlashcard/AIFlashcard';
+import AIQuizPage from "./pages/AIQuiz/AIQuizPage";
 
 function ComingSoon({ pageName }) {
   return (
@@ -58,7 +60,7 @@ function App() {
             element={<ComingSoon pageName="AI Notes" />}
           />
           <Route path="/ask-ai" element={<AskAIPage />} />
-          <Route path="/ai-quiz" element={<ComingSoon pageName="AI Quiz" />} />
+          <Route path="/ai-quiz" element={<AIQuizPage />} />
           <Route path="/courses" element={<ComingSoon pageName="Courses" />} />
           <Route
             path="/projects"
