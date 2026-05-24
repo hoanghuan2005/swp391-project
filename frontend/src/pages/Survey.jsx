@@ -11,7 +11,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-// Bổ sung import DialogTitle và DialogDescription vào danh sách destructuring
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import {
   InputGroup,
@@ -23,7 +22,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 export default function Survey({ onClose }) {
-  const [open, setOpen] = useState(true);
+  // 1. Kiểm tra localStorage ngay từ lúc khởi tạo state
+  const [open, setOpen] = useState(() => {
+    const isCompleted = localStorage.getItem("surveyCompleted") === "true";
+    const isSkipped = localStorage.getItem("surveySkipped") === "true";
+    return !isCompleted && !isSkipped;
+  });
+
   const [school, setSchool] = useState("");
   const [startYear, setStartYear] = useState("");
   const [languageOptions, setLanguageOptions] = useState([]);
@@ -56,6 +61,15 @@ export default function Survey({ onClose }) {
   }, [startYear, years]);
 
   useEffect(() => {
+    // 2. Nếu đã hoàn thành survey trước đó rồi thì không gọi API load data
+    const isCompleted = localStorage.getItem("surveyCompleted") === "true";
+    const isSkipped = localStorage.getItem("surveySkipped") === "true";
+
+    if (isCompleted || isSkipped) {
+      if (onClose) onClose({ completed: isCompleted });
+      return;
+    }
+
     let isMounted = true;
 
     const loadData = async () => {
@@ -134,6 +148,9 @@ export default function Survey({ onClose }) {
     }
   };
 
+  // 3. Nếu state open là false (do đã check localStorage), return null để ẩn hoàn toàn component
+  if (!open) return null;
+
   return (
     <Dialog
       open={open}
@@ -149,7 +166,6 @@ export default function Survey({ onClose }) {
         showCloseButton={false}
         className="!max-w-[500px] rounded-xl p-0 overflow-hidden bg-white shadow-xl"
       >
-        {/* Thêm thẻ ẩn giải quyết triệt để lỗi Radix UI trên Console */}
         <DialogTitle className="sr-only">Learning Survey</DialogTitle>
         <DialogDescription className="sr-only">
           Please fill out this background survey to help us recommend better study materials.
@@ -338,10 +354,11 @@ export default function Survey({ onClose }) {
                             type="button"
                             variant={isSelected ? "default" : "outline"}
                             onClick={() => toggleLanguage(language.id)}
-                            className={`rounded-full px-4 text-sm font-semibold transition ${isSelected
+                            className={`rounded-full px-4 text-sm font-semibold transition ${
+                              isSelected
                                 ? "bg-[#f26522] text-white hover:bg-[#d95316]"
                                 : "border-slate-200 text-slate-700 hover:border-slate-400"
-                              }`}
+                            }`}
                           >
                             {language.name}
                           </Button>
