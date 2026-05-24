@@ -1,5 +1,6 @@
 package com.example.keeper.systems.course.service;
 
+import com.example.keeper.systems.auth.repository.UserRepository;
 import com.example.keeper.systems.course.dto.request.CreateCourseRequest;
 import com.example.keeper.systems.course.entity.Course;
 import com.example.keeper.systems.document.entity.Document;
@@ -23,4 +24,8 @@ public interface CourseService {
     Course delete(UUID id);
 
     Page<Document> getDocumentsByCourse(UUID courseId, Pageable pageable);
+
+    void followCourse(UUID courseId, UUID userId);
+
+    List<Course> getMyCourses(UUID userId);
 }

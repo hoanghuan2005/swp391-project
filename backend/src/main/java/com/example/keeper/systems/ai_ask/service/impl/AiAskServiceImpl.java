@@ -11,10 +11,7 @@ import com.example.keeper.systems.ai_ask.repository.AiMessageRepository;
 import com.example.keeper.systems.ai_ask.repository.DocumentChunkRepository;
 import com.example.keeper.systems.ai_ask.service.AiAskService;
 import com.example.keeper.systems.ai_ask.service.ConversationService;
-import com.example.keeper.systems.ai_ask.service.GeminiService;
-import com.example.keeper.systems.document.entity.Document;
-import com.example.keeper.systems.document.repository.DocumentRepository;
-import com.example.keeper.systems.project.entity.Project;
+import com.example.keeper.systems.ai_ask.service.GrokService;
 import com.example.keeper.systems.project.repository.ProjectRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -31,7 +28,7 @@ public class AiAskServiceImpl implements AiAskService {
     private final AiMessageRepository messageRepository;
     private final DocumentChunkRepository documentChunkRepository;
     private final ProjectRepository projectRepository;
-    private final GeminiService geminiService;
+    private final GrokService geminiService;
 
     @Override
     public AskAIResponse ask(AskAIRequest request) {

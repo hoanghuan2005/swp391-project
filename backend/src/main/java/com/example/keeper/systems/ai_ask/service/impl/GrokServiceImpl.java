@@ -1,6 +1,6 @@
 package com.example.keeper.systems.ai_ask.service.impl;
 
-import com.example.keeper.systems.ai_ask.service.GeminiService;
+import com.example.keeper.systems.ai_ask.service.GrokService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
@@ -15,7 +15,7 @@ import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
-public class GeminiServiceImpl implements GeminiService {
+public class GrokServiceImpl implements GrokService {
 
     @Value("${groq.api.key}")
     private String groqApiKey;

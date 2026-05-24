@@ -22,6 +22,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import java.text.Normalizer;
+import java.nio.charset.StandardCharsets;
 
 import java.time.LocalDateTime;
 import java.util.HashSet;
@@ -65,8 +67,9 @@ public class DocumentServiceImpl implements DocumentService {
         document.setMimeType(uploadResult.getMimeType());
         document.setFileSize(file.getSize());
         document.setResourceType(resourceType);
-        document.setOriginalFileName(uploadResult.getOriginalFileName());
-        String originalFilename = uploadResult.getOriginalFileName();
+        String originalFilename = sanitizeFilename(uploadResult.getOriginalFileName());
+
+        document.setOriginalFileName(originalFilename);
 
         String extension = "";
 
@@ -88,11 +91,12 @@ public class DocumentServiceImpl implements DocumentService {
                         extension));
 
         if (document.getTitle() == null || document.getTitle().trim().isEmpty()) {
-            document.setTitle(resolveTitle(file));
+            document.setTitle(
+                    sanitizeFilename(resolveTitle(file)));
         }
 
         Document savedDocument = documentRepository.save(document);
-        
+
         // Asynchronously parse document for AI Ask
         java.util.concurrent.CompletableFuture.runAsync(() -> {
             documentParserService.parseAndChunkDocument(file, savedDocument.getId());
@@ -347,8 +351,8 @@ public class DocumentServiceImpl implements DocumentService {
         fileStorageService.deleteFile(document.getCloudinaryPublicId(), resolveResourceType(document));
 
         documentViewRepository.deleteByDocumentId(document.getId());
-        
-        documentChunkRepository .deleteByDocumentId(document.getId());
+
+        documentChunkRepository.deleteByDocumentId(document.getId());
 
         documentRepository.delete(document);
 
@@ -450,6 +454,25 @@ public class DocumentServiceImpl implements DocumentService {
             }
         }
         return "";
+    }
+
+    // helper fix encoding
+    private String sanitizeFilename(String filename) {
+
+        if (filename == null) {
+            return "Untitled";
+        }
+
+        try {
+
+            filename = new String(
+                    filename.getBytes(StandardCharsets.ISO_8859_1),
+                    StandardCharsets.UTF_8);
+
+        } catch (Exception ignored) {
+        }
+
+        return Normalizer.normalize(filename, Normalizer.Form.NFC);
     }
 
     @Override

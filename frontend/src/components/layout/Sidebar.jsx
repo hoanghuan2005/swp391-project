@@ -1,9 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import axiosClient from "@/api/axiosClient";
 import { cn } from "@/lib/utils";
 import {
@@ -24,7 +23,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import {
   House,
-  BookMarked,
   FileText,
   MessageSquare,
   BadgeCheck,
@@ -192,6 +190,7 @@ export default function Sidebar({ isOpen = true }) {
   const [schoolOptions, setSchoolOptions] = useState([]);
   const [subjectOptions, setSubjectOptions] = useState([]);
   const [tagOptions, setTagOptions] = useState([]);
+  const [followedCourses, setFollowedCourses] = useState([]);
 
   // 🔥 STATE LƯU TRỮ THÔNG TIN PROFILE DÀNH CHO SIDEBAR
   const [sidebarProfile, setSidebarProfile] = useState({
@@ -202,7 +201,7 @@ export default function Sidebar({ isOpen = true }) {
     upvotes: 0,
   });
 
-  const fileInputRef = useRef(null);
+  const navigate = useNavigate();
 
   // FIX: Tạo các refs để quản lý sự kiện click ngoài dropdown danh sách kết quả
   const schoolRef = useRef(null);
@@ -233,9 +232,25 @@ export default function Sidebar({ isOpen = true }) {
 
     // Lắng nghe sự kiện "documents:uploaded" từ hàm handleUploadDocument bên dưới
     window.addEventListener("documents:uploaded", fetchSidebarProfile);
-    
+
     // Cleanup event khi component unmount
-    return () => window.removeEventListener("documents:uploaded", fetchSidebarProfile);
+    return () =>
+      window.removeEventListener("documents:uploaded", fetchSidebarProfile);
+  }, []);
+
+  // load danh sách course đã follow
+  useEffect(() => {
+    const fetchFollowedCourses = async () => {
+      try {
+        const res = await axiosClient.get("/api/courses/followed");
+
+        setFollowedCourses(res.data || []);
+      } catch (error) {
+        console.error("Failed to load followed courses", error);
+      }
+    };
+
+    fetchFollowedCourses();
   }, []);
 
   useEffect(() => {
@@ -360,6 +375,25 @@ export default function Sidebar({ isOpen = true }) {
     return null;
   };
 
+  const handleFollowCourse = async (event, course) => {
+    event.stopPropagation();
+    event.preventDefault();
+
+    try {
+      await axiosClient.post(`/api/courses/${course.id}/follow`);
+
+      setFollowedCourses((prev) => {
+        const exists = prev.some((c) => c.id === course.id);
+
+        if (exists) return prev;
+
+        return [...prev, course];
+      });
+    } catch (error) {
+      console.error("Failed to follow course", error);
+    }
+  };
+
   const handleUploadDocument = async () => {
     if (!selectedFile) {
       setUploadError("Please select a file to upload.");
@@ -399,7 +433,7 @@ export default function Sidebar({ isOpen = true }) {
 
       // Bắn sự kiện này để cái useEffect ở trên tự động đếm lại file
       window.dispatchEvent(new CustomEvent("documents:uploaded"));
-      
+
       setSelectedFile(null);
       setSubjectQuery("");
       setSubjectName("");
@@ -443,10 +477,14 @@ export default function Sidebar({ isOpen = true }) {
               isOpen ? "w-auto opacity-100 pr-4" : "w-0 opacity-0",
             )}
           >
-            <div className="text-sm font-bold text-slate-800">{sidebarProfile.fullName}</div>
+            <div className="text-sm font-bold text-slate-800">
+              {sidebarProfile.fullName}
+            </div>
             <div className="text-xs text-[#f26522] font-semibold flex items-center gap-1 mt-0.5">
               <House className="w-3 h-3 shrink-0" />
-              <span className="truncate max-w-[120px]">{sidebarProfile.schoolCode}</span>
+              <span className="truncate max-w-[120px]">
+                {sidebarProfile.schoolCode}
+              </span>
             </div>
           </div>
         </div>
@@ -459,19 +497,25 @@ export default function Sidebar({ isOpen = true }) {
           )}
         >
           <div className="flex flex-col items-center">
-            <div className="text-base font-extrabold text-slate-800">{sidebarProfile.followers}</div>
+            <div className="text-base font-extrabold text-slate-800">
+              {sidebarProfile.followers}
+            </div>
             <div className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide">
               Followers
             </div>
           </div>
           <div className="flex flex-col items-center">
-            <div className="text-base font-extrabold text-slate-800">{sidebarProfile.uploads}</div>
+            <div className="text-base font-extrabold text-slate-800">
+              {sidebarProfile.uploads}
+            </div>
             <div className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide">
               Uploads
             </div>
           </div>
           <div className="flex flex-col items-center">
-            <div className="text-base font-extrabold text-slate-800">{sidebarProfile.upvotes}</div>
+            <div className="text-base font-extrabold text-slate-800">
+              {sidebarProfile.upvotes}
+            </div>
             <div className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide">
               Upvotes
             </div>
@@ -516,7 +560,10 @@ export default function Sidebar({ isOpen = true }) {
                 </div>
               </DropdownMenuItem>
               <DropdownMenuSeparator className="my-1 bg-slate-100" />
-              <DropdownMenuItem className="p-3 cursor-pointer rounded-xl flex items-start gap-4 hover:bg-slate-50 transition-colors">
+              <DropdownMenuItem
+                className="p-3 cursor-pointer rounded-xl flex items-start gap-4 hover:bg-slate-50 transition-colors"
+                onClick={() => navigate("/ask-ai")}
+              >
                 <div className="bg-purple-100/50 p-2.5 rounded-full text-purple-400 shrink-0">
                   <MessageSquare className="h-6 w-6" strokeWidth={2} />
                 </div>
@@ -530,7 +577,10 @@ export default function Sidebar({ isOpen = true }) {
                 </div>
               </DropdownMenuItem>
               <DropdownMenuSeparator className="my-1 bg-slate-100" />
-              <DropdownMenuItem className="p-3 cursor-pointer rounded-xl flex items-start gap-4 hover:bg-slate-50 transition-colors">
+              <DropdownMenuItem
+                className="p-3 cursor-pointer rounded-xl flex items-start gap-4 hover:bg-slate-50 transition-colors"
+                onClick={() => navigate("/ai-notes")}
+              >
                 <div className="bg-purple-100/50 p-2.5 rounded-full text-purple-400 shrink-0">
                   <FileText className="h-6 w-6" strokeWidth={2} />
                 </div>
@@ -544,7 +594,10 @@ export default function Sidebar({ isOpen = true }) {
                 </div>
               </DropdownMenuItem>
               <DropdownMenuSeparator className="my-1 bg-slate-100" />
-              <DropdownMenuItem className="p-3 cursor-pointer rounded-xl flex items-start gap-4 hover:bg-slate-50 transition-colors">
+              <DropdownMenuItem
+                className="p-3 cursor-pointer rounded-xl flex items-start gap-4 hover:bg-slate-50 transition-colors"
+                onClick={() => navigate("/ai-quiz")}
+              >
                 <div className="bg-purple-100/50 p-2.5 rounded-full text-purple-500 shrink-0">
                   <CheckCircle className="h-6 w-6" strokeWidth={2} />
                 </div>
@@ -622,6 +675,17 @@ export default function Sidebar({ isOpen = true }) {
       <nav className={cn("w-full flex flex-col", !isOpen && "items-center")}>
         {/* Courses */}
         <SidebarDropdown icon={FolderOpen} label="Courses" isOpen={isOpen}>
+          {followedCourses.map((course) => (
+            <Button
+              key={course.id}
+              variant="ghost"
+              onClick={() => navigate(`/courses/${course.id}`)}
+              className="justify-start rounded-lg text-sm text-slate-600 hover:bg-slate-100 hover:text-[#f26522] cursor-pointer"
+            >
+              {course.code}
+            </Button>
+          ))}
+
           <Button
             variant="ghost"
             onClick={() => setCourseLibraryOpen(true)}
@@ -663,28 +727,50 @@ export default function Sidebar({ isOpen = true }) {
               ) : coursePageData.content.length === 0 ? (
                 <div className="text-sm text-slate-500">No courses found.</div>
               ) : (
-                coursePageData.content.map((course) => (
-                  <div
-                    key={course.id || course.code}
-                    className="flex items-center justify-between rounded-lg border border-slate-200/70 bg-white p-3"
-                  >
-                    <div>
-                      <div className="text-sm font-semibold text-slate-800">
-                        {course.name}
-                      </div>
-                      <div className="text-xs text-slate-500">
-                        {course.code}
-                      </div>
-                    </div>
-                    <Button
-                      size="sm"
-                      className="rounded-full bg-[#f26522] text-white hover:bg-[#d95316] cursor-pointer hover:scale-[1.02] transition-all"
-                      onClick={() => alert("Course followed!")}
+                coursePageData.content.map((course) => {
+                  const isFollowed = followedCourses.some(
+                    (c) => c.id === course.id,
+                  );
+
+                  return (
+                    <div
+                      key={course.id || course.code}
+                      onClick={() => {
+                        setCourseLibraryOpen(false);
+                        navigate(`/courses/${course.id}`);
+                      }}
+                      className="flex items-center justify-between rounded-lg border border-slate-200/70 bg-white p-3 cursor-pointer hover:border-[#f26522] hover:bg-orange-50/30 transition-all"
                     >
-                      Follow
-                    </Button>
-                  </div>
-                ))
+                      <div>
+                        <div className="text-sm font-semibold text-slate-800">
+                          {course.name}
+                        </div>
+
+                        <div className="text-xs text-slate-500">
+                          {course.code}
+                        </div>
+                      </div>
+
+                      {isFollowed ? (
+                        <Button
+                          size="sm"
+                          disabled
+                          className="rounded-full bg-green-100 text-green-700 border border-green-200 cursor-default"
+                        >
+                          Followed
+                        </Button>
+                      ) : (
+                        <Button
+                          size="sm"
+                          className="rounded-full bg-[#f26522] text-white hover:bg-[#d95316] cursor-pointer hover:scale-[1.02] transition-all"
+                          onClick={(event) => handleFollowCourse(event, course)}
+                        >
+                          Follow
+                        </Button>
+                      )}
+                    </div>
+                  );
+                })
               )}
             </div>
           </div>

@@ -32,13 +32,15 @@ public class AuthController {
         return ResponseEntity.ok(result);
     }
 
-    // 💥 SỬA HÀM NÀY: Trả về Object JSON chứa cả 2 Token thay vì chỉ trả về 1 chuỗi String token trơn
+    // SỬA HÀM NÀY: Trả về Object JSON chứa cả 2 Token thay vì chỉ trả về 1 chuỗi
+    // String token trơn
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest request) {
         // 1. Gọi hàm login cũ để lấy Access Token (chuỗi JWT)
         String accessToken = authService.login(request);
 
-        // Chốt chặn nếu tài khoản gõ sai mật khẩu/sai email (tránh lưu chữ lỗi vào localStorage)
+        // Chốt chặn nếu tài khoản gõ sai mật khẩu/sai email (tránh lưu chữ lỗi vào
+        // localStorage)
         if ("Invalid email or password!".equals(accessToken) || "User not found!".equals(accessToken)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(accessToken);
         }
@@ -98,8 +100,7 @@ public class AuthController {
     public ResponseEntity<String> resetPassword(
             @RequestParam String email,
             @RequestParam String otp,
-            @RequestParam String newPassword
-    ) {
+            @RequestParam String newPassword) {
         return ResponseEntity.ok(authService.resetPassword(email, otp, newPassword));
     }
 

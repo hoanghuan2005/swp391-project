@@ -1,12 +1,15 @@
 package com.example.keeper.systems.auth.entity;
 
 import com.example.keeper.systems.base.BaseEntity;
+import com.example.keeper.systems.course.entity.Course;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 @Entity
@@ -46,4 +49,8 @@ public class User extends BaseEntity {
     @ManyToMany
     @JoinTable(name = "user_languages", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "language_id"))
     private Set<Language> languages = new HashSet<>();
+
+    @ManyToMany
+    @JoinTable(name = "user_follow_courses", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "course_id"))
+    private List<Course> followedCourses = new ArrayList<>();
 }

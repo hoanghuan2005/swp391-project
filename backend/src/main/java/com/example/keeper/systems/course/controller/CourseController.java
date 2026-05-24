@@ -13,6 +13,9 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.UUID;
+import com.example.keeper.systems.auth.entity.User;
+import com.example.keeper.systems.auth.repository.UserRepository;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 @RestController
 @RequestMapping("/api/courses")
@@ -20,6 +23,7 @@ import java.util.UUID;
 public class CourseController {
 
     private final CourseService courseService;
+    private final UserRepository userRepository;
 
     @PostMapping
     public Course create(@RequestBody CreateCourseRequest request) {
@@ -60,5 +64,25 @@ public class CourseController {
                 Math.max(size, 1));
 
         return courseService.getDocumentsByCourse(id, pageable);
+    }
+
+    @PostMapping("/{id}/follow")
+    public void followCourse(
+            @PathVariable UUID id
+    ) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        courseService.followCourse(id, user.getId());
+    }
+
+    @GetMapping("/followed")
+    public List<Course> getMyCourses() {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        return courseService.getMyCourses(user.getId());
     }
 }

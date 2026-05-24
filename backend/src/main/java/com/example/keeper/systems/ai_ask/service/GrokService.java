@@ -1,6 +1,6 @@
 package com.example.keeper.systems.ai_ask.service;
 
-public interface GeminiService {
+public interface GrokService {
 
     String generateContent(String prompt);
 }

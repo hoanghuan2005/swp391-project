@@ -1,11 +1,14 @@
 package com.example.keeper.systems.course.service;
 
+import com.example.keeper.systems.auth.entity.User;
+import com.example.keeper.systems.auth.repository.UserRepository;
 import com.example.keeper.systems.course.dto.request.CreateCourseRequest;
 import com.example.keeper.systems.course.entity.Course;
 import com.example.keeper.systems.course.repository.CourseRepository;
 import com.example.keeper.systems.document.entity.Document;
 import com.example.keeper.systems.document.repository.DocumentRepository;
 
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -20,6 +23,7 @@ public class CourseServiceImpl implements CourseService {
 
     private final CourseRepository courseRepository;
     private final DocumentRepository documentRepository;
+    private final UserRepository userRepository;
 
     @Override
     public Course create(CreateCourseRequest request) {
@@ -68,5 +72,37 @@ public class CourseServiceImpl implements CourseService {
                 .orElseThrow(() -> new RuntimeException("Course not found"));
 
         return documentRepository.findByCourseId(course.getId(), pageable);
+    }
+
+    @Override
+    @Transactional
+    public void followCourse(UUID courseId, UUID userId) {
+
+        Course course = getById(courseId);
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() ->
+                        new RuntimeException("User not found"));
+
+        boolean alreadyFollowed = user.getFollowedCourses()
+                .stream()
+                .anyMatch(c -> c.getId().equals(courseId));
+
+        if (!alreadyFollowed) {
+
+            user.getFollowedCourses().add(course);
+
+            userRepository.save(user);
+        }
+    }
+
+    @Override
+    public List<Course> getMyCourses(UUID userId) {
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() ->
+                        new RuntimeException("User not found"));
+
+        return user.getFollowedCourses();
     }
 }

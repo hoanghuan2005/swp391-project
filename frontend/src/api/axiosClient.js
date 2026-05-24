@@ -26,7 +26,9 @@ axiosClient.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    if (error.response && error.response.status === 401 && !originalRequest._retry) {
+    const isLoginApi = originalRequest.url.includes("/api/auth/login") || originalRequest.url.includes("/api/auth/google");
+
+    if (error.response && error.response.status === 401 && !originalRequest._retry && !isLoginApi) {
       originalRequest._retry = true;
 
       try {

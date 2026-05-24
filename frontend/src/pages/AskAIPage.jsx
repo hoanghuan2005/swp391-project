@@ -344,15 +344,6 @@ export default function AskAIPage() {
               Your Documents
             </span>
 
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isUploading}
-              className="text-xs text-[#f26522] rounded-full px-1.5 py-0.5 hover:bg-[#f26522]/10 font-bold flex items-center gap-0.5 cursor-pointer disabled:opacity-50"
-            >
-              <Plus className="w-3 h-3" />
-              Upload
-            </button>
-
             <input
               ref={fileInputRef}
               type="file"

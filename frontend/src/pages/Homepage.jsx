@@ -103,7 +103,7 @@ export default function Homepage() {
 
         <RecentDocuments />
 
-        {/* Modal Upload (Giữ nguyên UI của bạn) */}
+        {/* Modal Upload */}
         <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>
           <DialogContent className="sm:max-w-lg rounded-2xl">
             <DialogHeader>
@@ -259,8 +259,8 @@ export default function Homepage() {
         <section className="mb-12">
           <div className="flex items-center justify-between mb-5">
             <div>
-              <h3 className="text-xl font-bold text-slate-800 tracking-tight">
-                Browse Courses
+              <h3 className="text-2xl font-bold text-slate-800 tracking-tight">
+                Courses
               </h3>
               <p className="text-sm text-slate-500 mt-1">
                 Explore documents by course
