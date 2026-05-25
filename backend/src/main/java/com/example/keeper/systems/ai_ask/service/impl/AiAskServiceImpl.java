@@ -11,12 +11,8 @@ import com.example.keeper.systems.ai_ask.repository.AiMessageRepository;
 import com.example.keeper.systems.ai_ask.repository.DocumentChunkRepository;
 import com.example.keeper.systems.ai_ask.service.AiAskService;
 import com.example.keeper.systems.ai_ask.service.ConversationService;
-<<<<<<< HEAD
-import com.example.keeper.systems.ai_ask.service.GrokService;
-=======
-import com.example.keeper.systems.ai_ask.service.GeminiService;
-import com.example.keeper.systems.project.entity.Project;
->>>>>>> a6e8b55 (Refactor AI Chat interface and fix project workspace crash)
+import com.example.keeper.systems.ai_ask.service.GrokService; // <-- Kept Grok Service
+import com.example.keeper.systems.project.entity.Project; // <-- Kept Project Entity
 import com.example.keeper.systems.project.repository.ProjectRepository;
 import com.example.keeper.systems.document.entity.Document;
 import lombok.RequiredArgsConstructor;
@@ -36,7 +32,7 @@ public class AiAskServiceImpl implements AiAskService {
     private final AiMessageRepository messageRepository;
     private final DocumentChunkRepository documentChunkRepository;
     private final ProjectRepository projectRepository;
-    private final GrokService geminiService;
+    private final GrokService grokService; // <-- Updated variable to match Grok
 
     @Override
     @Transactional
@@ -139,7 +135,7 @@ public class AiAskServiceImpl implements AiAskService {
         prompt.append("ASSISTANT: ");
 
         // 5. Call AI Engine
-        String aiAnswer = geminiService.generateContent(prompt.toString());
+        String aiAnswer = grokService.generateContent(prompt.toString()); // <-- Updated to call grokService
 
         // 6. Save & Return Response
         if (conversation != null) {

@@ -2,7 +2,6 @@ package com.example.keeper.systems.ai_quiz.service.impl;
 
 import com.example.keeper.systems.ai_ask.entity.DocumentChunk;
 import com.example.keeper.systems.ai_ask.repository.DocumentChunkRepository;
-import com.example.keeper.systems.ai_ask.service.GeminiService;
 import com.example.keeper.systems.auth.entity.User;
 import com.example.keeper.systems.auth.repository.UserRepository;
 import com.example.keeper.systems.document.entity.Document;
@@ -35,7 +34,6 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
     private final DocumentChunkRepository documentChunkRepository;
     private final ProjectRepository projectRepository;
     private final UserRepository userRepository;
-    private final GeminiService geminiService;
     private final ObjectMapper objectMapper;
 
     @Override
