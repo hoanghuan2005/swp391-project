@@ -11,11 +11,19 @@ import com.example.keeper.systems.ai_ask.repository.AiMessageRepository;
 import com.example.keeper.systems.ai_ask.repository.DocumentChunkRepository;
 import com.example.keeper.systems.ai_ask.service.AiAskService;
 import com.example.keeper.systems.ai_ask.service.ConversationService;
+<<<<<<< HEAD
 import com.example.keeper.systems.ai_ask.service.GrokService;
+=======
+import com.example.keeper.systems.ai_ask.service.GeminiService;
+import com.example.keeper.systems.project.entity.Project;
+>>>>>>> a6e8b55 (Refactor AI Chat interface and fix project workspace crash)
 import com.example.keeper.systems.project.repository.ProjectRepository;
+import com.example.keeper.systems.document.entity.Document;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -31,99 +39,129 @@ public class AiAskServiceImpl implements AiAskService {
     private final GrokService geminiService;
 
     @Override
+    @Transactional
     public AskAIResponse ask(AskAIRequest request) {
 
-        AiConversation conversation =
-                conversationService.getConversation(
-                        request.getConversationId()
-                );
+        AiConversation conversation = null;
+        List<AiMessage> history = new ArrayList<>();
 
-        // Update conversation's documentId if provided and not already set
-        if (request.getDocumentId() != null && conversation.getDocumentId() == null) {
-            conversation.setDocumentId(request.getDocumentId());
-            conversationRepository.save(conversation);
-        }
+        // 1. Handle Standard Conversation (AskAIPage)
+        if (request.getConversationId() != null) {
+            conversation = conversationService.getConversation(request.getConversationId());
 
-        // SAVE USER MESSAGE
-        AiMessage userMessage =
-                AiMessage.builder()
-                        .conversation(conversation)
-                        .role(MessageRole.USER)
-                        .content(request.getMessage())
-                        .build();
-
-        messageRepository.save(userMessage);
-
-        // Update chat title if it is currently default and this is the first user message
-        List<AiMessage> allMessages = messageRepository.findByConversationIdOrderByCreatedAtAsc(conversation.getId());
-        if ("New Chat".equals(conversation.getTitle())) {
-            String firstMsg = request.getMessage();
-            if (firstMsg != null && !firstMsg.isBlank()) {
-                String newTitle = firstMsg.length() > 30 ? firstMsg.substring(0, 27) + "..." : firstMsg;
-                conversation.setTitle(newTitle);
+            // Update documentId if provided
+            if (request.getDocumentId() != null && conversation.getDocumentId() == null) {
+                conversation.setDocumentId(request.getDocumentId());
                 conversationRepository.save(conversation);
             }
+
+            // Save user message
+            AiMessage userMessage = AiMessage.builder()
+                    .conversation(conversation)
+                    .role(MessageRole.USER)
+                    .content(request.getMessage())
+                    .build();
+            messageRepository.save(userMessage);
+
+            // Update title for new chats
+            if ("New Chat".equals(conversation.getTitle())) {
+                String firstMsg = request.getMessage();
+                if (firstMsg != null && !firstMsg.isBlank()) {
+                    String newTitle = firstMsg.length() > 30 ? firstMsg.substring(0, 27) + "..." : firstMsg;
+                    conversation.setTitle(newTitle);
+                    conversationRepository.save(conversation);
+                }
+            }
+
+            // Load history
+            history = messageRepository.findTop20ByConversationIdOrderByCreatedAtAsc(conversation.getId());
         }
 
-        // LOAD HISTORY (Limit to top 20 for prompt context window size)
-        List<AiMessage> history =
-                messageRepository
-                        .findTop20ByConversationIdOrderByCreatedAtAsc(
-                                conversation.getId()
-                        );
-
-        // BUILD PROMPT WITH DOCUMENT CONTEXT
+        // 2. Build the AI Prompt
         StringBuilder prompt = new StringBuilder();
         prompt.append("You are StudyMate AI, a helpful study assistant.\n");
 
-        UUID docId = request.getDocumentId() != null ? request.getDocumentId() : conversation.getDocumentId();
-        if (docId != null) {
-            List<DocumentChunk> chunks = documentChunkRepository.findByDocumentId(docId);
-            if (chunks != null && !chunks.isEmpty()) {
-                prompt.append("Use the following document context to answer the user's questions. ")
-                        .append("Only answer questions based on the document if they are related to it. ")
-                        .append("If the answer cannot be found in the document, you can use your general knowledge, ")
-                        .append("but prioritize document content:\n");
-                prompt.append("--- BEGIN DOCUMENT CONTEXT ---\n");
-                for (DocumentChunk chunk : chunks) {
-                    prompt.append(chunk.getContent()).append("\n");
+        // 3. Inject Context (Project Workspace vs Single Document)
+        if (request.getProjectId() != null) {
+            // Project Workspace Mode: Load all documents tied to this project
+            Project project = projectRepository.findById(request.getProjectId())
+                    .orElseThrow(() -> new RuntimeException("Project not found"));
+
+            prompt.append("You are operating inside the Project Workspace: ").append(project.getName()).append("\n");
+            prompt.append("Use the following compiled project documentation context to answer questions:\n");
+            prompt.append("--- BEGIN PROJECT DOCS CONTEXT ---\n");
+
+            if (project.getDocuments() != null && !project.getDocuments().isEmpty()) {
+                for (Document doc : project.getDocuments()) {
+                    List<DocumentChunk> chunks = documentChunkRepository.findByDocumentId(doc.getId());
+                    if (chunks != null && !chunks.isEmpty()) {
+                        prompt.append("\n[Source Document: ").append(doc.getTitle()).append("]\n");
+                        for (DocumentChunk chunk : chunks) {
+                            prompt.append(chunk.getContent()).append("\n");
+                        }
+                    }
                 }
-                prompt.append("--- END DOCUMENT CONTEXT ---\n\n");
+            } else {
+                prompt.append("(No documents attached to this workspace yet.)\n");
+            }
+            prompt.append("--- END PROJECT DOCS CONTEXT ---\n\n");
+
+        } else {
+            // Standard Mode: Load single document if present
+            UUID docId = request.getDocumentId() != null ? request.getDocumentId() :
+                    (conversation != null ? conversation.getDocumentId() : null);
+
+            if (docId != null) {
+                List<DocumentChunk> chunks = documentChunkRepository.findByDocumentId(docId);
+                if (chunks != null && !chunks.isEmpty()) {
+                    prompt.append("Use the following document context to answer the user's questions. ")
+                            .append("Prioritize document content:\n");
+                    prompt.append("--- BEGIN DOCUMENT CONTEXT ---\n");
+                    for (DocumentChunk chunk : chunks) {
+                        prompt.append(chunk.getContent()).append("\n");
+                    }
+                    prompt.append("--- END DOCUMENT CONTEXT ---\n\n");
+                }
             }
         }
 
-        prompt.append("Here is the chat conversation history:\n");
-        for (AiMessage message : history) {
-            prompt.append(message.getRole())
-                    .append(": ")
-                    .append(message.getContent())
-                    .append("\n");
+        // 4. Append History & Current Question
+        if (!history.isEmpty()) {
+            prompt.append("Here is the chat conversation history:\n");
+            for (AiMessage message : history) {
+                prompt.append(message.getRole()).append(": ").append(message.getContent()).append("\n");
+            }
+        } else if (conversation == null) {
+            // If operating statelessly in a workspace, just inject the current question
+            prompt.append("USER: ").append(request.getMessage()).append("\n");
         }
-        
+
         prompt.append("ASSISTANT: ");
 
-        // GEMINI API CALL
-        String aiAnswer =
-                geminiService.generateContent(
-                        prompt.toString()
-                );
+        // 5. Call AI Engine
+        String aiAnswer = geminiService.generateContent(prompt.toString());
 
-        // SAVE ASSISTANT MESSAGE
-        AiMessage assistantMessage =
-                AiMessage.builder()
-                        .conversation(conversation)
-                        .role(MessageRole.ASSISTANT)
-                        .content(aiAnswer)
-                        .build();
+        // 6. Save & Return Response
+        if (conversation != null) {
+            // Stateful Return (AskAIPage)
+            AiMessage assistantMessage = AiMessage.builder()
+                    .conversation(conversation)
+                    .role(MessageRole.ASSISTANT)
+                    .content(aiAnswer)
+                    .build();
+            messageRepository.save(assistantMessage);
 
-        messageRepository.save(assistantMessage);
+            return AskAIResponse.builder()
+                    .conversationId(conversation.getId())
+                    .assistantMessageId(assistantMessage.getId())
+                    .answer(aiAnswer)
+                    .build();
+        }
 
-        // RESPONSE
+        // Stateless Return (ProjectWorkspacePage)
         return AskAIResponse.builder()
-                .conversationId(conversation.getId())
-                .assistantMessageId(
-                        assistantMessage.getId()
-                )
+                .conversationId(null)
+                .assistantMessageId(null)
                 .answer(aiAnswer)
                 .build();
     }

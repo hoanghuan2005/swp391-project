@@ -108,7 +108,7 @@ export default function DocumentDetailView({
               </Button>
               <Button
                 variant="outline"
-                className="rounded-xl text-[#f26522] border-[#f26522]/20 hover:bg-[#f26522] hover:text-white"
+                className="rounded-xl text-slate-500 border-slate-200 hover:bg-slate-50"
                 onClick={() => alert("Added to favorites!")}
               >
                 <Heart className="w-4 h-4 mr-2" /> Favorite
@@ -156,9 +156,7 @@ export default function DocumentDetailView({
           <CardContent className="space-y-4">
             {loading || !documentDetail ? (
               <div className="space-y-3">
-                <Skeleton className="h-5 w-1/2" />
-                <Skeleton className="h-5 w-3/4" />
-                <Skeleton className="h-5 w-2/3" />
+                {[1, 2, 3].map((i) => <Skeleton key={i} className="h-5 w-3/4" />)}
               </div>
             ) : (
               <div className="space-y-4">

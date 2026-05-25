@@ -24,6 +24,7 @@ import AskAIPage from "./pages/AskAIPage";
 import ProjectWorkspacePage from "./pages/ProjectWorkspacePage";
 import AIFlashcard from './pages/AICreateFlashcard/AIFlashcard';
 import AIQuizPage from "./pages/AIQuiz/AIQuizPage";
+import QuizPage from "./pages/QuizPage.jsx";
 
 function ComingSoon({ pageName }) {
   return (
@@ -68,6 +69,7 @@ function App() {
           />
           <Route path="/courses/:id" element={<CourseDetailPage />} />
           <Route path="/workspace/:projectId" element={<ProjectWorkspacePage />} />
+          <Route path="/quiz/:id" element={<QuizPage />} />
         </Route>
 
         {/* Public Project Workspace (No Sidebar Layout) */}

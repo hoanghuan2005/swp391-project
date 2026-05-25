@@ -16,5 +16,7 @@ public class AskAIRequest {
 
     private String message;
 
+    private UUID projectId;
+
     private UUID documentId;
 }
