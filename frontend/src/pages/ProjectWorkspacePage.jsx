@@ -1,27 +1,20 @@
-import React, { useEffect, useState, useCallback, useRef } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import { 
   FolderKanban, 
   FileText, 
   Share2, 
-  Send, 
   Loader2, 
-  Bot, 
-  Sparkles,
   ChevronLeft,
-  Copy,
   Check
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-hot-toast";
 
 import { getProjectDetail, getSharedProject } from "@/api/projectApi";
 import { askAi } from "@/api/aiApi";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
+import ChatInterface from "@/components/chat/ChatInterface"; // Import our clean component
 
 export default function ProjectWorkspacePage() {
   const { projectId, token } = useParams();
@@ -34,10 +27,9 @@ export default function ProjectWorkspacePage() {
       content: "Welcome to your Project Workspace! I can answer questions based on all documents in this project. What would you like to know?",
     },
   ]);
-  const [input, setInput] = useState("");
+  
   const [isSending, setIsSending] = useState(false);
   const [copied, setCopied] = useState(false);
-  const scrollRef = useRef(null);
 
   const fetchProject = useCallback(async () => {
     try {
@@ -61,30 +53,22 @@ export default function ProjectWorkspacePage() {
     fetchProject();
   }, [fetchProject]);
 
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [messages]);
-
-  const handleSend = async () => {
-    if (!input.trim() || isSending) return;
+  const handleSend = async (messageText) => {
+    if (!messageText || isSending) return;
 
     const userMessage = {
       id: Date.now(),
       role: "user",
-      content: input,
+      content: messageText,
     };
 
     setMessages((prev) => [...prev, userMessage]);
-    const currentInput = input;
-    setInput("");
     setIsSending(true);
 
     try {
       const response = await askAi({
         projectId: project.id,
-        question: currentInput,
+        question: messageText,
       });
 
       setMessages((prev) => [
@@ -199,91 +183,14 @@ export default function ProjectWorkspacePage() {
         </ScrollArea>
       </aside>
 
-      {/* RIGHT MAIN AREA: AI Chat */}
-      <main className="flex-1 flex flex-col relative bg-white">
-        <header className="h-[73px] px-6 border-b border-slate-100 flex items-center justify-between bg-white/80 backdrop-blur-md sticky top-0 z-10">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-[#f26522]/10 rounded-lg">
-              <Sparkles className="w-5 h-5 text-[#f26522]" />
-            </div>
-            <div>
-              <h1 className="text-lg font-bold text-slate-800 leading-none">AI Study Partner</h1>
-              <p className="text-xs text-slate-400 mt-1">Multi-document Context Active</p>
-            </div>
-          </div>
-        </header>
-
-        <ScrollArea className="flex-1 p-6" viewportRef={scrollRef}>
-          <div className="max-w-4xl mx-auto space-y-6 pb-20">
-            <AnimatePresence initial={false}>
-              {messages.map((msg) => (
-                <motion.div
-                  key={msg.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-                >
-                  <div
-                    className={`max-w-[85%] px-5 py-3.5 rounded-[24px] ${
-                      msg.role === "user"
-                        ? "bg-[#f26522] text-white rounded-br-none shadow-lg shadow-orange-200"
-                        : "bg-slate-50 border border-slate-100 text-slate-800 rounded-bl-none"
-                    }`}
-                  >
-                    {msg.role === "assistant" && (
-                      <div className="flex items-center gap-2 mb-2 text-[#f26522] text-xs font-bold uppercase tracking-wider">
-                        <Bot className="w-4 h-4" />
-                        Gemini AI
-                      </div>
-                    )}
-                    <div className="whitespace-pre-wrap leading-relaxed text-[15px]">
-                      {msg.content}
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-
-              {isSending && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="flex justify-start"
-                >
-                  <div className="bg-slate-50 border border-slate-100 rounded-[24px] rounded-bl-none px-5 py-4 flex items-center gap-3">
-                    <Loader2 className="w-5 h-5 animate-spin text-[#f26522]" />
-                    <span className="text-sm font-medium text-slate-500">
-                      Analyzing documents...
-                    </span>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        </ScrollArea>
-
-        {/* INPUT BAR */}
-        <div className="p-6 bg-gradient-to-t from-white via-white to-transparent">
-          <div className="max-w-4xl mx-auto relative group">
-            <div className="relative flex items-center rounded-3xl border-2 border-slate-100 bg-white p-1.5 pr-2 shadow-sm focus-within:border-[#f26522] focus-within:ring-4 focus-within:ring-orange-50 transition-all duration-300">
-              <Input
-                placeholder="Ask about anything in this project..."
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSend()}
-                className="flex-1 border-none shadow-none focus-visible:ring-0 text-slate-700 h-11 px-4 placeholder:text-slate-400"
-              />
-              <Button
-                onClick={handleSend}
-                disabled={!input.trim() || isSending}
-                size="icon"
-                className="rounded-2xl bg-[#f26522] hover:bg-[#d95316] h-11 w-11 shrink-0 shadow-md shadow-orange-100 transition-all duration-200"
-              >
-                {isSending ? <Loader2 className="animate-spin" /> : <Send className="w-5 h-5" />}
-              </Button>
-            </div>
-          </div>
-        </div>
-      </main>
+      <ChatInterface 
+        title="AI Study Partner"
+        subtitle="Multi-document Context Active"
+        messages={messages}
+        isSending={isSending}
+        onSendMessage={handleSend}
+        showUploadButton={false} 
+      />
     </div>
   );
 }

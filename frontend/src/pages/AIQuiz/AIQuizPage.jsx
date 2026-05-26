@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import AIFlashcard from '../AICreateFlashcard/AIFlashcard'; // Import flashcard component
+import AIFlashcardGenerator from "../AICreateFlashcard/AIFlashcardGenerator.jsx";
 
 const AIQuizPage = () => {
   const [activeView, setActiveView] = useState('menu');
@@ -40,7 +40,8 @@ const AIQuizPage = () => {
           >
             ⬅ Quay lại Menu
           </button>
-          <AIFlashcard />
+          {/* Gọi Component Upload File ở đây */}
+          <AIFlashcardGenerator />
         </div>
       )}
 

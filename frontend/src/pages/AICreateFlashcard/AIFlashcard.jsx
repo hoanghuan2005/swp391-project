@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import './AIFlashcard.css';
 import axios from 'axios';
 
 const AIFlashcard = () => {

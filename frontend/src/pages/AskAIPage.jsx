@@ -1,8 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import {
-  Bot,
-  Send,
   Loader2,
   Plus,
   FileText,
@@ -13,6 +10,7 @@ import {
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import axiosClient from "@/api/axiosClient";
+import ChatInterface from "@/components/chat/ChatInterface"; // <-- Added Import
 
 export default function AskAIPage() {
   const [conversations, setConversations] = useState([]);
@@ -21,25 +19,19 @@ export default function AskAIPage() {
   const [documents, setDocuments] = useState([]);
   const [selectedDoc, setSelectedDoc] = useState(null);
 
-  const [input, setInput] = useState("");
+  // Removed local 'input' state and 'messagesEndRef' as ChatInterface handles them now
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [searchDocQuery, setSearchDocQuery] = useState("");
 
   const fileInputRef = useRef(null);
-  const messagesEndRef = useRef(null);
 
   // Fetch initial data
   useEffect(() => {
     fetchDocuments();
     fetchConversations();
   }, []);
-
-  // Scroll to bottom on new messages or loading state
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, isLoading]);
 
   const fetchDocuments = async () => {
     try {
@@ -141,11 +133,10 @@ export default function AskAIPage() {
     }
   };
 
-  const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
+  // Refactored to accept userMessageContent from the ChatInterface component
+  const handleSend = async (userMessageContent) => {
+    if (!userMessageContent || isLoading) return;
 
-    const userMessageContent = input.trim();
-    setInput("");
     setIsLoading(true);
 
     let currentConv = activeConversation;
@@ -262,7 +253,6 @@ export default function AskAIPage() {
       // If we have an active chat, let's bind it
       if (activeConversation && activeConversation.documentId !== doc.id) {
         activeConversation.documentId = doc.id;
-        // Optionally save to backend or keep in state
       }
     }
   };
@@ -407,160 +397,47 @@ export default function AskAIPage() {
         </div>
       </div>
 
-      {/* CHAT AREA */}
-      <div className="flex-1 flex flex-col relative bg-slate-50">
-        {/* HEADER */}
-        <div className="h-[73px] px-6 border-b border-slate-200 bg-white flex items-center justify-between shrink-0">
-          <div>
-            <h1 className="text-[16px] font-bold text-slate-800">
-              {activeConversation ? activeConversation.title : "Ask StudyMate AI"}
-            </h1>
-
-            <p className="text-xs text-slate-400">
-              {selectedDoc
-                ? `Using Document Context: ${selectedDoc.title || selectedDoc.name}`
-                : "General AI Assistant mode (Select a document to ask about it)"}
+      {/* CHAT AREA REPLACED WITH REUSABLE COMPONENT */}
+      <ChatInterface
+        title={activeConversation ? activeConversation.title : "Ask StudyMate AI"}
+        subtitle={
+          selectedDoc
+            ? `Using Document Context: ${selectedDoc.title || selectedDoc.name}`
+            : "General AI Assistant mode (Select a document to ask about it)"
+        }
+        messages={messages}
+        isLoadingMessages={isLoadingMessages}
+        isSending={isLoading}
+        onSendMessage={handleSend}
+        showUploadButton={true}
+        isUploading={isUploading}
+        onUploadClick={() => fileInputRef.current?.click()}
+        emptyStateComponent={
+          <div className="h-full flex flex-col items-center justify-center text-center p-8 max-w-lg mx-auto">
+            <div className="w-16 h-16 rounded-3xl bg-[#f26522]/10 flex items-center justify-center mb-4">
+              <Sparkles className="w-8 h-8 text-[#f26522]" />
+            </div>
+            <h3 className="text-lg font-bold text-slate-800 mb-2">StudyMate AI Workspace</h3>
+            <p className="text-xs text-slate-500 leading-relaxed mb-6">
+              Upload or select a course document from the sidebar to ask questions with full document context, or start typing below for a general chat.
             </p>
           </div>
-        </div>
-
-        {/* CHAT BODY */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
-          {isLoadingMessages ? (
-            <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-2">
-              <Loader2 className="w-6 h-6 animate-spin text-[#f26522]" />
-              <span className="text-xs font-semibold">Loading messages...</span>
-            </div>
-          ) : messages.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-center p-8 max-w-lg mx-auto">
-              <div className="w-16 h-16 rounded-3xl bg-[#f26522]/10 flex items-center justify-center mb-4">
-                <Sparkles className="w-8 h-8 text-[#f26522]" />
-              </div>
-              <h3 className="text-lg font-bold text-slate-800 mb-2">StudyMate AI Workspace</h3>
-              <p className="text-xs text-slate-500 leading-relaxed mb-6">
-                Upload or select a course document from the sidebar to ask questions with full document context, or start typing below for a general chat.
-              </p>
-              {selectedDoc && (
-                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-orange-50 border border-orange-100 text-slate-700 text-xs font-semibold">
-                  <FileText className="w-4 h-4 text-[#f26522]" />
-                  Active Document Context: <span className="text-[#f26522]">{selectedDoc.title || selectedDoc.name}</span>
-                </div>
-              )}
-            </div>
-          ) : (
-            <AnimatePresence>
-              {messages.map((msg) => (
-                <motion.div
-                  key={msg.id}
-                  initial={{ opacity: 0, y: 15 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className={`flex ${
-                    msg.role === "USER" || msg.role === "user"
-                      ? "justify-end"
-                      : "justify-start"
-                  }`}
-                >
-                  <div
-                    className={`max-w-[80%] px-4 py-3 rounded-2xl ${
-                      msg.role === "USER" || msg.role === "user"
-                        ? "bg-[#f26522] text-white rounded-br-sm shadow-sm"
-                        : "bg-white border border-slate-200 text-slate-700 rounded-bl-sm shadow-sm"
-                    }`}
-                  >
-                    {(msg.role === "ASSISTANT" || msg.role === "assistant") && (
-                      <div className="flex items-center gap-1.5 mb-1.5 text-[#f26522] text-xs font-bold">
-                        <Bot className="w-4 h-4" />
-                        StudyMate AI
-                      </div>
-                    )}
-
-                    <div className="whitespace-pre-wrap leading-relaxed text-[13px] font-medium">
-                      {msg.content}
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-
-              {isLoading && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="flex justify-start"
-                >
-                  <div className="bg-white border border-slate-200 rounded-2xl rounded-bl-sm px-4 py-3 flex items-center gap-3 shadow-sm">
-                    <Loader2 className="w-4 h-4 animate-spin text-[#f26522]" />
-                    <span className="text-xs text-slate-500 font-semibold">
-                      StudyMate AI is analyzing...
-                    </span>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          )}
-          <div ref={messagesEndRef} />
-        </div>
-
-        {/* INPUT CONTAINER */}
-        <div className="p-4 border-t border-slate-200 bg-white shrink-0">
-          <div className="max-w-4xl mx-auto">
-            <div className="flex items-center gap-2 p-2 rounded-xl border border-slate-200 bg-slate-50 focus-within:border-[#f26522] focus-within:bg-white focus-within:ring-2 focus-within:ring-[#f26522]/10 transition-all">
-              {/* Context Attachment Status Icon */}
+        }
+        contextBadgeComponent={
+          selectedDoc && (
+            <div className="mt-1.5 flex items-center gap-1.5 px-3 py-1 bg-orange-50 border border-orange-100 rounded-md text-[10px] text-slate-600 font-semibold w-fit">
+              <FileText className="w-3.5 h-3.5 text-[#f26522]" />
+              Focused on document content.
               <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isUploading}
-                title="Upload document"
-                className="w-9 h-9 rounded-lg hover:bg-slate-200 flex items-center justify-center transition-colors shrink-0 cursor-pointer disabled:opacity-50"
+                onClick={() => setSelectedDoc(null)}
+                className="text-red-500 hover:text-red-700 font-bold ml-1 hover:underline cursor-pointer"
               >
-                <Plus className="w-5 h-5 text-slate-500" />
-              </button>
-
-              {/* Text Input */}
-              <input
-                type="text"
-                placeholder={
-                  selectedDoc
-                    ? `Ask anything about "${selectedDoc.title || selectedDoc.name}"...`
-                    : "Ask anything about your study materials..."
-                }
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    handleSend();
-                  }
-                }}
-                disabled={isLoading}
-                className="flex-1 bg-transparent outline-none text-slate-700 text-sm placeholder-slate-400 px-2"
-              />
-
-              {/* Send Button */}
-              <button
-                onClick={handleSend}
-                disabled={!input.trim() || isLoading}
-                className="w-9 h-9 rounded-lg bg-[#f26522] hover:bg-[#e45a1b] disabled:opacity-40 disabled:hover:bg-[#f26522] flex items-center justify-center text-white transition-all shrink-0 cursor-pointer disabled:cursor-not-allowed shadow-sm"
-              >
-                {isLoading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Send className="w-4 h-4" />
-                )}
+                Clear
               </button>
             </div>
-            {selectedDoc && (
-              <div className="mt-1.5 flex items-center gap-1.5 px-3 py-1 bg-orange-50 border border-orange-100 rounded-md text-[10px] text-slate-600 font-semibold w-fit">
-                <FileText className="w-3.5 h-3.5 text-[#f26522]" />
-                Focused on document content.
-                <button
-                  onClick={() => setSelectedDoc(null)}
-                  className="text-red-500 hover:text-red-700 font-bold ml-1 hover:underline cursor-pointer"
-                >
-                  Clear
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+          )
+        }
+      />
     </div>
   );
 }

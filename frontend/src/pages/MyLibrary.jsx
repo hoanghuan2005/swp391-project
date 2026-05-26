@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { 
-  FileText, 
-  FolderPlus, 
-  Plus, 
-  Layout, 
-  ChevronRight, 
+import {
+  FileText,
+  FolderPlus,
+  Plus,
+  Layout,
+  ChevronRight,
   Search,
   BookOpen,
-  Calendar
+  Calendar,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -56,19 +56,12 @@ export default function MyLibrary() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-8">
+      {/* Cleaned up Global Header (Button Removed From Here) */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-slate-800 tracking-tight">My Library</h1>
           <p className="text-slate-500 text-sm mt-1">Manage your uploaded materials and study workspaces.</p>
         </div>
-        
-        <Button 
-          onClick={() => setCreateModalOpen(true)}
-          className="rounded-xl bg-[#f26522] hover:bg-[#d95316] text-white font-bold gap-2 shadow-lg shadow-orange-100"
-        >
-          <FolderPlus className="w-5 h-5" />
-          New Workspace
-        </Button>
       </div>
 
       <Tabs defaultValue="projects" className="w-full">
@@ -99,6 +92,17 @@ export default function MyLibrary() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <button
+                onClick={() => setCreateModalOpen(true)}
+                className="rounded-[28px] border-2 border-dashed border-slate-200 hover:border-[#f26522] hover:bg-orange-50/20 transition-all flex flex-col items-center justify-center p-6 h-full min-h-[200px] text-center group"
+              >
+                <div className="w-12 h-12 rounded-2xl bg-slate-50 group-hover:bg-[#f26522] transition-colors flex items-center justify-center mb-3">
+                  <Plus className="w-6 h-6 text-slate-400 group-hover:text-white transition-colors" />
+                </div>
+                <span className="font-bold text-slate-700 group-hover:text-[#f26522] transition-colors">Create New Workspace</span>
+                <p className="text-xs text-slate-400 mt-1 max-w-[200px]">Set up a new space for your documents</p>
+              </button>
+
               {projects.map((project) => (
                 <Link key={project.id} to={`/workspace/${project.id}`}>
                   <Card className="rounded-[28px] border-slate-100 hover:border-[#f26522]/20 hover:shadow-xl hover:shadow-orange-50 transition-all group overflow-hidden bg-white h-full border-2">
@@ -135,17 +139,17 @@ export default function MyLibrary() {
             </div>
           )}
         </TabsContent>
-
+        
         <TabsContent value="documents" className="mt-0">
           {isLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 gap-6">
               {[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-40 w-full rounded-2xl" />)}
             </div>
           ) : documents.length === 0 ? (
-             <div className="text-center py-20 bg-slate-50 rounded-[32px]">
-               <FileText className="w-12 h-12 text-slate-200 mx-auto mb-4" />
-               <p className="text-slate-500 font-medium">You haven't uploaded any documents yet.</p>
-             </div>
+            <div className="text-center py-20 bg-slate-50 rounded-[32px]">
+              <FileText className="w-12 h-12 text-slate-200 mx-auto mb-4" />
+              <p className="text-slate-500 font-medium">You haven't uploaded any documents yet.</p>
+            </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 gap-6">
               {documents.map((doc) => (
@@ -168,9 +172,9 @@ export default function MyLibrary() {
         </TabsContent>
       </Tabs>
 
-      <CreateProjectModal 
-        open={createModalOpen} 
-        onOpenChange={setCreateModalOpen} 
+      <CreateProjectModal
+        open={createModalOpen}
+        onOpenChange={setCreateModalOpen}
         onSuccess={fetchProjects}
       />
     </div>
