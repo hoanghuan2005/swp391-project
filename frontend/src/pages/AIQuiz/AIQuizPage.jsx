@@ -1,80 +1,364 @@
 import React, { useState } from "react";
-import { BookOpen, BrainCircuit, Sparkles, ArrowLeft } from "lucide-react";
+import {
+  BookOpen,
+  BrainCircuit,
+  Sparkles,
+  ArrowLeft,
+} from "lucide-react";
+
 import AIFlashcardGenerator from "../AICreateFlashcard/AIFlashcardGenerator.jsx";
 
 const AIQuizPage = () => {
-  const [activeView, setActiveView] = useState('menu');
+  const [activeView, setActiveView] = useState("menu");
 
   const tools = [
     {
-      id: 'flashcard',
-      title: "AI Create Flashcard",
-      desc: "Chuyển đổi tài liệu thành thẻ ghi nhớ thông minh.",
-      icon: <BookOpen className="h-10 w-10 text-[#f26522]" />,
-      enabled: true
+      id: "flashcard",
+      title: "AI Flashcards",
+      desc: "Generate smart flashcards from your learning materials.",
+      icon: <BookOpen className="h-5 w-5 text-[#f26522]" />,
+      enabled: true,
     },
     {
-      id: 'quiz',
-      title: "Create Quiz",
-      desc: "Kiểm tra kiến thức với bộ câu hỏi trắc nghiệm.",
-      icon: <BrainCircuit className="h-10 w-10 text-slate-400" />,
-      enabled: false
-    }
+      id: "quiz",
+      title: "AI Quiz",
+      desc: "Practice with AI-generated quizzes and assessments.",
+      icon: <BrainCircuit className="h-5 w-5 text-slate-500" />,
+      enabled: false,
+    },
+  ];
+
+  const stats = [
+    {
+      label: "Study Streak",
+      value: "7",
+      sub: "days 🔥",
+    },
+    {
+      label: "Flashcards",
+      value: "124",
+      sub: "+12 today",
+    },
+    {
+      label: "Accuracy",
+      value: "86%",
+      sub: "excellent",
+    },
+    {
+      label: "Study Time",
+      value: "12h",
+      sub: "this week",
+    },
+  ];
+
+  const recentActivities = [
+    {
+      title: "Generated 25 flashcards from Software Engineering.pdf",
+      time: "2 hours ago",
+    },
+    {
+      title: "Completed Java OOP Quiz with score 18/20",
+      time: "Yesterday",
+    },
+    {
+      title: "Reviewed Networking flashcards",
+      time: "2 days ago",
+    },
+    {
+      title: "Uploaded Database lecture slides",
+      time: "3 days ago",
+    },
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6 md:p-12">
-      
-      {/* MÀN HÌNH MENU CHÍNH */}
-      {activeView === 'menu' && (
-        <div className="max-w-4xl mx-auto space-y-12">
-          <div className="text-center space-y-2">
-            <h1 className="text-4xl font-extrabold text-slate-800">AI Tool Suite</h1>
-            <p className="text-slate-500 text-lg">Nâng cao hiệu suất học tập với trợ lý AI của MinDoCu</p>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {tools.map((tool) => (
-              <div
-                key={tool.id}
-                onClick={() => tool.enabled && setActiveView(tool.id)}
-                className={`group p-8 rounded-3xl border transition-all duration-300 
-                  ${tool.enabled 
-                    ? "bg-white border-slate-200 hover:border-[#f26522] hover:shadow-2xl shadow-lg cursor-pointer hover:-translate-y-2" 
-                    : "bg-slate-100 border-slate-200 opacity-60 cursor-not-allowed"}`}
-              >
-                <div className="mb-6 bg-slate-100 w-20 h-20 rounded-2xl flex items-center justify-center">
-                  {tool.icon}
+    <div className="min-h-screen px-4 py-6">
+      {/* ================= MENU ================= */}
+      {activeView === "menu" && (
+        <div className="mx-auto max-w-6xl space-y-8">
+          {/* ================= HERO ================= */}
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
+              {/* LEFT */}
+              <div className="max-w-2xl">
+                <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-orange-100 bg-orange-50 px-3 py-1 text-xs font-medium text-[#f26522]">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  AI Learning Workspace
                 </div>
-                <h3 className="text-2xl font-bold text-slate-800 mb-2">{tool.title}</h3>
-                <p className="text-slate-500 mb-6">{tool.desc}</p>
-                {tool.enabled ? (
-                  <span className="text-[#f26522] font-semibold flex items-center gap-2">
-                    Bắt đầu ngay <Sparkles className="h-4 w-4" />
-                  </span>
-                ) : (
-                  <span className="text-slate-400 font-medium italic">Sắp ra mắt...</span>
-                )}
+
+                <h1 className="text-3xl font-bold tracking-tight text-slate-800">
+                  Welcome back, Huân 👋
+                </h1>
+
+                <p className="mt-3 text-sm leading-6 text-slate-500">
+                  Continue studying with AI-generated flashcards, quizzes,
+                  and personalized learning recommendations.
+                </p>
+
+                <div className="mt-5 flex flex-wrap gap-3">
+                  <button className="h-10 rounded-xl bg-[#f26522] px-4 text-sm font-medium text-white transition hover:opacity-90">
+                    Continue Learning
+                  </button>
+
+                  <button className="h-10 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-50">
+                    Explore Tools
+                  </button>
+                </div>
               </div>
-            ))}
+
+              {/* RIGHT */}
+              <div className="grid min-w-[280px] grid-cols-2 gap-3">
+                {stats.map((item, index) => (
+                  <div
+                    key={index}
+                    className="rounded-xl border border-slate-200 bg-slate-50/70 p-4"
+                  >
+                    <p className="text-xs text-slate-500">
+                      {item.label}
+                    </p>
+
+                    <h3 className="mt-2 text-2xl font-bold text-slate-800">
+                      {item.value}
+                    </h3>
+
+                    <p className="mt-1 text-xs text-slate-400">
+                      {item.sub}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* ================= AI TOOLS ================= */}
+          <div>
+            <div className="mb-5 flex items-end justify-between">
+              <div>
+                <h2 className="text-2xl font-semibold text-slate-800">
+                  AI Study Tools
+                </h2>
+
+                <p className="mt-1 text-sm text-slate-500">
+                  Choose a tool to continue your learning.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+              {tools.map((tool) => (
+                <div
+                  key={tool.id}
+                  onClick={() =>
+                    tool.enabled && setActiveView(tool.id)
+                  }
+                  className={`group rounded-2xl border p-6 transition-all duration-200
+                  ${
+                    tool.enabled
+                      ? "cursor-pointer border-slate-200 bg-white hover:-translate-y-0.5 shadow-sm hover:shadow-md"
+                      : "border-slate-200 bg-slate-100/70 opacity-70"
+                  }`}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex gap-4">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#f26522]/10">
+                        {tool.icon}
+                      </div>
+
+                      <div>
+                        <h3 className="text-lg font-semibold text-slate-800">
+                          {tool.title}
+                        </h3>
+
+                        <p className="mt-1 text-sm leading-6 text-slate-500">
+                          {tool.desc}
+                        </p>
+                      </div>
+                    </div>
+
+                    {!tool.enabled && (
+                      <span className="rounded-full bg-slate-200 px-2 py-1 text-xs font-medium text-slate-500">
+                        Soon
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="mt-5 flex items-center justify-between">
+                    <span className="text-sm font-medium text-[#f26522]">
+                      {tool.enabled
+                        ? "Open Tool"
+                        : "Coming Soon"}
+                    </span>
+
+                    <ArrowLeft className="h-4 w-4 rotate-180 text-slate-400 transition group-hover:translate-x-1 group-hover:text-[#f26522]" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* ================= CONTINUE LEARNING ================= */}
+          <div>
+            <div className="mb-5 flex items-end justify-between">
+              <div>
+                <h2 className="text-xl font-semibold text-slate-800">
+                  Continue Learning
+                </h2>
+
+                <p className="mt-1 text-sm text-slate-500">
+                  Pick up where you left off.
+                </p>
+              </div>
+
+              <button className="text-sm font-medium text-[#f26522] hover:underline">
+                View All
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+              {/* FLASHCARD */}
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-orange-50">
+                      <BookOpen className="h-5 w-5 text-[#f26522]" />
+                    </div>
+
+                    <h3 className="text-lg font-semibold text-slate-800">
+                      Java OOP Flashcards
+                    </h3>
+
+                    <p className="mt-1 text-sm text-slate-500">
+                      68% completed • 42 cards remaining
+                    </p>
+                  </div>
+
+                  <span className="rounded-full bg-orange-50 px-2.5 py-1 text-xs font-medium text-[#f26522]">
+                    In Progress
+                  </span>
+                </div>
+
+                <div className="mt-5">
+                  <div className="mb-2 flex items-center justify-between text-xs">
+                    <span className="text-slate-500">
+                      Progress
+                    </span>
+
+                    <span className="font-medium text-slate-700">
+                      68%
+                    </span>
+                  </div>
+
+                  <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                    <div className="h-full w-[68%] rounded-full bg-[#f26522]" />
+                  </div>
+                </div>
+
+                <button className="mt-5 h-10 w-full rounded-xl bg-[#f26522] text-sm font-medium text-white transition hover:opacity-90">
+                  Continue Study
+                </button>
+              </div>
+
+              {/* QUIZ */}
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-[#f26522]/10">
+                      <BrainCircuit className="h-5 w-5 text-[#f26522]" />
+                    </div>
+
+                    <h3 className="text-lg font-semibold text-slate-800">
+                      Database Quiz
+                    </h3>
+
+                    <p className="mt-1 text-sm text-slate-500">
+                      Last score: 18/20 • Intermediate
+                    </p>
+                  </div>
+
+                  <span className="rounded-full bg-green-50 px-2.5 py-1 text-xs font-medium text-green-600">
+                    Completed
+                  </span>
+                </div>
+
+                <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-xs font-medium text-slate-500">
+                    AI Recommendation
+                  </p>
+
+                  <p className="mt-2 text-sm leading-6 text-slate-700">
+                    Review SQL JOIN concepts to improve your
+                    score further.
+                  </p>
+                </div>
+
+                <button className="mt-5 h-10 w-full rounded-xl border border-slate-200 bg-white text-sm font-medium text-slate-700 transition hover:bg-slate-50">
+                  Retake Quiz
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* ================= RECENT ACTIVITY ================= */}
+          <div>
+            <div className="mb-5">
+              <h2 className="text-xl font-semibold text-slate-800">
+                Recent Activity
+              </h2>
+
+              <p className="mt-1 text-sm text-slate-500">
+                Your latest AI learning activities.
+              </p>
+            </div>
+
+            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+              {recentActivities.map((activity, index) => (
+                <div
+                  key={index}
+                  className="flex items-center justify-between border-b border-slate-100 px-5 py-4 last:border-none hover:bg-slate-50"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="h-2 w-2 rounded-full bg-[#f26522]" />
+
+                    <div>
+                      <p className="text-sm font-medium text-slate-700">
+                        {activity.title}
+                      </p>
+
+                      <p className="mt-1 text-xs text-slate-400">
+                        {activity.time}
+                      </p>
+                    </div>
+                  </div>
+
+                  <button className="text-xs font-medium text-[#f26522] hover:underline">
+                    View
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}
 
-      {/* MÀN HÌNH CÁC CÔNG CỤ (Flashcard/Quiz) */}
-      {activeView !== 'menu' && (
-        <div className="max-w-6xl mx-auto animate-in fade-in duration-500">
-          <button 
-            onClick={() => setActiveView('menu')}
-            className="flex items-center text-slate-500 hover:text-[#f26522] mb-8 transition-colors"
+      {/* ================= TOOL VIEW ================= */}
+      {activeView !== "menu" && (
+        <div className="mx-auto max-w-6xl">
+          <button
+            onClick={() => setActiveView("menu")}
+            className="mb-6 flex items-center gap-2 text-sm font-medium text-slate-500 transition hover:text-[#f26522]"
           >
-            <ArrowLeft className="mr-2 h-5 w-5" /> Quay lại Menu
+            <ArrowLeft className="h-4 w-4" />
+            Back to Dashboard
           </button>
 
-          {activeView === 'flashcard' && <AIFlashcardGenerator />}
-          {activeView === 'quiz' && (
-            <div className="text-center py-20 bg-white rounded-3xl border border-slate-100 shadow-sm">
-              <h3 className="text-xl text-slate-400">Tính năng đang phát triển...</h3>
+          {activeView === "flashcard" && (
+            <AIFlashcardGenerator />
+          )}
+
+          {activeView === "quiz" && (
+            <div className="rounded-2xl border border-slate-200 bg-white py-20 text-center shadow-sm">
+              <h3 className="text-lg font-medium text-slate-400">
+                AI Quiz is coming soon...
+              </h3>
             </div>
           )}
         </div>

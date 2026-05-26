@@ -193,6 +193,7 @@ export default function Sidebar({ isOpen = true }) {
   const [tagOptions, setTagOptions] = useState([]);
   const [followedCourses, setFollowedCourses] = useState([]);
   const [workspaceModalOpen, setWorkspaceModalOpen] = useState(false);
+  const [workspaces, setWorkspaces] = useState([]);
 
   // 🔥 STATE LƯU TRỮ THÔNG TIN PROFILE DÀNH CHO SIDEBAR
   const [sidebarProfile, setSidebarProfile] = useState({
@@ -352,13 +353,18 @@ export default function Sidebar({ isOpen = true }) {
     setUploadOpen(true);
   };
 
-  const handleFileSelect = (event) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      setSelectedFile(file);
-      setUploadError("");
+  const fetchWorkspaces = async () => {
+    try {
+      const res = await axiosClient.get("/api/projects/my-projects");
+      setWorkspaces(res.data || []);
+    } catch (error) {
+      console.error("Failed to load workspaces", error);
     }
   };
+
+  useEffect(() => {
+    fetchWorkspaces();
+  }, []);
 
   const resolveUploadedById = async () => {
     const storedId = localStorage.getItem("userId");
@@ -700,14 +706,14 @@ export default function Sidebar({ isOpen = true }) {
 
         {/* Workspace */}
         <SidebarDropdown icon={FolderOpen} label="Workspace" isOpen={isOpen}>
-          {followedCourses.map((course) => (
+          {workspaces.map((workspace) => (
             <Button
-              key={course.id}
+              key={workspace.id}
               variant="ghost"
-              onClick={() => navigate(`/courses/${course.id}`)}
+              onClick={() => navigate(`/workspace/${workspace.id}`)}
               className="justify-start rounded-lg text-sm text-slate-600 hover:bg-slate-100 hover:text-[#f26522] cursor-pointer"
             >
-              {course.code}
+              {workspace.name}
             </Button>
           ))}
 

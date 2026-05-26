@@ -46,7 +46,7 @@ export default function AIFlashcardGenerator() {
 
   return (
     // Sử dụng container tối ưu cho dashboard
-    <div className="max-w-5xl mx-auto p-4 md:p-8 space-y-10">
+    <div className="max-w-5xl mx-auto space-y-10">
       
       {/* Header trang */}
       <div className="flex flex-col items-center text-center space-y-2">
