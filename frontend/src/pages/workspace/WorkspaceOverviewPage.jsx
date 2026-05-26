@@ -11,7 +11,14 @@ import {
   Loader2,
   UploadCloud,
   Library,
+  Copy
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Link } from "react-router-dom";
 import { getProjectDetail } from "@/api/projectApi";
 import { Button } from "@/components/ui/button";
@@ -38,6 +45,7 @@ export default function WorkspaceOverviewPage() {
 
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [isLibraryModalOpen, setIsLibraryModalOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
 
   useEffect(() => {
     fetchProject();
@@ -54,13 +62,18 @@ export default function WorkspaceOverviewPage() {
     }
   };
 
-  const copyShareLink = () => {
+  const copyShareLink = async () => {
     if (!project?.shareToken) return;
     const link = `${window.location.origin}/workspace/shared/${project.shareToken}`;
-    navigator.clipboard.writeText(link);
-    setCopied(true);
-    toast.success("Share link copied to clipboard!");
-    setTimeout(() => setCopied(false), 2000);
+    
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopied(true);
+      toast.success("Share link copied to clipboard!");
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy", err);
+    }
   };
 
   if (loading) {
@@ -99,15 +112,11 @@ export default function WorkspaceOverviewPage() {
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
-                onClick={copyShareLink}
+                onClick={() => setShareOpen(true)}
                 className="rounded-full border-orange-200 bg-white/70 hover:bg-orange-50 h-9 px-4 text-sm shadow-sm"
               >
-                {copied ? (
-                  <Check className="w-4 h-4 mr-1.5 text-green-500" />
-                ) : (
-                  <Share2 className="w-4 h-4 mr-1.5" />
-                )}
-                {copied ? "Copied" : "Share"}
+                <Share2 className="w-4 h-4 mr-1.5" />
+                Share
               </Button>
 
               <DropdownMenu>
@@ -249,6 +258,7 @@ export default function WorkspaceOverviewPage() {
         </ScrollArea>
       </div>
 
+      {/* MODALS */}
       <UploadDocumentDialog
         open={isUploadOpen}
         onOpenChange={setIsUploadOpen}
@@ -265,6 +275,55 @@ export default function WorkspaceOverviewPage() {
         projectId={projectId}
         onSuccess={fetchProject}
       />
+
+      {/* NEW SHARE DIALOG */}
+      <Dialog open={shareOpen} onOpenChange={setShareOpen}>
+        <DialogContent className="sm:max-w-xl rounded-[28px] border-0 p-0 overflow-hidden">
+          <div className="p-8">
+            <DialogHeader>
+              <DialogTitle className="text-3xl font-bold text-slate-800">
+                Share Workspace
+              </DialogTitle>
+            </DialogHeader>
+
+            <p className="text-slate-500 mt-3 leading-relaxed">
+              Invite friends to collaborate in this study workspace. Anyone with this link can view the documents and chat with the AI.
+            </p>
+
+            {/* URL */}
+            <div className="mt-8">
+              <p className="text-sm font-semibold text-slate-700 mb-3">
+                Secure Share URL
+              </p>
+
+              <div className="flex gap-3">
+                <Input
+                  readOnly
+                  value={project?.shareToken ? `${window.location.origin}/workspace/shared/${project.shareToken}` : "Generating link..."}
+                  className="rounded-full h-12 bg-slate-50 border-slate-200 text-slate-600 focus-visible:ring-0"
+                />
+
+                <Button
+                  onClick={copyShareLink}
+                  className="rounded-full bg-[#f66810] hover:bg-[#de5b0b] h-12 px-6 min-w-[120px]"
+                >
+                  {copied ? (
+                    <>
+                      <Check className="w-4 h-4 mr-2" />
+                      Copied
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-4 h-4 mr-2" />
+                      Copy
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
