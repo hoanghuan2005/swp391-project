@@ -2,13 +2,14 @@ import React, { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import {
   FileText,
-  FolderPlus,
   Plus,
   Layout,
   ChevronRight,
   Search,
   BookOpen,
   Calendar,
+  Layers, 
+  ListChecks   
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -56,7 +57,7 @@ export default function MyLibrary() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-8">
-      {/* Cleaned up Global Header (Button Removed From Here) */}
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-slate-800 tracking-tight">My Library</h1>
@@ -65,15 +66,23 @@ export default function MyLibrary() {
       </div>
 
       <Tabs defaultValue="projects" className="w-full">
-        <TabsList className="bg-slate-100/50 p-1 rounded-2xl mb-8">
-          <TabsTrigger value="projects" className="rounded-xl px-8 data-[state=active]:bg-white data-[state=active]:shadow-sm font-bold">
+        {/* TAB NAVIGATION LIST */}
+        <TabsList className="bg-slate-100/50 p-1 rounded-2xl mb-8 flex flex-wrap h-auto gap-1">
+          <TabsTrigger value="projects" className="rounded-xl px-6 py-2.5 data-[state=active]:bg-white data-[state=active]:shadow-sm font-bold">
             <Layout className="w-4 h-4 mr-2" /> My Workspaces
           </TabsTrigger>
-          <TabsTrigger value="documents" className="rounded-xl px-8 data-[state=active]:bg-white data-[state=active]:shadow-sm font-bold">
+          <TabsTrigger value="documents" className="rounded-xl px-6 py-2.5 data-[state=active]:bg-white data-[state=active]:shadow-sm font-bold">
             <FileText className="w-4 h-4 mr-2" /> My Uploads
+          </TabsTrigger>
+          <TabsTrigger value="flashcards" className="rounded-xl px-6 py-2.5 data-[state=active]:bg-white data-[state=active]:shadow-sm font-bold">
+            <Layers className="w-4 h-4 mr-2" /> My Flashcards
+          </TabsTrigger>
+          <TabsTrigger value="quizzes" className="rounded-xl px-6 py-2.5 data-[state=active]:bg-white data-[state=active]:shadow-sm font-bold">
+            <ListChecks className="w-4 h-4 mr-2" /> My Quizzes
           </TabsTrigger>
         </TabsList>
 
+        {/* WORKSPACES CONTENT */}
         <TabsContent value="projects" className="mt-0">
           {isProjectsLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -140,6 +149,7 @@ export default function MyLibrary() {
           )}
         </TabsContent>
         
+        {/* DOCUMENTS CONTENT */}
         <TabsContent value="documents" className="mt-0">
           {isLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -170,6 +180,29 @@ export default function MyLibrary() {
             </div>
           )}
         </TabsContent>
+
+        {/* FLASHCARDS CONTENT  */}
+        <TabsContent value="flashcards" className="mt-0">
+          <div className="flex flex-col items-center justify-center py-20 text-center bg-slate-50 rounded-[32px] border border-dashed border-slate-200">
+            <div className="w-16 h-16 rounded-3xl bg-white shadow-sm flex items-center justify-center mb-4">
+              <Layers className="w-8 h-8 text-slate-300" />
+            </div>
+            <h3 className="text-xl font-bold text-slate-800 mb-1">Your Flashcard Decks</h3>
+            <p className="text-slate-500 mb-6 max-w-sm">Saved AI-generated flashcards will appear here.</p>
+          </div>
+        </TabsContent>
+
+        {/* QUIZZES CONTENT */}
+        <TabsContent value="quizzes" className="mt-0">
+          <div className="flex flex-col items-center justify-center py-20 text-center bg-slate-50 rounded-[32px] border border-dashed border-slate-200">
+            <div className="w-16 h-16 rounded-3xl bg-white shadow-sm flex items-center justify-center mb-4">
+              <ListChecks className="w-8 h-8 text-slate-300" />
+            </div>
+            <h3 className="text-xl font-bold text-slate-800 mb-1">Your Quizzes</h3>
+            <p className="text-slate-500 mb-6 max-w-sm">Past quiz attempts and saved test sets will show up here.</p>
+          </div>
+        </TabsContent>
+
       </Tabs>
 
       <CreateProjectModal

@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import axiosClient from "@/api/axiosClient";
 
-export default function UploadDocumentDialog({ open, onOpenChange, onUploadSuccess }) {
+export default function UploadDocumentDialog({ open, onOpenChange, onUploadSuccess, targetProjectId }) {
   const [schoolQuery, setSchoolQuery] = useState("");
   const [subjectQuery, setSubjectQuery] = useState("");
   const [tagQuery, setTagQuery] = useState("");
@@ -206,13 +206,31 @@ export default function UploadDocumentDialog({ open, onOpenChange, onUploadSucce
 
       selectedTags.forEach((tag) => formData.append("tagNames", tag));
 
-      await axiosClient.post("/api/documents/upload", formData, {
+      // 1. Upload the file to the global library
+      const uploadResponse = await axiosClient.post("/api/documents/upload", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
+      // 2. NEW: If a targetProjectId was passed, link the new document to the workspace!
+      if (targetProjectId) {
+        // Assuming your backend returns the new document object with its 'id'
+        const newDocumentId = uploadResponse.data?.id; 
+        
+        if (newDocumentId) {
+          try {
+            await axiosClient.post(`/api/projects/${targetProjectId}/documents/${newDocumentId}`);
+          } catch (linkError) {
+            console.error("File uploaded, but failed to link to workspace", linkError);
+            toast.error("File uploaded, but couldn't attach it to the workspace.");
+          }
+        }
+      }
+
+      // 3. Clean up and close
       window.dispatchEvent(new CustomEvent("documents:uploaded"));
       if (onUploadSuccess) onUploadSuccess();
       onOpenChange(false);
+      
     } catch (error) {
       console.error("Upload failed", error);
       setUploadError("Upload failed. Please try again.");
@@ -220,7 +238,7 @@ export default function UploadDocumentDialog({ open, onOpenChange, onUploadSucce
       setUploading(false);
     }
   };
-
+  
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-xl rounded-2xl p-6">
