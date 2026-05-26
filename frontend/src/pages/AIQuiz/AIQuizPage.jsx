@@ -18,7 +18,7 @@ const AIQuizPage = () => {
               onClick={() => setActiveView('quiz')}
               style={{ padding: '15px 30px', fontSize: '16px', cursor: 'pointer', backgroundColor: '#f5f5f5', border: '1px solid #ddd', borderRadius: '8px' }}
             >
-              📝 Tạo Bài Quiz (Coming Soon)
+              📝 Create Quiz (Coming Soon)
             </button>
 
             <button 
@@ -38,7 +38,7 @@ const AIQuizPage = () => {
             onClick={() => setActiveView('menu')}
             style={{ marginBottom: '20px', padding: '8px 16px', cursor: 'pointer', border: '1px solid #ddd', borderRadius: '6px', backgroundColor: 'white' }}
           >
-            ⬅ Quay lại Menu
+            ⬅ Back to Menu
           </button>
           {/* Gọi Component Upload File ở đây */}
           <AIFlashcardGenerator />
