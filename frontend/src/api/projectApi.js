@@ -20,6 +20,16 @@ export const addDocumentToProject = async (projectId, documentId) => {
   return response.data;
 };
 
+export const removeDocumentFromProject = async (projectId, documentId) => {
+  const response = await axiosClient.delete(`/api/projects/${projectId}/documents/${documentId}`);
+  return response.data;
+};
+
+export const deleteProject = async (projectId) => {
+  const response = await axiosClient.delete(`/api/projects/${projectId}`);
+  return response.data;
+};
+
 export const getProjectDetail = async (id) => {
   const response = await axiosClient.get(`/api/projects/${id}`);
   return response.data;

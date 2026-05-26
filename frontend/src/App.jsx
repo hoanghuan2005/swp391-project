@@ -21,10 +21,11 @@ import CatalogLanguagesPage from "./pages/Admin/CatalogLanguagesPage";
 import CourseDetailPage from "./pages/CourseDetailPage";
 import CatalogCoursesPage from "./pages/Admin/CatalogCoursesPage";
 import AskAIPage from "./pages/AskAIPage";
-import ProjectWorkspacePage from "./pages/ProjectWorkspacePage";
-import AIFlashcard from './pages/AICreateFlashcard/AIFlashcard';
+import ProjectWorkspacePage from "./pages/workspace/ProjectWorkspacePage";
+import AIFlashcard from "./pages/AICreateFlashcard/AIFlashcard";
 import AIQuizPage from "./pages/AIQuiz/AIQuizPage";
 import QuizPage from "./pages/QuizPage.jsx";
+import WorkspaceOverviewPage from "./pages/workspace/WorkspaceOverviewPage";
 
 function ComingSoon({ pageName }) {
   return (
@@ -68,12 +69,23 @@ function App() {
             element={<ComingSoon pageName="Projects" />}
           />
           <Route path="/courses/:id" element={<CourseDetailPage />} />
-          <Route path="/workspace/:projectId" element={<ProjectWorkspacePage />} />
           <Route path="/quiz/:id" element={<QuizPage />} />
+          <Route path="/flashcard" element={<AIFlashcard />} />
+          <Route
+            path="/workspace/:projectId"
+            element={<WorkspaceOverviewPage />}
+          />
+          <Route
+            path="/workspace/:projectId/ai"
+            element={<ProjectWorkspacePage />}
+          />
         </Route>
 
         {/* Public Project Workspace (No Sidebar Layout) */}
-        <Route path="/workspace/shared/:token" element={<ProjectWorkspacePage />} />
+        <Route
+          path="/workspace/shared/:token"
+          element={<ProjectWorkspacePage />}
+        />
 
         {/* Admin dashboard layout */}
         <Route element={<AdminLayout />}>
@@ -81,10 +93,7 @@ function App() {
           <Route path="/admin/users" element={<UserListPage />} />
           <Route path="/admin/documents" element={<DocumentListPage />} />
           <Route path="/admin/documents/:id" element={<DocumentDetailPage />} />
-          <Route
-            path="/admin/courses"
-            element={<CatalogCoursesPage />}
-          />
+          <Route path="/admin/courses" element={<CatalogCoursesPage />} />
           <Route
             path="/admin/catalog/schools"
             element={<CatalogSchoolsPage />}

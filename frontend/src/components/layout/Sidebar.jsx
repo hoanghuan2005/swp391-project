@@ -5,6 +5,7 @@ import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import axiosClient from "@/api/axiosClient";
 import { cn } from "@/lib/utils";
+import CreateProjectModal from "@/components/projects/CreateProjectModal";
 import {
   Dialog,
   DialogContent,
@@ -191,6 +192,7 @@ export default function Sidebar({ isOpen = true }) {
   const [subjectOptions, setSubjectOptions] = useState([]);
   const [tagOptions, setTagOptions] = useState([]);
   const [followedCourses, setFollowedCourses] = useState([]);
+  const [workspaceModalOpen, setWorkspaceModalOpen] = useState(false);
 
   // 🔥 STATE LƯU TRỮ THÔNG TIN PROFILE DÀNH CHO SIDEBAR
   const [sidebarProfile, setSidebarProfile] = useState({
@@ -695,6 +697,40 @@ export default function Sidebar({ isOpen = true }) {
             Add Course
           </Button>
         </SidebarDropdown>
+
+        {/* Workspace */}
+        <SidebarDropdown icon={FolderOpen} label="Workspace" isOpen={isOpen}>
+          {followedCourses.map((course) => (
+            <Button
+              key={course.id}
+              variant="ghost"
+              onClick={() => navigate(`/courses/${course.id}`)}
+              className="justify-start rounded-lg text-sm text-slate-600 hover:bg-slate-100 hover:text-[#f26522] cursor-pointer"
+            >
+              {course.code}
+            </Button>
+          ))}
+
+          <Button
+            variant="ghost"
+            onClick={() => setWorkspaceModalOpen(true)}
+            className="justify-start rounded-lg text-sm text-slate-600 hover:bg-slate-100 hover:text-[#f26522] cursor-pointer"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Add Workspace
+          </Button>
+        </SidebarDropdown>
+
+        {/* Create Workspace Modal */}
+        <CreateProjectModal
+          open={workspaceModalOpen}
+          onOpenChange={setWorkspaceModalOpen}
+          onSuccess={(newProject) => {
+            console.log("Created:", newProject);
+
+            // optional: refresh workspace list here
+          }}
+        />
       </nav>
 
       {/* Course Library Dialog */}
