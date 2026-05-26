@@ -25,9 +25,21 @@ public class AuthService {
         user.setUsername(request.getUsername());
         user.setEmail(request.getEmail());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
+        user.setEmailVerified(false);
+
+        String otp = String.valueOf((int) (Math.random() * 900000) + 100000);
+        user.setResetToken(otp);
 
         userRepository.save(user);
-        return "User registered successfully!";
+
+        try {
+            emailService.sendSignupOtpEmail(request.getEmail(), otp);
+        } catch (Exception e) {
+            System.err.println("Error sending signup OTP: " + e.getMessage());
+            throw new RuntimeException("Failed to send verification email, please check SMTP configuration!");
+        }
+
+        return "User registered successfully. OTP sent!";
     }
 
     public String login(LoginRequest request) {
@@ -36,6 +48,10 @@ public class AuthService {
 
         if (user.isBanned()) {
             throw new RuntimeException("Your account has been banned by the Admin.");
+        }
+
+        if (!user.isEmailVerified()) {
+            throw new RuntimeException("Please verify your account before logging in.");
         }
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
@@ -84,5 +100,42 @@ public class AuthService {
                 .orElseThrow(() -> new RuntimeException("Email not found!"));
 
         return user.getResetToken() != null && user.getResetToken().equals(otp);
+    }
+
+    public String verifySignupOtp(String email, String otp) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Email not found!"));
+
+        if (user.getResetToken() == null || !user.getResetToken().equals(otp)) {
+            throw new RuntimeException("Invalid OTP!");
+        }
+
+        user.setEmailVerified(true);
+        user.setResetToken(null);
+        userRepository.save(user);
+
+        return "Account verified successfully!";
+    }
+
+    public String resendSignupOtp(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Email not found!"));
+
+        if (user.isEmailVerified()) {
+            return "Account already verified.";
+        }
+
+        String otp = String.valueOf((int) (Math.random() * 900000) + 100000);
+        user.setResetToken(otp);
+        userRepository.save(user);
+
+        try {
+            emailService.sendSignupOtpEmail(email, otp);
+        } catch (Exception e) {
+            System.err.println("Error resending signup OTP: " + e.getMessage());
+            throw new RuntimeException("Failed to resend verification email!");
+        }
+
+        return "OTP sent successfully!";
     }
 }

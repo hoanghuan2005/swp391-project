@@ -44,6 +44,8 @@ const LoginPage = () => {
           localStorage.setItem("token", accessToken);
           if (refreshToken) {
             localStorage.setItem("refreshToken", refreshToken);
+          } else {
+            localStorage.removeItem("refreshToken");
           }
 
           try {
@@ -69,9 +71,19 @@ const LoginPage = () => {
       // Vì Backend mới đã quăng Http Status 401 khi gõ sai tài khoản, lỗi sẽ tự nhảy vào block catch này
       const errorMsg = error.response?.data || error.message;
       console.error("Login error detail:", errorMsg);
-      
+
+      const messageText = typeof errorMsg === "string" ? errorMsg : "";
+      if (messageText.toLowerCase().includes("verify")) {
+        alert("Tài khoản chưa xác thực. Vui lòng nhập OTP đã gửi qua email.");
+        navigate("/verify-account", { state: { email, mode: "signup" } });
+        return;
+      }
+
       // Hiện thông báo đẹp đẽ cho người dùng thay vì nuốt trọn cục chữ lỗi lưu vào máy
-      alert("Đăng nhập thất bại: " + (typeof errorMsg === "string" ? errorMsg : "Sai tài khoản hoặc mật khẩu!"));
+      alert(
+        "Đăng nhập thất bại: " +
+          (messageText || "Sai tài khoản hoặc mật khẩu!"),
+      );
     } finally {
       setIsLoading(false);
     }
@@ -84,15 +96,18 @@ const LoginPage = () => {
         const res = await axiosClient.post("/api/auth/google", {
           token: tokenResponse.access_token,
         });
-        
+
         if (res.data) {
           // Hỗ trợ phòng hờ cả 2 cấu trúc (accessToken mới hoặc token cũ của BE Google)
-          const accessToken = res.data.accessToken || res.data.token || res.data;
+          const accessToken =
+            res.data.accessToken || res.data.token || res.data;
           const refreshToken = res.data.refreshToken;
 
           localStorage.setItem("token", accessToken);
           if (refreshToken) {
             localStorage.setItem("refreshToken", refreshToken);
+          } else {
+            localStorage.removeItem("refreshToken");
           }
 
           try {

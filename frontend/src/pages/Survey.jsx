@@ -11,7 +11,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import {
   InputGroup,
   InputGroupAddon,
@@ -21,15 +26,28 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
-export default function Survey({ onClose }) {
+export default function Survey({ onClose, forceOpen = false }) {
+  const SCHOOL_STORAGE_KEY = "profileSchool";
+  const persistSchool = (schoolCode, schoolName) => {
+    if (!schoolCode && !schoolName) return;
+    localStorage.setItem(
+      SCHOOL_STORAGE_KEY,
+      JSON.stringify({
+        schoolCode: schoolCode || "",
+        schoolName: schoolName || "",
+      }),
+    );
+  };
   // 1. Kiểm tra localStorage ngay từ lúc khởi tạo state
   const [open, setOpen] = useState(() => {
     const isCompleted = localStorage.getItem("surveyCompleted") === "true";
     const isSkipped = localStorage.getItem("surveySkipped") === "true";
-    return !isCompleted && !isSkipped;
+    // Nếu parent ép mở (forceOpen) thì cho phép hiển thị bất chấp surveySkipped
+    return forceOpen ? true : !isCompleted && !isSkipped;
   });
 
-  const [school, setSchool] = useState("");
+  const [schoolName, setSchoolName] = useState("");
+  const [schoolCode, setSchoolCode] = useState("");
   const [startYear, setStartYear] = useState("");
   const [languageOptions, setLanguageOptions] = useState([]);
   const [selectedLanguageIds, setSelectedLanguageIds] = useState([]);
@@ -41,17 +59,17 @@ export default function Survey({ onClose }) {
 
   const years = useMemo(
     () => Array.from({ length: 12 }, (_, i) => 2026 - i),
-    []
+    [],
   );
 
   const filteredSchools = useMemo(() => {
-    const query = school.trim().toLowerCase();
+    const query = schoolName.trim().toLowerCase();
     if (!query) return schoolOptions;
 
     return schoolOptions.filter((item) =>
-      `${item.name} ${item.code}`.toLowerCase().includes(query)
+      `${item.name} ${item.code}`.toLowerCase().includes(query),
     );
-  }, [school, schoolOptions]);
+  }, [schoolName, schoolOptions]);
 
   const filteredYears = useMemo(() => {
     const query = startYear.trim();
@@ -65,7 +83,8 @@ export default function Survey({ onClose }) {
     const isCompleted = localStorage.getItem("surveyCompleted") === "true";
     const isSkipped = localStorage.getItem("surveySkipped") === "true";
 
-    if (isCompleted || isSkipped) {
+    // Nếu đã completed thì đóng, hoặc nếu đã skipped và không được parent ép mở thì đóng
+    if (isCompleted || (isSkipped && !forceOpen)) {
       if (onClose) onClose({ completed: isCompleted });
       return;
     }
@@ -103,7 +122,7 @@ export default function Survey({ onClose }) {
   const toggleLanguage = (languageId) => {
     if (selectedLanguageIds.includes(languageId)) {
       setSelectedLanguageIds(
-        selectedLanguageIds.filter((id) => id !== languageId)
+        selectedLanguageIds.filter((id) => id !== languageId),
       );
     } else {
       setSelectedLanguageIds([...selectedLanguageIds, languageId]);
@@ -114,16 +133,38 @@ export default function Survey({ onClose }) {
     setOpen(false);
   };
 
-  const handleComplete = async (payload) => {
-    closeSurvey();
-    localStorage.setItem("surveyCompleted", "true");
-    localStorage.removeItem("surveySkipped");
+  // Nếu parent thay đổi prop forceOpen (ví dụ khi click nút reminder), đồng bộ lại state
+  useEffect(() => {
+    if (forceOpen) setOpen(true);
+  }, [forceOpen]);
 
+  const handleComplete = async (surveyPayload) => {
     try {
-      const response = await axiosClient.post("/api/survey", payload);
+      const response = await axiosClient.post("/api/survey", surveyPayload);
+
+      if (response?.data) {
+        persistSchool(
+          response.data.schoolCode,
+          response.data.schoolName,
+        );
+      }
+
+      localStorage.setItem("surveyCompleted", "true");
+      localStorage.removeItem("surveySkipped");
+
+      window.dispatchEvent(
+        new CustomEvent("survey:completed", {
+          detail: response.data,
+        }),
+      );
+
+      closeSurvey();
 
       if (onClose) {
-        onClose({ completed: true, surveyData: response.data });
+        onClose({
+          completed: true,
+          surveyData: response.data,
+        });
       }
     } catch (error) {
       console.error("Failed to submit survey:", error);
@@ -131,12 +172,30 @@ export default function Survey({ onClose }) {
   };
 
   const handleSubmit = () => {
-    const payload = {
-      schoolName: school.trim() || null,
+    const normalizedSchool = schoolName.trim().toLowerCase();
+    const matchedSchool = schoolOptions.find((item) => {
+      const name = (item.name || "").trim().toLowerCase();
+      const code = (item.code || "").trim().toLowerCase();
+      return (
+        name === normalizedSchool ||
+        code === normalizedSchool ||
+        name.includes(normalizedSchool) ||
+        normalizedSchool.includes(name)
+      );
+    });
+
+    const resolvedSchool = matchedSchool
+      ? matchedSchool.code
+      : (schoolCode || schoolName).trim();
+
+    const surveyPayload = {
+      schoolCode: resolvedSchool || null,
+      schoolName: schoolName.trim() || null,
       startYear: startYear ? Number(startYear) : null,
       languageIds: selectedLanguageIds,
     };
-    handleComplete(payload);
+
+    handleComplete(surveyPayload);
   };
 
   const handleSkip = () => {
@@ -168,7 +227,8 @@ export default function Survey({ onClose }) {
       >
         <DialogTitle className="sr-only">Learning Survey</DialogTitle>
         <DialogDescription className="sr-only">
-          Please fill out this background survey to help us recommend better study materials.
+          Please fill out this background survey to help us recommend better
+          study materials.
         </DialogDescription>
 
         <div className="relative">
@@ -209,10 +269,11 @@ export default function Survey({ onClose }) {
                         <Search className="h-4 w-4 text-slate-400" />
                       </InputGroupAddon>
                       <InputGroupInput
-                        value={school}
+                        value={schoolName}
                         placeholder="Search your school"
                         onChange={(event) => {
-                          setSchool(event.target.value);
+                          setSchoolName(event.target.value);
+                          setSchoolCode("");
                           setSchoolOpen(true);
                         }}
                         onFocus={() => setSchoolOpen(true)}
@@ -241,7 +302,8 @@ export default function Survey({ onClose }) {
                                 variant="ghost"
                                 onMouseDown={(event) => {
                                   event.preventDefault();
-                                  setSchool(item.name);
+                                  setSchoolName(item.name);
+                                  setSchoolCode(item.code);
                                   setSchoolOpen(false);
                                 }}
                                 className="w-full justify-between rounded-none px-3 py-2 text-xs hover:bg-slate-50"
@@ -346,7 +408,7 @@ export default function Survey({ onClose }) {
                     {!loadingLanguages &&
                       languageOptions.map((language) => {
                         const isSelected = selectedLanguageIds.includes(
-                          language.id
+                          language.id,
                         );
                         return (
                           <Button

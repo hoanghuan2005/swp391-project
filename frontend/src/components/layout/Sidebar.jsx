@@ -212,7 +212,7 @@ export default function Sidebar({ isOpen = true }) {
   useEffect(() => {
     const fetchSidebarProfile = async () => {
       try {
-        const res = await axiosClient.get("/api/users/profile");
+        const res = await axiosClient.get("/api/profile");
         if (res.data) {
           setSidebarProfile({
             fullName: res.data.fullName || "Student",
@@ -363,7 +363,7 @@ export default function Sidebar({ isOpen = true }) {
     if (storedId) return storedId;
 
     try {
-      const profileRes = await axiosClient.get("/api/users/profile");
+      const profileRes = await axiosClient.get("/api/profile");
       const profileId = profileRes.data?.id;
       if (profileId) {
         localStorage.setItem("userId", profileId);

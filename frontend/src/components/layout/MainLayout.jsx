@@ -4,6 +4,7 @@ import Sidebar from "./Sidebar";
 import Navbar from "./Navbar";
 import Survey from "@/pages/Survey";
 import LogoutModal from "@/components/ui/LogoutModal"; // 1. Import LogoutModal vào đây
+import axiosClient from "@/api/axiosClient";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "react-router-dom";
@@ -20,17 +21,48 @@ export default function MainLayout() {
   useEffect(() => {
     if (isAiAskPage) return; // Không hiển thị survey nếu đang ở trang Ask AI
 
-    const surveyCompleted = localStorage.getItem("surveyCompleted") === "true";
-    const surveySkipped = localStorage.getItem("surveySkipped") === "true";
+    const checkSurveyState = async () => {
+      let surveyCompleted = localStorage.getItem("surveyCompleted") === "true";
+      const surveySkipped = localStorage.getItem("surveySkipped") === "true";
 
-    if (!surveyCompleted && !surveySkipped) {
-      setShowSurvey(true);
-    }
+      // If not completed locally, try to infer from server-side profile (when logged in)
+      if (!surveyCompleted) {
+        const token = localStorage.getItem("token");
+        if (token) {
+          try {
+            const res = await axiosClient.get("/api/profile");
+            const pdata = res.data || {};
+            const serverCompleted = !!(
+              pdata.startYear ||
+              (pdata.languages && pdata.languages.length > 0)
+            );
+            if (serverCompleted) {
+              surveyCompleted = true;
+              localStorage.setItem("surveyCompleted", "true");
+              // remove any skipped flag if server indicates completion
+              localStorage.removeItem("surveySkipped");
+            }
+          } catch (e) {
+            // silent fail — keep local flags
+            console.warn(
+              "Could not fetch profile to determine survey state:",
+              e,
+            );
+          }
+        }
+      }
 
-    if (!surveyCompleted && surveySkipped) {
-      setShowSurveyReminder(true);
-    }
-  }, []);
+      if (!surveyCompleted && !surveySkipped) {
+        setShowSurvey(true);
+      }
+
+      if (!surveyCompleted && surveySkipped) {
+        setShowSurveyReminder(true);
+      }
+    };
+
+    checkSurveyState();
+  }, [isAiAskPage]);
 
   return (
     <div className="h-screen bg-white text-slate-900 font-sans flex flex-col overflow-hidden">
@@ -69,6 +101,7 @@ export default function MainLayout() {
       {/* Survey Popup */}
       {showSurvey && (
         <Survey
+          forceOpen={showSurvey}
           onClose={({ completed }) => {
             setShowSurvey(false);
             if (completed) {

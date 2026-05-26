@@ -36,28 +36,34 @@ public class AuthController {
     // String token trơn
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest request) {
-        // 1. Gọi hàm login cũ để lấy Access Token (chuỗi JWT)
-        String accessToken = authService.login(request);
+        try {
+            // 1. Gọi hàm login cũ để lấy Access Token (chuỗi JWT)
+            String accessToken = authService.login(request);
 
-        // Chốt chặn nếu tài khoản gõ sai mật khẩu/sai email (tránh lưu chữ lỗi vào
-        // localStorage)
-        if ("Invalid email or password!".equals(accessToken) || "User not found!".equals(accessToken)) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(accessToken);
+            // Chốt chặn nếu tài khoản gõ sai mật khẩu/sai email (tránh lưu chữ lỗi vào
+            // localStorage)
+            if ("Invalid email or password!".equals(accessToken) || "User not found!".equals(accessToken)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(accessToken);
+            }
+
+            // 2. Tìm User trong DB dựa vào Email đăng nhập để lấy ID tạo Refresh Token
+            User user = userRepository.findByEmail(request.getEmail())
+                    .orElseThrow(() -> new RuntimeException("User not found with email: " + request.getEmail()));
+
+            // 3. Tạo Refresh Token lưu xuống database
+            RefreshToken refreshToken = refreshTokenService.createRefreshToken(user.getId());
+
+            // 4. Đóng gói cả 2 mã trả về cho Frontend dưới dạng JSON
+            Map<String, String> response = new HashMap<>();
+            response.put("accessToken", accessToken);
+            response.put("refreshToken", refreshToken.getToken());
+
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException ex) {
+            String message = ex.getMessage() != null ? ex.getMessage() : "Login failed";
+            HttpStatus status = message.contains("verify") ? HttpStatus.FORBIDDEN : HttpStatus.UNAUTHORIZED;
+            return ResponseEntity.status(status).body(message);
         }
-
-        // 2. Tìm User trong DB dựa vào Email đăng nhập để lấy ID tạo Refresh Token
-        User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new RuntimeException("User not found with email: " + request.getEmail()));
-
-        // 3. Tạo Refresh Token lưu xuống database
-        RefreshToken refreshToken = refreshTokenService.createRefreshToken(user.getId());
-
-        // 4. Đóng gói cả 2 mã trả về cho Frontend dưới dạng JSON
-        Map<String, String> response = new HashMap<>();
-        response.put("accessToken", accessToken);
-        response.put("refreshToken", refreshToken.getToken());
-
-        return ResponseEntity.ok(response);
     }
 
     @PostMapping("/refresh-token")
@@ -113,6 +119,28 @@ public class AuthController {
         } else {
             return ResponseEntity.status(org.springframework.http.HttpStatus.BAD_REQUEST)
                     .body("OTP code is not correct!");
+        }
+    }
+
+    @PostMapping("/verify-signup-otp")
+    public ResponseEntity<?> verifySignupOtp(@RequestParam String email, @RequestParam String otp) {
+        try {
+            String result = authService.verifySignupOtp(email, otp);
+            return ResponseEntity.ok(java.util.Map.of("message", result));
+        } catch (Exception e) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.BAD_REQUEST)
+                    .body(e.getMessage());
+        }
+    }
+
+    @PostMapping("/resend-signup-otp")
+    public ResponseEntity<?> resendSignupOtp(@RequestParam String email) {
+        try {
+            String result = authService.resendSignupOtp(email);
+            return ResponseEntity.ok(java.util.Map.of("message", result));
+        } catch (Exception e) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.BAD_REQUEST)
+                    .body(e.getMessage());
         }
     }
 }

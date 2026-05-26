@@ -161,7 +161,7 @@ export default function UploadDocumentDialog({ open, onOpenChange, onUploadSucce
     if (storedId) return storedId;
 
     try {
-      const profileRes = await axiosClient.get("/api/users/profile");
+      const profileRes = await axiosClient.get("/api/profile");
       const profileId = profileRes.data?.id;
       if (profileId) {
         localStorage.setItem("userId", profileId);

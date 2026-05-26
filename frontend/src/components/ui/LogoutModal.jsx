@@ -2,16 +2,17 @@ import React from "react";
 import { LogOut } from "lucide-react";
 
 const LogoutModal = ({ isOpen, onClose }) => {
-
   if (!isOpen) return null;
 
-const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("accessToken"); 
-    localStorage.removeItem("refreshToken");    
-    localStorage.removeItem("user");          
-    onClose();
+  const handleLogout = () => {
+    // Clear all local storage entries on logout (including survey flags)
+    try {
+      localStorage.clear();
+    } catch (e) {
+      console.warn("Failed to clear localStorage on logout:", e);
+    }
 
+    onClose();
     window.location.href = "/login";
   };
 
@@ -19,23 +20,20 @@ const handleLogout = () => {
     // FIX: Thêm fixed cho overlay riêng biệt và overflow-y-auto để hỗ trợ màn hình nhỏ/DevTools chiếm chỗ
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
       {/* Background Overlay làm mờ phía sau */}
-      <div 
+      <div
         className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity cursor-default"
         onClick={onClose}
       ></div>
 
       {/* FIX: Thay max-w-md -> max-w-sm, p-8 -> p-6, thêm my-auto để flex căn giữa hoàn hảo không sợ mất đầu */}
       <div className="relative w-full max-w-sm transform overflow-hidden rounded-2xl bg-white p-6 text-center shadow-2xl transition-all border border-slate-100 flex flex-col items-center z-10 my-auto">
-        
         {/* Icon Logout hình tròn gradient - Tối ưu mb-6 -> mb-4, h-16 -> h-14 */}
         <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-[#f26522] to-[#ff9e67] shadow-lg shadow-[#f26522]/30 animate-bounce-short">
           <LogOut className="h-6 w-6 text-white ml-0.5" />
         </div>
 
         {/* Tiêu đề & Nội dung - Giảm size chữ và margin một chút cho vừa vặn */}
-        <h3 className="text-xl font-bold text-slate-900 mb-1">
-          Logging Out
-        </h3>
+        <h3 className="text-xl font-bold text-slate-900 mb-1">Logging Out</h3>
         <p className="text-xs font-medium text-slate-500 max-w-xs mb-6">
           Are you sure you want to log out of your account?
         </p>
@@ -67,7 +65,6 @@ const handleLogout = () => {
             You'll need to sign in again to access your account
           </p>
         </div>
-
       </div>
     </div>
   );

@@ -301,6 +301,7 @@ CREATE TABLE public.user_profiles (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone,
     school_name character varying(255),
+    school_code character varying(255),
     start_year integer,
     user_id uuid NOT NULL
 );
@@ -322,6 +323,7 @@ CREATE TABLE public.users (
     password character varying(255) NOT NULL,
     reset_token character varying(255),
     survey_completed boolean,
+    email_verified boolean DEFAULT false,
     username character varying(255) NOT NULL,
     role_id uuid
 );

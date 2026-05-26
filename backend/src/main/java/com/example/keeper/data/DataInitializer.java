@@ -51,6 +51,7 @@ public class DataInitializer implements CommandLineRunner {
                         admin.setEmail("admin@example.com");
                         admin.setPassword(passwordEncoder.encode("admin123"));
                         admin.setRole(adminRole);
+                        admin.setEmailVerified(true);
                         userRepository.save(admin);
 
                         // Khởi tạo tài khoản User (Student)
@@ -59,9 +60,10 @@ public class DataInitializer implements CommandLineRunner {
                         student.setEmail("student@example.com");
                         student.setPassword(passwordEncoder.encode("student123"));
                         student.setRole(studentRole);
+                        student.setEmailVerified(true);
                         userRepository.save(student);
 
-                        System.out.println("✅ Đã khởi tạo cấu hình Role và 2 tài khoản:");
+                        System.out.println(" Đã khởi tạo cấu hình Role và 2 tài khoản:");
                         System.out.println("   - Admin ($ADMIN) : admin / admin123");
                         System.out.println("   - Student ($STUDENT) : student / student123");
                 } else {

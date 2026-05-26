@@ -2,6 +2,7 @@ package com.example.keeper.systems.auth.entity;
 
 import com.example.keeper.systems.base.BaseEntity;
 import com.example.keeper.systems.course.entity.Course;
+import com.example.keeper.systems.profile.entity.UserProfile;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
@@ -29,6 +30,9 @@ public class User extends BaseEntity {
     private String password;
 
     private String resetToken;
+
+    @Column(name = "email_verified")
+    private boolean emailVerified = false;
 
     @Column(name = "survey_completed")
     private boolean surveyCompleted;

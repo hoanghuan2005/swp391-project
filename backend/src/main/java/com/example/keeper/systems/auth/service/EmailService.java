@@ -17,4 +17,12 @@ public class EmailService {
         message.setText("Your OTP code is: " + otp + ". Please do not share this code with anyone.");
         mailSender.send(message);
     }
+
+    public void sendSignupOtpEmail(String to, String otp) {
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setTo(to);
+        message.setSubject("Verify your account - Keeper App");
+        message.setText("Your verification code is: " + otp + ". It expires soon, please do not share this code.");
+        mailSender.send(message);
+    }
 }

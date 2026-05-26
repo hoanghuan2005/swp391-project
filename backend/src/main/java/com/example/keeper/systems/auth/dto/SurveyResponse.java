@@ -8,6 +8,8 @@ import lombok.*;
 @Builder
 public class SurveyResponse {
 
+    private String schoolCode;
+
     private String schoolName;
 
     private Integer startYear;

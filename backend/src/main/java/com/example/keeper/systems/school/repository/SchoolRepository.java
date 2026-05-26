@@ -10,5 +10,7 @@ public interface SchoolRepository extends JpaRepository<School, UUID> {
 
     Optional<School> findByCode(String code);
 
+    Optional<School> findByNameIgnoreCase(String name);
+
     boolean existsByCode(String code);
 }

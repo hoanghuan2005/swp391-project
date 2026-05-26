@@ -1,5 +1,6 @@
-package com.example.keeper.systems.auth.entity;
+package com.example.keeper.systems.profile.entity;
 
+import com.example.keeper.systems.auth.entity.User;
 import com.example.keeper.systems.base.BaseEntity;
 
 import jakarta.persistence.*;
@@ -20,6 +21,9 @@ public class UserProfile extends BaseEntity {
 
     @Column(name = "school_name")
     private String schoolName;
+
+    @Column(name = "school_code")
+    private String schoolCode;
 
     @Column(name = "start_year")
     private Integer startYear;

@@ -56,14 +56,22 @@ const SignUpPage = () => {
 
       if (response.status === 201 || response.status === 200) {
         fireSuccessConfetti();
-        alert("Sign up successful! Redirecting to login page...");
-        setTimeout(() => navigate("/login"), 1500);
+        alert("Sign up successful! Please verify the OTP sent to your email.");
+        setTimeout(
+          () =>
+            navigate("/verify-account", {
+              state: { email: formData.email, mode: "signup" },
+            }),
+          600,
+        );
       }
     } catch (error) {
       console.error("SignUp error:", error.response?.data || error.message);
-      
+
       // CẬP NHẬT: Hiện tin nhắn lỗi chi tiết từ Backend trả về để dễ debug
-      const serverMessage = error.response?.data?.message || "Sign up failed! Please check your connection.";
+      const serverMessage =
+        error.response?.data?.message ||
+        "Sign up failed! Please check your connection.";
       alert("Lỗi: " + serverMessage);
     } finally {
       setIsLoading(false);
