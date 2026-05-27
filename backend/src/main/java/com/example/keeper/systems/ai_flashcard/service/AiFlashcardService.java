@@ -2,13 +2,17 @@ package com.example.keeper.systems.ai_flashcard.service;
 
 import com.example.keeper.systems.ai_flashcard.dto.FlashcardItemDto;
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.text.PDFTextStripper;
+import org.apache.poi.xwpf.extractor.XWPFWordExtractor;
+import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Map;
@@ -27,145 +31,57 @@ public class AiFlashcardService {
     private String model;
 
     private final ObjectMapper objectMapper;
-
     private final RestTemplate restTemplate;
 
-    public List<FlashcardItemDto> generateFlashcards(
-            String textContent
-    ) {
+    public List<FlashcardItemDto> generateFlashcards(MultipartFile file, String text) throws Exception {
+        String content = text != null ? text : "";
 
-        String systemPrompt = """
-                Bạn là một chuyên gia giáo dục.
-
-                Hãy đọc đoạn văn bản sau và tạo flashcard học tập.
-
-                QUY ĐỊNH:
-                - Chỉ trả về JSON array thuần túy
-                - Không markdown
-                - Không ```json
-                - Không giải thích thêm
-
-                Format:
-
-                [
-                  {
-                    "term": "...",
-                    "definition": "..."
-                  }
-                ]
-
-                Văn bản:
-                """ + textContent;
-
-        String rawJsonAiResponse =
-                callGroqApi(systemPrompt);
-
-        System.out.println("=== AI RESPONSE ===");
-        System.out.println(rawJsonAiResponse);
-
-        if (rawJsonAiResponse == null
-                || rawJsonAiResponse.isBlank()) {
-
-            return List.of();
+        if (file != null && !file.isEmpty()) {
+            String name = file.getOriginalFilename().toLowerCase();
+            if (name.endsWith(".pdf")) {
+                content += new PDFTextStripper().getText(Loader.loadPDF(file.getBytes()));
+            } else if (name.endsWith(".docx")) {
+                content += new XWPFWordExtractor(new XWPFDocument(file.getInputStream())).getText();
+            } else {
+                content += new String(file.getBytes());
+            }
         }
 
-        String cleanJson = rawJsonAiResponse
-                .replace("```json", "")
-                .replace("```", "")
-                .trim();
+        String raw = callGroqApi("Tạo flashcard từ nội dung sau (chỉ trả về JSON array): " + content);
+        String cleanJson = raw.replaceAll("(?s).*(\\[.*\\]).*", "$1")
+                .replaceAll("\\}\\s*\\{", "}, {");
 
-        int startIndex = cleanJson.indexOf("[");
-
-        int endIndex = cleanJson.lastIndexOf("]");
-
-        if (startIndex >= 0 && endIndex >= 0) {
-
-            cleanJson =
-                    cleanJson.substring(
-                            startIndex,
-                            endIndex + 1
-                    );
-        }
-
-        try {
-
-            return objectMapper.readValue(
-                    cleanJson,
-                    new TypeReference<List<FlashcardItemDto>>() {}
-            );
-
-        } catch (Exception e) {
-
-            System.err.println(
-                    "JSON PARSE ERROR: " + e.getMessage()
-            );
-
-            System.err.println(
-                    "INVALID JSON: " + cleanJson
-            );
-
-            throw new RuntimeException(
-                    "Failed to parse AI response"
-            );
-        }
+        return objectMapper.readValue(cleanJson, new TypeReference<List<FlashcardItemDto>>() {
+        });
     }
 
-    private String callGroqApi(String prompt) {
-
+    private String callGroqApi(String content) {
         HttpHeaders headers = new HttpHeaders();
-
         headers.setContentType(MediaType.APPLICATION_JSON);
-
         headers.setBearerAuth(groqApiKey);
 
+        // System prompt là nơi quan trọng nhất để "dạy" AI trả về đúng format
+        String systemPrompt = "Bạn là chuyên gia tạo flashcard. " +
+                "Luôn trả về duy nhất 1 mảng JSON hợp lệ. " +
+                "Mỗi phần tử trong mảng bắt buộc phải có 2 trường: 'term' và 'definition'. " +
+                "Không giải thích, không markdown, không thêm bất kỳ văn bản nào ngoài JSON.";
+
         Map<String, Object> requestBody = Map.of(
-
                 "model", model,
-
                 "messages", List.of(
-
-                        Map.of(
-                                "role", "system",
-                                "content",
-                                "You are an educational flashcard AI."
-                        ),
-
-                        Map.of(
-                                "role", "user",
-                                "content", prompt
-                        )
+                        Map.of("role", "system", "content", systemPrompt),
+                        Map.of("role", "user", "content", "Nội dung: " + content)
                 ),
-
-                "temperature", 0.3
+                "temperature", 0.1
         );
 
-        HttpEntity<Map<String, Object>> entity =
-                new HttpEntity<>(requestBody, headers);
-
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
         try {
-
-            ResponseEntity<String> response =
-                    restTemplate.postForEntity(
-                            groqApiUrl,
-                            entity,
-                            String.class
-                    );
-
-            JsonNode root =
-                    objectMapper.readTree(
-                            response.getBody()
-                    );
-
-            return root.path("choices")
-                    .get(0)
-                    .path("message")
-                    .path("content")
-                    .asText();
-
+            ResponseEntity<String> response = restTemplate.postForEntity(groqApiUrl, entity, String.class);
+            return objectMapper.readTree(response.getBody())
+                    .path("choices").get(0).path("message").path("content").asText();
         } catch (Exception e) {
-
             e.printStackTrace();
-
             return "[]";
         }
     }
