@@ -26,7 +26,7 @@ import AIFlashcard from "./pages/AICreateFlashcard/AIFlashcard";
 import AIQuizPage from "./pages/AIQuiz/AIQuizPage";
 import QuizPage from "./pages/QuizPage.jsx";
 import WorkspaceOverviewPage from "./pages/workspace/WorkspaceOverviewPage";
-import OAuth2Callback from "./components/OAuth2Callback";
+import OAuth2Callback from "./pages/OAuth2Callback";
 
 function ComingSoon({ pageName }) {
   return (

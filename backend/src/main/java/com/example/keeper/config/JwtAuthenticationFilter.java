@@ -1,5 +1,6 @@
 package com.example.keeper.config;
 
+import com.example.keeper.systems.auth.entity.User;
 import com.example.keeper.systems.auth.repository.UserRepository;
 import com.example.keeper.systems.auth.service.JwtService;
 import jakarta.servlet.FilterChain;
@@ -10,11 +11,13 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Collections;
 
 @Component
 @RequiredArgsConstructor
@@ -29,39 +32,54 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             @NonNull HttpServletResponse response,
             @NonNull FilterChain filterChain
     ) throws ServletException, IOException {
-        final String authHeader = request.getHeader("Authorization");
-        final String jwt;
-        final String userEmail;
+
+        String authHeader = request.getHeader("Authorization");
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        jwt = authHeader.substring(7);
-        userEmail = jwtService.extractUsername(jwt);
+        String jwt = authHeader.substring(7);
+        String email;
 
-        if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            var user = userRepository.findByEmail(userEmail).orElseThrow();
-
-            // Tịch thu quyền truy cập nếu tài khoản bị khóa
-            if (user.isBanned()) {
-                response.sendError(HttpServletResponse.SC_FORBIDDEN, "Your account has been banned.");
-                return; // Dừng xử lý request tại đây
-            }
-
-            // Lấy quyền từ Role của User (Luôn đảm bảo có prefix ROLE_)
-            String rawRole = (user.getRole() != null) ? user.getRole().getName() : "STUDENT";
-            String roleName = rawRole.startsWith("ROLE_") ? rawRole : "ROLE_" + rawRole;
-            
-            var authority = new org.springframework.security.core.authority.SimpleGrantedAuthority(roleName);
-
-            UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                    userEmail, null, java.util.Collections.singletonList(authority)
-            );
-            authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-            SecurityContextHolder.getContext().setAuthentication(authToken);
+        try {
+            email = jwtService.extractUsername(jwt);
+        } catch (Exception e) {
+            filterChain.doFilter(request, response);
+            return;
         }
+
+        if (email == null || SecurityContextHolder.getContext().getAuthentication() != null) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        User user = userRepository.findByEmail(email).orElse(null);
+
+        if (user == null) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        if (user.isBanned()) {
+            response.sendError(HttpServletResponse.SC_FORBIDDEN, "Account banned");
+            return;
+        }
+
+        String role = user.getRole() != null ? user.getRole().getName() : "ROLE_USER";
+        if (!role.startsWith("ROLE_")) role = "ROLE_" + role;
+
+        UsernamePasswordAuthenticationToken auth =
+                new UsernamePasswordAuthenticationToken(
+                        user.getEmail(),
+                        null,
+                        Collections.singletonList(new SimpleGrantedAuthority(role))
+                );
+
+        auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+        SecurityContextHolder.getContext().setAuthentication(auth);
+
         filterChain.doFilter(request, response);
     }
 }

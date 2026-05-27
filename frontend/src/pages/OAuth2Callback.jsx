@@ -7,9 +7,15 @@ export default function OAuth2Callback() {
 
   useEffect(() => {
     const token = params.get("token");
+    const refreshToken = params.get("refreshToken");
 
     if (token) {
       localStorage.setItem("token", token);
+
+      if (refreshToken) {
+        localStorage.setItem("refreshToken", refreshToken);
+      }
+
       navigate("/home");
     } else {
       navigate("/login");
