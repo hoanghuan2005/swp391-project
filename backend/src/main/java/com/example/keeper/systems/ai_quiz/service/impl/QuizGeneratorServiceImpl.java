@@ -64,12 +64,13 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
 
         String prompt = buildPrompt(context, request.getTopic(), request.getQuestionCount(), request.getDifficulty());
         String aiResponse = grokService.generateContent(prompt);
-
-        // Clean response if AI wraps it in markdown blocks
-        String jsonContent = aiResponse.replaceAll("(?s)^.*?(\\[.*?\\]).*?$", "$1");
+        log.info("Raw AI response for quiz: {}", aiResponse);
 
         try {
-            List<ParsedQuestion> parsedQuestions = objectMapper.readValue(jsonContent, new TypeReference<List<ParsedQuestion>>() {});
+            String jsonContent = extractJsonArray(aiResponse);
+            List<ParsedQuestion> parsedQuestions =
+                    objectMapper.readValue(jsonContent, new TypeReference<List<ParsedQuestion>>() {});
+
 
             Quiz quiz = new Quiz();
             quiz.setTitle(request.getTitle());
@@ -98,6 +99,21 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
         }
     }
 
+    private String extractJsonArray(String response) {
+        if (response == null || response.isBlank()) {
+            throw new RuntimeException("AI returned an empty response.");
+        }
+
+        int start = response.indexOf('[');
+        int end = response.lastIndexOf(']');
+
+        if (start == -1 || end == -1 || start >= end) {
+            throw new RuntimeException("AI did not return a valid JSON array. Raw response: " + response);
+        }
+
+        return response.substring(start, end + 1);
+    }
+
     private String fetchContext(QuizRequest request) {
         List<DocumentChunk> chunks;
         if (request.getProjectId() != null) {
@@ -123,26 +139,32 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
         String targetTopic = topic != null && !topic.trim().isEmpty() ? topic : "the provided document context";
 
         return """
-                You are an expert educator. Create exactly %d challenging multiple-choice questions at a "%s" difficulty level about %s.
-                %s
-                
-                STRICT OUTPUT FORMAT:
-                A JSON array of objects. Do not include markdown code blocks, backticks, or extra text.
-                
-                JSON SCHEMA:
-                [
-                  {
-                    "content": "Question text here",
-                    "options": ["Choice A", "Choice B", "Choice C", "Choice D"],
-                    "correctAnswer": "Exact string from options that is correct",
-                    "explanation": "Brief pedagogical explanation"
-                  }
-                ]
-                """.formatted(
-                targetCount,
-                targetDifficulty,
-                targetTopic,
-                context.isEmpty() ? "" : "\nDOCUMENT CONTEXT:\n" + context
+            You are an expert educator.
+            Create exactly %d multiple-choice questions at "%s" difficulty about %s.
+            %s
+    
+            IMPORTANT RULES:
+            - Return ONLY valid JSON.
+            - Do NOT use markdown.
+            - Do NOT include ```json
+            - Do NOT include explanations outside the JSON array.
+            - Each question must have exactly 4 options.
+            - correctAnswer must exactly match one of the options.
+    
+            Output this exact JSON format:
+            [
+              {
+                "content": "Question text here",
+                "options": ["Choice A", "Choice B", "Choice C", "Choice D"],
+                "correctAnswer": "Choice A",
+                "explanation": "Brief explanation"
+              }
+            ]
+            """.formatted(
+                    targetCount,
+                    targetDifficulty,
+                    targetTopic,
+                    context.isEmpty() ? "" : "\nDOCUMENT CONTEXT:\n" + context
         );
     }
 

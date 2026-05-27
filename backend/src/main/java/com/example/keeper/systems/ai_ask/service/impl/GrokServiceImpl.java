@@ -77,11 +77,7 @@ public class GrokServiceImpl implements GrokService {
             }
 
         } catch (Exception e) {
-
-            e.printStackTrace();
-
-            return "Failed to get response from Groq API: "
-                    + e.getMessage();
+            throw new RuntimeException("Failed to get response from Groq API", e);
         }
 
         return "No response generated.";
