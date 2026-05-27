@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 
 import AIFlashcardGenerator from "../AICreateFlashcard/AIFlashcardGenerator.jsx";
+import AIQuizGenerator from "./AIQuizGenerator.jsx";
 
 const AIQuizPage = () => {
   const [activeView, setActiveView] = useState("menu");
@@ -23,8 +24,8 @@ const AIQuizPage = () => {
       id: "quiz",
       title: "AI Quiz",
       desc: "Practice with AI-generated quizzes and assessments.",
-      icon: <BrainCircuit className="h-5 w-5 text-slate-500" />,
-      enabled: false,
+      icon: <BrainCircuit className="h-5 w-5 text-[#f26522]" />, // Changed to orange
+      enabled: true, // Activated!
     },
   ];
 
@@ -86,7 +87,7 @@ const AIQuizPage = () => {
                 </div>
 
                 <h1 className="text-3xl font-bold tracking-tight text-slate-800">
-                  Welcome back, Huân 👋
+                  Welcome back, An Nugent 👋
                 </h1>
 
                 <p className="mt-3 text-sm leading-6 text-slate-500">
@@ -355,11 +356,7 @@ const AIQuizPage = () => {
           )}
 
           {activeView === "quiz" && (
-            <div className="rounded-2xl border border-slate-200 bg-white py-20 text-center shadow-sm">
-              <h3 className="text-lg font-medium text-slate-400">
-                AI Quiz is coming soon...
-              </h3>
-            </div>
+            <AIQuizGenerator />
           )}
         </div>
       )}
