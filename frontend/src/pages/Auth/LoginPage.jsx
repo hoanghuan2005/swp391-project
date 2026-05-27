@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useGoogleLogin } from "@react-oauth/google";
 import confetti from "canvas-confetti";
 import { jwtDecode } from "jwt-decode";
 
@@ -25,7 +24,7 @@ const LoginPage = () => {
 
   const navigate = useNavigate();
 
-  // 🛠️ HÀM XỬ LÝ ĐĂNG NHẬP THƯỜNG (CẬP NHẬT REFRESH TOKEN)
+  // HÀM XỬ LÝ ĐĂNG NHẬP THƯỜNG (CẬP NHẬT REFRESH TOKEN)
   const handleLogin = async (e) => {
     e.preventDefault();
     setIsLoading(true);
@@ -89,54 +88,9 @@ const LoginPage = () => {
     }
   };
 
-  // 🛠️ HÀM XỬ LÝ ĐĂNG NHẬP GOOGLE (CẬP NHẬT ĐỒNG BỘ REFRESH TOKEN)
-  const loginWithGoogle = useGoogleLogin({
-    onSuccess: async (tokenResponse) => {
-      try {
-        const res = await axiosClient.post("/api/auth/google", {
-          token: tokenResponse.access_token,
-        });
-
-        if (res.data) {
-          // Hỗ trợ phòng hờ cả 2 cấu trúc (accessToken mới hoặc token cũ của BE Google)
-          const accessToken =
-            res.data.accessToken || res.data.token || res.data;
-          const refreshToken = res.data.refreshToken;
-
-          localStorage.setItem("token", accessToken);
-          if (refreshToken) {
-            localStorage.setItem("refreshToken", refreshToken);
-          } else {
-            localStorage.removeItem("refreshToken");
-          }
-
-          try {
-            const decoded = jwtDecode(accessToken);
-            const role = decoded.role;
-
-            fireSuccessConfetti();
-            setTimeout(() => {
-              if (role === "ADMIN") {
-                navigate("/admin/dashboard");
-              } else {
-                navigate("/home");
-              }
-            }, 1500);
-          } catch (e) {
-            console.error("Token decode error", e);
-            navigate("/home");
-          }
-        }
-      } catch (err) {
-        console.error("Error:", err.response?.data || err.message);
-        alert(
-          "Error: " +
-            (err.response?.data?.message || "Cannot connect to Backend"),
-        );
-      }
-    },
-    onError: () => alert("Google Login Failed!"),
-  });
+  const handleGoogleLogin = () => {
+    window.location.href = "http://localhost:8080/oauth2/authorization/google";
+  };
 
   return (
     <div
@@ -243,12 +197,12 @@ const LoginPage = () => {
 
             <button
               type="button"
-              onClick={() => loginWithGoogle()}
-              className="w-full py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold rounded-xl flex items-center justify-center gap-3 transition-all transform active:scale-[0.98] shadow-sm text-sm"
+              onClick={handleGoogleLogin}
+              className="w-full py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold rounded-xl flex items-center justify-center gap-3"
             >
               <img
                 src="https://www.svgrepo.com/show/475656/google-color.svg"
-                className="w-5 h-5 bg-white rounded-full p-0.5"
+                className="w-5 h-5"
                 alt="google"
               />
               Sign in with Google

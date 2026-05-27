@@ -31,6 +31,20 @@ public class JwtService {
                 .compact();
     }
 
+    public String generateToken(String email) {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("role", "STUDENT"); // mặc định nếu chưa có user trong DB
+
+        return Jwts.builder()
+                .setClaims(claims)
+                .setSubject(email)
+                .setIssuedAt(new Date(System.currentTimeMillis()))
+                .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60 * 24))
+                .signWith(getSignInKey(), SignatureAlgorithm.HS512)
+                .compact();
+    }
+
+
     public String extractUsername(String token) {
         return Jwts.parserBuilder()
                 .setSigningKey(getSignInKey())

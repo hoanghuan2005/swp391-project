@@ -26,6 +26,7 @@ import AIFlashcard from "./pages/AICreateFlashcard/AIFlashcard";
 import AIQuizPage from "./pages/AIQuiz/AIQuizPage";
 import QuizPage from "./pages/QuizPage.jsx";
 import WorkspaceOverviewPage from "./pages/workspace/WorkspaceOverviewPage";
+import OAuth2Callback from "./components/OAuth2Callback";
 
 function ComingSoon({ pageName }) {
   return (
@@ -50,6 +51,7 @@ function App() {
         <Route path="/verify-account" element={<VerifyOTPPage />} />
         <Route path="/change-password" element={<ChangePasswordPage />} />
         <Route path="/survey" element={<Survey />} />
+        <Route path="/oauth2/callback" element={<OAuth2Callback />} />
 
         {/* (Student) Dashboard layout */}
         <Route element={<MainLayout />}>

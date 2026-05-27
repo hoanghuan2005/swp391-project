@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { Mail, Lock, Eye, EyeOff, User, ShieldCheck } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useGoogleLogin } from "@react-oauth/google";
 import confetti from "canvas-confetti";
 
 import axiosClient from "../../api/axiosClient";
@@ -78,24 +77,9 @@ const SignUpPage = () => {
     }
   };
 
-  const signupWithGoogle = useGoogleLogin({
-    onSuccess: async (tokenResponse) => {
-      try {
-        const res = await axiosClient.post("/api/auth/google", {
-          token: tokenResponse.access_token,
-        });
-
-        if (res.data.token) {
-          localStorage.setItem("token", res.data.token);
-          fireSuccessConfetti();
-          setTimeout(() => navigate("/dashboard"), 1500);
-        }
-      } catch (err) {
-        alert("Error connecting while signing up with Google!");
-      }
-    },
-    onError: () => alert("Google Sign Up Failed!"),
-  });
+  const signupWithGoogle = () => {
+    window.location.href = "http://localhost:8080/oauth2/authorization/google";
+  };
 
   return (
     <div
@@ -252,7 +236,7 @@ const SignUpPage = () => {
 
             <button
               type="button"
-              onClick={() => signupWithGoogle()}
+              onClick={signupWithGoogle}
               className="w-full py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold rounded-xl flex items-center justify-center gap-3 transition-all transform active:scale-[0.98] shadow-sm text-sm"
             >
               <img

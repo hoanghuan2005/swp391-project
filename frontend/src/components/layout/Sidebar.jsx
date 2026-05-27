@@ -36,6 +36,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronDown,
+  LayoutDashboard
 } from "lucide-react";
 import UploadDocumentDialog from "@/components/documents/UploadDocumentDialog";
 
@@ -705,7 +706,7 @@ export default function Sidebar({ isOpen = true }) {
         </SidebarDropdown>
 
         {/* Workspace */}
-        <SidebarDropdown icon={FolderOpen} label="Workspace" isOpen={isOpen}>
+        <SidebarDropdown icon={LayoutDashboard} label="Workspace" isOpen={isOpen}>
           {workspaces.map((workspace) => (
             <Button
               key={workspace.id}
