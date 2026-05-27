@@ -14,7 +14,7 @@ import { getProjectDetail, getSharedProject } from "@/api/projectApi";
 import { askAi } from "@/api/aiApi";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import ChatInterface from "@/components/chat/ChatInterface"; // Import our clean component
+import ChatInterface from "@/components/chat/ChatInterface"; 
 
 export default function ProjectWorkspacePage() {
   const { projectId, token } = useParams();
@@ -30,6 +30,9 @@ export default function ProjectWorkspacePage() {
   
   const [isSending, setIsSending] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  // NEW: Determine if this is the standalone shared view or the layout view
+  const isSharedView = !!token;
 
   const fetchProject = useCallback(async () => {
     try {
@@ -116,9 +119,16 @@ export default function ProjectWorkspacePage() {
   }
 
   return (
-    <div className="h-[calc(102vh-80px)] flex overflow-hidden bg-[#fafafa] rounded-xl -mx-8 -my-6">
+    // NEW: Conditional styling wrapper
+    <div 
+      className={`flex overflow-hidden bg-[#fafafa] ${
+        isSharedView 
+          ? "h-screen w-full absolute inset-0 z-50" // Standalone mode: Force full screen and sit on top of everything
+          : "h-[calc(102vh-80px)] rounded-xl -mx-8 -my-6" // Nested layout mode: Use negative margins
+      }`}
+    >
       {/* LEFT SIDEBAR: Project Info & Documents */}
-      <aside className="w-[320px] border-r border-slate-200 bg-white flex flex-col">
+      <aside className="w-[320px] border-r border-slate-200 bg-white flex flex-col shrink-0">
         <div className="p-5 border-b border-slate-100">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 rounded-2xl bg-[#f26522]/10 flex items-center justify-center shrink-0">
@@ -183,14 +193,17 @@ export default function ProjectWorkspacePage() {
         </ScrollArea>
       </aside>
 
-      <ChatInterface 
-        title="AI Study Partner"
-        subtitle="Multi-document Context Active"
-        messages={messages}
-        isSending={isSending}
-        onSendMessage={handleSend}
-        showUploadButton={false} 
-      />
+      {/* RIGHT SIDE: AI Chat */}
+      <div className="flex-1 flex flex-col min-w-0">
+        <ChatInterface 
+          title="AI Study Partner"
+          subtitle="Multi-document Context Active"
+          messages={messages}
+          isSending={isSending}
+          onSendMessage={handleSend}
+          showUploadButton={false} 
+        />
+      </div>
     </div>
   );
 }
