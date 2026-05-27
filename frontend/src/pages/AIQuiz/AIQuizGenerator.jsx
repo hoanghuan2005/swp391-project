@@ -57,32 +57,72 @@ export default function AIQuizGenerator() {
   };
 
   const handleGenerateQuiz = async () => {
-    if (!inputText.trim() && !file && !libraryDoc) return;
+    if (!inputText.trim() && !file && !libraryDoc) {
+      toast.error("Please enter a topic, upload a file, or select a document.");
+      return;
+    }
     
     setIsGenerating(true);
     
     try {
+      let finalDocumentId = libraryDoc ? libraryDoc.id : null;
+      let documentTitle = libraryDoc ? (libraryDoc.title || libraryDoc.name) : null;
+
+      // 1. If a local file is selected, upload it first
+      if (file && !finalDocumentId) {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("title", file.name);
+        formData.append("visibility", "PRIVATE");
+        formData.append("courseCode", "QUIZ"); // Required by your backend endpoint
+
+        // Upload using existing client (handles JWT token automatically)
+        const uploadResponse = await axiosClient.post("/api/documents/upload", formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+        
+        finalDocumentId = uploadResponse.data.id;
+        documentTitle = file.name;
+
+        // Briefly wait to ensure backend CompletableFuture chunking finishes
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // Let the rest of the app know a document was uploaded
+        window.dispatchEvent(new CustomEvent("documents:uploaded"));
+      }
+
+      // 2. Structure the payload for the generation API
+      let title = "Custom Topic Quiz";
+      if (documentTitle) {
+        title = `Quiz: ${documentTitle}`;
+      } else if (inputText) {
+        const shortened = inputText.trim().slice(0, 30);
+        title = `Quiz: ${shortened}${inputText.length > 30 ? "..." : ""}`;
+      }
+
       const payload = {
-        title: libraryDoc ? `Quiz: ${libraryDoc.title || libraryDoc.name}` : `Quiz: ${inputText.slice(0, 20)}...`,
-        documentId: libraryDoc ? libraryDoc.id : null,
-        projectId: null, 
+        title: title,
+        documentId: finalDocumentId,
+        projectId: null,
         questionCount: questionCount,
         difficulty: difficulty,
-        topic: inputText.trim()                                            
+        topic: inputText.trim() || null
       };
       
       console.log("Sending payload to API:", payload);
       
+      // 3. Call the generation API
       const response = await axiosClient.post("/api/quizzes/generate", payload);
       
       toast.success("Quiz generated successfully!");
       
-      // Redirect to the quiz taking page
+      clearDocument(); // Clean up state
       navigate(`/quiz/${response.data.id}`);
       
     } catch (error) {
       console.error("Failed to generate quiz:", error);
-      toast.error("Failed to generate your quiz. Please try again.");
+      const errorMsg = error.response?.data?.message || "Failed to generate your quiz. Please try again.";
+      toast.error(errorMsg);
     } finally {
       setIsGenerating(false);
     }
