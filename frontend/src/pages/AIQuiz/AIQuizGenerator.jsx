@@ -1,27 +1,94 @@
-import React, { useState } from "react";
-import { BrainCircuit, BookOpen, Settings, Loader2, Target } from "lucide-react";
+import React, { useState, useRef } from "react";
+import { 
+  BrainCircuit, 
+  BookOpen, 
+  Settings, 
+  Loader2, 
+  Target, 
+  UploadCloud, 
+  Library, 
+  FileText, 
+  X 
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import SelectExistingDocumentModal from "@/components/documents/SelectExistingDocument";
+import axiosClient from "@/api/axiosClient";
+import { toast } from "react-hot-toast";
+import { useNavigate } from "react-router-dom"; // Added for redirecting later
 
 export default function AIQuizGenerator() {
-  const [topic, setTopic] = useState("");
+  const [inputText, setInputText] = useState("");
+  const [file, setFile] = useState(null);
+  const [libraryDoc, setLibraryDoc] = useState(null); 
   const [questionCount, setQuestionCount] = useState(10);
   const [difficulty, setDifficulty] = useState("Medium");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isLibraryModalOpen, setIsLibraryModalOpen] = useState(false);
+  
+  const fileInputRef = useRef(null);
+  const navigate = useNavigate();
+
+  const handleFileSelect = (e) => {
+    const selectedFile = e.target.files[0];
+    if (selectedFile) {
+      setFile(selectedFile);
+      setLibraryDoc(null); 
+    }
+  };
+
+  const handleLibrarySelect = () => {
+    // Open the modal instead of setting a mock document
+    setIsLibraryModalOpen(true);
+  };
+
+  const handleLibrarySuccess = (selectedDoc) => {
+    // When the modal passes back the selected document, update the state
+    if (selectedDoc) {
+      setLibraryDoc(selectedDoc);
+      setFile(null); // Clear local file if library doc is selected
+      setIsLibraryModalOpen(false);
+    }
+  };
+
+  const clearDocument = () => {
+    setFile(null);
+    setLibraryDoc(null);
+  };
 
   const handleGenerateQuiz = async () => {
-    if (!topic.trim()) return;
+    if (!inputText.trim() && !file && !libraryDoc) return;
     
     setIsGenerating(true);
-    // TODO: Connect this to your Spring Boot API
-    console.log("Generating quiz for:", { topic, questionCount, difficulty });
     
-    // Simulating API wait time
-    setTimeout(() => {
+    try {
+      const payload = {
+        title: libraryDoc ? `Quiz: ${libraryDoc.title || libraryDoc.name}` : `Quiz: ${inputText.slice(0, 20)}...`,
+        documentId: libraryDoc ? libraryDoc.id : null,
+        projectId: null, 
+        questionCount: questionCount,
+        difficulty: difficulty,
+        topic: inputText.trim()                                            
+      };
+      
+      console.log("Sending payload to API:", payload);
+      
+      const response = await axiosClient.post("/api/quizzes/generate", payload);
+      
+      toast.success("Quiz generated successfully!");
+      
+      // Redirect to the quiz taking page
+      navigate(`/quiz/${response.data.id}`);
+      
+    } catch (error) {
+      console.error("Failed to generate quiz:", error);
+      toast.error("Failed to generate your quiz. Please try again.");
+    } finally {
       setIsGenerating(false);
-      alert("API Hookup Next: Quiz generated! Time to take the test.");
-    }, 2000);
+    }
   };
+
+  const activeDocument = file || libraryDoc;
 
   return (
     <div className="w-full max-w-3xl mx-auto">
@@ -31,24 +98,68 @@ export default function AIQuizGenerator() {
           <BrainCircuit className="w-8 h-8 text-[#f26522]" />
         </div>
         <h2 className="text-3xl font-bold text-slate-800 tracking-tight">Generate AI Quiz</h2>
-        <p className="text-slate-500 mt-2">Test your knowledge. Let AI create a custom practice exam for you.</p>
+        <p className="text-slate-500 mt-2">Test your knowledge. Let AI create a custom practice exam from your materials.</p>
       </div>
 
       {/* Configuration Form */}
       <div className="bg-white rounded-[24px] border border-slate-200 p-8 shadow-sm">
         
-        {/* Topic Input */}
+        {/* Source Input Area */}
         <div className="mb-8">
           <label className="flex items-center gap-2 text-sm font-bold text-slate-700 mb-3">
             <BookOpen className="w-4 h-4 text-[#f26522]" /> 
-            What do you want to be quizzed on?
+            What should the quiz be about?
           </label>
-          <Input 
-            value={topic}
-            onChange={(e) => setTopic(e.target.value)}
-            placeholder="e.g., Object Oriented Programming in Java, React Hooks..."
-            className="h-14 rounded-xl border-slate-200 bg-slate-50 focus-visible:ring-[#f26522] text-base"
-          />
+          
+          <div className="border border-slate-200 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-[#f26522] transition-all bg-slate-50">
+            <textarea 
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              placeholder="Paste your notes, type a topic (e.g., 'Java OOP concepts'), or select a document below..."
+              className="w-full h-24 p-4 bg-transparent outline-none resize-none text-slate-700"
+            />
+            
+            {/* Active Document Indicator */}
+            {activeDocument && (
+              <div className="px-4 pb-3">
+                <div className="flex items-center gap-2 p-2 bg-white border border-slate-200 rounded-lg w-fit text-sm animate-in fade-in">
+                  <FileText className="h-4 w-4 text-[#f26522]" />
+                  <span className="truncate max-w-[200px] font-medium text-slate-700">
+                    {activeDocument.title || activeDocument.name}
+                  </span>
+                  <X 
+                    className="h-4 w-4 text-slate-400 cursor-pointer hover:text-red-500 transition-colors" 
+                    onClick={clearDocument} 
+                  />
+                </div>
+              </div>
+            )}
+            
+            {/* Document Action Bar */}
+            <div className="flex items-center gap-2 px-4 py-3 bg-white border-t border-slate-100">
+              <input type="file" ref={fileInputRef} onChange={handleFileSelect} className="hidden" />
+              
+              <Button 
+                variant="outline" 
+                size="sm"
+                className="rounded-lg border-slate-200 hover:bg-slate-50 text-slate-600 h-9" 
+                onClick={() => fileInputRef.current.click()}
+              >
+                <UploadCloud className="h-4 w-4 mr-2 text-slate-400" /> 
+                Upload File
+              </Button>
+
+              <Button 
+                variant="outline" 
+                size="sm"
+                className="rounded-lg border-slate-200 hover:bg-slate-50 text-slate-600 h-9" 
+                onClick={handleLibrarySelect}
+              >
+                <Library className="h-4 w-4 mr-2 text-slate-400" /> 
+                Choose from Library
+              </Button>
+            </div>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
@@ -102,7 +213,7 @@ export default function AIQuizGenerator() {
         {/* Generate Action */}
         <Button 
           onClick={handleGenerateQuiz}
-          disabled={!topic.trim() || isGenerating}
+          disabled={(!inputText.trim() && !file && !libraryDoc) || isGenerating}
           className="w-full h-14 rounded-xl bg-[#f26522] hover:bg-[#de5b0b] text-white font-bold text-lg shadow-sm"
         >
           {isGenerating ? (
@@ -118,6 +229,13 @@ export default function AIQuizGenerator() {
           )}
         </Button>
       </div>
+
+      {/* Library Selection Modal */}
+      <SelectExistingDocumentModal 
+        open={isLibraryModalOpen}
+        onOpenChange={setIsLibraryModalOpen}
+        onSuccess={handleLibrarySuccess}
+      />
     </div>
   );
 }

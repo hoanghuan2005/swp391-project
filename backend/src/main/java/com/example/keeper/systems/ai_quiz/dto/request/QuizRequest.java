@@ -19,9 +19,15 @@ public class QuizRequest {
 
     private UUID projectId;
 
+    private String topic;
+
+    private Integer questionCount;
+
+    private String difficulty;
+
     @JsonIgnore
-    @AssertTrue(message = "Either documentId or projectId must be provided")
-    public boolean isDocumentOrProjectPresent() {
-        return documentId != null || projectId != null;
+    @AssertTrue(message = "Either documentId, projectId, or topic must be provided")
+    public boolean isValidRequest() {
+        return documentId != null || projectId != null || (topic != null && !topic.trim().isEmpty());
     }
 }
