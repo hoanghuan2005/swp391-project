@@ -1,5 +1,6 @@
 package com.example.keeper.systems.ai_quiz.service.impl;
 
+import com.example.keeper.systems.ai_ask.service.GrokService;
 import com.example.keeper.systems.ai_ask.entity.DocumentChunk;
 import com.example.keeper.systems.ai_ask.repository.DocumentChunkRepository;
 import com.example.keeper.systems.auth.entity.User;
@@ -35,6 +36,7 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
     private final ProjectRepository projectRepository;
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
+    private final GrokService grokService;
 
     @Override
     @Transactional
@@ -42,17 +44,33 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        String context = fetchContext(request);
+        String context = "";
+        if (request.getDocumentId() != null || request.getProjectId() != null) {
+            context = fetchContext(request);
+        }
 
-//        String aiResponse = geminiService.ask(buildPrompt(context));
-        String aiResponse = "";
-        
-        // Clean response if AI wraps it in markdown blocks
-//        String jsonContent = aiResponse.replaceAll("(?s)^.*?(\\[.*?\\]).*?$", "$1");
-        String jsonContent = "";
+        // --- NEW SAFETY CHECK ---
+        // If the document hasn't been vectorized yet (0 chunks) AND the user didn't type a topic
+        if (context.trim().isEmpty() && (request.getTopic() == null || request.getTopic().trim().isEmpty())) {
+            // Fall back to using the document's title as the topic so Gemini doesn't crash
+            String fallbackTopic = request.getTitle();
+            if (fallbackTopic != null && fallbackTopic.startsWith("Quiz: ")) {
+                fallbackTopic = fallbackTopic.replace("Quiz: ", "").trim();
+            }
+            request.setTopic(fallbackTopic);
+            log.warn("Document chunks were empty. Falling back to topic: {}", fallbackTopic);
+        }
+        // ------------------------
+
+        String prompt = buildPrompt(context, request.getTopic(), request.getQuestionCount(), request.getDifficulty());
+        String aiResponse = grokService.generateContent(prompt);
+        log.info("Raw AI response for quiz: {}", aiResponse);
 
         try {
-            List<ParsedQuestion> parsedQuestions = objectMapper.readValue(jsonContent, new TypeReference<List<ParsedQuestion>>() {});
+            String jsonContent = extractJsonArray(aiResponse);
+            List<ParsedQuestion> parsedQuestions =
+                    objectMapper.readValue(jsonContent, new TypeReference<List<ParsedQuestion>>() {});
+
 
             Quiz quiz = new Quiz();
             quiz.setTitle(request.getTitle());
@@ -76,9 +94,24 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
             return mapToResponse(savedQuiz);
 
         } catch (Exception e) {
-            log.error("Failed to parse AI generated quiz", e);
+            log.error("Failed to parse AI generated quiz. AI Response: {}", aiResponse, e);
             throw new RuntimeException("AI failed to generate a valid quiz structure. Please try again.");
         }
+    }
+
+    private String extractJsonArray(String response) {
+        if (response == null || response.isBlank()) {
+            throw new RuntimeException("AI returned an empty response.");
+        }
+
+        int start = response.indexOf('[');
+        int end = response.lastIndexOf(']');
+
+        if (start == -1 || end == -1 || start >= end) {
+            throw new RuntimeException("AI did not return a valid JSON array. Raw response: " + response);
+        }
+
+        return response.substring(start, end + 1);
     }
 
     private String fetchContext(QuizRequest request) {
@@ -100,26 +133,39 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
         return combined.length() > 20000 ? combined.substring(0, 20000) : combined;
     }
 
-    private String buildPrompt(String context) {
-        return """
-                You are an expert educator. Based on the following DOCUMENT context, create exactly 5 challenging multiple-choice questions.
-                
-                STRICT OUTPUT FORMAT:
-                A JSON array of objects. Do not include markdown code blocks, backticks, or extra text.
-                
-                JSON SCHEMA:
-                [
-                  {
-                    "content": "Question text here",
-                    "options": ["Choice A", "Choice B", "Choice C", "Choice D"],
-                    "correctAnswer": "Exact string from options that is correct",
-                    "explanation": "Brief pedagogical explanation"
-                  }
-                ]
+    private String buildPrompt(String context, String topic, Integer count, String difficulty) {
+        int targetCount = count != null ? count : 5;
+        String targetDifficulty = difficulty != null ? difficulty : "Medium";
+        String targetTopic = topic != null && !topic.trim().isEmpty() ? topic : "the provided document context";
 
-                DOCUMENT CONTEXT:
-                %s
-                """.formatted(context);
+        return """
+            You are an expert educator.
+            Create exactly %d multiple-choice questions at "%s" difficulty about %s.
+            %s
+    
+            IMPORTANT RULES:
+            - Return ONLY valid JSON.
+            - Do NOT use markdown.
+            - Do NOT include ```json
+            - Do NOT include explanations outside the JSON array.
+            - Each question must have exactly 4 options.
+            - correctAnswer must exactly match one of the options.
+    
+            Output this exact JSON format:
+            [
+              {
+                "content": "Question text here",
+                "options": ["Choice A", "Choice B", "Choice C", "Choice D"],
+                "correctAnswer": "Choice A",
+                "explanation": "Brief explanation"
+              }
+            ]
+            """.formatted(
+                    targetCount,
+                    targetDifficulty,
+                    targetTopic,
+                    context.isEmpty() ? "" : "\nDOCUMENT CONTEXT:\n" + context
+        );
     }
 
     private QuizResponse mapToResponse(Quiz quiz) {

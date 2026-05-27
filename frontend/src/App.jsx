@@ -24,7 +24,7 @@ import AskAIPage from "./pages/AskAIPage";
 import ProjectWorkspacePage from "./pages/workspace/ProjectWorkspacePage";
 import AIFlashcard from "./pages/AICreateFlashcard/AIFlashcard";
 import AIQuizPage from "./pages/AIQuiz/AIQuizPage";
-import QuizPage from "./pages/QuizPage.jsx";
+import AIQuizTakePage from "./pages/AIQuiz/AIQuizTakePage";
 import WorkspaceOverviewPage from "./pages/workspace/WorkspaceOverviewPage";
 import OAuth2Callback from "./pages/OAuth2Callback";
 
@@ -71,7 +71,7 @@ function App() {
             element={<ComingSoon pageName="Projects" />}
           />
           <Route path="/courses/:id" element={<CourseDetailPage />} />
-          <Route path="/quiz/:id" element={<QuizPage />} />
+          <Route path="/quiz/:id" element={<AIQuizTakePage />} />
           <Route path="/flashcard" element={<AIFlashcard />} />
           <Route
             path="/workspace/:projectId"

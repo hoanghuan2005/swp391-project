@@ -17,14 +17,17 @@ import { toast } from "react-hot-toast";
 export default function SelectExistingDocumentModal({
   open,
   onOpenChange,
-  projectId,
-  onSuccess,
+  projectId, // Optional: if provided, works as multi-select project linker
+  onSuccess,  // Passes data back to parent component upon completion
 }) {
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDocIds, setSelectedDocIds] = useState([]);
   const [isLinking, setIsLinking] = useState(false);
+
+  // If projectId is missing, we are using this modal as a single-file picker (e.g., for Quizzes)
+  const isSelectionOnlyMode = !projectId;
 
   // Fetch user's existing documents when the modal opens
   useEffect(() => {
@@ -38,7 +41,6 @@ export default function SelectExistingDocumentModal({
   const fetchMyDocuments = async () => {
     try {
       setLoading(true);
-      // Using the same endpoint from your MyLibrary page!
       const response = await axiosClient.get("/api/documents/my-uploads");
       setDocuments(response.data || []);
     } catch (error) {
@@ -50,35 +52,48 @@ export default function SelectExistingDocumentModal({
   };
 
   const toggleSelection = (docId) => {
-    setSelectedDocIds((prev) =>
-      prev.includes(docId)
-        ? prev.filter((id) => id !== docId)
-        : [...prev, docId]
-    );
+    setSelectedDocIds((prev) => {
+      if (isSelectionOnlyMode) {
+        // Single selection behavior: clicking toggles or replaces
+        return prev.includes(docId) ? [] : [docId];
+      } else {
+        // Multi selection behavior (original project workspace logic)
+        return prev.includes(docId)
+          ? prev.filter((id) => id !== docId)
+          : [...prev, docId];
+      }
+    });
   };
 
-  const handleLinkDocuments = async () => {
+  const handleAction = async () => {
     if (selectedDocIds.length === 0) {
-      toast.error("Please select at least one document.");
+      toast.error("Please select a document.");
       return;
     }
 
-    setIsLinking(true);
-    try {
-      // Loop through selected docs and link them to the project
-      // Note: If your backend has a "bulk add" endpoint, we can swap this out!
-      for (const docId of selectedDocIds) {
-        await axiosClient.post(`/api/projects/${projectId}/documents/${docId}`);
+    if (isSelectionOnlyMode) {
+      // Flow for AI Quiz Generator: Just return the document object back to the form
+      const chosenDoc = documents.find((d) => d.id === selectedDocIds[0]);
+      if (onSuccess && chosenDoc) {
+        onSuccess(chosenDoc);
       }
-      
-      toast.success("Documents successfully added to workspace!");
-      if (onSuccess) onSuccess();
       onOpenChange(false);
-    } catch (error) {
-      console.error("Failed to link documents", error);
-      toast.error("Failed to add some documents. They might already be in this workspace.");
-    } finally {
-      setIsLinking(false);
+    } else {
+      // Flow for Workspace Page: Run the bulk project-linking API loop
+      setIsLinking(true);
+      try {
+        for (const docId of selectedDocIds) {
+          await axiosClient.post(`/api/projects/${projectId}/documents/${docId}`);
+        }
+        toast.success("Documents successfully added to workspace!");
+        if (onSuccess) onSuccess();
+        onOpenChange(false);
+      } catch (error) {
+        console.error("Failed to link documents", error);
+        toast.error("Failed to add some documents. They might already be in this workspace.");
+      } finally {
+        setIsLinking(false);
+      }
     }
   };
 
@@ -94,7 +109,9 @@ export default function SelectExistingDocumentModal({
             Choose from Library
           </DialogTitle>
           <DialogDescription>
-            Select existing documents from your library to add to this workspace.
+            {isSelectionOnlyMode 
+              ? "Select a document from your library to generate an AI quiz." 
+              : "Select existing documents from your library to add to this workspace."}
           </DialogDescription>
         </DialogHeader>
 
@@ -132,9 +149,11 @@ export default function SelectExistingDocumentModal({
                           : "border-transparent hover:border-slate-200 hover:bg-white"
                       }`}
                     >
-                      {/* Custom Checkbox UI */}
+                      {/* Custom Radio / Checkbox UI */}
                       <div
-                        className={`w-5 h-5 rounded flex items-center justify-center shrink-0 transition-colors ${
+                        className={`w-5 h-5 flex items-center justify-center shrink-0 transition-colors ${
+                          isSelectionOnlyMode ? "rounded-full" : "rounded"
+                        } ${
                           isSelected
                             ? "bg-[#f26522] border-[#f26522]"
                             : "border-2 border-slate-300 bg-white"
@@ -172,14 +191,12 @@ export default function SelectExistingDocumentModal({
             Cancel
           </Button>
           <Button
-            onClick={handleLinkDocuments}
+            onClick={handleAction}
             disabled={isLinking || selectedDocIds.length === 0}
             className="rounded-xl h-10 bg-[#f26522] hover:bg-[#de5b0b] text-white font-bold px-6"
           >
-            {isLinking ? (
-              <Loader2 className="w-4 h-4 animate-spin mr-2" />
-            ) : null}
-            Add {selectedDocIds.length > 0 ? `(${selectedDocIds.length})` : ""}
+            {isLinking && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+            {isSelectionOnlyMode ? "Select Document" : `Add (${selectedDocIds.length})`}
           </Button>
         </DialogFooter>
       </DialogContent>
