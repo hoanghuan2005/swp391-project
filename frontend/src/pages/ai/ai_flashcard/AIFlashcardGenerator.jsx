@@ -5,12 +5,7 @@ import {
   X,
   Send,
   BookOpen,
-  Plus,
-  Search,
-  History,
   Sparkles,
-  ChevronRight,
-  Loader2,
   Loader2,
 } from "lucide-react";
 
@@ -27,9 +22,7 @@ export default function AIFlashcardGenerator({ contextData }) {
   const [selectedFlashcardSet, setSelectedFlashcardSet] = useState(null);
   const [selectedDoc, setSelectedDoc] = useState(null);
   const [activeSetTitle, setActiveSetTitle] = useState(
-    
     "Generate AI Flashcards",
-  
   );
 
   const fileInputRef = useRef(null);
@@ -147,14 +140,6 @@ export default function AIFlashcardGenerator({ contextData }) {
     setActiveSetTitle("Generate AI Flashcards");
   };
 
-  const handleSelectDocument = (doc) => {
-    if (selectedDoc?.id === doc.id) {
-      setSelectedDoc(null);
-      return;
-    }
-
-    setSelectedDoc(doc);
-  };
   const handleGenerate = async () => {
     if (!inputText && !file) return;
 
@@ -185,8 +170,7 @@ export default function AIFlashcardGenerator({ contextData }) {
 
       const response = await axiosClient.post(
         "/api/ai_flashcard/generate",
-        formData
-,
+        formData,
       );
 
       const result = response.data.data || response.data;
@@ -235,7 +219,7 @@ export default function AIFlashcardGenerator({ contextData }) {
         "/api/ai_flashcard/generate-from-document",
         {
           documentId: doc.id,
-        }
+        },
       );
 
       const result = response.data.data || [];
@@ -274,7 +258,6 @@ export default function AIFlashcardGenerator({ contextData }) {
         {/* MAIN CONTENT */}
         {/* ================================================= */}
         <div className="relative flex-1 overflow-y-auto bg-slate-50/40">
-
           {/* LOADING */}
           {isGenerating && flashcards.length === 0 && (
             <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white/80 backdrop-blur-sm">
@@ -287,7 +270,6 @@ export default function AIFlashcardGenerator({ contextData }) {
           )}
 
           <div className="mx-auto max-w-5xl p-6">
-
             {/* HEADER */}
             <div className="mb-6">
               <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-orange-100 bg-orange-50 px-3 py-1 text-xs font-medium text-[#f26522]">
@@ -301,7 +283,8 @@ export default function AIFlashcardGenerator({ contextData }) {
 
               {flashcards.length === 0 && (
                 <p className="mt-2 text-sm leading-6 text-slate-500">
-                  Paste your notes or upload documents to instantly create study flashcards with AI.
+                  Paste your notes or upload documents to instantly create study
+                  flashcards with AI.
                 </p>
               )}
             </div>
@@ -309,7 +292,6 @@ export default function AIFlashcardGenerator({ contextData }) {
             {/* GENERATOR */}
             {flashcards.length === 0 && (
               <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-
                 <textarea
                   rows={6}
                   placeholder="Paste your lesson content..."
@@ -333,7 +315,6 @@ export default function AIFlashcardGenerator({ contextData }) {
                 )}
 
                 <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
-
                   <input
                     type="file"
                     ref={fileInputRef}
@@ -344,9 +325,7 @@ export default function AIFlashcardGenerator({ contextData }) {
                   />
 
                   <button
-                    onClick={() =>
-                      fileInputRef.current.click()
-                    }
+                    onClick={() => fileInputRef.current.click()}
                     className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
                   >
                     <UploadCloud className="h-4 w-4" />
@@ -364,9 +343,7 @@ export default function AIFlashcardGenerator({ contextData }) {
                       <Send className="h-4 w-4" />
                     )}
 
-                    {isGenerating
-                      ? "Generating..."
-                      : "Generate Flashcards"}
+                    {isGenerating ? "Generating..." : "Generate Flashcards"}
                   </button>
                 </div>
               </div>
@@ -375,9 +352,7 @@ export default function AIFlashcardGenerator({ contextData }) {
             {/* RESULTS */}
             {flashcards.length > 0 && (
               <div className="mt-4 animate-in slide-in-from-bottom-4 duration-500">
-
                 <div className="mb-5 flex items-center justify-between">
-
                   <div>
                     <h2 className="text-xl font-semibold text-slate-800">
                       Your Study Cards
@@ -389,7 +364,6 @@ export default function AIFlashcardGenerator({ contextData }) {
                   </div>
 
                   <div className="flex gap-3">
-
                     <button
                       onClick={handleReset}
                       className="h-9 rounded-xl border border-slate-200 px-4 text-sm font-medium transition hover:bg-slate-50"
@@ -418,7 +392,6 @@ export default function AIFlashcardGenerator({ contextData }) {
             {/* EMPTY */}
             {!isGenerating && flashcards.length === 0 && (
               <div className="mt-10 flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white/60 py-20 text-center">
-
                 <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-orange-50">
                   <BookOpen className="h-7 w-7 text-[#f26522]" />
                 </div>
