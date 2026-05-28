@@ -3,7 +3,8 @@ import axios from 'axios';
 const axiosClient = axios.create({
   baseURL: "http://localhost:8080",
   timeout: 20000,
-  withCredentials: true,
+  // TẠM TẮT DÒNG NÀY ĐỂ TRÁNH LỖI CORS 401
+  // withCredentials: true, 
   headers: {
     "Content-Type": "application/json",
   },
@@ -14,6 +15,15 @@ axiosClient.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+
+  // 🔥 ĐOẠN CODE FIX LỖI UPLOAD FILE NẰM Ở ĐÂY:
+  // Nếu dữ liệu gửi đi là FormData (chứa file hoặc chữ cấu hình dạng multipart),
+  // ta phải xóa Content-Type mặc định (application/json) đi.
+  // Trình duyệt sẽ tự động thêm Content-Type: multipart/form-data kèm theo mã ranh giới (boundary) cực chuẩn.
+  if (config.data instanceof FormData) {
+    delete config.headers['Content-Type'];
+  }
+
   return config;
 }, (error) => {
   return Promise.reject(error);

@@ -8,13 +8,17 @@ import com.example.keeper.systems.document.enums.Visibility;
 import com.example.keeper.systems.document.service.DocumentService;
 import com.example.keeper.systems.auth.entity.User;
 import com.example.keeper.systems.auth.repository.UserRepository;
+
 import lombok.RequiredArgsConstructor;
+
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -28,6 +32,7 @@ public class DocumentController {
     @PostMapping
     public DocumentDetailResponse create(
             @RequestBody CreateDocumentRequest request) {
+
         Document document = documentService.create(request);
         return documentService.getDetail(document.getId());
     }
@@ -43,25 +48,36 @@ public class DocumentController {
             @RequestParam(required = false) String courseCode,
             @RequestParam(required = false) String courseName,
             @RequestParam(required = false) List<String> tagNames) {
+
         UUID resolvedUploadedById = uploadedById;
+
         if (resolvedUploadedById == null) {
-            String email = SecurityContextHolder.getContext().getAuthentication().getName();
+            String email = SecurityContextHolder.getContext()
+                    .getAuthentication()
+                    .getName();
+
             User user = userRepository.findByEmail(email)
                     .orElseThrow(() -> new RuntimeException("User not found"));
+
             resolvedUploadedById = user.getId();
         }
 
         CreateDocumentRequest request = new CreateDocumentRequest();
+
         request.setTitle(title);
         request.setDescription(description);
-        request.setVisibility(visibility != null ? visibility : Visibility.PUBLIC);
+        request.setVisibility(
+                visibility != null ? visibility : Visibility.PUBLIC);
+
         request.setUploadedById(resolvedUploadedById);
+
         request.setCourseId(courseId);
         request.setCourseCode(courseCode);
         request.setCourseName(courseName);
         request.setTagNames(tagNames);
 
         Document document = documentService.uploadAndCreate(file, request);
+
         return documentService.getDetail(document.getId());
     }
 
@@ -73,45 +89,93 @@ public class DocumentController {
     @GetMapping("/recent")
     public List<DocumentResponse> getRecentDocuments(
             @RequestParam(defaultValue = "10") int limit) {
-        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+
+        String email = SecurityContextHolder.getContext()
+                .getAuthentication()
+                .getName();
+
         return documentService.getRecentViewed(email, limit);
     }
 
     @PostMapping("/{id}/view")
     public void recordView(@PathVariable UUID id) {
-        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+
+        String email = SecurityContextHolder.getContext()
+                .getAuthentication()
+                .getName();
+
         documentService.recordView(id, email);
     }
 
     @GetMapping("/my-uploads")
     public List<DocumentResponse> getMyUploads() {
-        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+
+        String email = SecurityContextHolder.getContext()
+                .getAuthentication()
+                .getName();
+
         return documentService.getMyUploads(email);
+    }
+
+    // =========================
+    // API CHO AI FLASHCARD
+    // =========================
+
+    @GetMapping("/my-documents")
+    public ResponseEntity<?> getMyDocuments() {
+
+        List<Map<String, Object>> data = documentService.getAll()
+                .stream()
+                .map(doc -> {
+
+                    Map<String, Object> item = new java.util.HashMap<>();
+
+                    item.put("id", doc.getId());
+                    item.put("name", doc.getTitle() != null
+                            ? doc.getTitle()
+                            : "Untitled");
+
+                    item.put("course", "SWP391");
+
+                    return item;
+                })
+                .toList();
+
+        return ResponseEntity.ok(
+                Map.of("data", data)
+        );
     }
 
     @GetMapping("/{id}")
     public DocumentDetailResponse getById(
             @PathVariable UUID id) {
+
         return documentService.getDetail(id);
     }
 
     @GetMapping("/{id}/detail")
     public DocumentDetailResponse getDetail(
             @PathVariable UUID id) {
+
         return documentService.getDetail(id);
     }
 
     @DeleteMapping("/{id}")
     public Document delete(
             @PathVariable UUID id) {
+
         return documentService.delete(id);
     }
 
-    // API Tải tài liệu
+    // API tải tài liệu
     @GetMapping("/{id}/download")
-    public org.springframework.http.ResponseEntity<java.util.Map<String, String>> downloadDocument(
+    public ResponseEntity<Map<String, String>> downloadDocument(
             @PathVariable UUID id) {
+
         String fileUrl = documentService.getDownloadUrl(id);
-        return org.springframework.http.ResponseEntity.ok(java.util.Map.of("downloadUrl", fileUrl));
+
+        return ResponseEntity.ok(
+                Map.of("downloadUrl", fileUrl)
+        );
     }
 }

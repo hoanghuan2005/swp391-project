@@ -1,21 +1,36 @@
 package com.example.keeper.systems.ai_flashcard.service;
 
 import com.example.keeper.systems.ai_flashcard.dto.FlashcardItemDto;
+import com.example.keeper.systems.ai_flashcard.entity.Flashcard;
+import com.example.keeper.systems.ai_flashcard.entity.FlashcardSet;
+import com.example.keeper.systems.ai_flashcard.repository.FlashcardRepository;
+import com.example.keeper.systems.ai_flashcard.repository.FlashcardSetRepository;
+import com.example.keeper.systems.auth.entity.User;
+import com.example.keeper.systems.auth.repository.UserRepository;
+import com.example.keeper.systems.document.entity.Document;
+import com.example.keeper.systems.document.repository.DocumentRepository;
+
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import lombok.RequiredArgsConstructor;
+
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.apache.poi.xwpf.extractor.XWPFWordExtractor;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -33,11 +48,81 @@ public class AiFlashcardService {
     private final ObjectMapper objectMapper;
     private final RestTemplate restTemplate;
 
+    private final FlashcardRepository flashcardRepository;
+    private final FlashcardSetRepository flashcardSetRepository;
+    private final UserRepository userRepository;
+    private final DocumentRepository documentRepository;
+
+    // ====================================================================
+    // 1. CÁC HÀM LẤY DỮ LIỆU TỪ DATABASE CHO SIDEBAR
+    // ====================================================================
+
+    private User getAuthenticatedUser() {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+    }
+
+    public List<Map<String, Object>> getAllSetsByUser() {
+        User user = getAuthenticatedUser();
+        List<FlashcardSet> sets = flashcardSetRepository.findByUserIdOrderByCreatedAtDesc(user.getId());
+
+        return sets.stream().map(set -> {
+            // Đếm số lượng flashcard thực tế thuộc về Set này
+            long cardCount = flashcardRepository.findAll().stream()
+                    .filter(c -> c.getFlashcardSet() != null && c.getFlashcardSet().getId().equals(set.getId()))
+                    .count();
+
+            return Map.<String, Object>of(
+                    "id", set.getId(),
+                    "title", set.getTitle() != null ? set.getTitle() : "Untitled",
+                    "cards", cardCount // <--- Đã thay số 0 thành biến đếm thực tế
+            );
+        }).collect(Collectors.toList());
+    }
+
+    public List<Map<String, Object>> getAllDocumentsByUser() {
+        User user = getAuthenticatedUser();
+        List<Document> docs = documentRepository.findByUploadedById(user.getId());
+
+        return docs.stream().map(doc -> Map.<String, Object>of(
+                "id", doc.getId(),
+                "title", doc.getOriginalFileName() != null ? doc.getOriginalFileName() : "Untitled",
+                "courseCode", "General"
+        )).collect(Collectors.toList());
+    }
+
+    public Map<String, Object> getSetDetailsById(UUID setId) {
+        FlashcardSet set = flashcardSetRepository.findById(setId)
+                .orElseThrow(() -> new RuntimeException("Flashcard Set not found"));
+
+        List<Flashcard> cards = flashcardRepository.findAll()
+                .stream()
+                .filter(c -> c.getFlashcardSet() != null && c.getFlashcardSet().getId().equals(setId))
+                .collect(Collectors.toList());
+
+        return Map.of(
+                "id", set.getId(),
+                "title", set.getTitle(),
+                "flashcards", cards.stream().map(card -> Map.of(
+                        "term", card.getTerm(),
+                        "definition", card.getDefinition()
+                )).collect(Collectors.toList())
+        );
+    }
+
+    // ====================================================================
+    // 2. HÀM GENERATE FLASHCARD TỪ AI
+    // ====================================================================
+
     public List<FlashcardItemDto> generateFlashcards(MultipartFile file, String text) throws Exception {
+
         String content = text != null ? text : "";
+        Document linkedDocument = null;
 
         if (file != null && !file.isEmpty()) {
             String name = file.getOriginalFilename().toLowerCase();
+
             if (name.endsWith(".pdf")) {
                 content += new PDFTextStripper().getText(Loader.loadPDF(file.getBytes()));
             } else if (name.endsWith(".docx")) {
@@ -45,14 +130,54 @@ public class AiFlashcardService {
             } else {
                 content += new String(file.getBytes());
             }
+
+            linkedDocument = documentRepository.findAll().stream()
+                    .filter(doc -> doc.getOriginalFileName() != null &&
+                            doc.getOriginalFileName().equalsIgnoreCase(file.getOriginalFilename()))
+                    .findFirst()
+                    .orElse(null);
         }
 
-        String raw = callGroqApi("Tạo flashcard từ nội dung sau (chỉ trả về JSON array): " + content);
-        String cleanJson = raw.replaceAll("(?s).*(\\[.*\\]).*", "$1")
+        // --- ĐÃ THÊM: In log ra Console để kiểm tra nội dung đọc được ---
+        System.out.println("====== NỘI DUNG TRÍCH XUẤT ĐƯỢC TỪ FILE ======");
+        System.out.println(content);
+        System.out.println("===============================================");
+
+        // --- ĐÃ THÊM: Chặn lỗi nếu file không có chữ ---
+        if (content == null || content.trim().isEmpty()) {
+            throw new RuntimeException("Lỗi: Không tìm thấy chữ nào trong file này (File trống hoặc toàn hình ảnh).");
+        }
+
+        // --- ĐÃ SỬA: Cập nhật prompt để ép AI đọc văn bản ---
+        String raw = callGroqApi("Trích xuất các khái niệm và định nghĩa quan trọng từ văn bản sau để làm flashcard. Văn bản: \n\n" + content);
+
+        String cleanJson = raw
+                .replaceAll("(?s).*(\\[.*\\]).*", "$1")
                 .replaceAll("\\}\\s*\\{", "}, {");
 
-        return objectMapper.readValue(cleanJson, new TypeReference<List<FlashcardItemDto>>() {
-        });
+        List<FlashcardItemDto> cards = objectMapper.readValue(
+                cleanJson,
+                new TypeReference<List<FlashcardItemDto>>() {}
+        );
+
+        User user = getAuthenticatedUser();
+        FlashcardSet set = new FlashcardSet();
+        set.setTitle(linkedDocument != null ? linkedDocument.getTitle() : (file != null ? file.getOriginalFilename() : "AI Flashcard Set"));
+        set.setSourceText(content);
+        set.setUser(user);
+        set.setDocument(linkedDocument);
+
+        flashcardSetRepository.save(set);
+
+        for (FlashcardItemDto item : cards) {
+            Flashcard flashcard = new Flashcard();
+            flashcard.setTerm(item.getTerm());
+            flashcard.setDefinition(item.getDefinition());
+            flashcard.setFlashcardSet(set);
+            flashcardRepository.save(flashcard);
+        }
+
+        return cards;
     }
 
     private String callGroqApi(String content) {
@@ -60,26 +185,24 @@ public class AiFlashcardService {
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.setBearerAuth(groqApiKey);
 
-        // System prompt là nơi quan trọng nhất để "dạy" AI trả về đúng format
-        String systemPrompt = "Bạn là chuyên gia tạo flashcard. " +
-                "Luôn trả về duy nhất 1 mảng JSON hợp lệ. " +
-                "Mỗi phần tử trong mảng bắt buộc phải có 2 trường: 'term' và 'definition'. " +
-                "Không giải thích, không markdown, không thêm bất kỳ văn bản nào ngoài JSON.";
+        // --- ĐÃ SỬA: Ép cứng System Prompt không cho phép AI tự bịa nội dung ---
+        String systemPrompt = "Bạn là trợ lý AI chuyên tạo flashcard. " +
+                "Nhiệm vụ: Trích xuất các khái niệm (term) và định nghĩa (definition) TỪ ĐÚNG NỘI DUNG VĂN BẢN MÀ USER CUNG CẤP. " +
+                "Tuyệt đối KHÔNG tự bịa ra nội dung nếu văn bản không có. " +
+                "Luôn trả về duy nhất 1 mảng JSON hợp lệ, không markdown, không giải thích thêm.";
 
         Map<String, Object> requestBody = Map.of(
                 "model", model,
                 "messages", List.of(
                         Map.of("role", "system", "content", systemPrompt),
-                        Map.of("role", "user", "content", "Nội dung: " + content)
-                ),
-                "temperature", 0.1
-        );
+                        Map.of("role", "user", "content", content)),
+                "temperature", 0.1);
 
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+
         try {
             ResponseEntity<String> response = restTemplate.postForEntity(groqApiUrl, entity, String.class);
-            return objectMapper.readTree(response.getBody())
-                    .path("choices").get(0).path("message").path("content").asText();
+            return objectMapper.readTree(response.getBody()).path("choices").get(0).path("message").path("content").asText();
         } catch (Exception e) {
             e.printStackTrace();
             return "[]";

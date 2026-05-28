@@ -71,7 +71,7 @@ public class Document extends BaseEntity {
     private User uploadedBy;
 
     @ManyToOne
-    @JoinColumn(name = "course_id", nullable = false)
+    @JoinColumn(name = "course_id", nullable = true)
     private Course course;
 
     @ManyToMany
