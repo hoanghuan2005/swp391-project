@@ -81,8 +81,7 @@ public class CourseServiceImpl implements CourseService {
         Course course = getById(courseId);
 
         User user = userRepository.findById(userId)
-                .orElseThrow(() ->
-                        new RuntimeException("User not found"));
+                .orElseThrow(() -> new RuntimeException("User not found"));
 
         boolean alreadyFollowed = user.getFollowedCourses()
                 .stream()
@@ -97,11 +96,33 @@ public class CourseServiceImpl implements CourseService {
     }
 
     @Override
+    public void unfollowCourse(UUID courseId, UUID userId) {
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        user.getFollowedCourses()
+                .removeIf(course -> course.getId().equals(courseId));
+
+        userRepository.save(user);
+    }
+
+    @Override
+    public boolean isFollowing(UUID courseId, UUID userId) {
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        return user.getFollowedCourses()
+                .stream()
+                .anyMatch(course -> course.getId().equals(courseId));
+    }
+
+    @Override
     public List<Course> getMyCourses(UUID userId) {
 
         User user = userRepository.findById(userId)
-                .orElseThrow(() ->
-                        new RuntimeException("User not found"));
+                .orElseThrow(() -> new RuntimeException("User not found"));
 
         return user.getFollowedCourses();
     }

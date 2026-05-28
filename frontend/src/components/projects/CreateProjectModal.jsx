@@ -31,11 +31,14 @@ export default function CreateProjectModal({ open, onOpenChange, onSuccess }) {
       setIsSending(true);
       const newProject = await createProject({ name, description });
       toast.success("Study Workspace created!");
-      
+
       if (onSuccess) onSuccess(newProject);
+
+      // refresh sidebar workspace
+      window.dispatchEvent(new CustomEvent("workspaces:updated"));
+
       onOpenChange(false);
-      
-      // Redirect to the new workspace
+
       navigate(`/workspace/${newProject.id}`);
     } catch (error) {
       console.error("Failed to create project:", error);
@@ -76,7 +79,10 @@ export default function CreateProjectModal({ open, onOpenChange, onSuccess }) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="description" className="font-semibold text-slate-700">
+            <Label
+              htmlFor="description"
+              className="font-semibold text-slate-700"
+            >
               Description (Optional)
             </Label>
             <Textarea

@@ -36,7 +36,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronDown,
-  LayoutDashboard
+  LayoutDashboard,
 } from "lucide-react";
 import UploadDocumentDialog from "@/components/documents/UploadDocumentDialog";
 
@@ -254,7 +254,15 @@ export default function Sidebar({ isOpen = true }) {
       }
     };
 
+    // load lần đầu
     fetchFollowedCourses();
+
+    // lắng nghe event follow/unfollow
+    window.addEventListener("courses:updated", fetchFollowedCourses);
+
+    return () => {
+      window.removeEventListener("courses:updated", fetchFollowedCourses);
+    };
   }, []);
 
   useEffect(() => {
@@ -365,6 +373,12 @@ export default function Sidebar({ isOpen = true }) {
 
   useEffect(() => {
     fetchWorkspaces();
+
+    window.addEventListener("workspaces:updated", fetchWorkspaces);
+
+    return () => {
+      window.removeEventListener("workspaces:updated", fetchWorkspaces);
+    };
   }, []);
 
   const resolveUploadedById = async () => {
@@ -398,6 +412,9 @@ export default function Sidebar({ isOpen = true }) {
 
         return [...prev, course];
       });
+
+      // refresh sidebar
+      window.dispatchEvent(new CustomEvent("courses:updated"));
     } catch (error) {
       console.error("Failed to follow course", error);
     }
@@ -706,7 +723,11 @@ export default function Sidebar({ isOpen = true }) {
         </SidebarDropdown>
 
         {/* Workspace */}
-        <SidebarDropdown icon={LayoutDashboard} label="Workspace" isOpen={isOpen}>
+        <SidebarDropdown
+          icon={LayoutDashboard}
+          label="Workspace"
+          isOpen={isOpen}
+        >
           {workspaces.map((workspace) => (
             <Button
               key={workspace.id}

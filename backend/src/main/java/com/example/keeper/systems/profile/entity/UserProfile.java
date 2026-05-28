@@ -3,6 +3,7 @@ package com.example.keeper.systems.profile.entity;
 import com.example.keeper.systems.auth.entity.User;
 import com.example.keeper.systems.base.BaseEntity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -16,6 +17,7 @@ import lombok.*;
 public class UserProfile extends BaseEntity {
 
     @OneToOne
+    @JsonIgnore
     @JoinColumn(name = "user_id", nullable = false, unique = true)
     private User user;
 

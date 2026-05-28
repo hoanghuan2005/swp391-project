@@ -26,7 +26,7 @@ import {
   Share2,
   Copy,
   Star,
-  Heart
+  Heart,
 } from "lucide-react";
 
 export default function CourseDetailPage() {
@@ -36,6 +36,7 @@ export default function CourseDetailPage() {
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [shareOpen, setShareOpen] = useState(false);
+  const [isFollowing, setIsFollowing] = useState(false);
 
   useEffect(() => {
     fetchCourse();
@@ -45,13 +46,15 @@ export default function CourseDetailPage() {
     try {
       setLoading(true);
 
-      const [courseRes, docsRes] = await Promise.all([
+      const [courseRes, docsRes, followStatusRes] = await Promise.all([
         axiosClient.get(`/api/courses/${id}`),
         axiosClient.get(`/api/courses/${id}/documents`),
+        axiosClient.get(`/api/courses/${id}/follow-status`), // Kiểm tra xem người dùng đã theo dõi khóa học chưa
       ]);
 
       setCourse(courseRes.data);
       setDocuments(docsRes.data.content || []);
+      setIsFollowing(followStatusRes.data);
     } catch (err) {
       console.error(err);
     } finally {
@@ -67,7 +70,7 @@ export default function CourseDetailPage() {
     }
   };
 
-   // Hàm xử lý tải file (Tăng view và tải về máy)
+  // Hàm xử lý tải file (Tăng view và tải về máy)
   const handleDownload = async (id, title) => {
     try {
       const res = await axiosClient.get(`/api/documents/${id}/download`);
@@ -78,6 +81,23 @@ export default function CourseDetailPage() {
     } catch (error) {
       console.error("Download failed:", error);
       alert("Error downloading document!");
+    }
+  };
+
+  const handleFollowToggle = async () => {
+    try {
+      if (isFollowing) {
+        await axiosClient.delete(`/api/courses/${id}/follow`);
+        setIsFollowing(false);
+      } else {
+        await axiosClient.post(`/api/courses/${id}/follow`);
+        setIsFollowing(true);
+      }
+
+      // refresh sidebar
+      window.dispatchEvent(new CustomEvent("courses:updated"));
+    } catch (error) {
+      console.error(error);
     }
   };
 
@@ -145,8 +165,11 @@ export default function CourseDetailPage() {
               <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mt-5">
                 {/* BUTTONS */}
                 <div className="flex flex-wrap gap-3">
-                  <Button className="rounded-full bg-[#f66810] hover:bg-[#de5b0b] h-9 px-4 text-sm shadow-sm">
-                    Follow Course
+                  <Button
+                    className="rounded-full bg-[#f66810] hover:bg-[#de5b0b] h-9 px-4 text-sm shadow-sm"
+                    onClick={handleFollowToggle}
+                  >
+                    {isFollowing ? "Unfollow Course" : "Follow Course"}
                   </Button>
 
                   <Button
@@ -194,63 +217,63 @@ export default function CourseDetailPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
           {documents.map((doc) => (
             <Card
-                  key={doc.id}
-                  className="shadow-sm border-slate-100 hover:shadow-md transition-all group flex flex-col h-full rounded-[20px] overflow-hidden bg-white"
+              key={doc.id}
+              className="shadow-sm border-slate-100 hover:shadow-md transition-all group flex flex-col h-full rounded-[20px] overflow-hidden bg-white"
+            >
+              <CardContent className="p-4 flex-1 flex flex-col">
+                {/* Thumbnail ảo mờ mờ cho đẹp */}
+                <div className="w-full aspect-[4/3] bg-slate-50 rounded-xl mb-3 -mt-4 border border-slate-200 group-hover:border-[#f26522]/20 transition-colors flex items-center justify-center text-slate-300">
+                  <FileText className="w-12 h-12" />
+                </div>
+
+                <CardTitle
+                  className="text-[15px] mb-1 font-bold text-slate-800 line-clamp-1"
+                  title={doc.title}
                 >
-                  <CardContent className="p-4 flex-1 flex flex-col">
-                    {/* Thumbnail ảo mờ mờ cho đẹp */}
-                    <div className="w-full aspect-[4/3] bg-slate-50 rounded-xl mb-3 -mt-4 border border-slate-200 group-hover:border-[#f26522]/20 transition-colors flex items-center justify-center text-slate-300">
-                      <FileText className="w-12 h-12" />
-                    </div>
+                  {doc.title || "Untitled Document"}
+                </CardTitle>
 
-                    <CardTitle
-                      className="text-[15px] mb-1 font-bold text-slate-800 line-clamp-1"
-                      title={doc.title}
-                    >
-                      {doc.title || "Untitled Document"}
-                    </CardTitle>
+                <CardDescription className="text-xs text-slate-500 font-medium mb-3 flex items-center gap-1.5">
+                  <BookOpen className="w-3.5 h-3.5" />{" "}
+                  {doc.course?.code || "General"}
+                </CardDescription>
 
-                    <CardDescription className="text-xs text-slate-500 font-medium mb-3 flex items-center gap-1.5">
-                      <BookOpen className="w-3.5 h-3.5" />{" "}
-                      {doc.course?.code || "General"}
-                    </CardDescription>
+                <div className="text-[11px] text-slate-400 -mt-1 flex justify-between items-center">
+                  <span>
+                    {new Date(doc.createdAt).toLocaleDateString("en-GB")}
+                  </span>
+                  <span>{doc.downloadCount || 0} downloads</span>
+                </div>
+              </CardContent>
 
-                    <div className="text-[11px] text-slate-400 -mt-1 flex justify-between items-center">
-                      <span>
-                        {new Date(doc.createdAt).toLocaleDateString("en-GB")}
-                      </span>
-                      <span>{doc.downloadCount || 0} downloads</span>
-                    </div>
-                  </CardContent>
+              {/* Khu vực nút bấm */}
+              <CardFooter className="-mt-3 px-4 py-3 flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => alert("Added to favorites")}
+                  className="flex-none px-2.5 rounded-xl border-slate-200 text-slate-500 hover:text-[#f22222] hover:bg-[#f22222]/10 transition-colors cursor-pointer h-9"
+                >
+                  <Heart className="w-4 h-4" />
+                </Button>
 
-                  {/* Khu vực nút bấm */}
-                  <CardFooter className="-mt-3 px-4 py-3 flex gap-2">
-                    <Button
-                      variant="outline"
-                      onClick={() => alert("Added to favorites")}
-                      className="flex-none px-2.5 rounded-xl border-slate-200 text-slate-500 hover:text-[#f22222] hover:bg-[#f22222]/10 transition-colors cursor-pointer h-9"
-                    >
-                      <Heart className="w-4 h-4" />
-                    </Button>
+                <Button
+                  asChild
+                  variant="secondary"
+                  className="flex-1 bg-slate-100 text-slate-700 hover:bg-slate-200 font-semibold text-xs rounded-xl h-9 cursor-pointer"
+                >
+                  <Link to={`/documents/${doc.id}`}>
+                    <Eye className="w-3.5 h-3.5 mr-1.5" /> View
+                  </Link>
+                </Button>
 
-                    <Button
-                      asChild
-                      variant="secondary"
-                      className="flex-1 bg-slate-100 text-slate-700 hover:bg-slate-200 font-semibold text-xs rounded-xl h-9 cursor-pointer"
-                    >
-                      <Link to={`/documents/${doc.id}`}>
-                        <Eye className="w-3.5 h-3.5 mr-1.5" /> View
-                      </Link>
-                    </Button>
-
-                    <Button
-                      onClick={() => handleDownload(doc.id, doc.title)}
-                      className="flex-1 bg-[#f26522]/10 text-[#f26522] hover:bg-[#f26522] hover:text-white font-semibold text-xs rounded-xl h-9 transition-colors cursor-pointer"
-                    >
-                      <Download className="w-3.5 h-3.5 mr-1.5" /> Download
-                    </Button>
-                  </CardFooter>
-                </Card>
+                <Button
+                  onClick={() => handleDownload(doc.id, doc.title)}
+                  className="flex-1 bg-[#f26522]/10 text-[#f26522] hover:bg-[#f26522] hover:text-white font-semibold text-xs rounded-xl h-9 transition-colors cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5 mr-1.5" /> Download
+                </Button>
+              </CardFooter>
+            </Card>
           ))}
         </div>
       </section>

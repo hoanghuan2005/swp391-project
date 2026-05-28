@@ -4,6 +4,7 @@ import com.example.keeper.systems.base.BaseEntity;
 import com.example.keeper.systems.course.entity.Course;
 import com.example.keeper.systems.profile.entity.UserProfile;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -48,6 +49,7 @@ public class User extends BaseEntity {
     private String avatarUrl;
 
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
+    @JsonIgnoreProperties("user")
     private UserProfile profile;
 
     @ManyToMany
@@ -55,6 +57,7 @@ public class User extends BaseEntity {
     private Set<Language> languages = new HashSet<>();
 
     @ManyToMany
+    @JsonIgnore
     @JoinTable(name = "user_follow_courses", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "course_id"))
     private List<Course> followedCourses = new ArrayList<>();
 }

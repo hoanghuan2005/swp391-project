@@ -27,5 +27,9 @@ public interface CourseService {
 
     void followCourse(UUID courseId, UUID userId);
 
+    void unfollowCourse(UUID courseId, UUID userId);
+
+    boolean isFollowing(UUID courseId, UUID userId);
+
     List<Course> getMyCourses(UUID userId);
 }
