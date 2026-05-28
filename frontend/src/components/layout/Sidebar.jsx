@@ -680,9 +680,9 @@ export default function Sidebar({ isOpen = true }) {
           pathname={location.pathname}
         />
         <NavItem
-          to="/ai-quiz"
+          to="/ai-tools"
           icon={BadgeCheck}
-          label="AI Quiz"
+          label="AI Tools"
           isOpen={isOpen}
           pathname={location.pathname}
         />

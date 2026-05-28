@@ -6,27 +6,29 @@ import LandingPage from "./pages/LandingPage";
 import ProfilePage from "./pages/ProfilePage";
 import MyLibrary from "./pages/MyLibrary";
 import DocumentDetailPage from "./pages/DocumentDetailPage";
-import LoginPage from "./pages/Auth/LoginPage";
-import SignUpPage from "./pages/Auth/SignUpPage";
-import VerifyOTPPage from "./pages/Auth/VerifyOTPPage";
-import ChangePasswordPage from "./pages/Auth/ChangePasswordPage";
-import ForgotPasswordPage from "./pages/Auth/ForgotPasswordPage";
+import LoginPage from "./pages/auth/LoginPage";
+import SignUpPage from "./pages/auth/SignUpPage";
+import VerifyOTPPage from "./pages/auth/VerifyOTPPage";
+import ChangePasswordPage from "./pages/auth/ChangePasswordPage";
+import ForgotPasswordPage from "./pages/auth/ForgotPasswordPage";
 import Survey from "./pages/Survey";
-import DashboardPage from "./pages/Admin/DashboardPage";
-import UserListPage from "./pages/Admin/UserListPage";
-import DocumentListPage from "./pages/Admin/DocumentListPage";
-import CatalogSchoolsPage from "./pages/Admin/CatalogSchoolsPage";
-import CatalogTagsPage from "./pages/Admin/CatalogTagsPage";
-import CatalogLanguagesPage from "./pages/Admin/CatalogLanguagesPage";
+import DashboardPage from "./pages/admin/DashboardPage";
+import UserListPage from "./pages/admin/UserListPage";
+import DocumentListPage from "./pages/admin/DocumentListPage";
+import CatalogSchoolsPage from "./pages/admin/CatalogSchoolsPage";
+import CatalogTagsPage from "./pages/admin/CatalogTagsPage";
+import CatalogLanguagesPage from "./pages/admin/CatalogLanguagesPage";
 import CourseDetailPage from "./pages/CourseDetailPage";
-import CatalogCoursesPage from "./pages/Admin/CatalogCoursesPage";
-import AskAIPage from "./pages/AskAIPage";
+import CatalogCoursesPage from "./pages/admin/CatalogCoursesPage";
+import AskAIPage from "./pages/ai/ai_ask/AskAIPage";
 import ProjectWorkspacePage from "./pages/workspace/ProjectWorkspacePage";
-import AIFlashcard from "./pages/AICreateFlashcard/AIFlashcard";
-import AIQuizPage from "./pages/AIQuiz/AIQuizPage";
-import AIQuizTakePage from "./pages/AIQuiz/AIQuizTakePage";
+import AIFlashcard from "./pages/ai/ai_flashcard/AIFlashcard";
+import AIQuizPage from "./pages/ai/ai_quiz/AIToolsPage";
+import AIQuizTakePage from "./pages/ai/ai_quiz/AIQuizTakePage";
 import WorkspaceOverviewPage from "./pages/workspace/WorkspaceOverviewPage";
 import OAuth2Callback from "./pages/OAuth2Callback";
+import AIFlashcardGenerator from "./pages/ai/ai_flashcard/AIFlashcardGenerator";
+import AIQuizGenerator from "./pages/ai/ai_quiz/AIQuizGenerator";
 
 function ComingSoon({ pageName }) {
   return (
@@ -64,7 +66,12 @@ function App() {
             element={<ComingSoon pageName="AI Notes" />}
           />
           <Route path="/ask-ai" element={<AskAIPage />} />
-          <Route path="/ai-quiz" element={<AIQuizPage />} />
+          <Route path="/ai-tools" element={<AIQuizPage />} />
+          <Route
+            path="/ai-tools/ai-flashcard"
+            element={<AIFlashcardGenerator />}
+          />
+          <Route path="/ai-tools/ai-quiz" element={<AIQuizGenerator />} />
           <Route path="/courses" element={<ComingSoon pageName="Courses" />} />
           <Route
             path="/projects"
@@ -81,13 +88,11 @@ function App() {
             path="/workspace/:projectId/ai"
             element={<ProjectWorkspacePage />}
           />
+          <Route
+            path="/workspace/shared/:token"
+            element={<ProjectWorkspacePage />}
+          />
         </Route>
-
-        {/* Public Project Workspace (No Sidebar Layout) */}
-        <Route
-          path="/workspace/shared/:token"
-          element={<ProjectWorkspacePage />}
-        />
 
         {/* Admin dashboard layout */}
         <Route element={<AdminLayout />}>
