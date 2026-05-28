@@ -68,13 +68,40 @@ public class CourseController {
 
     @PostMapping("/{id}/follow")
     public void followCourse(
-            @PathVariable UUID id
-    ) {
+            @PathVariable UUID id) {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         courseService.followCourse(id, user.getId());
+    }
+
+    @DeleteMapping("/{id}/follow")
+    public void unfollowCourse(@PathVariable UUID id) {
+
+        String email = SecurityContextHolder
+                .getContext()
+                .getAuthentication()
+                .getName();
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        courseService.unfollowCourse(id, user.getId());
+    }
+
+    @GetMapping("/{id}/follow-status")
+    public boolean isFollowing(@PathVariable UUID id) {
+
+        String email = SecurityContextHolder
+                .getContext()
+                .getAuthentication()
+                .getName();
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        return courseService.isFollowing(id, user.getId());
     }
 
     @GetMapping("/followed")

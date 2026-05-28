@@ -275,7 +275,7 @@ const AIQuizPage = () => {
 
       {/* ================= TOOL VIEW ================= */}
       {activeView !== "menu" && (
-        <div className="mx-auto max-w-6xl">
+        <div className="mx-auto max-w-6xl -mt-6">
           <button
             onClick={() => handleNavigate("menu")}
             className="mb-6 flex items-center gap-2 text-sm font-medium text-slate-500 transition hover:text-[#f26522]"
