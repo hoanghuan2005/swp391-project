@@ -45,7 +45,7 @@ public class SecurityConfig {
                                 "/login/oauth2/**",
 
                                 "/api/courses/**",
-                                "/api/documents/**",
+
                                 "/api/languages/**",
                                 "/api/schools/**",
                                 "/api/tags/**",
