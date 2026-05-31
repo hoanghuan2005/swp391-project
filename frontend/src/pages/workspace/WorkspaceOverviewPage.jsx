@@ -20,11 +20,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Link } from "react-router-dom";
-import { getProjectDetail } from "@/api/projectApi";
+import { getProjectDetail, removeDocumentFromProject } from "@/api/projectApi";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "react-hot-toast";
 import { Input } from "@/components/ui/input";
+import { Trash2 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -59,6 +60,21 @@ export default function WorkspaceOverviewPage() {
       console.error(error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRemoveDocument = async (documentId, title) => {
+    if (!window.confirm(`Are you sure you want to remove "${title}" from this workspace?`)) {
+      return;
+    }
+
+    try {
+      await removeDocumentFromProject(projectId, documentId);
+      toast.success("Document removed from workspace");
+      fetchProject();
+    } catch (error) {
+      console.error("Failed to remove document", error);
+      toast.error("Failed to remove document");
     }
   };
 
@@ -232,7 +248,7 @@ export default function WorkspaceOverviewPage() {
               filteredDocuments.map((doc) => (
                 <div
                   key={doc.id}
-                  className="flex items-center gap-4 p-4 rounded-2xl border border-slate-200 hover:border-[#f26522]/40 hover:bg-orange-50/30 transition-all"
+                  className="group flex items-center gap-4 p-4 rounded-2xl border border-slate-200 hover:border-[#f26522]/40 hover:bg-orange-50/30 transition-all"
                 >
                   <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center">
                     <FileText className="w-5 h-5 text-slate-500" />
@@ -245,12 +261,24 @@ export default function WorkspaceOverviewPage() {
                     </p>
                   </div>
 
-                  <Button
-                    variant="ghost"
-                    onClick={() => navigate(`/documents/${doc.id}`)}
-                  >
-                    Open
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl px-3"
+                      onClick={() => handleRemoveDocument(doc.id, doc.title)}
+                    >
+                      <Trash2 className="w-4 h-4 mr-1.5" />
+                      Remove
+                    </Button>
+                    
+                    <Button
+                      variant="ghost"
+                      onClick={() => navigate(`/documents/${doc.id}`)}
+                    >
+                      Open
+                    </Button>
+                  </div>
                 </div>
               ))
             )}

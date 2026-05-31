@@ -43,6 +43,21 @@ public class ProjectController {
         return projectService.addDocument(projectId, documentId, email);
     }
 
+    @DeleteMapping("/{projectId}/documents/{documentId}")
+    public ProjectDetailResponse removeDocument(
+            @PathVariable UUID projectId,
+            @PathVariable UUID documentId) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        return projectService.removeDocument(projectId, documentId, email);
+    }
+
+    @DeleteMapping("/{projectId}")
+    public ResponseEntity<Void> deleteProject(@PathVariable UUID projectId) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        projectService.delete(projectId, email);
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/shared/{token}")
     public ProjectDetailResponse getSharedProject(@PathVariable String token) {
         return projectService.getByShareToken(token);

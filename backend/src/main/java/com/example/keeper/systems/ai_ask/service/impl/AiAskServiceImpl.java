@@ -79,16 +79,29 @@ public class AiAskServiceImpl implements AiAskService {
 
         // 3. Inject Context (Project Workspace vs Single Document)
         if (request.getProjectId() != null) {
-            // Project Workspace Mode: Load all documents tied to this project
             Project project = projectRepository.findById(request.getProjectId())
                     .orElseThrow(() -> new RuntimeException("Project not found"));
 
             prompt.append("You are operating inside the Project Workspace: ").append(project.getName()).append("\n");
-            prompt.append("Use the following compiled project documentation context to answer questions:\n");
+
+            // NOTEBOOKLM SELECTION LOGIC:
+            boolean hasTargetedSelection = request.getDocumentIds() != null && !request.getDocumentIds().isEmpty();
+
+            if (hasTargetedSelection) {
+                prompt.append("Use only the following SELECTED sources chosen by the user to answer questions:\n");
+            } else {
+                prompt.append("Use the following compiled project documentation context to answer questions:\n");
+            }
+
             prompt.append("--- BEGIN PROJECT DOCS CONTEXT ---\n");
 
             if (project.getDocuments() != null && !project.getDocuments().isEmpty()) {
                 for (Document doc : project.getDocuments()) {
+                    // If the user selected specific files, skip documents that are not in that list
+                    if (hasTargetedSelection && !request.getDocumentIds().contains(doc.getId())) {
+                        continue;
+                    }
+
                     List<DocumentChunk> chunks = documentChunkRepository.findByDocumentId(doc.getId());
                     if (chunks != null && !chunks.isEmpty()) {
                         prompt.append("\n[Source Document: ").append(doc.getTitle()).append("]\n");
@@ -113,9 +126,11 @@ public class AiAskServiceImpl implements AiAskService {
                     prompt.append("Use the following document context to answer the user's questions. ")
                             .append("Prioritize document content:\n");
                     prompt.append("--- BEGIN DOCUMENT CONTEXT ---\n");
+
                     for (DocumentChunk chunk : chunks) {
                         prompt.append(chunk.getContent()).append("\n");
                     }
+
                     prompt.append("--- END DOCUMENT CONTEXT ---\n\n");
                 }
             }
@@ -128,11 +143,13 @@ public class AiAskServiceImpl implements AiAskService {
                 prompt.append(message.getRole()).append(": ").append(message.getContent()).append("\n");
             }
         } else if (conversation == null) {
-            // If operating statelessly in a workspace, just inject the current question
-            prompt.append("USER: ").append(request.getMessage()).append("\n");
+            // Fix: Fall back to a default query or trim safely if text is null
+            String userQuery = request.getMessage() != null ? request.getMessage() : "Please introduce yourself and summarize these files.";
+            prompt.append("USER: ").append(userQuery).append("\n");
         }
 
         prompt.append("ASSISTANT: ");
+
 
         // 5. Call AI Engine
         String aiAnswer = grokService.generateContent(prompt.toString()); // <-- Updated to call grokService

@@ -16,10 +16,12 @@ const AISidebar = ({
 
   selectedItem,
   selectedDoc,
+  selectedDocs,
 
   onSelectItem,
   onDeleteItem,
   onSelectDocument,
+  onDeleteDocument,
 
   onCreate,
 
@@ -60,7 +62,9 @@ const AISidebar = ({
       <SidebarDocuments
         documents={documents}
         selectedDoc={selectedDoc}
+        selectedDocs={selectedDocs}
         onSelectDocument={onSelectDocument}
+        onDeleteDocument={onDeleteDocument}
         searchDocQuery={searchDocQuery}
         setSearchDocQuery={setSearchDocQuery}
         fileInputRef={fileInputRef}

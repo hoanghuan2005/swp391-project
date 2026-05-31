@@ -25,8 +25,8 @@ export const removeDocumentFromProject = async (projectId, documentId) => {
   return response.data;
 };
 
-export const deleteProject = async (projectId) => {
-  const response = await axiosClient.delete(`/api/projects/${projectId}`);
+export const deleteProject = async (id) => {
+  const response = await axiosClient.delete(`/api/projects/${id}`);
   return response.data;
 };
 
