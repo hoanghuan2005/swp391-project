@@ -126,59 +126,61 @@ export default function SelectExistingDocumentModal({
             />
           </div>
 
-          <ScrollArea className="h-[300px] border border-slate-100 rounded-xl p-2 bg-slate-50/50">
-            {loading ? (
-              <div className="flex justify-center items-center h-full">
-                <Loader2 className="w-6 h-6 animate-spin text-[#f26522]" />
-              </div>
-            ) : filteredDocuments.length === 0 ? (
-              <div className="text-center py-10 text-slate-500 text-sm">
-                No documents found.
-              </div>
-            ) : (
-              <div className="grid gap-2">
-                {filteredDocuments.map((doc) => {
-                  const isSelected = selectedDocIds.includes(doc.id);
-                  return (
-                    <div
-                      key={doc.id}
-                      onClick={() => toggleSelection(doc.id)}
-                      className={`flex items-center gap-3 p-3 rounded-lg border transition-all cursor-pointer ${
-                        isSelected
-                          ? "border-[#f26522] bg-orange-50/50"
-                          : "border-transparent hover:border-slate-200 hover:bg-white"
-                      }`}
-                    >
-                      {/* Custom Radio / Checkbox UI */}
+          <ScrollArea className="h-[300px] border border-slate-100 rounded-xl bg-slate-50/50 overflow-hidden">
+            <div className="p-2">
+              {loading ? (
+                <div className="flex justify-center items-center h-[280px]">
+                  <Loader2 className="w-6 h-6 animate-spin text-[#f26522]" />
+                </div>
+              ) : filteredDocuments.length === 0 ? (
+                <div className="text-center py-10 text-slate-500 text-sm">
+                  No documents found.
+                </div>
+              ) : (
+                <div className="grid gap-2">
+                  {filteredDocuments.map((doc) => {
+                    const isSelected = selectedDocIds.includes(doc.id);
+                    return (
                       <div
-                        className={`w-5 h-5 flex items-center justify-center shrink-0 transition-colors ${
-                          isSelectionOnlyMode ? "rounded-full" : "rounded"
-                        } ${
+                        key={doc.id}
+                        onClick={() => toggleSelection(doc.id)}
+                        className={`flex items-center gap-3 p-3 rounded-lg border transition-all cursor-pointer ${
                           isSelected
-                            ? "bg-[#f26522] border-[#f26522]"
-                            : "border-2 border-slate-300 bg-white"
+                            ? "border-[#f26522] bg-orange-50/50"
+                            : "border-transparent hover:border-slate-200 hover:bg-white"
                         }`}
                       >
-                        {isSelected && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
-                      </div>
+                        {/* Custom Radio / Checkbox UI */}
+                        <div
+                          className={`w-5 h-5 flex items-center justify-center shrink-0 transition-colors ${
+                            isSelectionOnlyMode ? "rounded-full" : "rounded"
+                          } ${
+                            isSelected
+                              ? "bg-[#f26522] border-[#f26522]"
+                              : "border-2 border-slate-300 bg-white"
+                          }`}
+                        >
+                          {isSelected && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
+                        </div>
 
-                      <div className="w-10 h-10 rounded-xl bg-white shadow-sm border border-slate-100 flex items-center justify-center shrink-0">
-                        <FileText className="w-4 h-4 text-slate-500" />
-                      </div>
+                        <div className="w-10 h-10 rounded-xl bg-white shadow-sm border border-slate-100 flex items-center justify-center shrink-0">
+                          <FileText className="w-4 h-4 text-slate-500" />
+                        </div>
 
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-semibold text-slate-700 text-sm truncate">
-                          {doc.title}
-                        </h4>
-                        <p className="text-xs text-slate-400">
-                          {doc.fileType || "Document"}
-                        </p>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-semibold text-slate-700 text-sm truncate">
+                            {doc.title}
+                          </h4>
+                          <p className="text-xs text-slate-400">
+                            {doc.fileType || "Document"}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </ScrollArea>
         </div>
 
