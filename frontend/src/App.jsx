@@ -45,7 +45,7 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Public */}
+        {/* Public Routes */}
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignUpPage />} />
@@ -54,8 +54,8 @@ function App() {
         <Route path="/change-password" element={<ChangePasswordPage />} />
         <Route path="/survey" element={<Survey />} />
         <Route path="/oauth2/callback" element={<OAuth2Callback />} />
-
-        {/* (Student) Dashboard layout */}
+        <Route path="/workspace/shared/:token" element={<WorkspaceOverviewPage />} />
+        <Route path="/workspace/shared/:token/ai" element={<ProjectWorkspacePage />} />
         <Route element={<MainLayout />}>
           <Route path="/home" element={<Homepage />} />
           <Route path="/documents/:id" element={<DocumentDetailPage />} />
@@ -86,10 +86,6 @@ function App() {
           />
           <Route
             path="/workspace/:projectId/ai"
-            element={<ProjectWorkspacePage />}
-          />
-          <Route
-            path="/workspace/shared/:token"
             element={<ProjectWorkspacePage />}
           />
         </Route>

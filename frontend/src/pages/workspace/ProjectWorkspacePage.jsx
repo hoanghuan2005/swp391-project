@@ -68,6 +68,7 @@ export default function ProjectWorkspacePage() {
         projectId: project.id,
         documentIds: documentIdsToSend, 
         message: messageText, 
+        token: token || null,
       });
 
       setMessages((prev) => [
@@ -141,7 +142,7 @@ export default function ProjectWorkspacePage() {
         selectedDocs={selectedDocs} // Pass the array!
         onSelectItem={setActiveConversation}
         onSelectDocument={handleSelectDocument}
-        onDeleteDocument={handleDeleteDocument}
+        onDeleteDocument={isSharedView ? null : handleDeleteDocument}
         onCreate={() => toast("Workspaces use a single unified chat.", { icon: "ℹ️" })}
         searchDocQuery={searchDocQuery}
         setSearchDocQuery={setSearchDocQuery}
