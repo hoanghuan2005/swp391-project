@@ -87,6 +87,23 @@ export default function AIQuizGenerator() {
     navigate(`/quiz/${quiz.id}`);
   };
 
+  // === ĐÃ VÁ LỖI: Thêm hàm xử lý xóa bài Quiz để tránh crash ứng dụng ===
+  const handleDeleteQuiz = async (e, quizId) => {
+    e.stopPropagation();
+    if (!window.confirm("Are you sure you want to delete this quiz session?")) {
+      return;
+    }
+
+    try {
+      await axiosClient.delete(`/api/quizzes/${quizId}`);
+      toast.success("Quiz deleted successfully");
+      setQuizHistory((prev) => prev.filter((q) => q.id !== quizId));
+    } catch (error) {
+      console.error("Failed to delete quiz:", error);
+      toast.error("Failed to delete quiz session");
+    }
+  };
+
   const handleGenerateQuiz = async () => {
     if (!inputText.trim() && !file && !libraryDoc) {
       toast.error("Please enter a topic, upload a file, or select a document.");
@@ -106,11 +123,22 @@ export default function AIQuizGenerator() {
         formData.append("visibility", "PRIVATE");
         formData.append("courseCode", "QUIZ");
 
-        const uploadResponse = await axiosClient.post("/api/documents/upload", formData, {
-          headers: { "Content-Type": "multipart/form-data" },
+        const token = localStorage.getItem("token");
+
+        const uploadResponse = await fetch("http://localhost:8080/api/documents/upload", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${token}`
+          },
+          body: formData
         });
+
+        if (!uploadResponse.ok) {
+          throw new Error("Upload failed with status: " + uploadResponse.status);
+        }
         
-        finalDocumentId = uploadResponse.data.id;
+        const data = await uploadResponse.json();
+        finalDocumentId = data.id;
         documentTitle = file.name;
 
         await new Promise(resolve => setTimeout(resolve, 2000));
@@ -158,6 +186,7 @@ export default function AIQuizGenerator() {
         histories={quizHistory}
         documents={uploadedDocuments}
         onSelectItem={handleSelectQuiz}
+        onDeleteItem={handleDeleteQuiz} // Chạy mượt mà, không lo bị undefined
         onCreate={() => {
           setInputText("");
           clearDocument();

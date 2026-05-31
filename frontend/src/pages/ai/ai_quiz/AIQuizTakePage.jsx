@@ -68,6 +68,26 @@ export default function AIQuizTakePage() {
     navigate(`/quiz/${selectedQuiz.id}`);
   };
 
+  const handleDeleteQuiz = async (quizId) => {
+    if (!window.confirm("Are you sure you want to delete this quiz?")) {
+      return;
+    }
+    
+    try {
+      await axiosClient.delete(`/api/quizzes/${quizId}`);
+      toast.success("Quiz deleted successfully");
+      setQuizHistory((prev) => prev.filter((q) => q.id !== quizId));
+      
+      // Nếu xóa chính bài đang làm, chuyển về trang generator
+      if (quizId === id) {
+        navigate("/ai-tools/ai-quiz");
+      }
+    } catch (error) {
+      console.error("Failed to delete quiz:", error);
+      toast.error("Failed to delete quiz");
+    }
+  };
+
   const handleCreateNew = () => {
     navigate("/ai-tools/ai-quiz");
   };
@@ -112,6 +132,7 @@ export default function AIQuizTakePage() {
         documents={uploadedDocuments}
         selectedItem={quiz ? { id: quiz.id } : null}
         onSelectItem={handleSelectQuiz}
+        onDeleteItem={handleDeleteQuiz}
         onCreate={handleCreateNew}
         onSelectDocument={(doc) => {
            // Nếu đang ở trang làm bài mà chọn tài liệu, ta chuyển về trang generator kèm tài liệu đó
