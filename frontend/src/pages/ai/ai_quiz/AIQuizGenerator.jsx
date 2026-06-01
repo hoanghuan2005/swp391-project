@@ -1,37 +1,50 @@
 import React, { useState, useRef, useEffect } from "react";
-import { 
-  BrainCircuit, 
-  BookOpen, 
-  Settings, 
-  Loader2, 
-  Target, 
-  UploadCloud, 
-  Library, 
-  FileText, 
-  X 
+import {
+  BrainCircuit,
+  BookOpen,
+  Settings,
+  Loader2,
+  Target,
+  UploadCloud,
+  Library,
+  FileText,
+  X,
+  Plus,
+  Settings2,
+  ArrowUp,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import SelectExistingDocumentModal from "@/components/documents/SelectExistingDocument";
 import AISidebar from "@/components/ai-sidebar/AISidebar";
 import axiosClient from "@/api/axiosClient";
+import useDocuments from "@/hooks/useDocuments";
 import { toast } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 
 export default function AIQuizGenerator() {
   const [inputText, setInputText] = useState("");
   const [file, setFile] = useState(null);
-  const [libraryDoc, setLibraryDoc] = useState(null); 
+  const [libraryDoc, setLibraryDoc] = useState(null);
   const [questionCount, setQuestionCount] = useState(10);
   const [difficulty, setDifficulty] = useState("Medium");
   const [isGenerating, setIsGenerating] = useState(false);
-  const [isLibraryModalOpen, setIsLibraryModalOpen] = useState(false);
-  
+
   // Sidebar states
   const [quizHistory, setQuizHistory] = useState([]);
-  const [uploadedDocuments, setUploadedDocuments] = useState([]);
-  const [isSidebarLoading, setIsSidebarLoading] = useState(false);
+  const {
+    documents: uploadedDocuments,
+    loading: documentsLoading,
+    refreshDocuments,
+  } = useDocuments();
   const [searchDocQuery, setSearchDocQuery] = useState("");
+  const [openSettings, setOpenSettings] = useState(false);
 
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
@@ -39,17 +52,10 @@ export default function AIQuizGenerator() {
   // Fetch sidebar data
   const fetchSidebarData = async () => {
     try {
-      setIsSidebarLoading(true);
-      const [historyRes, documentsRes] = await Promise.all([
-        axiosClient.get("/api/quizzes/my-quizzes"),
-        axiosClient.get("/api/documents/my-uploads"),
-      ]);
+      const historyRes = await axiosClient.get("/api/quizzes/my-quizzes");
       setQuizHistory(historyRes.data || []);
-      setUploadedDocuments(documentsRes.data || []);
     } catch (error) {
       console.error("Sidebar fetch error:", error);
-    } finally {
-      setIsSidebarLoading(false);
     }
   };
 
@@ -61,19 +67,14 @@ export default function AIQuizGenerator() {
     const selectedFile = e.target.files[0];
     if (selectedFile) {
       setFile(selectedFile);
-      setLibraryDoc(null); 
+      setLibraryDoc(null);
     }
-  };
-
-  const handleLibrarySelect = () => {
-    setIsLibraryModalOpen(true);
   };
 
   const handleLibrarySuccess = (selectedDoc) => {
     if (selectedDoc) {
       setLibraryDoc(selectedDoc);
       setFile(null);
-      setIsLibraryModalOpen(false);
     }
   };
 
@@ -109,12 +110,14 @@ export default function AIQuizGenerator() {
       toast.error("Please enter a topic, upload a file, or select a document.");
       return;
     }
-    
+
     setIsGenerating(true);
-    
+
     try {
       let finalDocumentId = libraryDoc ? libraryDoc.id : null;
-      let documentTitle = libraryDoc ? (libraryDoc.title || libraryDoc.name) : null;
+      let documentTitle = libraryDoc
+        ? libraryDoc.title || libraryDoc.name
+        : null;
 
       if (file && !finalDocumentId) {
         const formData = new FormData();
@@ -125,23 +128,28 @@ export default function AIQuizGenerator() {
 
         const token = localStorage.getItem("token");
 
-        const uploadResponse = await fetch("http://localhost:8080/api/documents/upload", {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${token}`
+        const uploadResponse = await fetch(
+          "http://localhost:8080/api/documents/upload",
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+            body: formData,
           },
-          body: formData
-        });
+        );
 
         if (!uploadResponse.ok) {
-          throw new Error("Upload failed with status: " + uploadResponse.status);
+          throw new Error(
+            "Upload failed with status: " + uploadResponse.status,
+          );
         }
-        
+
         const data = await uploadResponse.json();
         finalDocumentId = data.id;
         documentTitle = file.name;
 
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        await new Promise((resolve) => setTimeout(resolve, 2000));
         window.dispatchEvent(new CustomEvent("documents:uploaded"));
       }
 
@@ -159,17 +167,23 @@ export default function AIQuizGenerator() {
         projectId: null,
         questionCount: questionCount,
         difficulty: difficulty,
-        topic: inputText.trim() || null
+        topic: inputText.trim() || null,
       };
-      
+
       const response = await axiosClient.post("/api/quizzes/generate", payload);
       toast.success("Quiz generated successfully!");
       clearDocument();
+      try {
+        await refreshDocuments();
+      } catch (e) {
+        // ignore
+      }
       navigate(`/quiz/${response.data.id}`);
-      
     } catch (error) {
       console.error("Failed to generate quiz:", error);
-      const errorMsg = error.response?.data?.message || "Failed to generate your quiz. Please try again.";
+      const errorMsg =
+        error.response?.data?.message ||
+        "Failed to generate your quiz. Please try again.";
       toast.error(errorMsg);
     } finally {
       setIsGenerating(false);
@@ -200,154 +214,165 @@ export default function AIQuizGenerator() {
       />
 
       {/* MAIN CONTENT */}
-      <div className="flex-1 overflow-y-auto bg-slate-50/40 p-8">
-        <div className="w-full max-w-3xl mx-auto">
+      <div className="flex-1 overflow-y-auto bg-slate-50 flex justify-center px-6 py-8">
+        <div className="w-full max-w-4xl flex flex-col">
           {/* Header */}
-          <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-[#f26522]/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <BrainCircuit className="w-8 h-8 text-[#f26522]" />
+          <div className="mb-6">
+            <div className="flex items-center gap-2 text-[#f26522]">
+              <Target className="w-5 h-5" />
+              <h1 className="text-xl font-semibold text-slate-800">
+                AI Quiz Generator
+              </h1>
             </div>
-            <h2 className="text-3xl font-bold text-slate-800 tracking-tight">Generate AI Quiz</h2>
-            <p className="text-slate-500 mt-2">Test your knowledge. Let AI create a custom practice exam from your materials.</p>
+
+            <p className="text-sm text-slate-500">
+              Create quizzes from topics, notes, or uploaded documents.
+            </p>
           </div>
 
-          {/* Configuration Form */}
-          <div className="bg-white rounded-[24px] border border-slate-200 p-8 shadow-sm">
-            
-            {/* Source Input Area */}
-            <div className="mb-8">
-              <label className="flex items-center gap-2 text-sm font-bold text-slate-700 mb-3">
-                <BookOpen className="w-4 h-4 text-[#f26522]" /> 
-                What should the quiz be about?
-              </label>
-              
-              <div className="border border-slate-200 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-[#f26522] transition-all bg-slate-50">
-                <textarea 
-                  value={inputText}
-                  onChange={(e) => setInputText(e.target.value)}
-                  placeholder="Paste your notes, type a topic (e.g., 'Java OOP concepts'), or select a document below..."
-                  className="w-full h-24 p-4 bg-transparent outline-none resize-none text-slate-700"
+          {/* Chat-style Input */}
+          <div className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden">
+            <textarea
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              placeholder="Enter a topic or paste your notes..."
+              className="w-full min-h-[180px] resize-none border-0 outline-none bg-transparent p-5 text-slate-700"
+            />
+
+            {/* Active Document */}
+            {activeDocument && (
+              <div className="px-5 pb-3">
+                <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-2">
+                  <FileText className="w-4 h-4 text-[#f26522]" />
+
+                  <span className="max-w-[220px] truncate text-sm">
+                    {activeDocument.title || activeDocument.name}
+                  </span>
+
+                  <X
+                    className="w-4 h-4 cursor-pointer text-slate-400 hover:text-red-500"
+                    onClick={clearDocument}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Footer */}
+            <div className="flex items-center justify-between border-t border-slate-100 p-4">
+              <div className="flex items-center gap-2">
+                {/* Upload */}
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileSelect}
+                  className="hidden"
                 />
-                
-                {/* Active Document Indicator */}
-                {activeDocument && (
-                  <div className="px-4 pb-3">
-                    <div className="flex items-center gap-2 p-2 bg-white border border-slate-200 rounded-lg w-fit text-sm animate-in fade-in">
-                      <FileText className="h-4 w-4 text-[#f26522]" />
-                      <span className="truncate max-w-[200px] font-medium text-slate-700">
-                        {activeDocument.title || activeDocument.name}
-                      </span>
-                      <X 
-                        className="h-4 w-4 text-slate-400 cursor-pointer hover:text-red-500 transition-colors" 
-                        onClick={clearDocument} 
-                      />
-                    </div>
-                  </div>
+
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="rounded-full"
+                >
+                  <Plus className="w-5 h-5" />
+                </Button>
+
+                {/* Settings */}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setOpenSettings(true)}
+                  className="rounded-full"
+                >
+                  <Settings2 className="w-5 h-5" />
+                </Button>
+
+                <span className="text-xs text-slate-500 ml-2">
+                  {questionCount} Questions • {difficulty}
+                </span>
+              </div>
+
+              {/* Create Button */}
+              <Button
+                onClick={handleGenerateQuiz}
+                disabled={
+                  (!inputText.trim() && !file && !libraryDoc) || isGenerating
+                }
+                className="rounded-full px-5 bg-[#f26522] hover:bg-[#de5b0b]"
+              >
+                {isGenerating ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  </>
+                ) : (
+                  <>
+                    Create
+                    <ArrowUp className="w-4 h-4 ml-2" />
+                  </>
                 )}
-                
-                {/* Document Action Bar */}
-                <div className="flex items-center gap-2 px-4 py-3 bg-white border-t border-slate-100">
-                  <input type="file" ref={fileInputRef} onChange={handleFileSelect} className="hidden" />
-                  
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    className="rounded-lg border-slate-200 hover:bg-slate-50 text-slate-600 h-9" 
-                    onClick={() => fileInputRef.current.click()}
-                  >
-                    <UploadCloud className="h-4 w-4 mr-2 text-slate-400" /> 
-                    Upload File
-                  </Button>
-
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    className="rounded-lg border-slate-200 hover:bg-slate-50 text-slate-600 h-9" 
-                    onClick={handleLibrarySelect}
-                  >
-                    <Library className="h-4 w-4 mr-2 text-slate-400" /> 
-                    Choose from Library
-                  </Button>
-                </div>
-              </div>
+              </Button>
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
-              {/* Question Count */}
-              <div>
-                <label className="flex items-center gap-2 text-sm font-bold text-slate-700 mb-3">
-                  <Target className="w-4 h-4 text-[#f26522]" /> 
-                  Number of Questions
-                </label>
-                <div className="flex gap-3">
-                  {[5, 10, 15, 20].map((num) => (
-                    <button
-                      key={num}
-                      onClick={() => setQuestionCount(num)}
-                      className={`flex-1 h-12 rounded-xl border font-semibold transition-all ${
-                        questionCount === num 
-                          ? "border-[#f26522] bg-orange-50 text-[#f26522]" 
-                          : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-                      }`}
-                    >
-                      {num}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Difficulty Level */}
-              <div>
-                <label className="flex items-center gap-2 text-sm font-bold text-slate-700 mb-3">
-                  <Settings className="w-4 h-4 text-[#f26522]" /> 
-                  Difficulty
-                </label>
-                <div className="flex gap-3">
-                  {["Easy", "Medium", "Hard"].map((level) => (
-                    <button
-                      key={level}
-                      onClick={() => setDifficulty(level)}
-                      className={`flex-1 h-12 rounded-xl border font-semibold transition-all ${
-                        difficulty === level 
-                          ? "border-[#f26522] bg-orange-50 text-[#f26522]" 
-                          : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-                      }`}
-                    >
-                      {level}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Generate Action */}
-            <Button 
-              onClick={handleGenerateQuiz}
-              disabled={(!inputText.trim() && !file && !libraryDoc) || isGenerating}
-              className="w-full h-14 rounded-xl bg-[#f26522] hover:bg-[#de5b0b] text-white font-bold text-lg shadow-sm"
-            >
-              {isGenerating ? (
-                <>
-                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                  Generating your quiz...
-                </>
-              ) : (
-                <>
-                  <BrainCircuit className="w-5 h-5 mr-2" />
-                  Create My Quiz
-                </>
-              )}
-            </Button>
           </div>
         </div>
       </div>
 
-      {/* Library Selection Modal */}
-      <SelectExistingDocumentModal 
-        open={isLibraryModalOpen}
-        onOpenChange={setIsLibraryModalOpen}
-        onSuccess={handleLibrarySuccess}
-      />
+      <Dialog open={openSettings} onOpenChange={setOpenSettings}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Quiz Settings</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-6">
+            {/* Question Count */}
+            <div>
+              <label className="text-sm font-medium mb-3 block">
+                Number of Questions
+              </label>
+
+              <div className="grid grid-cols-4 gap-2">
+                {[5, 10, 15, 20].map((num) => (
+                  <Button
+                    key={num}
+                    variant={questionCount === num ? "default" : "outline"}
+                    onClick={() => setQuestionCount(num)}
+                    className={
+                      questionCount === num
+                        ? "bg-[#f26522] hover:bg-[#de5b0b]"
+                        : ""
+                    }
+                  >
+                    {num}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            {/* Difficulty */}
+            <div>
+              <label className="text-sm font-medium mb-3 block">
+                Difficulty
+              </label>
+
+              <div className="grid grid-cols-3 gap-2">
+                {["Easy", "Medium", "Hard"].map((level) => (
+                  <Button
+                    key={level}
+                    variant={difficulty === level ? "default" : "outline"}
+                    onClick={() => setDifficulty(level)}
+                    className={
+                      difficulty === level
+                        ? "bg-[#f26522] hover:bg-[#de5b0b]"
+                        : ""
+                    }
+                  >
+                    {level}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

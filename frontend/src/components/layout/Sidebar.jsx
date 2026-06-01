@@ -36,7 +36,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronDown,
-  LayoutDashboard,
+  Layout,
 } from "lucide-react";
 import UploadDocumentDialog from "@/components/documents/UploadDocumentDialog";
 
@@ -211,15 +211,24 @@ export default function Sidebar({ isOpen = true }) {
       }
     };
 
+    const handleDocumentUploaded = () => {
+      setSidebarProfile((prev) => ({
+        ...prev,
+        uploads: (prev.uploads || 0) + 1,
+      }));
+
+      fetchSidebarProfile();
+    };
+
     // Chạy lần đầu khi load component
     fetchSidebarProfile();
 
     // Lắng nghe sự kiện "documents:uploaded" từ hàm handleUploadDocument bên dưới
-    window.addEventListener("documents:uploaded", fetchSidebarProfile);
+    window.addEventListener("documents:uploaded", handleDocumentUploaded);
 
     // Cleanup event khi component unmount
     return () =>
-      window.removeEventListener("documents:uploaded", fetchSidebarProfile);
+      window.removeEventListener("documents:uploaded", handleDocumentUploaded);
   }, []);
 
   // load danh sách course đã follow
@@ -575,11 +584,7 @@ export default function Sidebar({ isOpen = true }) {
         </SidebarDropdown>
 
         {/* Workspace */}
-        <SidebarDropdown
-          icon={LayoutDashboard}
-          label="Workspace"
-          isOpen={isOpen}
-        >
+        <SidebarDropdown icon={Layout} label="Workspace" isOpen={isOpen}>
           {workspaces.map((workspace) => (
             <Button
               key={workspace.id}

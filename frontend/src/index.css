@@ -127,6 +127,47 @@
     @apply bg-background text-foreground;
   }
   html {
+    @apply font-sans;
+  }
+  code,
+  pre,
+  kbd,
+  samp {
     @apply font-mono;
   }
+}
+
+@keyframes doc-title-marquee {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}
+
+.doc-title-marquee {
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.doc-title-marquee__inner {
+  display: inline-block;
+  padding-right: 24px;
+  animation: doc-title-marquee 8s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .doc-title-marquee__inner {
+    animation: none;
+  }
+}
+
+.scrollbar-none {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none; /* Chrome/Safari */
 }

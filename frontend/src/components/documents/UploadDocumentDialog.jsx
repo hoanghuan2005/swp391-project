@@ -230,19 +230,29 @@ export default function UploadDocumentDialog({
         return uploadResponse;
       };
 
-      const uploadedDoc = await toast.promise(uploadPromise, {
+      const uploadPromiseInstance = uploadPromise();
+
+      toast.promise(uploadPromiseInstance, {
         loading: "Uploading document...",
         success: "Document uploaded successfully!",
         error: "Upload failed",
       });
 
+      const uploadedDoc = await uploadPromiseInstance;
+
+      const normalizedDoc = {
+        visibility: "PUBLIC",
+        title: selectedFile?.name,
+        ...uploadedDoc?.data,
+      };
+
       window.dispatchEvent(
         new CustomEvent("documents:uploaded", {
-          detail: uploadedDoc?.data,
+          detail: normalizedDoc,
         }),
       );
 
-      onUploadSuccess?.(uploadedDoc.data);
+      onUploadSuccess?.(normalizedDoc);
 
       onOpenChange(false);
     } catch (error) {

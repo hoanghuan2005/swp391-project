@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { jwtDecode } from "jwt-decode";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,9 @@ export default function Navbar({ onMenuClick, onLogoutClick }) {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+
+  const notificationButtonRef = useRef(null);
+  const notificationPanelRef = useRef(null);
 
   const [userInitial, setUserInitial] = useState("H");
 
@@ -59,12 +62,29 @@ export default function Navbar({ onMenuClick, onLogoutClick }) {
     }
   }, [isNotificationOpen]);
 
+  useEffect(() => {
+    if (!isNotificationOpen) return;
+
+    const handleOutsideClick = (event) => {
+      const target = event.target;
+
+      if (notificationPanelRef.current?.contains(target)) return;
+      if (notificationButtonRef.current?.contains(target)) return;
+
+      setIsNotificationOpen(false);
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
+
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, [isNotificationOpen]);
+
   {
     /* Hàm loadNotifications load danh sách thông báo*/
   }
   const loadNotifications = async () => {
     try {
-      const res = await axiosClient.get("/api/notifications?page=0&size=5");
+      const res = await axiosClient.get("/api/notifications?page=0&size=4");
 
       setNotifications(res.data.content);
     } catch (error) {
@@ -90,7 +110,7 @@ export default function Navbar({ onMenuClick, onLogoutClick }) {
   };
 
   return (
-    <div className="w-full bg-white border-b border-gray-100 py-2.5 sticky top-0 z-50 shadow-sm/5 backdrop-blur-sm">
+    <div className="w-full bg-white border-b border-gray-100 py-2.5 sticky top-0 z-40 shadow-sm/5 backdrop-blur-sm">
       <div className="w-full pr-4 sm:pr-6 flex items-center justify-between gap-2">
         {/* Logo & Menu Button */}
         <div className="flex items-center shrink-0">
@@ -138,15 +158,16 @@ export default function Navbar({ onMenuClick, onLogoutClick }) {
           {/* Bell Icons */}
           <div className="relative">
             <Button
+              ref={notificationButtonRef}
               variant="ghost"
               size="icon"
               onClick={() => setIsNotificationOpen(!isNotificationOpen)}
-              className="rounded-full hover:bg-slate-100 text-slate-700 h-10 w-10"
+              className="rounded-full hover:bg-slate-100 text-slate-700 h-10 w-10 cursor-pointer flex items-center justify-center"
             >
               <Bell className="!h-5 !w-5" />
 
               {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
+                <span className="absolute top-1 right-1 min-w-[16px] h-[16px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
                   {unreadCount > 99 ? "99+" : unreadCount}
                 </span>
               )}
@@ -155,18 +176,21 @@ export default function Navbar({ onMenuClick, onLogoutClick }) {
             {isNotificationOpen && (
               <>
                 <div
-                  className="fixed inset-0 z-30"
+                  className="fixed inset-0 z-50 bg-transparent"
                   onClick={() => setIsNotificationOpen(false)}
                 />
 
-                <div className="absolute right-0 top-12 w-[360px] bg-white rounded-xl shadow-xl border border-slate-100 z-40">
-                  <div className="p-4 border-b">
+                <div
+                  ref={notificationPanelRef}
+                  className="absolute right-0 top-12 w-[310px] bg-white rounded-xl shadow-xl border border-slate-100 z-50"
+                >
+                  <div className="p-4 border-b border-slate-200">
                     <h3 className="font-semibold text-slate-800">
                       Notifications
                     </h3>
                   </div>
 
-                  <div className="max-h-[400px] overflow-y-auto">
+                  <div className="max-h-[320px] overflow-y-auto scrollbar-none">
                     {notifications.length === 0 ? (
                       <div className="p-6 text-center text-sm text-slate-500">
                         No notifications
@@ -184,7 +208,7 @@ export default function Navbar({ onMenuClick, onLogoutClick }) {
     `}
                         >
                           <div className="flex gap-3">
-                            <div className="w-9 h-9 rounded-full bg-orange-100 flex items-center justify-center">
+                            <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center">
                               <Bell size={16} className="text-[#f26522]" />
                             </div>
 
@@ -210,7 +234,7 @@ export default function Navbar({ onMenuClick, onLogoutClick }) {
                   <Link
                     to="/notifications"
                     onClick={() => setIsNotificationOpen(false)}
-                    className="block text-center py-3 text-sm font-medium text-[#f26522] hover:bg-slate-50"
+                    className="block text-center py-3 text-sm font-medium text-[#f26522] hover:bg-slate-50 transition-colors rounded-b-xl"
                   >
                     View all notifications
                   </Link>
@@ -241,12 +265,12 @@ export default function Navbar({ onMenuClick, onLogoutClick }) {
               <>
                 {/* Overlay ẩn để bấm ra ngoài dropdown thì tự đóng */}
                 <div
-                  className="fixed inset-0 z-30 bg-transparent cursor-default"
+                  className="fixed inset-0 z-50 bg-transparent cursor-default"
                   onClick={() => setIsDropdownOpen(false)}
                 />
 
                 {/* Menu con */}
-                <div className="absolute right-0 top-12 w-48 bg-white rounded-xl shadow-xl border border-slate-100 py-1.5 z-40">
+                <div className="absolute right-0 top-12 w-48 bg-white rounded-xl shadow-xl border border-slate-100 py-1.5 z-50">
                   <Link
                     to="/profile"
                     onClick={() => setIsDropdownOpen(false)}

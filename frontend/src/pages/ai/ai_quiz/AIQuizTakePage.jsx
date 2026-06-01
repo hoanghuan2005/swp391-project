@@ -1,8 +1,16 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Loader2, ArrowLeft, CheckCircle2, XCircle, BrainCircuit, RotateCcw } from "lucide-react";
+import {
+  Loader2,
+  ArrowLeft,
+  CheckCircle2,
+  XCircle,
+  BrainCircuit,
+  RotateCcw,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import axiosClient from "@/api/axiosClient";
+import useDocuments from "@/hooks/useDocuments";
 import { toast } from "react-hot-toast";
 import AISidebar from "@/components/ai-sidebar/AISidebar";
 
@@ -11,29 +19,27 @@ export default function AIQuizTakePage() {
   const navigate = useNavigate();
   const [quiz, setQuiz] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [answers, setAnswers] = useState({}); 
+  const [answers, setAnswers] = useState({});
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [score, setScore] = useState(0);
 
   // Sidebar states
   const [quizHistory, setQuizHistory] = useState([]);
-  const [uploadedDocuments, setUploadedDocuments] = useState([]);
-  const [isSidebarLoading, setIsSidebarLoading] = useState(false);
+  const {
+    documents: uploadedDocuments,
+    loading: documentsLoading,
+    refreshDocuments,
+  } = useDocuments();
   const [searchDocQuery, setSearchDocQuery] = useState("");
 
   const fetchSidebarData = async () => {
     try {
-      setIsSidebarLoading(true);
-      const [historyRes, documentsRes] = await Promise.all([
-        axiosClient.get("/api/quizzes/my-quizzes"),
-        axiosClient.get("/api/documents/my-uploads"),
-      ]);
+      const historyRes = await axiosClient.get("/api/quizzes/my-quizzes");
       setQuizHistory(historyRes.data || []);
-      setUploadedDocuments(documentsRes.data || []);
     } catch (error) {
       console.error("Sidebar fetch error:", error);
     } finally {
-      setIsSidebarLoading(false);
+      // documents are loaded via useDocuments hook
     }
   };
 
@@ -72,12 +78,12 @@ export default function AIQuizTakePage() {
     if (!window.confirm("Are you sure you want to delete this quiz?")) {
       return;
     }
-    
+
     try {
       await axiosClient.delete(`/api/quizzes/${quizId}`);
       toast.success("Quiz deleted successfully");
       setQuizHistory((prev) => prev.filter((q) => q.id !== quizId));
-      
+
       if (quizId === id) {
         navigate("/ai-tools/ai-quiz");
       }
@@ -104,19 +110,26 @@ export default function AIQuizTakePage() {
   // === TÍNH NĂNG 3: CUỘN ĐẾN CÂU CHƯA LÀM ===
   const handleSubmit = () => {
     const totalQuestions = quiz?.questions?.length || 0;
-    
+
     if (Object.keys(answers).length < totalQuestions) {
       toast.error("Please answer all questions before submitting.");
-      
+
       // Tìm câu hỏi đầu tiên chưa được trả lời để cuộn tới
-      const firstUnansweredIndex = quiz.questions.findIndex(q => !answers[q.id]);
+      const firstUnansweredIndex = quiz.questions.findIndex(
+        (q) => !answers[q.id],
+      );
       if (firstUnansweredIndex !== -1) {
-        const element = document.getElementById(`question-${firstUnansweredIndex}`);
+        const element = document.getElementById(
+          `question-${firstUnansweredIndex}`,
+        );
         if (element) {
           element.scrollIntoView({ behavior: "smooth", block: "center" });
           // Highlight tạm thời câu đó
           element.classList.add("ring-4", "ring-red-500/30", "transition-all");
-          setTimeout(() => element.classList.remove("ring-4", "ring-red-500/30"), 2000);
+          setTimeout(
+            () => element.classList.remove("ring-4", "ring-red-500/30"),
+            2000,
+          );
         }
       }
       return;
@@ -149,7 +162,8 @@ export default function AIQuizTakePage() {
   // Tính toán dữ liệu cho Progress Bar
   const totalQuestions = quiz?.questions?.length || 0;
   const answeredCount = Object.keys(answers).length;
-  const progressPercentage = totalQuestions === 0 ? 0 : (answeredCount / totalQuestions) * 100;
+  const progressPercentage =
+    totalQuestions === 0 ? 0 : (answeredCount / totalQuestions) * 100;
 
   return (
     <div className="h-[calc(100vh-68px)] overflow-hidden bg-white shadow-sm -mx-8 -my-6 flex">
@@ -163,7 +177,7 @@ export default function AIQuizTakePage() {
         onDeleteItem={handleDeleteQuiz}
         onCreate={handleCreateNew}
         onSelectDocument={(doc) => {
-           navigate("/ai-tools/ai-quiz", { state: { selectedDoc: doc } });
+          navigate("/ai-tools/ai-quiz", { state: { selectedDoc: doc } });
         }}
         searchDocQuery={searchDocQuery}
         setSearchDocQuery={setSearchDocQuery}
@@ -171,22 +185,25 @@ export default function AIQuizTakePage() {
       />
 
       {/* MAIN CONTENT */}
-      <div id="quiz-content-area" className="flex-1 overflow-y-auto bg-slate-50/40 relative scroll-smooth">
-        
+      <div
+        id="quiz-content-area"
+        className="flex-1 overflow-y-auto bg-slate-50/40 relative scroll-smooth"
+      >
         {/* === TÍNH NĂNG 2: THANH TIẾN TRÌNH STICKY TOP === */}
         {!isSubmitted && quiz && (
           <div className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200 px-8 py-3 flex items-center justify-between shadow-sm">
             <span className="text-sm font-bold text-slate-600">
-              Progress: <span className="text-[#f26522]">{answeredCount}</span> / {totalQuestions}
+              Progress: <span className="text-[#f26522]">{answeredCount}</span>{" "}
+              / {totalQuestions}
             </span>
             <div className="w-1/2 md:w-1/3 bg-slate-100 rounded-full h-2.5 overflow-hidden">
-              <div 
+              <div
                 className="bg-[#f26522] h-full rounded-full transition-all duration-300 ease-out"
                 style={{ width: `${progressPercentage}%` }}
               ></div>
             </div>
-            <Button 
-              size="sm" 
+            <Button
+              size="sm"
               onClick={handleSubmit}
               disabled={answeredCount === 0}
               className="rounded-xl bg-[#f26522] hover:bg-[#de5b0b] text-white font-semibold"
@@ -199,12 +216,12 @@ export default function AIQuizTakePage() {
         <div className="p-8">
           {!quiz ? (
             <div className="flex h-full items-center justify-center">
-               <Loader2 className="w-8 h-8 animate-spin text-[#f26522]" />
+              <Loader2 className="w-8 h-8 animate-spin text-[#f26522]" />
             </div>
           ) : (
             <div className="max-w-4xl mx-auto animate-in fade-in duration-500">
-              <Button 
-                variant="ghost" 
+              <Button
+                variant="ghost"
                 onClick={() => navigate("/ai-tools")}
                 className="mb-6 text-slate-500 hover:text-[#f26522] rounded-xl"
               >
@@ -218,7 +235,9 @@ export default function AIQuizTakePage() {
                     <div className="p-2.5 bg-orange-50 text-[#f26522] rounded-xl shadow-sm">
                       <BrainCircuit className="w-6 h-6" />
                     </div>
-                    <h1 className="text-2xl font-bold text-slate-800 tracking-tight">{quiz.title}</h1>
+                    <h1 className="text-2xl font-bold text-slate-800 tracking-tight">
+                      {quiz.title}
+                    </h1>
                   </div>
                   <p className="text-slate-500 text-sm font-medium">
                     {totalQuestions} Questions • Multiple Choice
@@ -227,9 +246,14 @@ export default function AIQuizTakePage() {
 
                 {isSubmitted && (
                   <div className="text-center px-8 py-4 bg-[#f26522]/10 rounded-[20px] border border-[#f26522]/20 shadow-sm animate-in zoom-in duration-300">
-                    <p className="text-xs font-bold text-[#f26522] uppercase tracking-widest mb-1">Final Score</p>
+                    <p className="text-xs font-bold text-[#f26522] uppercase tracking-widest mb-1">
+                      Final Score
+                    </p>
                     <p className="text-4xl font-black text-[#f26522]">
-                      {score} <span className="text-xl text-[#f26522]/60 font-bold">/ {totalQuestions}</span>
+                      {score}{" "}
+                      <span className="text-xl text-[#f26522]/60 font-bold">
+                        / {totalQuestions}
+                      </span>
                     </p>
                   </div>
                 )}
@@ -242,37 +266,54 @@ export default function AIQuizTakePage() {
                   const isCorrect = selectedAnswer === q.correctAnswer;
 
                   return (
-                    <div 
-                      key={q.id} 
+                    <div
+                      key={q.id}
                       id={`question-${index}`} // Gắn ID để Auto-scroll
                       className="bg-white rounded-[24px] p-7 shadow-sm border border-slate-200"
                     >
                       <h3 className="text-lg font-bold text-slate-800 mb-6 leading-relaxed">
-                        <span className="text-[#f26522] mr-3 text-xl font-black opacity-20">{index + 1}</span>
+                        <span className="text-[#f26522] mr-3 text-xl font-black opacity-20">
+                          {index + 1}
+                        </span>
                         {q.content}
                       </h3>
 
                       <div className="space-y-3">
                         {q.options?.map((option, optIdx) => {
                           const isSelected = selectedAnswer === option;
-                          const isActuallyCorrect = isSubmitted && option === q.correctAnswer;
-                          const isWrongSelection = isSubmitted && isSelected && !isCorrect;
+                          const isActuallyCorrect =
+                            isSubmitted && option === q.correctAnswer;
+                          const isWrongSelection =
+                            isSubmitted && isSelected && !isCorrect;
 
-                          let boxStyles = "border-slate-200 bg-white hover:border-[#f26522]/30 hover:bg-orange-50/20";
-                          if (isSelected && !isSubmitted) boxStyles = "border-[#f26522] bg-orange-50/50 ring-1 ring-[#f26522] shadow-sm";
-                          if (isActuallyCorrect) boxStyles = "border-green-500 bg-green-50 text-green-800 ring-1 ring-green-500 shadow-sm";
-                          if (isWrongSelection) boxStyles = "border-red-500 bg-red-50 text-red-800 ring-1 ring-red-500 shadow-sm";
+                          let boxStyles =
+                            "border-slate-200 bg-white hover:border-[#f26522]/30 hover:bg-orange-50/20";
+                          if (isSelected && !isSubmitted)
+                            boxStyles =
+                              "border-[#f26522] bg-orange-50/50 ring-1 ring-[#f26522] shadow-sm";
+                          if (isActuallyCorrect)
+                            boxStyles =
+                              "border-green-500 bg-green-50 text-green-800 ring-1 ring-green-500 shadow-sm";
+                          if (isWrongSelection)
+                            boxStyles =
+                              "border-red-500 bg-red-50 text-red-800 ring-1 ring-red-500 shadow-sm";
 
                           return (
-                            <div 
+                            <div
                               key={optIdx}
                               onClick={() => handleSelectOption(q.id, option)}
                               className={`p-4.5 rounded-xl border-2 transition-all cursor-pointer flex items-center justify-between ${boxStyles} ${isSubmitted ? "cursor-default" : ""}`}
                             >
-                              <span className="font-semibold text-[15px]">{option}</span>
-                              
-                              {isActuallyCorrect && <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0" />}
-                              {isWrongSelection && <XCircle className="w-5 h-5 text-red-500 shrink-0" />}
+                              <span className="font-semibold text-[15px]">
+                                {option}
+                              </span>
+
+                              {isActuallyCorrect && (
+                                <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0" />
+                              )}
+                              {isWrongSelection && (
+                                <XCircle className="w-5 h-5 text-red-500 shrink-0" />
+                              )}
                             </div>
                           );
                         })}
@@ -283,9 +324,13 @@ export default function AIQuizTakePage() {
                         <div className="mt-8 p-5 rounded-2xl bg-blue-50/50 border border-blue-100/50 text-blue-900 animate-in slide-in-from-top-2 duration-300">
                           <div className="flex items-center gap-2 mb-2">
                             <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-                            <p className="text-xs font-bold uppercase tracking-widest text-blue-600">Explanation</p>
+                            <p className="text-xs font-bold uppercase tracking-widest text-blue-600">
+                              Explanation
+                            </p>
                           </div>
-                          <p className="text-[15px] leading-relaxed font-medium">{q.explanation}</p>
+                          <p className="text-[15px] leading-relaxed font-medium">
+                            {q.explanation}
+                          </p>
                         </div>
                       )}
                     </div>
@@ -296,26 +341,26 @@ export default function AIQuizTakePage() {
               {/* Footer Actions */}
               <div className="mt-12 mb-24 flex justify-end gap-4">
                 {!isSubmitted ? (
-                  <Button 
+                  <Button
                     size="lg"
-                    onClick={handleSubmit} 
+                    onClick={handleSubmit}
                     className="rounded-2xl bg-[#f26522] hover:bg-[#de5b0b] text-white font-bold px-12 h-16 text-lg shadow-lg shadow-[#f26522]/20 hover:scale-[1.02] active:scale-95 transition-all"
                   >
                     Submit Quiz
                   </Button>
                 ) : (
                   <>
-                    <Button 
+                    <Button
                       size="lg"
                       variant="outline"
-                      onClick={() => navigate("/ai-tools")} 
+                      onClick={() => navigate("/ai-tools")}
                       className="rounded-2xl border-slate-200 bg-white text-slate-700 h-16 px-8 font-bold hover:bg-slate-50 shadow-sm transition-all"
                     >
                       Return to Dashboard
                     </Button>
-                    <Button 
+                    <Button
                       size="lg"
-                      onClick={handleRetake} 
+                      onClick={handleRetake}
                       className="rounded-2xl bg-[#f26522] hover:bg-[#de5b0b] text-white h-16 px-8 font-bold shadow-lg shadow-[#f26522]/20 hover:scale-[1.02] active:scale-95 transition-all"
                     >
                       <RotateCcw className="w-5 h-5 mr-2" />

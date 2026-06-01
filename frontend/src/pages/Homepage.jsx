@@ -1,44 +1,43 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { forceDownload } from "@/lib/downloadHelper";
 import {
   Card,
-  CardHeader,
   CardTitle,
   CardDescription,
   CardContent,
   CardFooter,
 } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import {
-  UploadCloud,
-  GraduationCap,
-  Tags,
-  BookOpen,
-  Download,
-  Eye,
-  FileText,
-  Heart,
-} from "lucide-react";
+import { BookOpen, Download, Eye, FileText, Heart } from "lucide-react";
 import axiosClient from "@/api/axiosClient";
 import RecentDocuments from "@/components/documents/RecentDocuments";
 import UploadDocumentDialog from "@/components/documents/UploadDocumentDialog";
+import CourseCard from "@/components/ui/CourseCard";
 
 export default function Homepage() {
   const [uploadOpen, setUploadOpen] = useState(false);
   const [documents, setDocuments] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [courses, setCourses] = useState([]);
+
+  const upsertPublicDocument = useCallback((doc) => {
+    if (!doc) return;
+
+    const isPublic = doc.visibility ? doc.visibility === "PUBLIC" : true;
+
+    if (!isPublic) return;
+
+    setDocuments((prev) => {
+      const exists = prev.find((item) => item.id === doc.id);
+
+      if (exists) {
+        return prev.map((item) => (item.id === doc.id ? doc : item));
+      }
+
+      return [doc, ...prev];
+    });
+  }, []);
 
   const fetchCourses = useCallback(async () => {
     try {
@@ -56,9 +55,11 @@ export default function Homepage() {
   }, []);
 
   // Lấy danh sách tài liệu từ Backend
-  const fetchDocuments = useCallback(async () => {
+  const fetchDocuments = useCallback(async (options = {}) => {
+    const { silent = false } = options;
+
     try {
-      setIsLoading(true);
+      if (!silent) setIsLoading(true);
 
       const response = await axiosClient.get("/api/documents", {
         params: {
@@ -66,16 +67,16 @@ export default function Homepage() {
         },
       });
 
-      const publicDocs = (response.data || []).filter(
-        (doc) => doc.visibility === "PUBLIC",
-      );
+      const publicDocs = (response.data || [])
+        .filter((doc) => doc.visibility === "PUBLIC")
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
       setDocuments(publicDocs);
     } catch (error) {
       console.error("Error fetching documents:", error);
       setDocuments([]);
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
   }, []);
 
@@ -83,8 +84,11 @@ export default function Homepage() {
     fetchDocuments();
     fetchCourses();
 
-    const handleUploaded = async () => {
-      await fetchDocuments();
+    const handleUploaded = (event) => {
+      const uploadedDoc = event?.detail;
+
+      upsertPublicDocument(uploadedDoc);
+      fetchDocuments({ silent: true });
     };
 
     window.addEventListener("documents:uploaded", handleUploaded);
@@ -92,7 +96,7 @@ export default function Homepage() {
     return () => {
       window.removeEventListener("documents:uploaded", handleUploaded);
     };
-  }, [fetchDocuments, fetchCourses]);
+  }, [fetchDocuments, fetchCourses, upsertPublicDocument]);
 
   // Hàm xử lý tải file (Tăng view và tải về máy)
   const handleDownload = async (id, title) => {
@@ -123,7 +127,7 @@ export default function Homepage() {
           open={uploadOpen}
           onOpenChange={setUploadOpen}
           onUploadSuccess={(newDoc) => {
-            setDocuments((prev) => [newDoc, ...prev]);
+            upsertPublicDocument(newDoc);
           }}
         />
 
@@ -219,47 +223,17 @@ export default function Homepage() {
               </p>
             </div>
 
-            <Button variant="outline" className="rounded-xl border-slate-200">
+            <Button
+              variant="outline"
+              className="rounded-xl border-slate-200 hover:border-[#f26522]/30"
+            >
               View All
             </Button>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
             {courses.map((course) => (
-              <Link
-                key={course.id}
-                to={`/courses/${course.id}`}
-                className="group"
-              >
-                <Card className="rounded-xl border border-slate-100 hover:shadow-sm transition-all overflow-hidden h-full flex flex-col">
-                  {/* Banner */}
-                  <div className="-mt-4 h-22 bg-gradient-to-r from-[#f26522]/10 to-orange-100 flex items-center justify-center">
-                    <BookOpen className="w-10 h-10 text-[#f26522]" />
-                  </div>
-
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between -mt-2">
-                      <div>
-                        <h4 className="font-bold text-slate-800 line-clamp-1">
-                          {course.code}
-                        </h4>
-
-                        <p className="text-sm text-slate-500 mt-1 line-clamp-2">
-                          {course.name}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="mt-3.5 -mb-3 flex items-center justify-between text-xs text-slate-400">
-                      <span>{course.documentCount || 0} documents</span>
-
-                      <span className="border px-2 py-1 rounded-full group-hover:text-[#f26522] transition-colors">
-                        Open
-                      </span>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
+              <CourseCard key={course.id} course={course} />
             ))}
           </div>
         </section>

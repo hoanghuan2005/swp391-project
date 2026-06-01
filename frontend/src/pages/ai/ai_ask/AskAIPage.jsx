@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import axiosClient from "@/api/axiosClient";
+import useDocuments from "@/hooks/useDocuments";
 import ChatInterface from "@/components/chat/ChatInterface"; // <-- Added Import
 import AISidebar from "@/components/ai-sidebar/AISidebar"; // <-- Added Import
 
@@ -17,7 +18,11 @@ export default function AskAIPage() {
   const [conversations, setConversations] = useState([]);
   const [activeConversation, setActiveConversation] = useState(null);
   const [messages, setMessages] = useState([]);
-  const [documents, setDocuments] = useState([]);
+  const {
+    documents,
+    loading: documentsLoading,
+    refreshDocuments,
+  } = useDocuments();
   const [selectedDoc, setSelectedDoc] = useState(null);
 
   // Removed local 'input' state and 'messagesEndRef' as ChatInterface handles them now
@@ -30,19 +35,9 @@ export default function AskAIPage() {
 
   // Fetch initial data
   useEffect(() => {
-    fetchDocuments();
+    refreshDocuments();
     fetchConversations();
   }, []);
-
-  const fetchDocuments = async () => {
-    try {
-      const response = await axiosClient.get("/api/documents/my-uploads");
-      setDocuments(response.data || []);
-    } catch (error) {
-      console.error("Error fetching documents:", error);
-      toast.error("Failed to load documents");
-    }
-  };
 
   const fetchConversations = async () => {
     try {
@@ -242,9 +237,11 @@ export default function AskAIPage() {
       toast.success(`Uploaded ${file.name} successfully!`, { id: toastId });
 
       // Reload documents and auto start chat with this document
-      const docRes = await axiosClient.get("/api/documents/my-uploads");
-      const updatedDocs = docRes.data || [];
-      setDocuments(updatedDocs);
+      try {
+        await refreshDocuments();
+      } catch (e) {
+        // ignore
+      }
 
       const newUploadedDoc = response.data;
       if (newUploadedDoc) {

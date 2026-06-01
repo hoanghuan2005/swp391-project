@@ -10,3 +10,8 @@ export const getRecentDocuments = async (limit = 10) => {
 export const recordDocumentView = async (documentId) => {
   await axiosClient.post(`/api/documents/${documentId}/view`);
 };
+
+export const fetchUploadedDocuments = async () => {
+  const response = await axiosClient.get("/api/documents/my-uploads");
+  return response.data;
+};

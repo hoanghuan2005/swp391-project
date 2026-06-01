@@ -12,16 +12,16 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Search, FileText, Loader2, Check } from "lucide-react";
 import axiosClient from "@/api/axiosClient";
+import useDocuments from "@/hooks/useDocuments";
 import { toast } from "react-hot-toast";
 
 export default function SelectExistingDocumentModal({
   open,
   onOpenChange,
   projectId, // Optional: if provided, works as multi-select project linker
-  onSuccess,  // Passes data back to parent component upon completion
+  onSuccess, // Passes data back to parent component upon completion
 }) {
-  const [documents, setDocuments] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const { documents, loading, refreshDocuments } = useDocuments();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDocIds, setSelectedDocIds] = useState([]);
   const [isLinking, setIsLinking] = useState(false);
@@ -32,24 +32,11 @@ export default function SelectExistingDocumentModal({
   // Fetch user's existing documents when the modal opens
   useEffect(() => {
     if (open) {
-      fetchMyDocuments();
+      refreshDocuments();
       setSelectedDocIds([]); // Reset selection on open
       setSearchQuery("");
     }
   }, [open]);
-
-  const fetchMyDocuments = async () => {
-    try {
-      setLoading(true);
-      const response = await axiosClient.get("/api/documents/my-uploads");
-      setDocuments(response.data || []);
-    } catch (error) {
-      console.error("Failed to fetch documents", error);
-      toast.error("Could not load your library.");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const toggleSelection = (docId) => {
     setSelectedDocIds((prev) => {
@@ -83,14 +70,18 @@ export default function SelectExistingDocumentModal({
       setIsLinking(true);
       try {
         for (const docId of selectedDocIds) {
-          await axiosClient.post(`/api/projects/${projectId}/documents/${docId}`);
+          await axiosClient.post(
+            `/api/projects/${projectId}/documents/${docId}`,
+          );
         }
         toast.success("Documents successfully added to workspace!");
         if (onSuccess) onSuccess();
         onOpenChange(false);
       } catch (error) {
         console.error("Failed to link documents", error);
-        toast.error("Failed to add some documents. They might already be in this workspace.");
+        toast.error(
+          "Failed to add some documents. They might already be in this workspace.",
+        );
       } finally {
         setIsLinking(false);
       }
@@ -98,7 +89,9 @@ export default function SelectExistingDocumentModal({
   };
 
   const filteredDocuments = documents.filter((doc) =>
-    (doc.title || doc.name || "").toLowerCase().includes(searchQuery.toLowerCase())
+    (doc.title || doc.name || "")
+      .toLowerCase()
+      .includes(searchQuery.toLowerCase()),
   );
 
   return (
@@ -109,8 +102,8 @@ export default function SelectExistingDocumentModal({
             Choose from Library
           </DialogTitle>
           <DialogDescription>
-            {isSelectionOnlyMode 
-              ? "Select a document from your library to generate an AI quiz." 
+            {isSelectionOnlyMode
+              ? "Select a document from your library to generate an AI quiz."
               : "Select existing documents from your library to add to this workspace."}
           </DialogDescription>
         </DialogHeader>
@@ -160,7 +153,9 @@ export default function SelectExistingDocumentModal({
                               : "border-2 border-slate-300 bg-white"
                           }`}
                         >
-                          {isSelected && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
+                          {isSelected && (
+                            <Check className="w-3.5 h-3.5 text-white stroke-[3]" />
+                          )}
                         </div>
 
                         <div className="w-10 h-10 rounded-xl bg-white shadow-sm border border-slate-100 flex items-center justify-center shrink-0">
@@ -198,7 +193,9 @@ export default function SelectExistingDocumentModal({
             className="rounded-xl h-10 bg-[#f26522] hover:bg-[#de5b0b] text-white font-bold px-6"
           >
             {isLinking && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-            {isSelectionOnlyMode ? "Select Document" : `Add (${selectedDocIds.length})`}
+            {isSelectionOnlyMode
+              ? "Select Document"
+              : `Add (${selectedDocIds.length})`}
           </Button>
         </DialogFooter>
       </DialogContent>

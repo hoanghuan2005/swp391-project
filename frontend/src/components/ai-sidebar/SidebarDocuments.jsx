@@ -15,11 +15,11 @@ const SidebarDocuments = ({
   const filteredDocuments = documents.filter((doc) =>
     (doc.title || doc.name || "")
       .toLowerCase()
-      .includes(searchDocQuery.toLowerCase())
+      .includes(searchDocQuery.toLowerCase()),
   );
 
   return (
-    <div className="flex-[3] flex flex-col min-h-0 bg-slate-50/50">
+    <div className="flex-[3] flex flex-col min-h-0 bg-slate-50/50 font-sans overflow-x-hidden">
       {/* HEADER & SEARCH BAR */}
       <div className="px-5 py-2.5 flex items-center justify-between shrink-0">
         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
@@ -48,7 +48,7 @@ const SidebarDocuments = ({
       </div>
 
       {/* DOCUMENT LIST */}
-      <div className="flex-1 overflow-y-auto px-3 pb-4 space-y-1.5">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden px-3 pb-4 space-y-1.5">
         {isUploading && (
           <div className="flex items-center gap-2 p-2 justify-center text-xs text-[#f26522]">
             <Loader2 className="w-4 h-4 animate-spin" />
@@ -62,31 +62,57 @@ const SidebarDocuments = ({
           </p>
         ) : (
           filteredDocuments.map((doc) => {
-            const isSelected = selectedDoc?.id === doc.id || selectedDocs.some(d => d.id === doc.id);
+            const isSelected =
+              selectedDoc?.id === doc.id ||
+              selectedDocs.some((d) => d.id === doc.id);
+            const title = doc.title || doc.name || "";
+            const isLongTitle = title.length > 28;
 
             return (
-              <div 
+              <div
                 key={doc.id}
-                className="group w-full flex items-center justify-between relative"
+                className="group w-full flex items-center justify-between relative min-w-0"
               >
                 <button
                   onClick={() => onSelectDocument(doc)}
-                  className={`flex-1 flex items-center gap-2.5 p-2 rounded-xl transition-all border text-left cursor-pointer ${
+                  className={`flex-1 min-w-0 flex items-center gap-2.5 p-2 rounded-xl transition-all border text-left cursor-pointer ${
                     isSelected
                       ? "bg-[#f26522]/10 border-[#f26522]/30 ring-1 ring-[#f26522]/20"
                       : "bg-white border-slate-200 hover:bg-slate-50"
                   }`}
                 >
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border transition-colors ${
-                    isSelected ? "bg-[#f26522] border-[#f26522]" : "bg-orange-50 border-orange-100"
-                  }`}>
-                    <FileText className={`w-4 h-4 ${isSelected ? "text-white" : "text-[#f26522]"}`} />
+                  <div
+                    className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border transition-colors ${
+                      isSelected
+                        ? "bg-[#f26522] border-[#f26522]"
+                        : "bg-orange-50 border-orange-100"
+                    }`}
+                  >
+                    <FileText
+                      className={`w-4 h-4 ${isSelected ? "text-white" : "text-[#f26522]"}`}
+                    />
                   </div>
 
-                  <div className="overflow-hidden flex-1 pr-6">
-                    <p className={`text-xs font-semibold truncate ${isSelected ? "text-[#f26522]" : "text-slate-700"}`}>
-                      {doc.title || doc.name}
-                    </p>
+                  <div className="overflow-hidden flex-1 pr-6 min-w-0">
+                    {isLongTitle ? (
+                      <div className="doc-title-marquee">
+                        <span
+                          className={`doc-title-marquee__inner text-xs font-semibold ${
+                            isSelected ? "text-[#f26522]" : "text-slate-700"
+                          } font-sans`}
+                        >
+                          {title}
+                        </span>
+                      </div>
+                    ) : (
+                      <p
+                        className={`text-xs font-semibold truncate ${
+                          isSelected ? "text-[#f26522]" : "text-slate-700"
+                        } font-sans`}
+                      >
+                        {title}
+                      </p>
+                    )}
                     <p className="text-[10px] text-slate-400 uppercase font-bold tracking-tighter">
                       {doc.courseCode || "General Study"}
                     </p>
