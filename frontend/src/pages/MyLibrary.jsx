@@ -95,7 +95,7 @@ export default function MyLibrary() {
             value="projects"
             className="rounded-xl px-6 py-2.5 data-[state=active]:bg-white data-[state=active]:shadow-sm font-bold"
           >
-            <Layout className="w-4 h-4 mr-2 text-[#f26522]" /> My Workspaces
+            <LayoutDashboard className="w-4 h-4 mr-2 text-[#f26522]" /> My Workspaces
           </TabsTrigger>
           <TabsTrigger
             value="flashcards"
@@ -122,7 +122,7 @@ export default function MyLibrary() {
           ) : projects.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-center bg-slate-50 rounded-[32px] border border-dashed border-slate-200">
               <div className="w-16 h-16 rounded-xl bg-white shadow-sm flex items-center justify-center mb-4">
-                <Layout className="w-8 h-8 text-slate-300" />
+                <LayoutDashboard className="w-8 h-8 text-slate-300" />
               </div>
               <h3 className="text-xl font-bold text-slate-800 mb-1">
                 No Workspaces Yet
