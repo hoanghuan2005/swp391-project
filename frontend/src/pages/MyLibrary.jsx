@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import {
   FileText,
   Plus,
-  Layout,
+  LayoutDashboard,
   ChevronRight,
   Search,
   BookOpen,
@@ -88,16 +88,16 @@ export default function MyLibrary() {
       <Tabs defaultValue="projects" className="w-full">
         {/* TAB NAVIGATION LIST */}
         <TabsList className="bg-slate-100/50 p-1 rounded-2xl mb-8 flex flex-wrap h-auto gap-1">
-          <TabsTrigger value="projects" className="rounded-xl px-6 py-2.5 data-[state=active]:bg-white data-[state=active]:shadow-sm font-bold">
-            <Layout className="w-4 h-4 mr-2" /> My Workspaces
+          <TabsTrigger value="projects" className="rounded-xl px-6 py-2.5 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-[#f26522] font-bold">
+            <LayoutDashboard className="w-4 h-4 mr-2" /> My Workspaces
           </TabsTrigger>
-          <TabsTrigger value="documents" className="rounded-xl px-6 py-2.5 data-[state=active]:bg-white data-[state=active]:shadow-sm font-bold">
+          <TabsTrigger value="documents" className="rounded-xl px-6 py-2.5 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-[#f26522] font-bold">
             <FileText className="w-4 h-4 mr-2" /> My Uploads
           </TabsTrigger>
-          <TabsTrigger value="flashcards" className="rounded-xl px-6 py-2.5 data-[state=active]:bg-white data-[state=active]:shadow-sm font-bold">
+          <TabsTrigger value="flashcards" className="rounded-xl px-6 py-2.5 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-[#f26522] font-bold">
             <Layers className="w-4 h-4 mr-2" /> My Flashcards
           </TabsTrigger>
-          <TabsTrigger value="quizzes" className="rounded-xl px-6 py-2.5 data-[state=active]:bg-white data-[state=active]:shadow-sm font-bold">
+          <TabsTrigger value="quizzes" className="rounded-xl px-6 py-2.5 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-[#f26522] font-bold">
             <ListChecks className="w-4 h-4 mr-2" /> My Quizzes
           </TabsTrigger>
         </TabsList>
@@ -111,7 +111,7 @@ export default function MyLibrary() {
           ) : projects.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-center bg-slate-50 rounded-[32px] border border-dashed border-slate-200">
               <div className="w-16 h-16 rounded-3xl bg-white shadow-sm flex items-center justify-center mb-4">
-                <Layout className="w-8 h-8 text-slate-300" />
+                <LayoutDashboard className="w-8 h-8 text-slate-300" />
               </div>
               <h3 className="text-xl font-bold text-slate-800 mb-1">No Workspaces Yet</h3>
               <p className="text-slate-500 mb-6 max-w-sm">Create a workspace to group documents and use multi-document AI chat.</p>
@@ -139,7 +139,7 @@ export default function MyLibrary() {
                       <CardContent className="p-6 flex flex-col h-full">
                         <div className="flex items-start justify-between mb-4">
                           <div className="w-12 h-12 rounded-2xl bg-orange-50 flex items-center justify-center group-hover:bg-[#f26522] transition-colors">
-                            <Layout className="w-6 h-6 text-[#f26522] group-hover:text-white transition-colors" />
+                            <LayoutDashboard className="w-6 h-6 text-[#f26522] group-hover:text-white transition-colors" />
                           </div>
                           
                           <div className="flex items-center gap-2">
