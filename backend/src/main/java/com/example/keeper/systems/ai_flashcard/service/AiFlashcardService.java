@@ -1,5 +1,7 @@
 package com.example.keeper.systems.ai_flashcard.service;
 
+import com.example.keeper.systems.ai_ask.entity.DocumentChunk;
+import com.example.keeper.systems.ai_ask.repository.DocumentChunkRepository;
 import com.example.keeper.systems.ai_flashcard.dto.FlashcardItemDto;
 import com.example.keeper.systems.ai_flashcard.entity.Flashcard;
 import com.example.keeper.systems.ai_flashcard.entity.FlashcardSet;
@@ -8,6 +10,7 @@ import com.example.keeper.systems.ai_flashcard.repository.FlashcardSetRepository
 import com.example.keeper.systems.auth.entity.User;
 import com.example.keeper.systems.auth.repository.UserRepository;
 import com.example.keeper.systems.document.entity.Document;
+import com.example.keeper.systems.document.enums.AiParseStatus;
 import com.example.keeper.systems.document.repository.DocumentRepository;
 
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -52,6 +55,7 @@ public class AiFlashcardService {
     private final FlashcardSetRepository flashcardSetRepository;
     private final UserRepository userRepository;
     private final DocumentRepository documentRepository;
+    private final DocumentChunkRepository documentChunkRepository;
 
     // ====================================================================
     // 1. CÁC HÀM LẤY DỮ LIỆU TỪ DATABASE CHO SIDEBAR
@@ -148,6 +152,38 @@ public class AiFlashcardService {
             throw new RuntimeException("Lỗi: Không tìm thấy chữ nào trong file này (File trống hoặc toàn hình ảnh).");
         }
 
+        String title = linkedDocument != null ? linkedDocument.getTitle() : (file != null ? file.getOriginalFilename() : "AI Flashcard Set");
+        return generateFlashcardsFromContent(content, title, linkedDocument);
+    }
+
+    public List<FlashcardItemDto> generateFlashcardsFromDocument(UUID documentId) throws Exception {
+        Document document = documentRepository.findById(documentId)
+                .orElseThrow(() -> new RuntimeException("Document not found"));
+
+        if (document.getAiParseStatus() == AiParseStatus.PENDING) {
+            throw new RuntimeException("Document is still being processed for AI. Please try again shortly.");
+        }
+        if (document.getAiParseStatus() == AiParseStatus.FAILED || document.getAiParseStatus() == AiParseStatus.UNSUPPORTED) {
+            throw new RuntimeException("Document is not available for AI flashcards.");
+        }
+
+        String content = documentChunkRepository.findByDocumentId(documentId)
+                .stream()
+                .map(DocumentChunk::getContent)
+                .collect(Collectors.joining("\n\n"));
+
+        if (content.trim().isEmpty()) {
+            throw new RuntimeException("No parsed text found for this document.");
+        }
+
+        if (content.length() > 30000) {
+            content = content.substring(0, 30000);
+        }
+
+        return generateFlashcardsFromContent(content, document.getTitle(), document);
+    }
+
+    private List<FlashcardItemDto> generateFlashcardsFromContent(String content, String title, Document linkedDocument) throws Exception {
         // --- ĐÃ SỬA: Cập nhật prompt để ép AI đọc văn bản ---
         String raw = callGroqApi("Trích xuất các khái niệm và định nghĩa quan trọng từ văn bản sau để làm flashcard. Văn bản: \n\n" + content);
 
@@ -155,14 +191,23 @@ public class AiFlashcardService {
                 .replaceAll("(?s).*(\\[.*\\]).*", "$1")
                 .replaceAll("\\}\\s*\\{", "}, {");
 
-        List<FlashcardItemDto> cards = objectMapper.readValue(
+        List<FlashcardItemDto> parsedCards = objectMapper.readValue(
                 cleanJson,
                 new TypeReference<List<FlashcardItemDto>>() {}
         );
 
+        List<FlashcardItemDto> cards = parsedCards.stream()
+                .filter(card -> card.getTerm() != null && !card.getTerm().isBlank()
+                        && card.getDefinition() != null && !card.getDefinition().isBlank())
+                .collect(Collectors.toList());
+
+        if (cards.isEmpty()) {
+            throw new RuntimeException("AI did not generate valid flashcards.");
+        }
+
         User user = getAuthenticatedUser();
         FlashcardSet set = new FlashcardSet();
-        set.setTitle(linkedDocument != null ? linkedDocument.getTitle() : (file != null ? file.getOriginalFilename() : "AI Flashcard Set"));
+        set.setTitle(title != null ? title : "AI Flashcard Set");
         set.setSourceText(content);
         set.setUser(user);
         set.setDocument(linkedDocument);

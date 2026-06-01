@@ -140,6 +140,7 @@ public class ProjectServiceImpl implements ProjectService {
                         .id(doc.getId())
                         .title(doc.getTitle())
                         .fileType(doc.getMimeType() != null ? doc.getMimeType() : doc.getOriginalFileName())
+                        .aiParseStatus(doc.getAiParseStatus() == null ? null : doc.getAiParseStatus().name())
                         .build())
                 .collect(Collectors.toList());
 

@@ -23,6 +23,7 @@ public class DocumentDetailResponse {
     private String originalFileName;
     private Long fileSize;
     private String visibility;
+    private String aiParseStatus;
     private Integer downloadCount;
     private LocalDateTime createdAt;
     private CourseInfo course;

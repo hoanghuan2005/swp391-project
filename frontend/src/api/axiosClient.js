@@ -16,10 +16,6 @@ axiosClient.interceptors.request.use((config) => {
     config.headers.Authorization = `Bearer ${token}`;
   }
 
-  // 🔥 ĐOẠN CODE FIX LỖI UPLOAD FILE NẰM Ở ĐÂY:
-  // Nếu dữ liệu gửi đi là FormData (chứa file hoặc chữ cấu hình dạng multipart),
-  // ta phải xóa Content-Type mặc định (application/json) đi.
-  // Trình duyệt sẽ tự động thêm Content-Type: multipart/form-data kèm theo mã ranh giới (boundary) cực chuẩn.
   if (config.data instanceof FormData) {
     delete config.headers['Content-Type'];
   }

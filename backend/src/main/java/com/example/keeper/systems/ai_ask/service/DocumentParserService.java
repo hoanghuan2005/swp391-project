@@ -25,9 +25,9 @@ public class DocumentParserService {
 
     private static final int CHUNK_SIZE = 1500; // max characters per chunk
 
-    public void parseAndChunkDocument(MultipartFile file, UUID documentId) {
+    public boolean parseAndChunkDocument(MultipartFile file, UUID documentId) {
         String filename = file.getOriginalFilename();
-        if (filename == null) return;
+        if (filename == null) return false;
         
         filename = filename.toLowerCase();
 
@@ -40,17 +40,20 @@ public class DocumentParserService {
                 fullText = extractDocxText(inputStream);
             } else {
                 log.info("Unsupported file type for AI parsing: {}", filename);
-                return;
+                return false;
             }
 
             if (fullText != null && !fullText.isBlank()) {
                 chunkAndSaveText(fullText, documentId);
+                return true;
             } else {
                 log.warn("Extracted text is empty for document: {}", documentId);
+                return false;
             }
 
         } catch (Exception e) {
             log.error("Failed to parse document for AI Ask. DocumentId: {}, Error: {}", documentId, e.getMessage(), e);
+            return false;
         }
     }
 

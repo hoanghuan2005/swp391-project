@@ -8,6 +8,7 @@ import com.example.keeper.systems.document.dto.response.DocumentDetailResponse;
 import com.example.keeper.systems.document.dto.response.DocumentResponse;
 import com.example.keeper.systems.document.entity.Document;
 import com.example.keeper.systems.document.entity.DocumentView;
+import com.example.keeper.systems.document.enums.AiParseStatus;
 import com.example.keeper.systems.document.repository.DocumentRepository;
 import com.example.keeper.systems.document.repository.DocumentViewRepository;
 import com.example.keeper.systems.document.service.storage.FileStorageService;
@@ -50,6 +51,7 @@ public class DocumentServiceImpl implements DocumentService {
     public Document create(CreateDocumentRequest request) {
         Document document = buildDocument(request);
         document.setFileUrl(request.getFileUrl());
+        document.setAiParseStatus(AiParseStatus.UNSUPPORTED);
         return documentRepository.save(document);
     }
 
@@ -94,13 +96,20 @@ public class DocumentServiceImpl implements DocumentService {
             document.setTitle(
                     sanitizeFilename(resolveTitle(file)));
         }
+        document.setAiParseStatus(resolveAiParseStatus(file));
 
         Document savedDocument = documentRepository.save(document);
 
-        // Asynchronously parse document for AI Ask
-        java.util.concurrent.CompletableFuture.runAsync(() -> {
-            documentParserService.parseAndChunkDocument(file, savedDocument.getId());
-        });
+        if (savedDocument.getAiParseStatus() == AiParseStatus.PENDING) {
+            // Asynchronously parse document for AI features.
+            java.util.concurrent.CompletableFuture.runAsync(() -> {
+                boolean parsed = documentParserService.parseAndChunkDocument(file, savedDocument.getId());
+                documentRepository.findById(savedDocument.getId()).ifPresent(doc -> {
+                    doc.setAiParseStatus(parsed ? AiParseStatus.READY : AiParseStatus.FAILED);
+                    documentRepository.save(doc);
+                });
+            });
+        }
 
         return savedDocument;
     }
@@ -380,6 +389,9 @@ public class DocumentServiceImpl implements DocumentService {
                 .visibility(document.getVisibility() == null
                         ? null
                         : document.getVisibility().name())
+                .aiParseStatus(document.getAiParseStatus() == null
+                        ? null
+                        : document.getAiParseStatus().name())
                 .downloadCount(document.getDownloadCount())
                 .createdAt(document.getCreatedAt())
                 .course(DocumentDetailResponse.CourseInfo.builder()
@@ -417,6 +429,9 @@ public class DocumentServiceImpl implements DocumentService {
                 .visibility(document.getVisibility() == null
                         ? null
                         : document.getVisibility().name())
+                .aiParseStatus(document.getAiParseStatus() == null
+                        ? null
+                        : document.getAiParseStatus().name())
                 .downloadCount(document.getDownloadCount())
                 .createdAt(document.getCreatedAt())
                 .course(DocumentResponse.CourseInfo.builder()
@@ -454,6 +469,20 @@ public class DocumentServiceImpl implements DocumentService {
             }
         }
         return "";
+    }
+
+    private AiParseStatus resolveAiParseStatus(MultipartFile file) {
+        String filename = file.getOriginalFilename();
+        if (filename == null) {
+            return AiParseStatus.UNSUPPORTED;
+        }
+
+        String lower = filename.toLowerCase();
+        if (lower.endsWith(".pdf") || lower.endsWith(".docx")) {
+            return AiParseStatus.PENDING;
+        }
+
+        return AiParseStatus.UNSUPPORTED;
     }
 
     // helper fix encoding

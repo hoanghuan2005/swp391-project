@@ -3,6 +3,7 @@ package com.example.keeper.systems.document.entity;
 import com.example.keeper.systems.auth.entity.User;
 import com.example.keeper.systems.base.BaseEntity;
 import com.example.keeper.systems.category.entity.Category;
+import com.example.keeper.systems.document.enums.AiParseStatus;
 import com.example.keeper.systems.document.enums.Visibility;
 import com.example.keeper.systems.course.entity.Course;
 import com.example.keeper.systems.tag.entity.Tag;
@@ -59,6 +60,10 @@ public class Document extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Visibility visibility;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "ai_parse_status", nullable = false)
+    private AiParseStatus aiParseStatus = AiParseStatus.PENDING;
 
     // @Enumerated(EnumType.STRING)
     // @Column(name = "upload_status", nullable = false)

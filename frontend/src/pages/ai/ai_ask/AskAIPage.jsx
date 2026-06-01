@@ -140,6 +140,15 @@ export default function AskAIPage() {
   const handleSend = async (userMessageContent) => {
     if (!userMessageContent || isLoading) return;
 
+    if (selectedDoc?.aiParseStatus === "PENDING") {
+      toast.error("This document is still being prepared for AI. Please try again shortly.");
+      return;
+    }
+    if (["FAILED", "UNSUPPORTED"].includes(selectedDoc?.aiParseStatus)) {
+      toast.error("This document is not available for AI context.");
+      return;
+    }
+
     setIsLoading(true);
 
     let currentConv = activeConversation;

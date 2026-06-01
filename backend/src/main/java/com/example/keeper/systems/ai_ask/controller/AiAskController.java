@@ -35,6 +35,20 @@ public class AiAskController {
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping("/shared/ask")
+    public ResponseEntity<AskAIResponse> askShared(
+            @RequestBody @Valid AskAIRequest request
+    ) {
+        if (request.getShareToken() == null || request.getShareToken().isBlank()) {
+            throw new RuntimeException("Share token is required");
+        }
+        request.setProjectId(null);
+        request.setConversationId(null);
+        request.setDocumentId(null);
+        AskAIResponse response = aiAskService.ask(request);
+        return ResponseEntity.ok(response);
+    }
+
     @GetMapping("/conversations")
     public ResponseEntity<List<AiConversation>> getConversations() {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();

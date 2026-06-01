@@ -6,6 +6,7 @@ import com.example.keeper.systems.ai_ask.repository.AiConversationRepository;
 import com.example.keeper.systems.ai_ask.repository.AiMessageRepository;
 import com.example.keeper.systems.ai_ask.service.ConversationService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -19,6 +20,9 @@ public class ConversationServiceImpl
     private final AiConversationRepository conversationRepository;
     private final AiMessageRepository messageRepository;
 
+    @Value("${groq.model}")
+    private String model;
+
     @Override
     public AiConversation createConversation(UUID userId, String title, UUID documentId) {
 
@@ -27,7 +31,7 @@ public class ConversationServiceImpl
                         .userId(userId)
                         .title(title != null ? title : "New Chat")
                         .documentId(documentId)
-                        .modelName("gemini-pro")
+                        .modelName("groq:" + model)
                         .build();
 
         return conversationRepository.save(conversation);

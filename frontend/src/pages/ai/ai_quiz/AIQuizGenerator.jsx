@@ -105,6 +105,24 @@ export default function AIQuizGenerator() {
     }
   };
 
+  const waitForDocumentReady = async (documentId) => {
+    for (let attempt = 0; attempt < 12; attempt += 1) {
+      const response = await axiosClient.get(`/api/documents/${documentId}`);
+      const status = response.data?.aiParseStatus;
+
+      if (status === "READY" || status === "UNSUPPORTED" || !status) {
+        return;
+      }
+      if (status === "FAILED") {
+        throw new Error("Document text could not be extracted for AI quiz generation.");
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+
+    throw new Error("Document is still being prepared for AI. Please try again shortly.");
+  };
+
   const handleGenerateQuiz = async () => {
     if (!inputText.trim() && !file && !libraryDoc) {
       toast.error("Please enter a topic, upload a file, or select a document.");
@@ -118,6 +136,13 @@ export default function AIQuizGenerator() {
       let documentTitle = libraryDoc
         ? libraryDoc.title || libraryDoc.name
         : null;
+
+      if (libraryDoc?.aiParseStatus === "PENDING") {
+        throw new Error("Document is still being prepared for AI. Please try again shortly.");
+      }
+      if (["FAILED", "UNSUPPORTED"].includes(libraryDoc?.aiParseStatus)) {
+        throw new Error("This document is not available for AI quiz generation.");
+      }
 
       if (file && !finalDocumentId) {
         const formData = new FormData();
@@ -149,7 +174,7 @@ export default function AIQuizGenerator() {
         finalDocumentId = data.id;
         documentTitle = file.name;
 
-        await new Promise((resolve) => setTimeout(resolve, 2000));
+        await waitForDocumentReady(finalDocumentId);
         window.dispatchEvent(new CustomEvent("documents:uploaded"));
       }
 
@@ -181,9 +206,7 @@ export default function AIQuizGenerator() {
       navigate(`/quiz/${response.data.id}`);
     } catch (error) {
       console.error("Failed to generate quiz:", error);
-      const errorMsg =
-        error.response?.data?.message ||
-        "Failed to generate your quiz. Please try again.";
+      const errorMsg = error.response?.data?.message || error.message || "Failed to generate your quiz. Please try again.";
       toast.error(errorMsg);
     } finally {
       setIsGenerating(false);

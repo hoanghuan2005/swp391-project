@@ -19,6 +19,8 @@ public class AskAIRequest {
 
     private UUID projectId;
 
+    private String shareToken;
+
     private UUID documentId;
 
     // for multi-select

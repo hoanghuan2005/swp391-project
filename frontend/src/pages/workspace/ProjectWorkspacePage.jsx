@@ -4,7 +4,7 @@ import { Loader2, ChevronLeft, Sparkles, FileText, CheckSquare } from "lucide-re
 import { toast } from "react-hot-toast";
 
 import { getProjectDetail, getSharedProject, removeDocumentFromProject } from "@/api/projectApi";
-import { askAi } from "@/api/aiApi";
+import { askAi, askSharedAi } from "@/api/aiApi";
 import { Button } from "@/components/ui/button";
 import ChatInterface from "@/components/chat/ChatInterface"; 
 import AISidebar from "@/components/ai-sidebar/AISidebar";
@@ -57,6 +57,15 @@ export default function ProjectWorkspacePage() {
   const handleSend = async (messageText) => {
     if (!messageText || isSending) return;
 
+    const pendingDocs = selectedDocs.length > 0
+      ? selectedDocs.filter((doc) => doc.aiParseStatus === "PENDING")
+      : (project.documents || []).filter((doc) => doc.aiParseStatus === "PENDING");
+
+    if (pendingDocs.length > 0) {
+      toast.error("Some documents are still being prepared for AI. Please try again shortly.");
+      return;
+    }
+
     const userMessage = { id: Date.now(), role: "user", content: messageText };
     setMessages((prev) => [...prev, userMessage]);
     setIsSending(true);
@@ -64,12 +73,14 @@ export default function ProjectWorkspacePage() {
     try {
       const documentIdsToSend = selectedDocs.length > 0 ? selectedDocs.map(d => d.id) : null;
 
-      const response = await askAi({
+      const payload = {
         projectId: project.id,
-        documentIds: documentIdsToSend, 
-        message: messageText, 
-        token: token || null,
-      });
+        shareToken: token || null,
+        documentIds: documentIdsToSend,
+        message: messageText,
+      };
+
+      const response = token ? await askSharedAi(payload) : await askAi(payload);
 
       setMessages((prev) => [
         ...prev,
