@@ -27,4 +27,13 @@ export const sidebarConfig = {
     emptyMessage: "No quizzes yet",
     createButton: "New Quiz",
   },
+
+  "project-workspace": {
+    type: "project-workspace",
+    title: "Project Workspace",
+    subtitle: "Multi-document Context",
+    historyTitle: "Active Chat",
+    emptyMessage: "No chats available",
+    createButton: "Project Chat",
+  },
 };

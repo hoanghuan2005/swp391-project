@@ -53,6 +53,9 @@ public class SecurityConfig {
                                                                 "/api/schools/**",
                                                                 "/api/tags/**",
 
+                                                                "/api/projects/shared/**",
+                                                                "/api/ai/ask",
+
                                                                 "/v3/api-docs/**",
                                                                 "/swagger-ui/**",
                                                                 "/swagger-ui.html",

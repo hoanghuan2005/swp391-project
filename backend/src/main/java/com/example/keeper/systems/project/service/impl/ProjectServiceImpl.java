@@ -24,6 +24,7 @@ public class ProjectServiceImpl implements ProjectService {
     private final ProjectRepository projectRepository;
     private final UserRepository userRepository;
     private final DocumentRepository documentRepository;
+    private final com.example.keeper.systems.ai_quiz.repository.QuizRepository quizRepository;
 
     @Override
     @Transactional
@@ -61,6 +62,48 @@ public class ProjectServiceImpl implements ProjectService {
         Project savedProject = projectRepository.save(project);
         
         return mapToResponse(savedProject);
+    }
+
+    @Override
+    @Transactional
+    public ProjectDetailResponse removeDocument(UUID projectId, UUID documentId, String userEmail) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new RuntimeException("Project not found"));
+
+        if (!project.getOwner().getId().equals(user.getId())) {
+            throw new RuntimeException("You do not have permission to modify this project");
+        }
+
+        Document document = documentRepository.findById(documentId)
+                .orElseThrow(() -> new RuntimeException("Document not found"));
+
+        project.getDocuments().remove(document);
+        Project savedProject = projectRepository.save(project);
+
+        return mapToResponse(savedProject);
+    }
+
+    @Override
+    @Transactional
+    public void delete(UUID projectId, String userEmail) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new RuntimeException("Project not found"));
+
+        if (!project.getOwner().getId().equals(user.getId())) {
+            throw new RuntimeException("You do not have permission to delete this project");
+        }
+
+        // Cascade delete related quizzes
+        quizRepository.deleteByProjectId(projectId);
+
+        // Delete the project itself
+        projectRepository.delete(project);
     }
 
     @Override

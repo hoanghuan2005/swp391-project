@@ -16,8 +16,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import axiosClient from "@/api/axiosClient";
-import { getMyProjects } from "@/api/projectApi";
+import { getMyProjects, deleteProject } from "@/api/projectApi";
 import CreateProjectModal from "@/components/projects/CreateProjectModal";
+import { toast } from "react-hot-toast";
+import { Trash2 } from "lucide-react";
 
 export default function MyLibrary() {
   const [documents, setDocuments] = useState([]);
@@ -49,6 +51,24 @@ export default function MyLibrary() {
       setIsProjectsLoading(false);
     }
   }, []);
+
+  const handleDeleteWorkspace = async (e, id, name) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!window.confirm(`Are you sure you want to delete the workspace "${name}"? All associated AI data will be removed.`)) {
+      return;
+    }
+
+    try {
+      await deleteProject(id);
+      toast.success("Workspace deleted successfully");
+      fetchProjects();
+    } catch (error) {
+      console.error("Failed to delete workspace:", error);
+      toast.error("Failed to delete workspace");
+    }
+  };
 
   useEffect(() => {
     fetchMyUploads();
@@ -113,37 +133,50 @@ export default function MyLibrary() {
               </button>
 
               {projects.map((project) => (
-                <Link key={project.id} to={`/workspace/${project.id}`}>
-                  <Card className="rounded-[28px] border-slate-100 hover:border-[#f26522]/20 hover:shadow-xl hover:shadow-orange-50 transition-all group overflow-hidden bg-white h-full border-2">
-                    <CardContent className="p-6 flex flex-col h-full">
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="w-12 h-12 rounded-2xl bg-orange-50 flex items-center justify-center group-hover:bg-[#f26522] transition-colors">
-                          <Layout className="w-6 h-6 text-[#f26522] group-hover:text-white transition-colors" />
+                <div key={project.id} className="relative group">
+                  <Link to={`/workspace/${project.id}`}>
+                    <Card className="rounded-[28px] border-slate-100 hover:border-[#f26522]/20 hover:shadow-xl hover:shadow-orange-50 transition-all group overflow-hidden bg-white h-full border-2">
+                      <CardContent className="p-6 flex flex-col h-full">
+                        <div className="flex items-start justify-between mb-4">
+                          <div className="w-12 h-12 rounded-2xl bg-orange-50 flex items-center justify-center group-hover:bg-[#f26522] transition-colors">
+                            <Layout className="w-6 h-6 text-[#f26522] group-hover:text-white transition-colors" />
+                          </div>
+                          
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={(e) => handleDeleteWorkspace(e, project.id, project.name)}
+                              className="opacity-0 group-hover:opacity-100 p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all cursor-pointer"
+                              title="Delete Workspace"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                            
+                            <div className="flex items-center gap-1 text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100">
+                              <FileText className="w-3 h-3" /> {project.documents?.length || 0} Docs
+                            </div>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-1 text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100">
-                          <FileText className="w-3 h-3" /> {project.documents?.length || 0} Docs
+
+                        <h3 className="text-lg font-bold text-slate-800 group-hover:text-[#f26522] transition-colors mb-2 truncate">
+                          {project.name}
+                        </h3>
+                        <p className="text-sm text-slate-500 line-clamp-2 mb-6 flex-1">
+                          {project.description || "No description provided."}
+                        </p>
+
+                        <div className="pt-4 border-t border-slate-50 flex items-center justify-between text-xs text-slate-400">
+                          <span className="flex items-center gap-1.5 font-medium">
+                            <Calendar className="w-3.5 h-3.5" />
+                            {new Date(project.createdAt).toLocaleDateString("en-GB")}
+                          </span>
+                          <span className="flex items-center font-bold text-[#f26522] opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0">
+                            Open Workspace <ChevronRight className="w-4 h-4 ml-0.5" />
+                          </span>
                         </div>
-                      </div>
-
-                      <h3 className="text-lg font-bold text-slate-800 group-hover:text-[#f26522] transition-colors mb-2 truncate">
-                        {project.name}
-                      </h3>
-                      <p className="text-sm text-slate-500 line-clamp-2 mb-6 flex-1">
-                        {project.description || "No description provided."}
-                      </p>
-
-                      <div className="pt-4 border-t border-slate-50 flex items-center justify-between text-xs text-slate-400">
-                        <span className="flex items-center gap-1.5 font-medium">
-                          <Calendar className="w-3.5 h-3.5" />
-                          {new Date(project.createdAt).toLocaleDateString("en-GB")}
-                        </span>
-                        <span className="flex items-center font-bold text-[#f26522] opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0">
-                          Open Workspace <ChevronRight className="w-4 h-4 ml-0.5" />
-                        </span>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Link>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                </div>
               ))}
             </div>
           )}
