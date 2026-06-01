@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import {
   FileText,
   Plus,
-  Layout,
+  LayoutDashboard,
   ChevronRight,
   Search,
   BookOpen,
@@ -163,7 +163,7 @@ export default function MyLibrary() {
                       <CardContent className="py-4 px-6 flex flex-col h-full">
                         <div className="flex items-start justify-between mb-3">
                           <div className="w-12 h-12 rounded-2xl bg-orange-50 flex items-center justify-center group-hover:bg-[#f26522] transition-colors">
-                            <Layout className="w-6 h-6 text-[#f26522] group-hover:text-white transition-colors" />
+                            <LayoutDashboard className="w-6 h-6 text-[#f26522] group-hover:text-white transition-colors" />
                           </div>
 
                           <div className="flex items-center gap-2">

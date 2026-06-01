@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { FolderPlus, Loader2, Search, CheckCircle2, Layout } from "lucide-react";
+import { FolderPlus, Loader2, Search, CheckCircle2, LayoutDashboard } from "lucide-react";
 import { toast } from "react-hot-toast";
 
 import {
@@ -82,7 +82,7 @@ export default function AddToProjectModal({ documentId, open, onOpenChange }) {
               </div>
             ) : projects.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-[200px] text-center">
-                <Layout className="w-10 h-10 text-slate-200 mb-3" />
+                <LayoutDashboard className="w-10 h-10 text-slate-200 mb-3" />
                 <p className="text-sm text-slate-500">No workspaces found.</p>
               </div>
             ) : (
@@ -103,7 +103,7 @@ export default function AddToProjectModal({ documentId, open, onOpenChange }) {
                         "w-10 h-10 rounded-xl flex items-center justify-center transition-colors",
                         selectedProjectId === project.id ? "bg-[#f26522] text-white" : "bg-slate-100 text-slate-400"
                       )}>
-                        <Layout className="w-5 h-5" />
+                        <LayoutDashboard className="w-5 h-5" />
                       </div>
                       <div className="overflow-hidden">
                         <p className="font-bold text-slate-800 text-sm truncate">
