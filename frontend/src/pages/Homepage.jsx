@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 import axiosClient from "@/api/axiosClient";
 import RecentDocuments from "@/components/documents/RecentDocuments";
+import UploadDocumentDialog from "@/components/documents/UploadDocumentDialog";
 
 export default function Homepage() {
   const [uploadOpen, setUploadOpen] = useState(false);
@@ -41,11 +42,16 @@ export default function Homepage() {
 
   const fetchCourses = useCallback(async () => {
     try {
-      const response = await axiosClient.get("/api/courses");
+      const response = await axiosClient.get("/api/courses", {
+        params: {
+          t: Date.now(),
+        },
+      });
 
-      setCourses(response.data.content);
+      setCourses(response.data?.content || []);
     } catch (error) {
       console.error("Error fetching courses:", error);
+      setCourses([]);
     }
   }, []);
 
@@ -53,14 +59,21 @@ export default function Homepage() {
   const fetchDocuments = useCallback(async () => {
     try {
       setIsLoading(true);
-      const response = await axiosClient.get("/api/documents");
-      // Lọc ra những tài liệu PUBLIC để hiển thị trên Home
-      const publicDocs = response.data.filter(
+
+      const response = await axiosClient.get("/api/documents", {
+        params: {
+          t: Date.now(),
+        },
+      });
+
+      const publicDocs = (response.data || []).filter(
         (doc) => doc.visibility === "PUBLIC",
       );
+
       setDocuments(publicDocs);
     } catch (error) {
       console.error("Error fetching documents:", error);
+      setDocuments([]);
     } finally {
       setIsLoading(false);
     }
@@ -70,13 +83,16 @@ export default function Homepage() {
     fetchDocuments();
     fetchCourses();
 
-    const handleUploaded = () => fetchDocuments();
+    const handleUploaded = async () => {
+      await fetchDocuments();
+    };
+
     window.addEventListener("documents:uploaded", handleUploaded);
 
     return () => {
       window.removeEventListener("documents:uploaded", handleUploaded);
     };
-  }, [fetchDocuments]);
+  }, [fetchDocuments, fetchCourses]);
 
   // Hàm xử lý tải file (Tăng view và tải về máy)
   const handleDownload = async (id, title) => {
@@ -103,77 +119,13 @@ export default function Homepage() {
 
         <RecentDocuments />
 
-        {/* Modal Upload */}
-        <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>
-          <DialogContent className="sm:max-w-lg rounded-2xl">
-            <DialogHeader>
-              <DialogTitle className="text-2xl font-bold">
-                Upload Document
-              </DialogTitle>
-              <DialogDescription>
-                Share your knowledge. Fill out the specific areas so others can
-                easily find it.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-5 py-4">
-              <div className="space-y-4 border-2 border-dashed border-gray-200 rounded-xl p-6 text-center hover:bg-gray-50 transition-colors cursor-pointer">
-                <div className="flex justify-center">
-                  <div className="p-3 bg-[#f26522]/10 rounded-full text-[#f26522]">
-                    <UploadCloud size={32} />
-                  </div>
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-slate-800">
-                    Click to upload or drag and drop
-                  </p>
-                  <p className="text-xs text-slate-500 mt-1">
-                    PDF, DOCX, PPTX or Text files (max. 10MB)
-                  </p>
-                </div>
-              </div>
-              {/* Các Input Fields */}
-              <div className="space-y-2">
-                <Label className="flex items-center gap-2 text-slate-700 font-semibold">
-                  <GraduationCap size={16} className="text-[#f26522]" /> School
-                </Label>
-                <Input
-                  placeholder="Enter your school name"
-                  className="rounded-lg focus-visible:ring-[#f26522]"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label className="flex items-center gap-2 text-slate-700 font-semibold">
-                  <BookOpen size={16} className="text-[#f26522]" /> Course
-                </Label>
-                <Input
-                  placeholder="Enter course code or name"
-                  className="rounded-lg focus-visible:ring-[#f26522]"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label className="flex items-center gap-2 text-slate-700 font-semibold">
-                  <Tags size={16} className="text-[#f26522]" /> Tags
-                </Label>
-                <Input
-                  placeholder="Enter tags, separated by comma"
-                  className="rounded-lg focus-visible:ring-[#f26522]"
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button
-                variant="ghost"
-                onClick={() => setUploadOpen(false)}
-                className="rounded-lg font-semibold cursor-pointer"
-              >
-                Cancel
-              </Button>
-              <Button className="rounded-lg bg-[#f26522] hover:bg-[#d95316] text-white font-semibold cursor-pointer">
-                Upload Now
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <UploadDocumentDialog
+          open={uploadOpen}
+          onOpenChange={setUploadOpen}
+          onUploadSuccess={(newDoc) => {
+            setDocuments((prev) => [newDoc, ...prev]);
+          }}
+        />
 
         {/* Danh sách tài liệu Public MỚI NHẤT */}
         <section className="mb-10">

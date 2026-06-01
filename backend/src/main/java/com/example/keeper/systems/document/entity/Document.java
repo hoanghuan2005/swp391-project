@@ -2,6 +2,7 @@ package com.example.keeper.systems.document.entity;
 
 import com.example.keeper.systems.auth.entity.User;
 import com.example.keeper.systems.base.BaseEntity;
+import com.example.keeper.systems.category.entity.Category;
 import com.example.keeper.systems.document.enums.Visibility;
 import com.example.keeper.systems.course.entity.Course;
 import com.example.keeper.systems.tag.entity.Tag;
@@ -77,4 +78,8 @@ public class Document extends BaseEntity {
     @ManyToMany
     @JoinTable(name = "document_tags", joinColumns = @JoinColumn(name = "document_id"), inverseJoinColumns = @JoinColumn(name = "tag_id"))
     private Set<Tag> tags = new HashSet<>();
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id")
+    private Category category;
 }

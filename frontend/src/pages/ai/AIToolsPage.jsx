@@ -2,8 +2,8 @@ import React, { useState } from "react";
 import { BookOpen, BrainCircuit, Sparkles, ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
-import AIFlashcardGenerator from "../ai_flashcard/AIFlashcardGenerator.jsx";
-import AIQuizGenerator from "./AIQuizGenerator.jsx";
+import AIFlashcardGenerator from "./ai_flashcard/AIFlashcardGenerator.jsx";
+import AIQuizGenerator from "./ai_quiz/AIQuizGenerator.jsx";
 
 const AIQuizPage = () => {
   // Thêm state để lưu trữ bài học được chọn

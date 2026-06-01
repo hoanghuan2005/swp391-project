@@ -2,6 +2,7 @@ package com.example.keeper.config;
 
 import com.example.keeper.systems.auth.entity.RefreshToken;
 import com.example.keeper.systems.auth.entity.User;
+import com.example.keeper.systems.auth.repository.RoleRepository;
 import com.example.keeper.systems.auth.repository.UserRepository;
 import com.example.keeper.systems.auth.service.JwtService;
 import com.example.keeper.systems.auth.service.RefreshTokenService;
@@ -24,99 +25,121 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final JwtAuthenticationFilter jwtAuthFilter;
-    private final JwtService jwtService;
-    private final UserRepository userRepository;
-    private final RefreshTokenService refreshTokenService;
+        private final JwtAuthenticationFilter jwtAuthFilter;
+        private final JwtService jwtService;
+        private final UserRepository userRepository;
+        private final RefreshTokenService refreshTokenService;
+        private final RoleRepository roleRepository;
 
-    @Bean
-    public SecurityFilterChain securityFilterChain(org.springframework.security.config.annotation.web.builders.HttpSecurity http) throws Exception {
+        @Bean
+        public SecurityFilterChain securityFilterChain(
+                        org.springframework.security.config.annotation.web.builders.HttpSecurity http)
+                        throws Exception {
 
-        http
-                .csrf(csrf -> csrf.disable())
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .sessionManagement(session ->
-                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-                )
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(
-                                "/api/auth/**",
-                                "/oauth2/**",
-                                "/login/oauth2/**",
+                http
+                                .csrf(csrf -> csrf.disable())
+                                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                                .sessionManagement(session -> session
+                                                .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                                .authorizeHttpRequests(auth -> auth
+                                                .requestMatchers(
+                                                                "/api/auth/**",
+                                                                "/oauth2/**",
+                                                                "/login/oauth2/**",
 
-                                "/api/courses/**",
+                                                                "/api/courses/**",
 
-                                "/api/languages/**",
-                                "/api/schools/**",
-                                "/api/tags/**",
+                                                                "/api/languages/**",
+                                                                "/api/schools/**",
+                                                                "/api/tags/**",
 
-                                "/v3/api-docs/**",
-                                "/swagger-ui/**",
-                                "/swagger-ui.html",
-                                "/swagger-resources/**",
-                                "/webjars/**"
-                        ).permitAll()
+                                                                "/v3/api-docs/**",
+                                                                "/swagger-ui/**",
+                                                                "/swagger-ui.html",
+                                                                "/swagger-resources/**",
+                                                                "/webjars/**")
+                                                .permitAll()
 
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                        .anyRequest().authenticated()
-                )
-                .exceptionHandling(ex -> ex
-                        .authenticationEntryPoint((req, res, e) -> {
-                            res.setStatus(401);
-                            res.setContentType("application/json");
-                            res.getWriter().write("{\"message\":\"Unauthorized\"}");
-                        })
-                )
+                                                .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                                                .anyRequest().authenticated())
+                                .exceptionHandling(ex -> ex
+                                                .authenticationEntryPoint((req, res, e) -> {
+                                                        res.setStatus(401);
+                                                        res.setContentType("application/json");
+                                                        res.getWriter().write("{\"message\":\"Unauthorized\"}");
+                                                }))
 
-                .oauth2Login(oauth -> oauth
-                        .successHandler((request, response, authentication) -> {
+                                .oauth2Login(oauth -> oauth
+                                                .successHandler((request, response, authentication) -> {
 
-                            OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
+                                                        OAuth2User oAuth2User = (OAuth2User) authentication
+                                                                        .getPrincipal();
 
-                            String email = oAuth2User.getAttribute("email");
+                                                        String email = oAuth2User.getAttribute("email");
 
-                            User user = userRepository.findByEmail(email)
-                                    .orElseThrow(() -> new RuntimeException("User not found"));
+                                                        User user = userRepository.findByEmail(email).orElseGet(() -> {
+                                                                // Auto-provision user if not exists
+                                                                User newUser = new User();
+                                                                String name = oAuth2User.getAttribute("name");
+                                                                String username = (name != null && !name.isBlank())
+                                                                                ? name.replaceAll("\\s+", "_")
+                                                                                : email.split("@")[0];
+                                                                newUser.setUsername(username);
+                                                                newUser.setEmail(email);
+                                                                // generate random password - user will login via OAuth
+                                                                newUser.setPassword(
+                                                                                new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder()
+                                                                                                .encode(java.util.UUID
+                                                                                                                .randomUUID()
+                                                                                                                .toString()));
+                                                                newUser.setEmailVerified(true);
 
-                            // ACCESS TOKEN
-                            String accessToken = jwtService.generateToken(user);
+                                                                // assign STUDENT role if available
+                                                                roleRepository.findByName("STUDENT")
+                                                                                .ifPresent(newUser::setRole);
 
-                            // REFRESH TOKEN
-                            RefreshToken refreshToken =
-                                    refreshTokenService.createRefreshToken(user.getId());
+                                                                userRepository.save(newUser);
 
-                            String redirectUrl =
-                                    "http://localhost:5173/oauth2/callback"
-                                            + "?token=" + accessToken
-                                            + "&refreshToken=" + refreshToken.getToken();
+                                                                return newUser;
+                                                        });
 
-                            response.sendRedirect(redirectUrl);
-                        })
-                )
-                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+                                                        // ACCESS TOKEN
+                                                        String accessToken = jwtService.generateToken(user);
 
-        return http.build();
-    }
+                                                        // REFRESH TOKEN
+                                                        RefreshToken refreshToken = refreshTokenService
+                                                                        .createRefreshToken(user.getId());
 
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
+                                                        String redirectUrl = "http://localhost:5173/oauth2/callback"
+                                                                        + "?token=" + accessToken
+                                                                        + "&refreshToken=" + refreshToken.getToken();
 
-        CorsConfiguration config = new CorsConfiguration();
+                                                        response.sendRedirect(redirectUrl);
+                                                }))
+                                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
-        config.setAllowedOrigins(List.of("http://localhost:5173"));
-        config.setAllowedMethods(List.of("GET","POST","PUT","DELETE","OPTIONS"));
-        config.setAllowedHeaders(List.of("*"));
-        config.setAllowCredentials(true);
-        config.setExposedHeaders(List.of("Authorization"));
+                return http.build();
+        }
 
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", config);
+        @Bean
+        public CorsConfigurationSource corsConfigurationSource() {
 
-        return source;
-    }
+                CorsConfiguration config = new CorsConfiguration();
 
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
+                config.setAllowedOrigins(List.of("http://localhost:5173"));
+                config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+                config.setAllowedHeaders(List.of("*"));
+                config.setAllowCredentials(true);
+                config.setExposedHeaders(List.of("Authorization"));
+
+                UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+                source.registerCorsConfiguration("/**", config);
+
+                return source;
+        }
+
+        @Bean
+        public PasswordEncoder passwordEncoder() {
+                return new BCryptPasswordEncoder();
+        }
 }

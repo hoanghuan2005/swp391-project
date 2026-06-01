@@ -1,10 +1,12 @@
-import ReactDOM from "react-dom/client"
-import App from "./App.jsx"
-import "./index.css"
-import { GoogleOAuthProvider } from "@react-oauth/google"
+import ReactDOM from "react-dom/client";
+import App from "./App.jsx";
+import "./index.css";
+import { GoogleOAuthProvider } from "@react-oauth/google";
+import AppToaster from "./components/ui/app_toaster.jsx";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
-  <GoogleOAuthProvider clientId="147748956321-3mpgd7vk3r6hnk7j6nt9pot27322idsp.apps.googleusercontent.com147748956321-3mpgd7vk3r6hnk7j6nt9pot27322idsp.apps.googleusercontent.com">
+  <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
     <App />
-  </GoogleOAuthProvider>
-)
+    <AppToaster />
+  </GoogleOAuthProvider>,
+);

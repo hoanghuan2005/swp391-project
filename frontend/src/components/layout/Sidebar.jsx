@@ -172,31 +172,11 @@ export default function Sidebar({ isOpen = true }) {
     totalElements: 0,
   });
   const [courseLoading, setCourseLoading] = useState(false);
-
-  const [subjectNameOpen, setSubjectNameOpen] = useState(false);
-  const [schoolQuery, setSchoolQuery] = useState("");
-  const [subjectQuery, setSubjectQuery] = useState("");
-  const [tagQuery, setTagQuery] = useState("");
-  const [selectedSchool, setSelectedSchool] = useState(null);
-  const [selectedSubject, setSelectedSubject] = useState(null);
-  const [selectedTags, setSelectedTags] = useState([]);
-
-  const [schoolOpen, setSchoolOpen] = useState(false);
-  const [subjectOpen, setSubjectOpen] = useState(false);
-  const [tagOpen, setTagOpen] = useState(false);
-
-  const [subjectName, setSubjectName] = useState("");
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [uploading, setUploading] = useState(false);
-  const [uploadError, setUploadError] = useState("");
-  const [schoolOptions, setSchoolOptions] = useState([]);
-  const [subjectOptions, setSubjectOptions] = useState([]);
-  const [tagOptions, setTagOptions] = useState([]);
   const [followedCourses, setFollowedCourses] = useState([]);
   const [workspaceModalOpen, setWorkspaceModalOpen] = useState(false);
   const [workspaces, setWorkspaces] = useState([]);
 
-  // 🔥 STATE LƯU TRỮ THÔNG TIN PROFILE DÀNH CHO SIDEBAR
+  // STATE LƯU TRỮ THÔNG TIN PROFILE DÀNH CHO SIDEBAR
   const [sidebarProfile, setSidebarProfile] = useState({
     fullName: "Student",
     schoolCode: "...",
@@ -266,64 +246,6 @@ export default function Sidebar({ isOpen = true }) {
   }, []);
 
   useEffect(() => {
-    const fetchOptions = async () => {
-      try {
-        const [schoolsRes, coursesRes, tagsRes] = await Promise.all([
-          axiosClient.get("/api/schools"),
-          axiosClient.get("/api/courses/all"),
-          axiosClient.get("/api/tags"),
-        ]);
-
-        setSchoolOptions(
-          Array.isArray(schoolsRes.data)
-            ? schoolsRes.data.map((school) => ({
-                code: school.code,
-                name: school.name,
-              }))
-            : [],
-        );
-        setSubjectOptions(
-          Array.isArray(coursesRes.data)
-            ? coursesRes.data.map((course) => ({
-                code: course.code,
-                name: course.name,
-              }))
-            : [],
-        );
-        setTagOptions(
-          Array.isArray(tagsRes.data)
-            ? tagsRes.data.map((tag) => tag.name)
-            : [],
-        );
-      } catch (error) {
-        console.error("Failed to load options", error);
-      }
-    };
-
-    if (uploadOpen) {
-      fetchOptions();
-    }
-  }, [uploadOpen]);
-
-  // FIX: Lắng nghe sự kiện click toàn cục để tự động đóng dropdown khi nhấn ra ngoài
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (schoolRef.current && !schoolRef.current.contains(event.target)) {
-        setSchoolOpen(false);
-      }
-      if (subjectRef.current && !subjectRef.current.contains(event.target)) {
-        setSubjectOpen(false);
-      }
-      if (tagRef.current && !tagRef.current.contains(event.target)) {
-        setTagOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  useEffect(() => {
     if (!courseLibraryOpen) return;
 
     const fetchCourses = async () => {
@@ -381,23 +303,6 @@ export default function Sidebar({ isOpen = true }) {
     };
   }, []);
 
-  const resolveUploadedById = async () => {
-    const storedId = localStorage.getItem("userId");
-    if (storedId) return storedId;
-
-    try {
-      const profileRes = await axiosClient.get("/api/profile");
-      const profileId = profileRes.data?.id;
-      if (profileId) {
-        localStorage.setItem("userId", profileId);
-        return profileId;
-      }
-    } catch (error) {
-      console.error("Failed to load user profile", error);
-    }
-    return null;
-  };
-
   const handleFollowCourse = async (event, course) => {
     event.stopPropagation();
     event.preventDefault();
@@ -417,59 +322,6 @@ export default function Sidebar({ isOpen = true }) {
       window.dispatchEvent(new CustomEvent("courses:updated"));
     } catch (error) {
       console.error("Failed to follow course", error);
-    }
-  };
-
-  const handleUploadDocument = async () => {
-    if (!selectedFile) {
-      setUploadError("Please select a file to upload.");
-      return;
-    }
-
-    const courseCode = subjectQuery.split("-")[0]?.trim();
-    if (!courseCode) {
-      setUploadError("Please enter a course code.");
-      return;
-    }
-
-    const uploadedById = await resolveUploadedById();
-
-    setUploading(true);
-    setUploadError("");
-
-    try {
-      const formData = new FormData();
-      formData.append("file", selectedFile);
-      formData.append("title", selectedFile.name);
-      formData.append("visibility", "PUBLIC");
-      if (uploadedById) {
-        formData.append("uploadedById", uploadedById);
-      }
-      formData.append("courseCode", courseCode);
-
-      if (subjectNameOpen && subjectName.trim()) {
-        formData.append("courseName", subjectName.trim());
-      }
-
-      selectedTags.forEach((tag) => formData.append("tagNames", tag));
-
-      await axiosClient.post("/api/documents/upload", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-
-      // Bắn sự kiện này để cái useEffect ở trên tự động đếm lại file
-      window.dispatchEvent(new CustomEvent("documents:uploaded"));
-
-      setSelectedFile(null);
-      setSubjectQuery("");
-      setSubjectName("");
-      setSelectedTags([]);
-      setUploadOpen(false);
-    } catch (error) {
-      console.error("Upload failed", error);
-      setUploadError("Upload failed. Please try again.");
-    } finally {
-      setUploading(false);
     }
   };
 
@@ -755,8 +607,10 @@ export default function Sidebar({ isOpen = true }) {
           onOpenChange={setWorkspaceModalOpen}
           onSuccess={(newProject) => {
             console.log("Created:", newProject);
-
-            // optional: refresh workspace list here
+            // refresh local state
+            fetchWorkspaces();
+            // notify toàn app
+            window.dispatchEvent(new CustomEvent("workspaces:updated"));
           }}
         />
       </nav>

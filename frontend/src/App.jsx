@@ -23,12 +23,13 @@ import CatalogCoursesPage from "./pages/admin/CatalogCoursesPage";
 import AskAIPage from "./pages/ai/ai_ask/AskAIPage";
 import ProjectWorkspacePage from "./pages/workspace/ProjectWorkspacePage";
 import AIFlashcard from "./pages/ai/ai_flashcard/AIFlashcard";
-import AIQuizPage from "./pages/ai/ai_quiz/AIToolsPage";
+import AIQuizPage from "./pages/ai/AIToolsPage";
 import AIQuizTakePage from "./pages/ai/ai_quiz/AIQuizTakePage";
 import WorkspaceOverviewPage from "./pages/workspace/WorkspaceOverviewPage";
 import OAuth2Callback from "./pages/OAuth2Callback";
 import AIFlashcardGenerator from "./pages/ai/ai_flashcard/AIFlashcardGenerator";
 import AIQuizGenerator from "./pages/ai/ai_quiz/AIQuizGenerator";
+import NotificationPage from "./pages/Notification";
 
 function ComingSoon({ pageName }) {
   return (
@@ -92,6 +93,7 @@ function App() {
             path="/workspace/shared/:token"
             element={<ProjectWorkspacePage />}
           />
+          <Route path="/notifications" element={<NotificationPage />} />
         </Route>
 
         {/* Admin dashboard layout */}

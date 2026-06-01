@@ -21,6 +21,8 @@ public class JwtService {
     public String generateToken(User user) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("role", user.getRole() != null ? user.getRole().getName() : "STUDENT");
+        // include display name for frontend
+        claims.put("name", user.getUsername() != null ? user.getUsername() : user.getEmail());
 
         return Jwts.builder()
                 .setClaims(claims)
@@ -44,7 +46,6 @@ public class JwtService {
                 .compact();
     }
 
-
     public String extractUsername(String token) {
         return Jwts.parserBuilder()
                 .setSigningKey(getSignInKey())
@@ -60,8 +61,7 @@ public class JwtService {
                 .setIssuedAt(new Date())
                 .setExpiration(
                         new Date(System.currentTimeMillis()
-                                + 1000L * 60 * 60 * 24 * 7)
-                )
+                                + 1000L * 60 * 60 * 24 * 7))
                 .signWith(getSignInKey(), SignatureAlgorithm.HS256)
                 .compact();
     }
