@@ -6,14 +6,17 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
+import org.apache.poi.xslf.extractor.XSLFExtractor;
+import org.apache.poi.xslf.usermodel.XMLSlideShow;
 import org.apache.poi.xwpf.extractor.XWPFWordExtractor;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
 
+import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 @Slf4j
@@ -25,21 +28,33 @@ public class DocumentParserService {
 
     private static final int CHUNK_SIZE = 1500; // max characters per chunk
 
-    public boolean parseAndChunkDocument(MultipartFile file, UUID documentId) {
-        String filename = file.getOriginalFilename();
-        if (filename == null) return false;
-        
-        filename = filename.toLowerCase();
+    public boolean parseAndChunkDocument(byte[] fileBytes, String originalFilename, String contentType, UUID documentId) {
+        if (fileBytes == null || fileBytes.length == 0) {
+            log.warn("Cannot parse empty file content for document: {}", documentId);
+            return false;
+        }
 
-        try (InputStream inputStream = file.getInputStream()) {
+        String filename = originalFilename;
+        if (filename == null || filename.isBlank()) {
+            log.warn("Cannot parse document without original filename. DocumentId: {}, contentType: {}",
+                    documentId,
+                    contentType);
+            return false;
+        }
+
+        filename = filename.toLowerCase(Locale.ROOT);
+
+        try (InputStream inputStream = new ByteArrayInputStream(fileBytes)) {
             String fullText = "";
 
             if (filename.endsWith(".pdf")) {
                 fullText = extractPdfText(inputStream);
             } else if (filename.endsWith(".docx")) {
                 fullText = extractDocxText(inputStream);
+            } else if (filename.endsWith(".pptx")) {
+                fullText = extractPptxText(inputStream);
             } else {
-                log.info("Unsupported file type for AI parsing: {}", filename);
+                log.info("Unsupported file type for AI parsing: {}, contentType: {}", filename, contentType);
                 return false;
             }
 
@@ -47,7 +62,10 @@ public class DocumentParserService {
                 chunkAndSaveText(fullText, documentId);
                 return true;
             } else {
-                log.warn("Extracted text is empty for document: {}", documentId);
+                log.warn("Extracted text is blank for document: {}, filename: {}, contentType: {}",
+                        documentId,
+                        filename,
+                        contentType);
                 return false;
             }
 
@@ -68,6 +86,13 @@ public class DocumentParserService {
     private String extractDocxText(InputStream inputStream) throws Exception {
         try (XWPFDocument document = new XWPFDocument(inputStream);
              XWPFWordExtractor extractor = new XWPFWordExtractor(document)) {
+            return extractor.getText();
+        }
+    }
+
+    private String extractPptxText(InputStream inputStream) throws Exception {
+        try (XMLSlideShow slideShow = new XMLSlideShow(inputStream);
+             XSLFExtractor extractor = new XSLFExtractor(slideShow)) {
             return extractor.getText();
         }
     }

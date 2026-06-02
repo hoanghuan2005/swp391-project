@@ -20,9 +20,11 @@ import com.example.keeper.systems.course.repository.CourseRepository;
 import com.example.keeper.systems.tag.entity.Tag;
 import com.example.keeper.systems.tag.repository.TagRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import java.io.IOException;
 import java.text.Normalizer;
 import java.nio.charset.StandardCharsets;
 
@@ -36,6 +38,7 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class DocumentServiceImpl implements DocumentService {
 
     private final DocumentRepository documentRepository;
@@ -98,12 +101,31 @@ public class DocumentServiceImpl implements DocumentService {
         }
         document.setAiParseStatus(resolveAiParseStatus(file));
 
+        byte[] fileBytes = null;
+        String parserFilename = file.getOriginalFilename();
+        String parserContentType = file.getContentType();
+        if (document.getAiParseStatus() == AiParseStatus.PENDING) {
+            try {
+                fileBytes = file.getBytes();
+            } catch (IOException e) {
+                log.warn("Failed to copy document bytes before async parsing. Filename: {}, Error: {}",
+                        parserFilename,
+                        e.getMessage());
+                document.setAiParseStatus(AiParseStatus.FAILED);
+            }
+        }
+
         Document savedDocument = documentRepository.save(document);
 
-        if (savedDocument.getAiParseStatus() == AiParseStatus.PENDING) {
+        if (savedDocument.getAiParseStatus() == AiParseStatus.PENDING && fileBytes != null) {
+            byte[] stableFileBytes = fileBytes;
             // Asynchronously parse document for AI features.
             java.util.concurrent.CompletableFuture.runAsync(() -> {
-                boolean parsed = documentParserService.parseAndChunkDocument(file, savedDocument.getId());
+                boolean parsed = documentParserService.parseAndChunkDocument(
+                        stableFileBytes,
+                        parserFilename,
+                        parserContentType,
+                        savedDocument.getId());
                 documentRepository.findById(savedDocument.getId()).ifPresent(doc -> {
                     doc.setAiParseStatus(parsed ? AiParseStatus.READY : AiParseStatus.FAILED);
                     documentRepository.save(doc);
@@ -478,7 +500,7 @@ public class DocumentServiceImpl implements DocumentService {
         }
 
         String lower = filename.toLowerCase();
-        if (lower.endsWith(".pdf") || lower.endsWith(".docx")) {
+        if (lower.endsWith(".pdf") || lower.endsWith(".docx") || lower.endsWith(".pptx")) {
             return AiParseStatus.PENDING;
         }
 
