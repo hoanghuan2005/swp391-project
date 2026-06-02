@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { Link } from "react-router-dom";
+import React, { useState, useEffect, useCallback, useMemo } from "react"; // THÊM useMemo
+import { Link, useOutletContext } from "react-router-dom"; // THÊM useOutletContext
 import { Button } from "@/components/ui/button";
 import { forceDownload } from "@/lib/downloadHelper";
 import {
@@ -16,6 +16,13 @@ import UploadDocumentDialog from "@/components/documents/UploadDocumentDialog";
 import CourseCard from "@/components/ui/CourseCard";
 
 export default function Homepage() {
+  // ==========================================
+  // THÊM: LẤY SEARCH & FILTER TỪ LAYOUT
+  // ==========================================
+  const context = useOutletContext();
+  const searchQuery = context?.searchQuery || "";
+  const filterData = context?.filterData || { school: "", course: "", tag: "" };
+
   const [uploadOpen, setUploadOpen] = useState(false);
   const [documents, setDocuments] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -112,6 +119,35 @@ export default function Homepage() {
     }
   };
 
+ const filteredDocuments = useMemo(() => {
+    return documents.filter((doc) => {
+      // 1. Tìm kiếm theo tiêu đề (Search Bar) - OK
+      const matchesSearch = doc.title
+        ?.toLowerCase()
+        .includes(searchQuery.toLowerCase());
+        
+      // 2. Lọc theo Course - OK (BE có code và name)
+      const matchesCourse = filterData.course 
+        ? doc.course?.code?.toLowerCase().includes(filterData.course.toLowerCase()) 
+          || doc.course?.name?.toLowerCase().includes(filterData.course.toLowerCase())
+        : true;
+        
+      // 3. Lọc theo Tags - ĐÃ SỬA: Vì BE trả về mảng String trực tiếp ["React", "Java"]
+      const matchesTag = filterData.tag 
+        ? doc.tags?.some(tag => tag.toLowerCase().includes(filterData.tag.toLowerCase()))
+        : true;
+
+      // 4. Lọc theo Trường học (School)
+      // TẠM SỬA: Vì BE chưa trả về trường school nên nếu user gõ filter school, 
+      // ta tạm thời cho qua (luôn true) hoặc xử lý để không bị crash/ra 0 kết quả nhé.
+      const matchesSchool = filterData.school 
+        ? false // Hiện tại gõ vào đây sẽ ra 0 kết quả vì dữ liệu doc.school không tồn tại
+        : true;
+
+      return matchesSearch && matchesCourse && matchesTag && matchesSchool;
+    });
+  }, [documents, searchQuery, filterData]);
+
   return (
     <>
       <main className="flex-1">
@@ -141,13 +177,13 @@ export default function Homepage() {
             <div className="text-center text-slate-500 font-medium">
               Loading documents...
             </div>
-          ) : documents.length === 0 ? (
-            <div className="text-center bg-slate-50 rounded-2xl text-slate-500 border border-slate-100">
-              No public documents available yet.
+          ) : filteredDocuments.length === 0 ? ( // ĐỔI SANG DÙNG filteredDocuments
+            <div className="text-center bg-slate-50 rounded-2xl text-slate-500 border border-slate-100 p-8">
+              No documents found matching your criteria.
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-              {documents.map((doc) => (
+              {filteredDocuments.map((doc) => ( // ĐỔI SANG DÙNG filteredDocuments
                 <Card
                   key={doc.id}
                   className="shadow-sm border-slate-100 hover:shadow-md transition-all group flex flex-col h-full rounded-[20px] overflow-hidden bg-white"
