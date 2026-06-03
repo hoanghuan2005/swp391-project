@@ -31,10 +31,6 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class AiAskServiceImpl implements AiAskService {
 
-    private static final String PROJECT_REFUSAL_MESSAGE =
-            "I could not find enough information in the selected workspace sources to answer that.";
-    private static final String PROJECT_REFUSAL_MESSAGE_VI =
-            "Mình không tìm thấy đủ thông tin trong các nguồn workspace đã chọn để trả lời câu hỏi này.";
     private static final String PROJECT_ACK_MESSAGE =
             "I'm here. Ask me a question about the documents in this workspace.";
     private static final String PROJECT_ACK_MESSAGE_VI =
@@ -99,7 +95,7 @@ public class AiAskServiceImpl implements AiAskService {
 
             boolean hasRelevantProjectContext = appendProjectContext(prompt, request);
             if (!hasRelevantProjectContext) {
-                return buildResponse(conversation, projectMessage(request.getMessage(), PROJECT_REFUSAL_MESSAGE, PROJECT_REFUSAL_MESSAGE_VI));
+                appendNoRelevantProjectContextInstruction(prompt);
             }
         } else {
             appendDocumentContext(prompt, request, conversation);
@@ -150,9 +146,6 @@ public class AiAskServiceImpl implements AiAskService {
         Project project = resolveProject(request);
 
         prompt.append("You are operating inside the Project Workspace: ").append(project.getName()).append("\n");
-        prompt.append("Answer only from the provided project sources. ")
-                .append("If the sources do not contain enough information, say you cannot answer from the workspace sources. ")
-                .append("Do not use outside knowledge.\n");
         prompt.append("Respond in the same language as the user's latest message.\n");
 
         boolean hasTargetedSelection = request.getDocumentIds() != null && !request.getDocumentIds().isEmpty();
@@ -200,7 +193,22 @@ public class AiAskServiceImpl implements AiAskService {
         }
 
         prompt.append("--- END PROJECT DOCS CONTEXT ---\n\n");
+        if (hasReadyContext) {
+            prompt.append("Use the workspace source excerpts as the primary basis for your answer. ")
+                    .append("If the sources do not support a factual claim, say so.\n");
+        }
         return hasReadyContext;
+    }
+
+    private void appendNoRelevantProjectContextInstruction(StringBuilder prompt) {
+        prompt.append("No clearly relevant workspace source excerpts were found for this question.\n");
+        prompt.append("You are still in Project Workspace mode.\n");
+        prompt.append("Respond in the same language as the user's latest message.\n");
+        prompt.append("Do not invent factual answers that are not supported by workspace sources.\n");
+        prompt.append("If the user asks about document/workspace content and the sources are insufficient, ")
+                .append("say that the workspace sources do not contain enough information.\n");
+        prompt.append("If the user is asking a conversational, clarification, or capability question, ")
+                .append("answer naturally and briefly.\n");
     }
 
     private String getProjectDeterministicResponse(String message) {
