@@ -135,6 +135,7 @@ public class AiAskServiceImpl implements AiAskService {
 
         prompt.append("--- BEGIN PROJECT DOCS CONTEXT ---\n");
 
+        boolean hasReadyContext = false;
         if (project.getDocuments() == null || project.getDocuments().isEmpty()) {
             prompt.append("(No documents attached to this workspace yet.)\n");
         } else {
@@ -143,7 +144,15 @@ public class AiAskServiceImpl implements AiAskService {
                     continue;
                 }
 
-                ensureReadyForAi(doc);
+                if (doc.getAiParseStatus() != AiParseStatus.READY) {
+                    prompt.append("\n[Skipped Document: ")
+                            .append(doc.getTitle())
+                            .append(" - aiParseStatus: ")
+                            .append(doc.getAiParseStatus())
+                            .append("]\n");
+                    continue;
+                }
+
                 List<DocumentChunk> chunks = selectRelevantChunks(
                         request.getMessage(),
                         documentChunkRepository.findByDocumentId(doc.getId()),
@@ -155,8 +164,13 @@ public class AiAskServiceImpl implements AiAskService {
                     for (DocumentChunk chunk : chunks) {
                         prompt.append(chunk.getContent()).append("\n");
                     }
+                    hasReadyContext = true;
                 }
             }
+        }
+
+        if (!hasReadyContext) {
+            throw new RuntimeException("No ready documents are available for AI context in this workspace.");
         }
 
         prompt.append("--- END PROJECT DOCS CONTEXT ---\n\n");
