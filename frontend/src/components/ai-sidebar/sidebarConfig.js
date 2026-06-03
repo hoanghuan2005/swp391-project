@@ -32,8 +32,8 @@ export const sidebarConfig = {
     type: "project-workspace",
     title: "Project Workspace",
     subtitle: "Multi-document Context",
-    historyTitle: "Active Chat",
+    historyTitle: "Chat History",
     emptyMessage: "No chats available",
-    createButton: "Project Chat",
+    createButton: "New Chat",
   },
 };

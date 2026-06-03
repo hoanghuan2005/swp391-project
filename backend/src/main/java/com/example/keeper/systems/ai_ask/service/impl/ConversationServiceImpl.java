@@ -24,13 +24,14 @@ public class ConversationServiceImpl
     private String model;
 
     @Override
-    public AiConversation createConversation(UUID userId, String title, UUID documentId) {
+    public AiConversation createConversation(UUID userId, String title, UUID documentId, UUID projectId) {
 
         AiConversation conversation =
                 AiConversation.builder()
                         .userId(userId)
                         .title(title != null ? title : "New Chat")
                         .documentId(documentId)
+                        .projectId(projectId)
                         .modelName("groq:" + model)
                         .build();
 
@@ -43,7 +44,17 @@ public class ConversationServiceImpl
     ) {
 
         return conversationRepository
-                .findByUserIdOrderByCreatedAtDesc(userId);
+                .findByUserIdAndProjectIdIsNullOrderByCreatedAtDesc(userId);
+    }
+
+    @Override
+    public List<AiConversation> getUserConversations(UUID userId, UUID projectId) {
+        if (projectId == null) {
+            return getUserConversations(userId);
+        }
+
+        return conversationRepository
+                .findByUserIdAndProjectIdOrderByCreatedAtDesc(userId, projectId);
     }
 
     @Override

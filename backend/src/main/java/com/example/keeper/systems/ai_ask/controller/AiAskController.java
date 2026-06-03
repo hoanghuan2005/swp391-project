@@ -50,12 +50,14 @@ public class AiAskController {
     }
 
     @GetMapping("/conversations")
-    public ResponseEntity<List<AiConversation>> getConversations() {
+    public ResponseEntity<List<AiConversation>> getConversations(
+            @RequestParam(required = false) UUID projectId
+    ) {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        List<AiConversation> conversations = conversationService.getUserConversations(user.getId());
+        List<AiConversation> conversations = conversationService.getUserConversations(user.getId(), projectId);
         return ResponseEntity.ok(conversations);
     }
 
@@ -69,7 +71,8 @@ public class AiAskController {
 
         String title = (request != null && request.getTitle() != null) ? request.getTitle() : "New Chat";
         UUID documentId = (request != null) ? request.getDocumentId() : null;
-        AiConversation conversation = conversationService.createConversation(user.getId(), title, documentId);
+        UUID projectId = (request != null) ? request.getProjectId() : null;
+        AiConversation conversation = conversationService.createConversation(user.getId(), title, documentId, projectId);
         return ResponseEntity.ok(conversation);
     }
 

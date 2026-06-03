@@ -10,5 +10,8 @@ public interface AiConversationRepository
         extends JpaRepository<AiConversation, UUID> {
 
     List<AiConversation>
-    findByUserIdOrderByCreatedAtDesc(UUID userId);
+    findByUserIdAndProjectIdIsNullOrderByCreatedAtDesc(UUID userId);
+
+    List<AiConversation>
+    findByUserIdAndProjectIdOrderByCreatedAtDesc(UUID userId, UUID projectId);
 }

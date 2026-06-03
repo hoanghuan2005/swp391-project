@@ -31,6 +31,19 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class AiAskServiceImpl implements AiAskService {
 
+    private static final String PROJECT_REFUSAL_MESSAGE =
+            "I could not find enough information in the selected workspace sources to answer that.";
+    private static final String PROJECT_REFUSAL_MESSAGE_VI =
+            "Mình không tìm thấy đủ thông tin trong các nguồn workspace đã chọn để trả lời câu hỏi này.";
+    private static final String PROJECT_ACK_MESSAGE =
+            "I'm here. Ask me a question about the documents in this workspace.";
+    private static final String PROJECT_ACK_MESSAGE_VI =
+            "Mình ở đây. Bạn có thể hỏi mình về các tài liệu trong workspace này.";
+    private static final String PROJECT_CAPABILITY_MESSAGE =
+            "I can answer questions using the documents in this workspace. If the sources do not support an answer, I will say I cannot answer from the workspace sources.";
+    private static final String PROJECT_CAPABILITY_MESSAGE_VI =
+            "Mình có thể trả lời câu hỏi dựa trên các tài liệu trong workspace này. Nếu nguồn không hỗ trợ câu trả lời, mình sẽ nói rõ là không thể trả lời từ nguồn workspace.";
+
     private final ConversationService conversationService;
     private final AiConversationRepository conversationRepository;
     private final AiMessageRepository messageRepository;
@@ -79,7 +92,15 @@ public class AiAskServiceImpl implements AiAskService {
                 || request.getProjectId() != null;
 
         if (isProjectRequest) {
-            appendProjectContext(prompt, request);
+            String deterministicResponse = getProjectDeterministicResponse(request.getMessage());
+            if (deterministicResponse != null) {
+                return buildResponse(conversation, deterministicResponse);
+            }
+
+            boolean hasRelevantProjectContext = appendProjectContext(prompt, request);
+            if (!hasRelevantProjectContext) {
+                return buildResponse(conversation, projectMessage(request.getMessage(), PROJECT_REFUSAL_MESSAGE, PROJECT_REFUSAL_MESSAGE_VI));
+            }
         } else {
             appendDocumentContext(prompt, request, conversation);
         }
@@ -99,32 +120,40 @@ public class AiAskServiceImpl implements AiAskService {
 
         String aiAnswer = groqService.generateContent(prompt.toString());
 
-        if (conversation != null) {
-            AiMessage assistantMessage = AiMessage.builder()
-                    .conversation(conversation)
-                    .role(MessageRole.ASSISTANT)
-                    .content(aiAnswer)
-                    .build();
-            messageRepository.save(assistantMessage);
+        return buildResponse(conversation, aiAnswer);
+    }
 
+    private AskAIResponse buildResponse(AiConversation conversation, String answer) {
+        if (conversation == null) {
             return AskAIResponse.builder()
-                    .conversationId(conversation.getId())
-                    .assistantMessageId(assistantMessage.getId())
-                    .answer(aiAnswer)
+                    .conversationId(null)
+                    .assistantMessageId(null)
+                    .answer(answer)
                     .build();
         }
 
+        AiMessage assistantMessage = AiMessage.builder()
+                .conversation(conversation)
+                .role(MessageRole.ASSISTANT)
+                .content(answer)
+                .build();
+        messageRepository.save(assistantMessage);
+
         return AskAIResponse.builder()
-                .conversationId(null)
-                .assistantMessageId(null)
-                .answer(aiAnswer)
+                .conversationId(conversation.getId())
+                .assistantMessageId(assistantMessage.getId())
+                .answer(answer)
                 .build();
     }
 
-    private void appendProjectContext(StringBuilder prompt, AskAIRequest request) {
+    private boolean appendProjectContext(StringBuilder prompt, AskAIRequest request) {
         Project project = resolveProject(request);
 
         prompt.append("You are operating inside the Project Workspace: ").append(project.getName()).append("\n");
+        prompt.append("Answer only from the provided project sources. ")
+                .append("If the sources do not contain enough information, say you cannot answer from the workspace sources. ")
+                .append("Do not use outside knowledge.\n");
+        prompt.append("Respond in the same language as the user's latest message.\n");
 
         boolean hasTargetedSelection = request.getDocumentIds() != null && !request.getDocumentIds().isEmpty();
         if (hasTargetedSelection) {
@@ -156,7 +185,8 @@ public class AiAskServiceImpl implements AiAskService {
                 List<DocumentChunk> chunks = selectRelevantChunks(
                         request.getMessage(),
                         documentChunkRepository.findByDocumentId(doc.getId()),
-                        30000
+                        30000,
+                        true
                 );
 
                 if (!chunks.isEmpty()) {
@@ -169,11 +199,99 @@ public class AiAskServiceImpl implements AiAskService {
             }
         }
 
-        if (!hasReadyContext) {
-            throw new RuntimeException("No ready documents are available for AI context in this workspace.");
+        prompt.append("--- END PROJECT DOCS CONTEXT ---\n\n");
+        return hasReadyContext;
+    }
+
+    private String getProjectDeterministicResponse(String message) {
+        if (message == null || message.isBlank()) {
+            return null;
         }
 
-        prompt.append("--- END PROJECT DOCS CONTEXT ---\n\n");
+        String normalized = normalizeMessage(message);
+        if (isGreetingAcknowledgementOrThanks(normalized)) {
+            return projectMessage(message, PROJECT_ACK_MESSAGE, PROJECT_ACK_MESSAGE_VI);
+        }
+
+        if (isWorkspaceCapabilityQuestion(normalized)) {
+            return projectMessage(message, PROJECT_CAPABILITY_MESSAGE, PROJECT_CAPABILITY_MESSAGE_VI);
+        }
+
+        return null;
+    }
+
+    private String projectMessage(String userMessage, String english, String vietnamese) {
+        return isClearlyVietnamese(userMessage) ? vietnamese : english;
+    }
+
+    private boolean isGreetingAcknowledgementOrThanks(String normalized) {
+        return normalized.equals("hi")
+                || normalized.equals("hello")
+                || normalized.equals("hey")
+                || normalized.equals("good")
+                || normalized.equals("ok")
+                || normalized.equals("okay")
+                || normalized.equals("thanks")
+                || normalized.equals("thank you")
+                || normalized.equals("got it")
+                || normalized.equals("understood")
+                || normalized.equals("sounds good")
+                || normalized.equals("chao")
+                || normalized.equals("xin chao")
+                || normalized.equals("cam on")
+                || normalized.equals("xin cam on")
+                || normalized.equals("ổn")
+                || normalized.equals("được")
+                || normalized.equals("cảm ơn")
+                || normalized.equals("xin cảm ơn")
+                || normalized.equals("chào")
+                || normalized.equals("xin chào");
+    }
+
+    private boolean isWorkspaceCapabilityQuestion(String normalized) {
+        return normalized.equals("what can you do")
+                || normalized.equals("what can you do here")
+                || normalized.equals("what can i ask")
+                || normalized.equals("what can i ask you")
+                || normalized.equals("what can you answer")
+                || normalized.equals("what questions can you answer")
+                || normalized.equals("how can you help")
+                || normalized.equals("how can you help me")
+                || normalized.equals("ban tra loi duoc gi")
+                || normalized.equals("ban co the tra loi gi")
+                || normalized.equals("ban co the lam gi")
+                || normalized.equals("minh hoi duoc gi")
+                || normalized.equals("mình hỏi được gì")
+                || normalized.equals("bạn trả lời được gì")
+                || normalized.equals("vậy bạn trả lời được gì")
+                || normalized.equals("bạn có thể trả lời gì")
+                || normalized.equals("bạn có thể làm gì");
+    }
+
+    private String normalizeMessage(String message) {
+        return message.toLowerCase(Locale.ROOT)
+                .replaceAll("[^\\p{L}\\p{N}]+", " ")
+                .trim()
+                .replaceAll("\\s+", " ");
+    }
+
+    private boolean isClearlyVietnamese(String message) {
+        if (message == null || message.isBlank()) {
+            return false;
+        }
+
+        String lower = message.toLowerCase(Locale.ROOT);
+        if (lower.matches(".*[àáảãạăằắẳẵặâầấẩẫậèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵđ].*")) {
+            return true;
+        }
+
+        String normalized = normalizeMessage(message);
+        return normalized.contains("xin chao")
+                || normalized.contains("cam on")
+                || normalized.contains("tai lieu")
+                || normalized.contains("workspace nay")
+                || normalized.contains("duoc gi")
+                || normalized.contains("tra loi");
     }
 
     private void appendDocumentContext(StringBuilder prompt, AskAIRequest request, AiConversation conversation) {
@@ -229,6 +347,15 @@ public class AiAskServiceImpl implements AiAskService {
     }
 
     private List<DocumentChunk> selectRelevantChunks(String message, List<DocumentChunk> chunks, int maxCharacters) {
+        return selectRelevantChunks(message, chunks, maxCharacters, false);
+    }
+
+    private List<DocumentChunk> selectRelevantChunks(
+            String message,
+            List<DocumentChunk> chunks,
+            int maxCharacters,
+            boolean requireKeywordMatch
+    ) {
         if (chunks == null || chunks.isEmpty()) {
             return List.of();
         }
@@ -252,7 +379,12 @@ public class AiAskServiceImpl implements AiAskService {
             if (content == null || content.isBlank()) {
                 continue;
             }
-            if (!keywords.isEmpty() && scoreChunk(content, keywords) == 0 && !selected.isEmpty()) {
+
+            int score = scoreChunk(content, keywords);
+            if (!keywords.isEmpty() && requireKeywordMatch && score == 0) {
+                continue;
+            }
+            if (!keywords.isEmpty() && !requireKeywordMatch && score == 0 && !selected.isEmpty()) {
                 continue;
             }
             if (totalLength + content.length() > maxCharacters && !selected.isEmpty()) {

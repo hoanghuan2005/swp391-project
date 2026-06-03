@@ -31,6 +31,7 @@ CREATE TABLE public.ai_conversations (
     updated_at timestamp(6) without time zone,
     document_id uuid,
     model_name character varying(255),
+    project_id uuid,
     title character varying(255),
     user_id uuid NOT NULL
 );

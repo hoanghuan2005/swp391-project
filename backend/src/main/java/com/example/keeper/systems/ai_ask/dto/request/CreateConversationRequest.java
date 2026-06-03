@@ -14,4 +14,6 @@ public class CreateConversationRequest {
     private String title;
 
     private UUID documentId;
+
+    private UUID projectId;
 }
