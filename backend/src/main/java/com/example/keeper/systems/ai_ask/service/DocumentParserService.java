@@ -46,8 +46,9 @@ public class DocumentParserService {
 
         try (InputStream inputStream = new ByteArrayInputStream(fileBytes)) {
             String fullText = "";
+            boolean isPdf = filename.endsWith(".pdf");
 
-            if (filename.endsWith(".pdf")) {
+            if (isPdf) {
                 fullText = extractPdfText(inputStream);
             } else if (filename.endsWith(".docx")) {
                 fullText = extractDocxText(inputStream);
@@ -62,6 +63,14 @@ public class DocumentParserService {
                 chunkAndSaveText(fullText, documentId);
                 return true;
             } else {
+                if (isPdf) {
+                    log.warn("PDFBox extracted blank text for document: {}, filename: {}, contentType: {}. "
+                                    + "This PDF is likely scanned/image-only and is unsupported without OCR.",
+                            documentId,
+                            filename,
+                            contentType);
+                    return false;
+                }
                 log.warn("Extracted text is blank for document: {}, filename: {}, contentType: {}",
                         documentId,
                         filename,

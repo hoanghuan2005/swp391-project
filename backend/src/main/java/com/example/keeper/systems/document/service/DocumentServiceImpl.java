@@ -13,7 +13,6 @@ import com.example.keeper.systems.document.repository.DocumentRepository;
 import com.example.keeper.systems.document.repository.DocumentViewRepository;
 import com.example.keeper.systems.document.service.storage.FileStorageService;
 import com.example.keeper.systems.document.service.storage.FileUploadResult;
-import com.example.keeper.systems.document.service.storage.FileUploadResult;
 import com.example.keeper.systems.ai_ask.service.DocumentParserService;
 import com.example.keeper.systems.course.entity.Course;
 import com.example.keeper.systems.course.repository.CourseRepository;
@@ -25,6 +24,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.text.Normalizer;
 import java.nio.charset.StandardCharsets;
 
@@ -147,14 +147,14 @@ public class DocumentServiceImpl implements DocumentService {
 
         Document document = new Document();
 
-        document.setTitle(request.getTitle());
+        document.setTitle(sanitizeOptionalFilename(request.getTitle()));
         document.setDescription(request.getDescription());
         document.setThumbnailUrl(request.getThumbnailUrl());
         String mimeType = request.getMimeType() != null && !request.getMimeType().isBlank()
                 ? request.getMimeType()
                 : request.getFileType();
         document.setMimeType(mimeType);
-        document.setOriginalFileName(request.getOriginalFileName());
+        document.setOriginalFileName(sanitizeOptionalFilename(request.getOriginalFileName()));
         document.setFileSize(request.getFileSize());
         document.setVisibility(request.getVisibility());
 
@@ -507,23 +507,86 @@ public class DocumentServiceImpl implements DocumentService {
         return AiParseStatus.UNSUPPORTED;
     }
 
-    // helper fix encoding
     private String sanitizeFilename(String filename) {
 
         if (filename == null) {
             return "Untitled";
         }
 
-        try {
+        return Normalizer.normalize(repairMojibakeIfNeeded(filename), Normalizer.Form.NFC);
+    }
 
-            filename = new String(
-                    filename.getBytes(StandardCharsets.ISO_8859_1),
-                    StandardCharsets.UTF_8);
-
-        } catch (Exception ignored) {
+    private String sanitizeOptionalFilename(String filename) {
+        if (filename == null || filename.isBlank()) {
+            return null;
         }
 
-        return Normalizer.normalize(filename, Normalizer.Form.NFC);
+        return Normalizer.normalize(repairMojibakeIfNeeded(filename), Normalizer.Form.NFC);
+    }
+
+    private String repairMojibakeIfNeeded(String value) {
+        if (!looksLikeMojibake(value)) {
+            return value;
+        }
+
+        String repaired = repairMojibake(value, StandardCharsets.ISO_8859_1);
+        if (isBetterFilenameCandidate(value, repaired)) {
+            return repaired;
+        }
+
+        repaired = repairMojibake(value, Charset.forName("windows-1252"));
+        if (isBetterFilenameCandidate(value, repaired)) {
+            return repaired;
+        }
+
+        repaired = repairMojibake(value.replace("Ã ", "Ã "), Charset.forName("windows-1252"));
+        if (isBetterFilenameCandidate(value, repaired)) {
+            return repaired;
+        }
+
+        return value;
+    }
+
+    private boolean looksLikeMojibake(String value) {
+        return value.contains("Ã")
+                || value.contains("Â")
+                || value.contains("�")
+                || value.contains("Ä‘")
+                || value.contains("Æ°")
+                || value.contains("Æ¡")
+                || value.contains("áº")
+                || value.contains("á»");
+    }
+
+    private String repairMojibake(String value, Charset sourceCharset) {
+        try {
+            return new String(
+                    value.getBytes(sourceCharset),
+                    StandardCharsets.UTF_8);
+        } catch (Exception e) {
+            return value;
+        }
+    }
+
+    private boolean isBetterFilenameCandidate(String original, String candidate) {
+        return candidate != null
+                && !candidate.isBlank()
+                && !candidate.equals(original)
+                && !candidate.contains("�")
+                && mojibakeMarkerCount(candidate) < mojibakeMarkerCount(original);
+    }
+
+    private int mojibakeMarkerCount(String value) {
+        int count = 0;
+        String[] markers = {"Ã", "Â", "�", "Ä‘", "Æ°", "Æ¡", "áº", "á»"};
+        for (String marker : markers) {
+            int index = value.indexOf(marker);
+            while (index >= 0) {
+                count++;
+                index = value.indexOf(marker, index + marker.length());
+            }
+        }
+        return count;
     }
 
     @Override
