@@ -9,6 +9,10 @@ import com.example.keeper.systems.document.service.DocumentService;
 import com.example.keeper.systems.auth.entity.User;
 import com.example.keeper.systems.auth.repository.UserRepository;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.http.MediaType;
@@ -37,9 +41,16 @@ public class DocumentController {
         return documentService.getDetail(document.getId());
     }
 
+    @Operation(summary = "Upload a document")
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public DocumentDetailResponse upload(
-            @RequestPart("file") MultipartFile file,
+            @Parameter(
+                    description = "Document file",
+                    required = true,
+                    content = @Content(
+                            mediaType = MediaType.APPLICATION_OCTET_STREAM_VALUE,
+                            schema = @Schema(type = "string", format = "binary")))
+            @RequestParam("file") MultipartFile file,
             @RequestParam(required = false) String title,
             @RequestParam(required = false) String description,
             @RequestParam(required = false) Visibility visibility,

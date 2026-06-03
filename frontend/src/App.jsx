@@ -63,6 +63,8 @@ function App() {
           path="/workspace/shared/:token/ai"
           element={<ProjectWorkspacePage />}
         />
+
+        {/* MainLayout Routes */}
         <Route element={<MainLayout />}>
           <Route path="/home" element={<Homepage />} />
           <Route path="/documents/:id" element={<DocumentDetailPage />} />
@@ -95,36 +97,27 @@ function App() {
             path="/workspace/:projectId/ai"
             element={<ProjectWorkspacePage />}
           />
-          <Route
-            path="/workspace/shared/:token"
-            element={<ProjectWorkspacePage />}
-          />
           <Route path="/notifications" element={<NotificationPage />} />
         </Route>
 
-        {/* Admin dashboard layout */}
+        {/* AdminLayout routes */}
         <Route element={<AdminLayout />}>
           <Route path="/admin/dashboard" element={<DashboardPage />} />
           <Route path="/admin/users" element={<UserListPage />} />
           <Route path="/admin/documents" element={<DocumentListPage />} />
           <Route path="/admin/documents/:id" element={<DocumentDetailPage />} />
           <Route path="/admin/courses" element={<CatalogCoursesPage />} />
-          <Route
-            path="/admin/catalog/schools"
-            element={<CatalogSchoolsPage />}
-          />
+          <Route path="/admin/catalog/schools" element={<CatalogSchoolsPage />} />
           <Route path="/admin/catalog/tags" element={<CatalogTagsPage />} />
-          <Route
-            path="/admin/catalog/languages"
-            element={<CatalogLanguagesPage />}
-          />
+          <Route path="/admin/catalog/languages" element={<CatalogLanguagesPage />} />
+
           <Route
             path="/admin/settings"
-            element={<Navigate to="/admin/catalog/schools" replace />}
+            element={<ComingSoon pageName="Admin Settings" />}
           />
         </Route>
 
-        {/* fallback */}
+        {/* Fallback route */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
