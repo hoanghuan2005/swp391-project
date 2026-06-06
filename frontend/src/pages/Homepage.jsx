@@ -9,11 +9,31 @@ import {
   CardContent,
   CardFooter,
 } from "@/components/ui/card";
-import { BookOpen, Download, Eye, FileText, Heart } from "lucide-react";
+import {
+  BookOpen,
+  Download,
+  Eye,
+  FileText,
+  Heart,
+  MessageCircle,
+  X,
+} from "lucide-react";
 import axiosClient from "@/api/axiosClient";
+import { askAi, createAiConversation } from "@/api/aiApi";
 import RecentDocuments from "@/components/documents/RecentDocuments";
 import UploadDocumentDialog from "@/components/documents/UploadDocumentDialog";
 import CourseCard from "@/components/ui/CourseCard";
+import ChatInterface from "@/components/chat/ChatInterface";
+import { toast } from "react-hot-toast";
+
+const HOMEPAGE_WELCOME_MESSAGE = {
+  id: "homepage-welcome",
+  role: "ASSISTANT",
+  content:
+    "Hi, I am StudyMate AI. Ask me about study planning, document discovery, or any topic you are learning.",
+};
+
+const DEFAULT_FILTER_DATA = { school: "", course: "", tag: "" };
 
 export default function Homepage() {
   // ==========================================
@@ -21,12 +41,18 @@ export default function Homepage() {
   // ==========================================
   const context = useOutletContext();
   const searchQuery = context?.searchQuery || "";
-  const filterData = context?.filterData || { school: "", course: "", tag: "" };
+  const filterData = context?.filterData || DEFAULT_FILTER_DATA;
 
   const [uploadOpen, setUploadOpen] = useState(false);
   const [documents, setDocuments] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [courses, setCourses] = useState([]);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [chatMessages, setChatMessages] = useState(() => [
+    HOMEPAGE_WELCOME_MESSAGE,
+  ]);
+  const [chatConversationId, setChatConversationId] = useState(null);
+  const [isChatSending, setIsChatSending] = useState(false);
 
   const upsertPublicDocument = useCallback((doc) => {
     if (!doc) return;
@@ -88,8 +114,10 @@ export default function Homepage() {
   }, []);
 
   useEffect(() => {
-    fetchDocuments();
-    fetchCourses();
+    Promise.resolve().then(() => {
+      fetchDocuments();
+      fetchCourses();
+    });
 
     const handleUploaded = (event) => {
       const uploadedDoc = event?.detail;
@@ -118,6 +146,62 @@ export default function Homepage() {
       alert("Error downloading document!");
     }
   };
+
+  const handleSendChatMessage = useCallback(
+    async (message) => {
+      if (!message || isChatSending) return;
+
+      const userMessage = {
+        id: `user-${Date.now()}`,
+        role: "USER",
+        content: message,
+      };
+
+      setChatMessages((prev) => [...prev, userMessage]);
+      setIsChatSending(true);
+
+      try {
+        let conversationId = chatConversationId;
+
+        if (!conversationId) {
+          const conversation = await createAiConversation({
+            title: "Homepage Chat",
+          });
+          conversationId = conversation.id;
+          setChatConversationId(conversationId);
+        }
+
+        const response = await askAi({
+          conversationId,
+          message,
+          mode: "HOMEPAGE_ASSISTANT",
+        });
+
+        const assistantMessage = {
+          id: response.assistantMessageId || `assistant-${Date.now()}`,
+          role: "ASSISTANT",
+          content: response.answer || "I could not generate a response.",
+          sources: response.sources || [],
+        };
+
+        setChatMessages((prev) => [...prev, assistantMessage]);
+      } catch (error) {
+        console.error("Homepage AI chat failed:", error);
+        toast.error("AI failed to respond. Please try again.");
+        setChatMessages((prev) => [
+          ...prev,
+          {
+            id: `assistant-error-${Date.now()}`,
+            role: "ASSISTANT",
+            content: "Sorry, I could not respond right now. Please try again.",
+          },
+        ]);
+      } finally {
+        setIsChatSending(false);
+      }
+    },
+    [chatConversationId, isChatSending],
+  );
 
  const filteredDocuments = useMemo(() => {
     return documents.filter((doc) => {
@@ -279,6 +363,35 @@ export default function Homepage() {
       <footer className="text-center text-[13px] text-slate-400 font-medium border-t border-gray-100 py-6 -mb-6">
         © 2026 ShareDocs — Modern Document Sharing Platform
       </footer>
+
+      <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
+        {isChatOpen ? (
+          <div className="h-[min(620px,calc(100vh-7rem))] w-[min(calc(100vw-2rem),420px)] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+            <ChatInterface
+              title="Homepage Chat"
+              subtitle="Authenticated StudyMate AI"
+              messages={chatMessages}
+              isSending={isChatSending}
+              onSendMessage={handleSendChatMessage}
+            />
+          </div>
+        ) : null}
+
+        <Button
+          type="button"
+          onClick={() => setIsChatOpen((open) => !open)}
+          className="h-14 w-14 rounded-full bg-[#f26522] text-white shadow-lg hover:bg-[#e45a1b]"
+          aria-label={
+            isChatOpen ? "Close homepage AI chat" : "Open homepage AI chat"
+          }
+        >
+          {isChatOpen ? (
+            <X className="h-6 w-6" />
+          ) : (
+            <MessageCircle className="h-6 w-6" />
+          )}
+        </Button>
+      </div>
     </>
   );
 }

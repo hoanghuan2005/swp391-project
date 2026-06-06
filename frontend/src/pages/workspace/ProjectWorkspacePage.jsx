@@ -163,6 +163,7 @@ export default function ProjectWorkspacePage() {
           id: response.assistantMessageId || Date.now() + 1,
           role: "assistant",
           content: response.answer,
+          sources: response.sources || [],
         },
       ]);
     } catch (error) {

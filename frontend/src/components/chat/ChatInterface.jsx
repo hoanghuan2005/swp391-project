@@ -1,6 +1,9 @@
 import React, { useRef, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bot, Send, Loader2, Plus, Sparkles } from "lucide-react";
+import { Bot, Send, Loader2, Plus, Sparkles, FileText } from "lucide-react";
+
+const MotionDiv = motion.div;
 
 export default function ChatInterface({
   title,
@@ -56,8 +59,11 @@ export default function ChatInterface({
           <AnimatePresence>
             {messages.map((msg) => {
               const isUser = msg.role.toLowerCase() === "user";
+              const sources = Array.isArray(msg.sources) ? msg.sources : [];
+              const shouldShowSources = !isUser && sources.length > 0;
+
               return (
-                <motion.div
+                <MotionDiv
                   key={msg.id}
                   initial={{ opacity: 0, y: 15 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -79,13 +85,34 @@ export default function ChatInterface({
                     <div className="whitespace-pre-wrap leading-relaxed text-[13px] font-medium">
                       {msg.content}
                     </div>
+                    {shouldShowSources ? (
+                      <div className="mt-3 border-t border-slate-100 pt-2">
+                        <div className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                          Sources
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {sources.map((source) => (
+                            <Link
+                              key={source.documentId}
+                              to={`/documents/${source.documentId}`}
+                              className="inline-flex max-w-full items-center gap-1 rounded-lg border border-orange-100 bg-orange-50 px-2 py-1 text-[11px] font-semibold text-[#f26522] hover:border-[#f26522]/30 hover:bg-orange-100"
+                            >
+                              <FileText className="h-3 w-3 shrink-0" />
+                              <span className="truncate">
+                                {source.title || "Document"}
+                              </span>
+                            </Link>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
-                </motion.div>
+                </MotionDiv>
               );
             })}
 
             {isSending && (
-              <motion.div
+              <MotionDiv
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 className="flex justify-start"
@@ -96,7 +123,7 @@ export default function ChatInterface({
                     StudyMate AI is analyzing...
                   </span>
                 </div>
-              </motion.div>
+              </MotionDiv>
             )}
           </AnimatePresence>
         )}
