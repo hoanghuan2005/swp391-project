@@ -28,6 +28,8 @@ public class AiConversation extends BaseEntity {
 
     private UUID documentId;
 
+    private UUID projectId;
+
     @Builder.Default
     @OneToMany(
             mappedBy = "conversation",

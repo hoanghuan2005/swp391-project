@@ -1,11 +1,13 @@
 package com.example.keeper.systems.ai_quiz.service.impl;
 
-import com.example.keeper.systems.ai_ask.service.GrokService;
+import com.example.keeper.systems.ai_ask.service.GroqService;
 import com.example.keeper.systems.ai_ask.entity.DocumentChunk;
 import com.example.keeper.systems.ai_ask.repository.DocumentChunkRepository;
 import com.example.keeper.systems.auth.entity.User;
 import com.example.keeper.systems.auth.repository.UserRepository;
 import com.example.keeper.systems.document.entity.Document;
+import com.example.keeper.systems.document.enums.AiParseStatus;
+import com.example.keeper.systems.document.repository.DocumentRepository;
 import com.example.keeper.systems.project.entity.Project;
 import com.example.keeper.systems.project.repository.ProjectRepository;
 import com.example.keeper.systems.ai_quiz.dto.request.QuizRequest;
@@ -34,9 +36,10 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
     private final QuizRepository quizRepository;
     private final DocumentChunkRepository documentChunkRepository;
     private final ProjectRepository projectRepository;
+    private final DocumentRepository documentRepository;
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
-    private final GrokService grokService;
+    private final GroqService groqService;
 
     @Override
     @Transactional
@@ -63,13 +66,14 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
         // ------------------------
 
         String prompt = buildPrompt(context, request.getTopic(), request.getQuestionCount(), request.getDifficulty());
-        String aiResponse = grokService.generateContent(prompt);
+        String aiResponse = groqService.generateContent(prompt);
         log.info("Raw AI response for quiz: {}", aiResponse);
 
         try {
             String jsonContent = extractJsonArray(aiResponse);
             List<ParsedQuestion> parsedQuestions =
                     objectMapper.readValue(jsonContent, new TypeReference<List<ParsedQuestion>>() {});
+            validateQuestions(parsedQuestions, request.getQuestionCount());
 
 
             Quiz quiz = new Quiz();
@@ -119,9 +123,13 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
         if (request.getProjectId() != null) {
             Project project = projectRepository.findById(request.getProjectId())
                     .orElseThrow(() -> new RuntimeException("Project not found"));
+            project.getDocuments().forEach(this::ensureReadyForAi);
             List<UUID> docIds = project.getDocuments().stream().map(Document::getId).toList();
             chunks = documentChunkRepository.findByDocumentIdIn(docIds);
         } else {
+            Document document = documentRepository.findById(request.getDocumentId())
+                    .orElseThrow(() -> new RuntimeException("Document not found"));
+            ensureReadyForAi(document);
             chunks = documentChunkRepository.findByDocumentId(request.getDocumentId());
         }
 
@@ -131,6 +139,39 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
 
         // Limit to 20,000 characters
         return combined.length() > 20000 ? combined.substring(0, 20000) : combined;
+    }
+
+    private void ensureReadyForAi(Document document) {
+        AiParseStatus status = document.getAiParseStatus();
+        if (status == AiParseStatus.PENDING) {
+            throw new RuntimeException("Document is still being processed for AI. Please try again shortly.");
+        }
+        if (status == AiParseStatus.FAILED || status == AiParseStatus.UNSUPPORTED) {
+            throw new RuntimeException("Document is not available for AI quiz generation.");
+        }
+    }
+
+    private void validateQuestions(List<ParsedQuestion> questions, Integer requestedCount) {
+        if (questions == null || questions.isEmpty()) {
+            throw new RuntimeException("AI returned no questions.");
+        }
+
+        int expectedCount = requestedCount != null ? requestedCount : 5;
+        if (questions.size() != expectedCount) {
+            log.warn("AI returned {} questions while {} were requested.", questions.size(), expectedCount);
+        }
+
+        for (ParsedQuestion question : questions) {
+            if (question.getContent() == null || question.getContent().isBlank()) {
+                throw new RuntimeException("AI returned a question without content.");
+            }
+            if (question.getOptions() == null || question.getOptions().size() != 4) {
+                throw new RuntimeException("AI returned a question without exactly 4 options.");
+            }
+            if (question.getCorrectAnswer() == null || !question.getOptions().contains(question.getCorrectAnswer())) {
+                throw new RuntimeException("AI returned a correctAnswer that does not match any option.");
+            }
+        }
     }
 
     private String buildPrompt(String context, String topic, Integer count, String difficulty) {

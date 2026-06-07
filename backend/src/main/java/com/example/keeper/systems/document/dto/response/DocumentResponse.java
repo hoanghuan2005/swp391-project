@@ -19,6 +19,7 @@ public class DocumentResponse {
     private String downloadUrl;
     private String mimeType;
     private String visibility;
+    private String aiParseStatus;
     private Integer downloadCount;
     private LocalDateTime createdAt;
     private LocalDateTime lastViewedAt;

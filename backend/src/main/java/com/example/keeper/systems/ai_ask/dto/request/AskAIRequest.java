@@ -1,5 +1,6 @@
 package com.example.keeper.systems.ai_ask.dto.request;
 
+import com.example.keeper.systems.ai_ask.enums.AiAskMode;
 import lombok.*;
 
 import java.util.List;
@@ -17,7 +18,11 @@ public class AskAIRequest {
 
     private String message;
 
+    private AiAskMode mode;
+
     private UUID projectId;
+
+    private String shareToken;
 
     private UUID documentId;
 

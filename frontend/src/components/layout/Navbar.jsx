@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
   Search,
-  Mic,
+  Filter, 
   Menu,
   BookOpen,
   LogOut,
@@ -14,15 +14,26 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import axiosClient from "@/api/axiosClient";
-// FIX: Xóa bỏ dòng import LogoutModal không cần thiết ở đây nữa
 
-export default function Navbar({ onMenuClick, onLogoutClick }) {
+// ADDED: Thêm prop onSearch vào đây
+export default function Navbar({ onMenuClick, onLogoutClick, onFilter, onSearch }) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [userName, setUserName] = useState(null);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
 
+  // ADDED: State cho Search
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [filterData, setFilterData] = useState({
+    school: "",
+    course: "",
+    tag: "",
+  });
+  
+  const filterPanelRef = useRef(null);
   const notificationButtonRef = useRef(null);
   const notificationPanelRef = useRef(null);
 
@@ -30,7 +41,6 @@ export default function Navbar({ onMenuClick, onLogoutClick }) {
 
   useEffect(() => {
     fetchUnreadCount();
-    // load user info from token
     try {
       const token = localStorage.getItem("token");
       if (token) {
@@ -49,7 +59,6 @@ export default function Navbar({ onMenuClick, onLogoutClick }) {
   const fetchUnreadCount = async () => {
     try {
       const res = await axiosClient.get("/api/notifications/unread-count");
-
       setUnreadCount(res.data.count);
     } catch (error) {
       console.error(error);
@@ -63,49 +72,74 @@ export default function Navbar({ onMenuClick, onLogoutClick }) {
   }, [isNotificationOpen]);
 
   useEffect(() => {
-    if (!isNotificationOpen) return;
-
     const handleOutsideClick = (event) => {
       const target = event.target;
 
-      if (notificationPanelRef.current?.contains(target)) return;
-      if (notificationButtonRef.current?.contains(target)) return;
+      if (
+        isNotificationOpen &&
+        !notificationPanelRef.current?.contains(target) &&
+        !notificationButtonRef.current?.contains(target)
+      ) {
+        setIsNotificationOpen(false);
+      }
 
-      setIsNotificationOpen(false);
+      if (
+        isFilterOpen &&
+        !filterPanelRef.current?.contains(target)
+      ) {
+        setIsFilterOpen(false);
+      }
     };
 
     document.addEventListener("mousedown", handleOutsideClick);
-
     return () => document.removeEventListener("mousedown", handleOutsideClick);
-  }, [isNotificationOpen]);
+  }, [isNotificationOpen, isFilterOpen]);
 
-  {
-    /* Hàm loadNotifications load danh sách thông báo*/
-  }
   const loadNotifications = async () => {
     try {
       const res = await axiosClient.get("/api/notifications?page=0&size=4");
-
       setNotifications(res.data.content);
     } catch (error) {
       console.error(error);
     }
   };
 
-  {
-    /* Hàm markAsRead đánh dấu thông báo đã đọc */
-  }
   const markAsRead = async (id) => {
     try {
       await axiosClient.put(`/api/notifications/${id}/read`);
-
       setNotifications((prev) =>
         prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)),
       );
-
       setUnreadCount((prev) => Math.max(0, prev - 1));
     } catch (error) {
       console.error(error);
+    }
+  };
+
+  const handleApplyFilter = () => {
+    console.log("Filtering with:", filterData);
+    setIsFilterOpen(false);
+    
+    if (onFilter) {
+      onFilter(filterData);
+    }
+  };
+
+  // ADDED: Hàm xử lý thay đổi text search (real-time)
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setSearchQuery(value);
+    
+    // Gọi hàm onSearch truyền từ component cha (nếu có)
+    if (onSearch) {
+      onSearch(value);
+    }
+  };
+
+  // ADDED: Tùy chọn xử lý khi nhấn Enter (nếu bạn muốn submit form thay vì real-time)
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter" && onSearch) {
+      onSearch(searchQuery);
     }
   };
 
@@ -134,24 +168,91 @@ export default function Navbar({ onMenuClick, onLogoutClick }) {
           </Link>
         </div>
 
-        {/* Search Bar */}
+        {/* Search Bar & Filter */}
         <div className="flex-1 max-w-2xl flex items-center gap-4 px-2">
-          <div className="relative w-full">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
-              <Search className="h-4 w-4" />
-            </span>
-            <Input
-              className="pl-12 h-11 bg-slate-50 border-transparent hover:border-slate-300 focus-visible:border-orange-500 focus-visible:ring-orange-500/20 rounded-full shadow-sm text-sm transition-all"
-              placeholder="Search..."
-            />
+          <div className="relative w-full flex items-center gap-2">
+            <div className="relative w-full">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                <Search className="h-4 w-4" />
+              </span>
+              <Input
+                className="pl-12 h-11 bg-slate-50 border-transparent hover:border-slate-300 focus-visible:border-orange-500 focus-visible:ring-orange-500/20 rounded-full shadow-sm text-sm transition-all"
+                placeholder="Search..."
+                value={searchQuery} // ADDED: Liên kết giá trị
+                onChange={handleSearchChange} // ADDED: Xử lý thay đổi
+                onKeyDown={handleKeyDown} // ADDED: Xử lý nhấn Enter
+              />
+            </div>
+            
+            <div className="relative" ref={filterPanelRef}>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsFilterOpen(!isFilterOpen)}
+                className={`hidden sm:flex rounded-full bg-slate-50 hover:bg-slate-100 text-slate-700 h-11 w-11 shrink-0 shadow-sm transition-colors ${
+                  isFilterOpen ? "bg-orange-100 text-orange-600" : ""
+                }`}
+              >
+                <Filter className="h-5 w-5" />
+              </Button>
+
+              {isFilterOpen && (
+                <div className="absolute right-0 top-14 w-[320px] bg-white rounded-xl shadow-xl border border-slate-100 z-50 p-4">
+                  <h4 className="font-semibold text-slate-800 mb-4 border-b pb-2">Filter Documents</h4>
+                  
+                  <div className="space-y-4">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-slate-600">School / University</label>
+                      <Input 
+                        placeholder="e.g. FPT University..." 
+                        className="h-9 text-sm"
+                        value={filterData.school}
+                        onChange={(e) => setFilterData({...filterData, school: e.target.value})}
+                      />
+                    </div>
+                    
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-slate-600">Course</label>
+                      <Input 
+                        placeholder="e.g. SWP391..." 
+                        className="h-9 text-sm"
+                        value={filterData.course}
+                        onChange={(e) => setFilterData({...filterData, course: e.target.value})}
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-slate-600">Tags</label>
+                      <Input 
+                        placeholder="e.g. React, Midterm..." 
+                        className="h-9 text-sm"
+                        value={filterData.tag}
+                        onChange={(e) => setFilterData({...filterData, tag: e.target.value})}
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-2 pt-2">
+                      <Button 
+                        variant="outline" 
+                        className="w-full text-xs"
+                        onClick={() => {
+                          setFilterData({ school: "", course: "", tag: "" });
+                        }}
+                      >
+                        Clear
+                      </Button>
+                      <Button 
+                        className="w-full bg-[#f26522] hover:bg-[#d9581c] text-white text-xs"
+                        onClick={handleApplyFilter}
+                      >
+                        Apply Filter
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="hidden sm:flex rounded-full bg-slate-50 hover:bg-slate-100 text-slate-700 h-11 w-11 shrink-0 shadow-sm"
-          >
-            <Mic className="h-5 w-5" />
-          </Button>
         </div>
 
         <div className="flex items-center gap-4">
@@ -165,7 +266,6 @@ export default function Navbar({ onMenuClick, onLogoutClick }) {
               className="rounded-full hover:bg-slate-100 text-slate-700 h-10 w-10 cursor-pointer flex items-center justify-center"
             >
               <Bell className="!h-5 !w-5" />
-
               {unreadCount > 0 && (
                 <span className="absolute top-1 right-1 min-w-[16px] h-[16px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
                   {unreadCount > 99 ? "99+" : unreadCount}
@@ -175,11 +275,6 @@ export default function Navbar({ onMenuClick, onLogoutClick }) {
 
             {isNotificationOpen && (
               <>
-                <div
-                  className="fixed inset-0 z-50 bg-transparent"
-                  onClick={() => setIsNotificationOpen(false)}
-                />
-
                 <div
                   ref={notificationPanelRef}
                   className="absolute right-0 top-12 w-[310px] bg-white rounded-xl shadow-xl border border-slate-100 z-50"
@@ -201,11 +296,11 @@ export default function Navbar({ onMenuClick, onLogoutClick }) {
                           key={item.id}
                           onClick={() => markAsRead(item.id)}
                           className={`
-      px-4 py-3 border-b cursor-pointer
-      transition-all
-      hover:bg-slate-50
-      ${!item.isRead ? "bg-orange-50" : ""}
-    `}
+                            px-4 py-3 border-b cursor-pointer
+                            transition-all
+                            hover:bg-slate-50
+                            ${!item.isRead ? "bg-orange-50" : ""}
+                          `}
                         >
                           <div className="flex gap-3">
                             <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center">
@@ -216,7 +311,6 @@ export default function Navbar({ onMenuClick, onLogoutClick }) {
                               <p className="text-sm text-slate-700 leading-relaxed">
                                 {item.message}
                               </p>
-
                               <p className="text-xs text-slate-400 mt-1">
                                 {new Date(item.createdAt).toLocaleString()}
                               </p>
@@ -263,13 +357,11 @@ export default function Navbar({ onMenuClick, onLogoutClick }) {
 
             {isDropdownOpen && (
               <>
-                {/* Overlay ẩn để bấm ra ngoài dropdown thì tự đóng */}
                 <div
-                  className="fixed inset-0 z-50 bg-transparent cursor-default"
+                  className="fixed inset-0 z-40 bg-transparent cursor-default"
                   onClick={() => setIsDropdownOpen(false)}
                 />
 
-                {/* Menu con */}
                 <div className="absolute right-0 top-12 w-48 bg-white rounded-xl shadow-xl border border-slate-100 py-1.5 z-50">
                   <Link
                     to="/profile"
@@ -299,7 +391,7 @@ export default function Navbar({ onMenuClick, onLogoutClick }) {
                   <button
                     onClick={() => {
                       setIsDropdownOpen(false);
-                      onLogoutClick(); // Kích hoạt hàm mở modal truyền từ MainLayout xuống
+                      onLogoutClick();
                     }}
                     className="w-full px-4 py-2 text-left text-xs font-bold text-red-500 hover:bg-red-50 flex items-center gap-2.5 transition-colors rounded-b-xl cursor-pointer"
                   >
@@ -312,8 +404,6 @@ export default function Navbar({ onMenuClick, onLogoutClick }) {
           </div>
         </div>
       </div>
-
-      {/* FIX: Đã xóa hoàn toàn component LogoutModal cũ bị thừa ở đây */}
     </div>
   );
 }

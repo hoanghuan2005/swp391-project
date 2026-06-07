@@ -24,5 +24,6 @@ public class ProjectDetailResponse {
         private UUID id;
         private String title;
         private String fileType;
+        private String aiParseStatus;
     }
 }

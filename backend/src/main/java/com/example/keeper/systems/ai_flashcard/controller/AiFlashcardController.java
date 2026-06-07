@@ -55,6 +55,25 @@ public class AiFlashcardController {
         }
     }
 
+    @PostMapping("/generate-from-document")
+    public ResponseEntity<?> generateFromDocument(@RequestBody Map<String, UUID> request) {
+        UUID documentId = request.get("documentId");
+        if (documentId == null) {
+            return ResponseEntity.badRequest().body(
+                    Map.of("success", false, "message", "documentId is required")
+            );
+        }
+
+        try {
+            var result = aiFlashcardService.generateFlashcardsFromDocument(documentId);
+            return ResponseEntity.ok(Map.of("success", true, "data", result));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(
+                    Map.of("success", false, "message", e.getMessage())
+            );
+        }
+    }
+
 
     @GetMapping("/sets")
 

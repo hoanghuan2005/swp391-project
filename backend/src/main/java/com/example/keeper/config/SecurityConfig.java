@@ -9,6 +9,7 @@ import com.example.keeper.systems.auth.service.RefreshTokenService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -42,28 +43,60 @@ public class SecurityConfig {
                                 .sessionManagement(session -> session
                                                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                                 .authorizeHttpRequests(auth -> auth
+                                                .requestMatchers(HttpMethod.POST,
+                                                                "/api/courses",
+                                                                "/api/schools",
+                                                                "/api/schools/**",
+                                                                "/api/tags",
+                                                                "/api/tags/**",
+                                                                "/api/languages",
+                                                                "/api/languages/**")
+                                                .hasRole("ADMIN")
+                                                .requestMatchers(HttpMethod.PUT,
+                                                                "/api/schools",
+                                                                "/api/schools/**",
+                                                                "/api/tags",
+                                                                "/api/tags/**",
+                                                                "/api/languages",
+                                                                "/api/languages/**")
+                                                .hasRole("ADMIN")
+                                                .requestMatchers(HttpMethod.DELETE,
+                                                                "/api/courses/*",
+                                                                "/api/schools",
+                                                                "/api/schools/**",
+                                                                "/api/tags",
+                                                                "/api/tags/**",
+                                                                "/api/languages",
+                                                                "/api/languages/**")
+                                                .hasRole("ADMIN")
+
                                                 .requestMatchers(
                                                                 "/api/auth/**",
                                                                 "/oauth2/**",
                                                                 "/login/oauth2/**",
 
-                                                        "/api/embedding/**",
+                                                                "/api/embedding/**",
 
-
-                                                        "/api/courses/**",
+                                                                "/api/courses/**",
 
                                                                 "/api/languages/**",
                                                                 "/api/schools/**",
                                                                 "/api/tags/**",
 
                                                                 "/api/projects/shared/**",
-                                                                "/api/ai/ask",
+                                                                "/api/ai/shared/ask",
 
                                                                 "/v3/api-docs/**",
                                                                 "/swagger-ui/**",
                                                                 "/swagger-ui.html",
                                                                 "/swagger-resources/**",
                                                                 "/webjars/**")
+                                                .permitAll()
+                                                .requestMatchers(HttpMethod.GET,
+                                                                "/api/courses/**",
+                                                                "/api/languages/**",
+                                                                "/api/schools/**",
+                                                                "/api/tags/**")
                                                 .permitAll()
 
                                                 .requestMatchers("/api/admin/**").hasRole("ADMIN")

@@ -6,6 +6,7 @@ import com.example.keeper.systems.ai_ask.repository.AiConversationRepository;
 import com.example.keeper.systems.ai_ask.repository.AiMessageRepository;
 import com.example.keeper.systems.ai_ask.service.ConversationService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -19,15 +20,19 @@ public class ConversationServiceImpl
     private final AiConversationRepository conversationRepository;
     private final AiMessageRepository messageRepository;
 
+    @Value("${groq.model}")
+    private String model;
+
     @Override
-    public AiConversation createConversation(UUID userId, String title, UUID documentId) {
+    public AiConversation createConversation(UUID userId, String title, UUID documentId, UUID projectId) {
 
         AiConversation conversation =
                 AiConversation.builder()
                         .userId(userId)
                         .title(title != null ? title : "New Chat")
                         .documentId(documentId)
-                        .modelName("gemini-pro")
+                        .projectId(projectId)
+                        .modelName("groq:" + model)
                         .build();
 
         return conversationRepository.save(conversation);
@@ -39,7 +44,17 @@ public class ConversationServiceImpl
     ) {
 
         return conversationRepository
-                .findByUserIdOrderByCreatedAtDesc(userId);
+                .findByUserIdAndProjectIdIsNullOrderByCreatedAtDesc(userId);
+    }
+
+    @Override
+    public List<AiConversation> getUserConversations(UUID userId, UUID projectId) {
+        if (projectId == null) {
+            return getUserConversations(userId);
+        }
+
+        return conversationRepository
+                .findByUserIdAndProjectIdOrderByCreatedAtDesc(userId, projectId);
     }
 
     @Override

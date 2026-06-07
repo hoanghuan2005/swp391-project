@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Loader2,
   Plus,
@@ -18,12 +18,9 @@ export default function AskAIPage() {
   const [conversations, setConversations] = useState([]);
   const [activeConversation, setActiveConversation] = useState(null);
   const [messages, setMessages] = useState([]);
-  const {
-    documents,
-    loading: documentsLoading,
-    refreshDocuments,
-  } = useDocuments();
+  const { documents, refreshDocuments } = useDocuments();
   const [selectedDoc, setSelectedDoc] = useState(null);
+  const documentsRef = useRef([]);
 
   // Removed local 'input' state and 'messagesEndRef' as ChatInterface handles them now
   const [isLoading, setIsLoading] = useState(false);
@@ -33,29 +30,7 @@ export default function AskAIPage() {
 
   const fileInputRef = useRef(null);
 
-  // Fetch initial data
-  useEffect(() => {
-    refreshDocuments();
-    fetchConversations();
-  }, []);
-
-  const fetchConversations = async () => {
-    try {
-      const response = await axiosClient.get("/api/ai/conversations");
-      const chats = response.data || [];
-      setConversations(chats);
-
-      // Auto-select first chat if present
-      if (chats.length > 0 && !activeConversation) {
-        handleSelectConversation(chats[0], chats);
-      }
-    } catch (error) {
-      console.error("Error fetching conversations:", error);
-      toast.error("Failed to load chat history");
-    }
-  };
-
-  const handleSelectConversation = async (conv, currentDocs = documents) => {
+  const handleSelectConversation = useCallback(async (conv, currentDocs = documentsRef.current) => {
     setActiveConversation(conv);
     setIsLoadingMessages(true);
     try {
@@ -85,7 +60,35 @@ export default function AskAIPage() {
     } finally {
       setIsLoadingMessages(false);
     }
-  };
+  }, []);
+
+  const fetchConversations = useCallback(async () => {
+    try {
+      const response = await axiosClient.get("/api/ai/conversations");
+      const chats = response.data || [];
+      setConversations(chats);
+
+      // Auto-select first chat if present
+      if (chats.length > 0) {
+        await handleSelectConversation(chats[0], chats);
+      }
+    } catch (error) {
+      console.error("Error fetching conversations:", error);
+      toast.error("Failed to load chat history");
+    }
+  }, [handleSelectConversation]);
+
+  useEffect(() => {
+    documentsRef.current = documents;
+  }, [documents]);
+
+  // Fetch initial data
+  useEffect(() => {
+    Promise.resolve().then(() => {
+      refreshDocuments();
+      fetchConversations();
+    });
+  }, [fetchConversations, refreshDocuments]);
 
   const handleCreateNewChat = async (doc = null) => {
     try {
@@ -140,6 +143,15 @@ export default function AskAIPage() {
   const handleSend = async (userMessageContent) => {
     if (!userMessageContent || isLoading) return;
 
+    if (selectedDoc?.aiParseStatus === "PENDING") {
+      toast.error("This document is still being prepared for AI. Please try again shortly.");
+      return;
+    }
+    if (["FAILED", "UNSUPPORTED"].includes(selectedDoc?.aiParseStatus)) {
+      toast.error("This document is not available for AI context.");
+      return;
+    }
+
     setIsLoading(true);
 
     let currentConv = activeConversation;
@@ -188,6 +200,7 @@ export default function AskAIPage() {
         id: response.data.assistantMessageId || Date.now() + 1,
         role: "ASSISTANT",
         content: response.data.answer,
+        sources: response.data.sources || [],
       };
 
       setMessages((prev) => [...prev, aiMessage]);
@@ -239,7 +252,7 @@ export default function AskAIPage() {
       // Reload documents and auto start chat with this document
       try {
         await refreshDocuments();
-      } catch (e) {
+      } catch {
         // ignore
       }
 
@@ -268,7 +281,11 @@ export default function AskAIPage() {
 
       // If we have an active chat, let's bind it
       if (activeConversation && activeConversation.documentId !== doc.id) {
-        activeConversation.documentId = doc.id;
+        setActiveConversation((prev) =>
+          prev && prev.id === activeConversation.id
+            ? { ...prev, documentId: doc.id }
+            : prev,
+        );
       }
     }
   };

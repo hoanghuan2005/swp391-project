@@ -3,7 +3,7 @@ import { Outlet } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import Navbar from "./Navbar";
 import Survey from "@/pages/Survey";
-import LogoutModal from "@/components/ui/LogoutModal"; // 1. Import LogoutModal vào đây
+import LogoutModal from "@/components/ui/LogoutModal";
 import axiosClient from "@/api/axiosClient";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,19 +13,28 @@ export default function MainLayout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [showSurvey, setShowSurvey] = useState(false);
   const [showSurveyReminder, setShowSurveyReminder] = useState(false);
-  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false); // 2. Quản lý state mở modal ở đây
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+  
+  // ==========================================
+  // THÊM: STATE CHO SEARCH VÀ FILTER Ở ĐÂY
+  // ==========================================
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterData, setFilterData] = useState({
+    school: "",
+    course: "",
+    tag: "",
+  });
 
   const location = useLocation();
   const isAiAskPage = location.pathname.startsWith("/ask-ai");
 
   useEffect(() => {
-    if (isAiAskPage) return; // Không hiển thị survey nếu đang ở trang Ask AI
+    if (isAiAskPage) return;
 
     const checkSurveyState = async () => {
       let surveyCompleted = localStorage.getItem("surveyCompleted") === "true";
       const surveySkipped = localStorage.getItem("surveySkipped") === "true";
 
-      // If not completed locally, try to infer from server-side profile (when logged in)
       if (!surveyCompleted) {
         const token = localStorage.getItem("token");
         if (token) {
@@ -39,11 +48,9 @@ export default function MainLayout() {
             if (serverCompleted) {
               surveyCompleted = true;
               localStorage.setItem("surveyCompleted", "true");
-              // remove any skipped flag if server indicates completion
               localStorage.removeItem("surveySkipped");
             }
           } catch (e) {
-            // silent fail — keep local flags
             console.warn(
               "Could not fetch profile to determine survey state:",
               e,
@@ -66,10 +73,13 @@ export default function MainLayout() {
 
   return (
     <div className="h-screen bg-white text-slate-900 font-sans flex flex-col overflow-hidden">
-      {/* Navbar - 3. Truyền prop onLogoutClick xuống cho Navbar */}
+      
+      {/* THÊM: Truyền onSearch và onFilter xuống Navbar */}
       <Navbar
         onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)}
         onLogoutClick={() => setIsLogoutModalOpen(true)}
+        onSearch={(query) => setSearchQuery(query)}
+        onFilter={(data) => setFilterData(data)}
       />
 
       {/* Main */}
@@ -93,7 +103,9 @@ export default function MainLayout() {
                 </Button>
               </div>
             )}
-            <Outlet />
+            
+            {/* THÊM: Truyền context xuống cho Homepage (thông qua Outlet) */}
+            <Outlet context={{ searchQuery, filterData }} />
           </div>
         </main>
       </div>
@@ -113,7 +125,7 @@ export default function MainLayout() {
         />
       )}
 
-      {/* 4. Đặt LogoutModal ở đây - Tầng cao nhất của toàn bộ Layout, z-50 là đủ bao trọn màn hình */}
+      {/* Logout Modal */}
       <LogoutModal
         isOpen={isLogoutModalOpen}
         onClose={() => setIsLogoutModalOpen(false)}

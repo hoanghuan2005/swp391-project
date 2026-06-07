@@ -1,26 +1,25 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
-import { Loader2, ChevronLeft, Sparkles, FileText, CheckSquare } from "lucide-react";
+import { useParams } from "react-router-dom";
+import { Loader2, Sparkles, CheckSquare } from "lucide-react";
 import { toast } from "react-hot-toast";
 
 import { getProjectDetail, getSharedProject, removeDocumentFromProject } from "@/api/projectApi";
-import { askAi } from "@/api/aiApi";
-import { Button } from "@/components/ui/button";
+import { askAi, askSharedAi } from "@/api/aiApi";
+import axiosClient from "@/api/axiosClient";
 import ChatInterface from "@/components/chat/ChatInterface"; 
 import AISidebar from "@/components/ai-sidebar/AISidebar";
 
+const welcomeMessage = {
+  id: "initial",
+  role: "assistant",
+  content: "Welcome to your Project Workspace! Select specific sources from the sidebar to talk to, or ask a question right away to synthesize answers across the entire project.",
+};
+
 export default function ProjectWorkspacePage() {
   const { projectId, token } = useParams();
-  const navigate = useNavigate();
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [messages, setMessages] = useState([
-    {
-      id: "initial",
-      role: "assistant",
-      content: "Welcome to your Project Workspace! Select specific sources from the sidebar to talk to, or ask a question right away to synthesize answers across the entire project.",
-    },
-  ]);
+  const [messages, setMessages] = useState([welcomeMessage]);
 
   const [isSending, setIsSending] = useState(false);
   const isSharedView = !!token;
@@ -34,46 +33,138 @@ export default function ProjectWorkspacePage() {
   const [conversations, setConversations] = useState([]);
   const [activeConversation, setActiveConversation] = useState(null);
 
+  const loadConversationMessages = useCallback(async (conversationId) => {
+    const response = await axiosClient.get(
+      `/api/ai/conversations/${conversationId}/messages`,
+    );
+    const savedMessages = response.data || [];
+    setMessages(savedMessages.length > 0 ? savedMessages : [welcomeMessage]);
+  }, []);
+
   const fetchProject = useCallback(async () => {
     try {
       setLoading(true);
       let data = token ? await getSharedProject(token) : await getProjectDetail(projectId);
       setProject(data);
-      const mainChat = { id: "main", title: data.name };
-      setConversations([mainChat]);
-      setActiveConversation(mainChat);
+
+      if (token) {
+        const mainChat = { id: "main", title: data.name };
+        setConversations([mainChat]);
+        setActiveConversation(mainChat);
+        setMessages([welcomeMessage]);
+        return;
+      }
+
+      const response = await axiosClient.get(
+        `/api/ai/conversations?projectId=${data.id}`,
+      );
+      const savedConversations = response.data || [];
+      setConversations(savedConversations);
+
+      if (savedConversations.length > 0) {
+        const currentConversation = savedConversations[0];
+        setActiveConversation(currentConversation);
+        await loadConversationMessages(currentConversation.id);
+      } else {
+        setActiveConversation(null);
+        setMessages([welcomeMessage]);
+      }
     } catch (error) {
       console.error("Failed to fetch project:", error);
       toast.error("Failed to load project workspace");
     } finally {
       setLoading(false);
     }
-  }, [projectId, token]);
+  }, [projectId, token, loadConversationMessages]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchProject();
   }, [fetchProject]);
 
+  const handleSelectConversation = async (conversation) => {
+    if (!conversation || conversation.id === activeConversation?.id) {
+      return;
+    }
+
+    setActiveConversation(conversation);
+    try {
+      await loadConversationMessages(conversation.id);
+    } catch (error) {
+      console.error("Failed to load workspace chat:", error);
+      toast.error("Failed to load workspace chat history");
+    }
+  };
+
+  const createWorkspaceConversation = async (title = "New Chat") => {
+    const response = await axiosClient.post("/api/ai/conversations", {
+      title,
+      projectId: project.id,
+    });
+    const newConversation = response.data;
+    setConversations((prev) => [newConversation, ...prev]);
+    setActiveConversation(newConversation);
+    return newConversation;
+  };
+
+  const handleCreateNewConversation = async () => {
+    if (isSharedView) {
+      setActiveConversation({ id: "main", title: project.name });
+      setMessages([welcomeMessage]);
+      setSelectedDocs([]);
+      return;
+    }
+
+    try {
+      await createWorkspaceConversation();
+      setMessages([welcomeMessage]);
+      setSelectedDocs([]);
+    } catch (error) {
+      console.error("Failed to create workspace chat:", error);
+      toast.error("Failed to create new chat");
+    }
+  };
+
   const handleSend = async (messageText) => {
     if (!messageText || isSending) return;
+
+    const pendingDocs = selectedDocs.length > 0
+      ? selectedDocs.filter((doc) => doc.aiParseStatus === "PENDING")
+      : (project.documents || []).filter((doc) => doc.aiParseStatus === "PENDING");
+
+    if (pendingDocs.length > 0) {
+      toast.error("Some documents are still being prepared for AI. Please try again shortly.");
+      return;
+    }
 
     const userMessage = { id: Date.now(), role: "user", content: messageText };
     setMessages((prev) => [...prev, userMessage]);
     setIsSending(true);
 
     try {
+      const currentConversation = token
+        ? null
+        : activeConversation || (await createWorkspaceConversation());
       const documentIdsToSend = selectedDocs.length > 0 ? selectedDocs.map(d => d.id) : null;
 
-      const response = await askAi({
+      const payload = {
+        conversationId: currentConversation?.id || null,
         projectId: project.id,
-        documentIds: documentIdsToSend, 
-        message: messageText, 
-        token: token || null,
-      });
+        shareToken: token || null,
+        documentIds: documentIdsToSend,
+        message: messageText,
+      };
+
+      const response = token ? await askSharedAi(payload) : await askAi(payload);
 
       setMessages((prev) => [
         ...prev,
-        { id: Date.now() + 1, role: "assistant", content: response.answer },
+        {
+          id: response.assistantMessageId || Date.now() + 1,
+          role: "assistant",
+          content: response.answer,
+          sources: response.sources || [],
+        },
       ]);
     } catch (error) {
       console.error("AI Ask failed:", error);
@@ -140,10 +231,10 @@ export default function ProjectWorkspacePage() {
         documents={project.documents || []}
         selectedItem={activeConversation}
         selectedDocs={selectedDocs} // Pass the array!
-        onSelectItem={setActiveConversation}
+        onSelectItem={handleSelectConversation}
         onSelectDocument={handleSelectDocument}
         onDeleteDocument={isSharedView ? null : handleDeleteDocument}
-        onCreate={() => toast("Workspaces use a single unified chat.", { icon: "ℹ️" })}
+        onCreate={handleCreateNewConversation}
         searchDocQuery={searchDocQuery}
         setSearchDocQuery={setSearchDocQuery}
         fileInputRef={fileInputRef}
