@@ -22,6 +22,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { GraduationCap, Plus, Search, Trash2 } from "lucide-react";
+import { useModal } from "@/components/share/useModal";
 
 export default function CatalogSchoolsPage() {
   const [schools, setSchools] = useState([]);

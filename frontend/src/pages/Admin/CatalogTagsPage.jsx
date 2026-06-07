@@ -22,6 +22,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Plus, Search, Tags, Trash2 } from "lucide-react";
+import { useModal } from "@/components/share/useModal";
+import { toast } from "sonner";
 
 export default function CatalogTagsPage() {
   const [tags, setTags] = useState([]);
@@ -29,6 +31,7 @@ export default function CatalogTagsPage() {
   const [query, setQuery] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [tagName, setTagName] = useState("");
+  const { confirm } = useModal();
 
   const loadTags = async () => {
     try {
@@ -66,17 +69,22 @@ export default function CatalogTagsPage() {
     }
   };
 
-  const handleDeleteTag = async (id) => {
-    if (!window.confirm("Delete this tag?")) {
-      return;
-    }
+  const handleDeleteTag = async (id, tagName) => {
+    const confirmed = await confirm({
+      title: "Delete Tag",
+      message: `Delete "${tagName}" permanently?`,
+    });
+
+    if (!confirmed) return;
 
     try {
       await axiosClient.delete(`/api/tags/${id}`);
+
       setTags((prev) => prev.filter((item) => item.id !== id));
+      toast.success("Tag deleted successfully");
     } catch (error) {
-      console.error("Failed to delete tag:", error);
-      alert("Unable to delete tag.");
+      toast.error("Unable to delete tag");
+      console.error(error);
     }
   };
 
@@ -161,7 +169,7 @@ export default function CatalogTagsPage() {
                         <Button
                           size="icon"
                           variant="ghost"
-                          onClick={() => handleDeleteTag(tag.id)}
+                          onClick={() => handleDeleteTag(tag.id, tag.name)}
                           className="text-slate-500 hover:text-red-600 hover:bg-red-50"
                         >
                           <Trash2 className="w-4 h-4" />
