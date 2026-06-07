@@ -22,6 +22,7 @@ import java.util.UUID;
 public class DocumentParserService {
 
     private final DocumentChunkRepository documentChunkRepository;
+    private final EmbeddingService embeddingService;
 
     private static final int CHUNK_SIZE = 1500; // max characters per chunk
 
@@ -55,7 +56,7 @@ public class DocumentParserService {
     }
 
     private String extractPdfText(InputStream inputStream) throws Exception {
-        try (org.apache.pdfbox.pdmodel.PDDocument document = org.apache.pdfbox.Loader.loadPDF(
+        try (PDDocument document = org.apache.pdfbox.Loader.loadPDF(
                 new org.apache.pdfbox.io.RandomAccessReadBuffer(inputStream))) {
             PDFTextStripper pdfStripper = new PDFTextStripper();
             return pdfStripper.getText(document);
@@ -91,10 +92,17 @@ public class DocumentParserService {
 
         int chunkIndex = 0;
         for (String chunkText : chunks) {
+
+            float[] embedding =
+                    embeddingService.embed(chunkText);
+
             DocumentChunk chunk = new DocumentChunk();
+
             chunk.setDocumentId(documentId);
             chunk.setChunkIndex(chunkIndex++);
             chunk.setContent(chunkText.trim());
+            chunk.setEmbedding(embedding);
+
             documentChunkRepository.save(chunk);
         }
 

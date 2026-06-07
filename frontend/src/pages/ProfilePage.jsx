@@ -18,6 +18,13 @@ import {
 } from "@/components/ui/select";
 
 import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group";
+import { ScrollArea } from "@/components/ui/scroll-area";
+
+import {
   User,
   Mail,
   Shield,
@@ -28,6 +35,7 @@ import {
   Users,
   Calendar,
   BookOpen,
+  Search,
 } from "lucide-react";
 
 export default function ProfilePage() {
@@ -62,6 +70,17 @@ export default function ProfilePage() {
     () => Array.from({ length: 12 }, (_, i) => 2026 - i),
     [],
   );
+
+  const [schoolOpen, setSchoolOpen] = useState(false);
+
+  const filteredSchools = useMemo(() => {
+    const query = (profileData.schoolName || "").trim().toLowerCase();
+    if (!query) return schoolOptions;
+
+    return schoolOptions.filter((item) =>
+      `${item.name} ${item.code}`.toLowerCase().includes(query)
+    );
+  }, [profileData.schoolName, schoolOptions]);
 
   const loadProfileAndOptions = async () => {
     try {
@@ -197,6 +216,7 @@ export default function ProfilePage() {
       await axiosClient.put("/api/profile", {
         fullName: profileData.fullName,
         schoolCode: profileData.schoolCode || null,
+        schoolName: profileData.schoolName || null,
         startYear: profileData.startYear ? Number(profileData.startYear) : null,
         languageIds: selectedLanguageIds,
         avatarUrl: uploadedAvatarUrl,
@@ -379,38 +399,74 @@ export default function ProfilePage() {
                     School
                   </label>
 
-                  <Select
-                    value={profileData.schoolCode}
-                    onValueChange={(value) => {
-                      const selectedSchool = schoolOptions.find(
-                        (school) => school.code === value,
-                      );
+                  <div className="relative">
+                    <InputGroup className="rounded-xl border-orange-100 bg-white/90">
+                      <InputGroupAddon>
+                        <Search className="h-4 w-4 text-slate-400" />
+                      </InputGroupAddon>
+                      <InputGroupInput
+                        value={profileData.schoolName}
+                        placeholder="Search your school"
+                        onChange={(event) => {
+                          const val = event.target.value;
+                          setProfileData((prev) => ({
+                            ...prev,
+                            schoolName: val,
+                            schoolCode: "",
+                          }));
+                          setSchoolOpen(true);
+                        }}
+                        onFocus={() => setSchoolOpen(true)}
+                        onBlur={() => {
+                          setTimeout(() => setSchoolOpen(false), 120);
+                        }}
+                      />
+                    </InputGroup>
 
-                      setProfileData((prev) => ({
-                        ...prev,
-                        schoolCode: value,
-                        schoolName: selectedSchool?.name || "",
-                      }));
-                    }}
-                  >
-                    <SelectTrigger className="h-11 rounded-xl border-orange-100 focus:ring-[#f26522]">
-                      <SelectValue placeholder="Select school" />
-                    </SelectTrigger>
-
-                    <SelectContent>
-                      {loadingOptions ? (
-                        <div className="p-3 text-sm text-slate-500">
-                          Loading...
-                        </div>
-                      ) : (
-                        schoolOptions.map((school) => (
-                          <SelectItem key={school.id} value={school.code}>
-                            {school.name}
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
+                    {schoolOpen && (
+                      <div className="absolute z-20 mt-2 w-full rounded-xl border border-slate-200 bg-white shadow-md">
+                        <ScrollArea className="max-h-48">
+                          {loadingOptions ? (
+                            <div className="p-3 text-xs text-slate-500">
+                              Loading schools...
+                            </div>
+                          ) : filteredSchools.length === 0 ? (
+                            <div className="p-3 text-xs text-slate-500">
+                              No schools match your search.
+                            </div>
+                          ) : (
+                            filteredSchools.map((item) => (
+                              <Button
+                                key={item.id}
+                                type="button"
+                                variant="ghost"
+                                onMouseDown={(event) => {
+                                  event.preventDefault();
+                                  setProfileData((prev) => ({
+                                    ...prev,
+                                    schoolName: item.name,
+                                    schoolCode: item.code,
+                                  }));
+                                  setSchoolOpen(false);
+                                }}
+                                className="w-full justify-between rounded-none px-3 py-2 text-xs hover:bg-slate-50"
+                              >
+                                <span className="text-slate-700">
+                                  {item.name}
+                                </span>
+                                <Badge
+                                  variant="outline"
+                                  className="border-slate-200 text-slate-500"
+                                >
+                                  {item.code}
+                                </Badge>
+                              </Button>
+                            ))
+                          )}
+                        </ScrollArea>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* START YEAR */}

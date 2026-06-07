@@ -8,6 +8,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import com.pgvector.PGvector;
 
 import java.util.UUID;
 
@@ -23,6 +24,9 @@ public class DocumentChunk extends BaseEntity {
 
     private Integer chunkIndex;
 
-    @Column(columnDefinition = "TEXT") // TEXT instead of LONGTEXT for PostgreSQL/general compatibility
-    private String content;
+    @Column(columnDefinition = "vector(1024)")
+    private float[] embedding;
+
+    private String content; // nội dung chunk gốc
 }
+

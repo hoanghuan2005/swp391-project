@@ -47,7 +47,10 @@ public class SecurityConfig {
                                                                 "/oauth2/**",
                                                                 "/login/oauth2/**",
 
-                                                                "/api/courses/**",
+                                                        "/api/embedding/**",
+
+
+                                                        "/api/courses/**",
 
                                                                 "/api/languages/**",
                                                                 "/api/schools/**",
