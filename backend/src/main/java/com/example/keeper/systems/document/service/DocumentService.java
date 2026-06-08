@@ -27,6 +27,14 @@ public interface DocumentService {
 
     List<DocumentResponse> getRecentViewed(String email, int limit);
 
+    // =========================
+    // TÍNH NĂNG: FAVORITE (THẢ TIM) TÀI LIỆU
+    // =========================
+    List<DocumentResponse> getMyFavorites(String email);
+
+    void toggleFavorite(UUID documentId, String email);
+    // =========================
+
     // List<Document> getRecommended(String email, int limit);
 
     Document delete(UUID id);

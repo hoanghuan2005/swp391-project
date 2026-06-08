@@ -60,4 +60,13 @@ public class User extends BaseEntity {
     @JsonIgnore
     @JoinTable(name = "user_follow_courses", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "course_id"))
     private List<Course> followedCourses = new ArrayList<>();
+
+    @ManyToMany
+    @JsonIgnore
+    @JoinTable(
+            name = "user_favorites",
+            joinColumns = @JoinColumn(name = "user_id"),
+            inverseJoinColumns = @JoinColumn(name = "document_id")
+    )
+    private Set<com.example.keeper.systems.document.entity.Document> favoriteDocuments = new HashSet<>();
 }
