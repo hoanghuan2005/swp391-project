@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react"; // THÊM useMemo
-import { Link, useOutletContext } from "react-router-dom"; // THÊM useOutletContext
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { Link, useOutletContext } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { forceDownload } from "@/lib/downloadHelper";
 import {
@@ -33,12 +33,10 @@ const HOMEPAGE_WELCOME_MESSAGE = {
     "Hi, I am StudyMate AI. Ask me about study planning, document discovery, or any topic you are learning.",
 };
 
-const DEFAULT_FILTER_DATA = { school: "", course: "", tag: "" };
+const DEFAULT_FILTER_DATA = { school: "", course: "", category: "" };
 
 export default function Homepage() {
-  // ==========================================
-  // THÊM: LẤY SEARCH & FILTER TỪ LAYOUT
-  // ==========================================
+  // LẤY SEARCH & FILTER TỪ LAYOUT QUAN TRỌNG
   const context = useOutletContext();
   const searchQuery = context?.searchQuery || "";
   const filterData = context?.filterData || DEFAULT_FILTER_DATA;
@@ -56,18 +54,14 @@ export default function Homepage() {
 
   const upsertPublicDocument = useCallback((doc) => {
     if (!doc) return;
-
     const isPublic = doc.visibility ? doc.visibility === "PUBLIC" : true;
-
     if (!isPublic) return;
 
     setDocuments((prev) => {
       const exists = prev.find((item) => item.id === doc.id);
-
       if (exists) {
         return prev.map((item) => (item.id === doc.id ? doc : item));
       }
-
       return [doc, ...prev];
     });
   }, []);
@@ -75,11 +69,8 @@ export default function Homepage() {
   const fetchCourses = useCallback(async () => {
     try {
       const response = await axiosClient.get("/api/courses", {
-        params: {
-          t: Date.now(),
-        },
+        params: { t: Date.now() },
       });
-
       setCourses(response.data?.content || []);
     } catch (error) {
       console.error("Error fetching courses:", error);
@@ -87,17 +78,12 @@ export default function Homepage() {
     }
   }, []);
 
-  // Lấy danh sách tài liệu từ Backend
   const fetchDocuments = useCallback(async (options = {}) => {
     const { silent = false } = options;
-
     try {
       if (!silent) setIsLoading(true);
-
       const response = await axiosClient.get("/api/documents", {
-        params: {
-          t: Date.now(),
-        },
+        params: { t: Date.now() },
       });
 
       const publicDocs = (response.data || [])
@@ -121,19 +107,16 @@ export default function Homepage() {
 
     const handleUploaded = (event) => {
       const uploadedDoc = event?.detail;
-
       upsertPublicDocument(uploadedDoc);
       fetchDocuments({ silent: true });
     };
 
     window.addEventListener("documents:uploaded", handleUploaded);
-
     return () => {
       window.removeEventListener("documents:uploaded", handleUploaded);
     };
   }, [fetchDocuments, fetchCourses, upsertPublicDocument]);
 
-  // Hàm xử lý tải file (Tăng view và tải về máy)
   const handleDownload = async (id, title) => {
     try {
       const res = await axiosClient.get(`/api/documents/${id}/download`);
@@ -151,22 +134,14 @@ export default function Homepage() {
     async (message) => {
       if (!message || isChatSending) return;
 
-      const userMessage = {
-        id: `user-${Date.now()}`,
-        role: "USER",
-        content: message,
-      };
-
+      const userMessage = { id: `user-${Date.now()}`, role: "USER", content: message };
       setChatMessages((prev) => [...prev, userMessage]);
       setIsChatSending(true);
 
       try {
         let conversationId = chatConversationId;
-
         if (!conversationId) {
-          const conversation = await createAiConversation({
-            title: "Homepage Chat",
-          });
+          const conversation = await createAiConversation({ title: "Homepage Chat" });
           conversationId = conversation.id;
           setChatConversationId(conversationId);
         }
@@ -203,32 +178,45 @@ export default function Homepage() {
     [chatConversationId, isChatSending],
   );
 
- const filteredDocuments = useMemo(() => {
+  // ==========================================
+  // XỬ LÝ LỌC THÔNG MINH PHÒNG TRƯỜNG HỢP BE THIẾU DATA
+  // ==========================================
+  const filteredDocuments = useMemo(() => {
     return documents.filter((doc) => {
-      // 1. Tìm kiếm theo tiêu đề (Search Bar) - OK
-      const matchesSearch = doc.title
-        ?.toLowerCase()
-        .includes(searchQuery.toLowerCase());
+      // 1. Tìm kiếm theo tiêu đề (Search Bar)
+      const matchesSearch = searchQuery
+        ? doc.title?.toLowerCase().includes(searchQuery.toLowerCase())
+        : true;
         
-      // 2. Lọc theo Course - OK (BE có code và name)
+      // 2. Lọc theo Môn học (Course)
       const matchesCourse = filterData.course 
         ? doc.course?.code?.toLowerCase().includes(filterData.course.toLowerCase()) 
           || doc.course?.name?.toLowerCase().includes(filterData.course.toLowerCase())
         : true;
         
-      // 3. Lọc theo Tags - ĐÃ SỬA: Vì BE trả về mảng String trực tiếp ["React", "Java"]
-      const matchesTag = filterData.tag 
-        ? doc.tags?.some(tag => tag.toLowerCase().includes(filterData.tag.toLowerCase()))
+      // 3. Lọc theo Loại danh mục (Category)
+      const matchesCategory = filterData.category 
+        ? doc.category?.toLowerCase() === filterData.category.toLowerCase()
         : true;
 
-      // 4. Lọc theo Trường học (School)
-      // TẠM SỬA: Vì BE chưa trả về trường school nên nếu user gõ filter school, 
-      // ta tạm thời cho qua (luôn true) hoặc xử lý để không bị crash/ra 0 kết quả nhé.
-      const matchesSchool = filterData.school 
-        ? false // Hiện tại gõ vào đây sẽ ra 0 kết quả vì dữ liệu doc.school không tồn tại
-        : true;
+      // 4. Lọc theo Trường học (School) - Xử lý logic fallback an toàn
+      const rawSchool = doc.schoolCode || doc.school?.code || doc.course?.schoolCode || doc.course?.school?.code || doc.school;
+      
+      let matchesSchool = true;
+      if (filterData.school) {
+        if (rawSchool) {
+          // Nếu tài liệu CÓ data trường từ BE -> Ép kiểm tra trùng khớp nghiêm ngặt
+          const schoolStr = String(rawSchool).toLowerCase();
+          const filterSchoolStr = filterData.school.toLowerCase();
+          matchesSchool = schoolStr.includes(filterSchoolStr) || filterSchoolStr.includes(schoolStr);
+        } else {
+          // Nếu tài liệu KHÔNG CÓ data trường từ BE -> Cho qua để tránh lỗi ẩn file (Ẩn khi nhập sai môn)
+          matchesSchool = true;
+        }
+      }
 
-      return matchesSearch && matchesCourse && matchesTag && matchesSchool;
+      // ĐIỀU KIỆN KẾT HỢP NGHIÊM NGẶT (Logic AND)
+      return matchesSearch && matchesSchool && matchesCourse && matchesCategory;
     });
   }, [documents, searchQuery, filterData]);
 
@@ -251,7 +239,7 @@ export default function Homepage() {
           }}
         />
 
-        {/* Danh sách tài liệu Public MỚI NHẤT */}
+        {/* Danh sách tài liệu Public */}
         <section className="mb-10">
           <h3 className="text-xl font-bold mb-4 text-slate-800 tracking-tight">
             Explore Public Documents
@@ -261,19 +249,18 @@ export default function Homepage() {
             <div className="text-center text-slate-500 font-medium">
               Loading documents...
             </div>
-          ) : filteredDocuments.length === 0 ? ( // ĐỔI SANG DÙNG filteredDocuments
+          ) : filteredDocuments.length === 0 ? (
             <div className="text-center bg-slate-50 rounded-2xl text-slate-500 border border-slate-100 p-8">
               No documents found matching your criteria.
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-              {filteredDocuments.map((doc) => ( // ĐỔI SANG DÙNG filteredDocuments
+              {filteredDocuments.map((doc) => (
                 <Card
                   key={doc.id}
                   className="shadow-sm border-slate-100 hover:shadow-md transition-all group flex flex-col h-full rounded-[20px] overflow-hidden bg-white"
                 >
                   <CardContent className="p-4 flex-1 flex flex-col">
-                    {/* Thumbnail ảo mờ mờ cho đẹp */}
                     <div className="w-full aspect-[4/3] bg-slate-50 rounded-xl mb-3 -mt-4 border border-slate-200 group-hover:border-[#f26522]/20 transition-colors flex items-center justify-center text-slate-300">
                       <FileText className="w-12 h-12" />
                     </div>
@@ -298,7 +285,6 @@ export default function Homepage() {
                     </div>
                   </CardContent>
 
-                  {/* Khu vực nút bấm */}
                   <CardFooter className="-mt-3 px-4 py-3 flex gap-2">
                     <Button
                       variant="outline"
