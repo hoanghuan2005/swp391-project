@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/input-group";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { ScrollArea } from "@/components/ui/scroll-area";import { toast } from "react-hot-toast";
 
 export default function Survey({ onClose, forceOpen = false }) {
   const SCHOOL_STORAGE_KEY = "profileSchool";

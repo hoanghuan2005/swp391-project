@@ -1,17 +1,12 @@
 import React, { useState, useRef, useEffect } from "react";
 import {
-  BrainCircuit,
-  BookOpen,
-  Settings,
   Loader2,
   Target,
-  UploadCloud,
-  Library,
+  Send,
   FileText,
   X,
   Plus,
   Settings2,
-  ArrowUp,
 } from "lucide-react";
 import {
   Dialog,
@@ -20,8 +15,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import SelectExistingDocumentModal from "@/components/documents/SelectExistingDocument";
 import AISidebar from "@/components/ai-sidebar/AISidebar";
 import axiosClient from "@/api/axiosClient";
 import useDocuments from "@/hooks/useDocuments";
@@ -114,13 +107,17 @@ export default function AIQuizGenerator() {
         return;
       }
       if (status === "FAILED") {
-        throw new Error("Document text could not be extracted for AI quiz generation.");
+        throw new Error(
+          "Document text could not be extracted for AI quiz generation.",
+        );
       }
 
       await new Promise((resolve) => setTimeout(resolve, 1000));
     }
 
-    throw new Error("Document is still being prepared for AI. Please try again shortly.");
+    throw new Error(
+      "Document is still being prepared for AI. Please try again shortly.",
+    );
   };
 
   const handleGenerateQuiz = async () => {
@@ -138,10 +135,14 @@ export default function AIQuizGenerator() {
         : null;
 
       if (libraryDoc?.aiParseStatus === "PENDING") {
-        throw new Error("Document is still being prepared for AI. Please try again shortly.");
+        throw new Error(
+          "Document is still being prepared for AI. Please try again shortly.",
+        );
       }
       if (["FAILED", "UNSUPPORTED"].includes(libraryDoc?.aiParseStatus)) {
-        throw new Error("This document is not available for AI quiz generation.");
+        throw new Error(
+          "This document is not available for AI quiz generation.",
+        );
       }
 
       if (file && !finalDocumentId) {
@@ -206,7 +207,10 @@ export default function AIQuizGenerator() {
       navigate(`/quiz/${response.data.id}`);
     } catch (error) {
       console.error("Failed to generate quiz:", error);
-      const errorMsg = error.response?.data?.message || error.message || "Failed to generate your quiz. Please try again.";
+      const errorMsg =
+        error.response?.data?.message ||
+        error.message ||
+        "Failed to generate your quiz. Please try again.";
       toast.error(errorMsg);
     } finally {
       setIsGenerating(false);
@@ -321,17 +325,12 @@ export default function AIQuizGenerator() {
                 disabled={
                   (!inputText.trim() && !file && !libraryDoc) || isGenerating
                 }
-                className="rounded-full px-5 bg-[#f26522] hover:bg-[#de5b0b]"
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-[#f26522] text-white hover:bg-[#de5b0b] disabled:opacity-50"
               >
                 {isGenerating ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  </>
+                  <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  <>
-                    Create
-                    <ArrowUp className="w-4 h-4 ml-2" />
-                  </>
+                  <Send className="h-4 w-4" />
                 )}
               </Button>
             </div>

@@ -77,14 +77,19 @@ public class SecurityConfig {
 
                                                                 "/api/embedding/**",
 
+                                                                "/api/courses",
                                                                 "/api/courses/**",
-
+                                                                "/api/languages",
                                                                 "/api/languages/**",
+                                                                "/api/schools",
                                                                 "/api/schools/**",
+                                                                "/api/tags",
                                                                 "/api/tags/**",
 
                                                                 "/api/projects/shared/**",
                                                                 "/api/ai/shared/ask",
+                                                                
+                                                                "/error",
 
                                                                 "/v3/api-docs/**",
                                                                 "/swagger-ui/**",
@@ -93,12 +98,19 @@ public class SecurityConfig {
                                                                 "/webjars/**")
                                                 .permitAll()
                                                 .requestMatchers(HttpMethod.GET,
+                                                                "/api/courses",
                                                                 "/api/courses/**",
+                                                                "/api/documents",
+                                                                "/api/documents/**",
+                                                                "/api/languages",
                                                                 "/api/languages/**",
+                                                                "/api/schools",
                                                                 "/api/schools/**",
+                                                                "/api/tags",
                                                                 "/api/tags/**")
                                                 .permitAll()
 
+                                                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                                                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                                                 .anyRequest().authenticated())
                                 .exceptionHandling(ex -> ex

@@ -14,7 +14,7 @@ export default function MainLayout() {
   const [showSurvey, setShowSurvey] = useState(false);
   const [showSurveyReminder, setShowSurveyReminder] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
-  
+
   // ==========================================
   // THÊM: STATE CHO SEARCH VÀ FILTER Ở ĐÂY
   // ==========================================
@@ -27,9 +27,29 @@ export default function MainLayout() {
 
   const location = useLocation();
   const isAiAskPage = location.pathname.startsWith("/ask-ai");
+  const isWorkspacePage = location.pathname.startsWith("/workspace");
+  const isAdminPage = location.pathname.startsWith("/admin");
+  const isAuthPage = [
+    "/login",
+    "/signup",
+    "/forgot-password",
+    "/verify-account",
+    "/change-password",
+  ].some((path) => location.pathname.startsWith(path));
+  const isAiToolsPage = location.pathname.startsWith("/ai-tools");
 
   useEffect(() => {
-    if (isAiAskPage) return;
+    if (
+      isAiAskPage ||
+      isWorkspacePage ||
+      isAdminPage ||
+      isAuthPage ||
+      isAiToolsPage
+    ) {
+      setShowSurvey(false);
+      setShowSurveyReminder(false);
+      return;
+    }
 
     const checkSurveyState = async () => {
       let surveyCompleted = localStorage.getItem("surveyCompleted") === "true";
@@ -69,11 +89,10 @@ export default function MainLayout() {
     };
 
     checkSurveyState();
-  }, [isAiAskPage]);
+  }, [isAiAskPage, isWorkspacePage, isAdminPage, isAuthPage, isAiToolsPage]);
 
   return (
     <div className="h-screen bg-white text-slate-900 font-sans flex flex-col overflow-hidden">
-      
       {/* THÊM: Truyền onSearch và onFilter xuống Navbar */}
       <Navbar
         onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -103,7 +122,7 @@ export default function MainLayout() {
                 </Button>
               </div>
             )}
-            
+
             {/* THÊM: Truyền context xuống cho Homepage (thông qua Outlet) */}
             <Outlet context={{ searchQuery, filterData }} />
           </div>

@@ -13,11 +13,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Ban, Unlock, Users, Search, UserPlus } from "lucide-react"; 
+import { useModal } from "@/components/share/useModal";
+import { toast } from "sonner";
 
 export default function UserListPage() {
   const [users, setUsers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState(""); 
+  const { confirm } = useModal();
 
   const fetchUsers = async () => {
     try {
@@ -37,16 +40,20 @@ export default function UserListPage() {
   const handleToggleBan = async (userId, isCurrentlyBanned) => {
     const actionText = isCurrentlyBanned ? "UNBAN" : "BAN";
     
-    if (!window.confirm(`Are you sure you want to ${actionText} this user?`)) {
-      return;
-    }
+    const confirmed = await confirm({
+      title: "Confirm Action",
+      message: `Are you sure you want to ${actionText} this user?`,
+    });
+
+    if (!confirmed) return;
 
     try {
       await axiosClient.put(`/api/admin/users/${userId}/ban`);
       fetchUsers();
+      toast.success(`User ${actionText.toLowerCase()}ned successfully`);
     } catch (error) {
       console.error("Error toggling ban status:", error);
-      alert("Error updating user status!");
+      toast.error("Error updating user status!");
     }
   };
 

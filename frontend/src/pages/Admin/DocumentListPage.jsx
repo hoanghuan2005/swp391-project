@@ -15,12 +15,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Trash2, Eye, Search, Plus, FileText } from "lucide-react";
 import UploadDocumentDialog from "@/components/documents/UploadDocumentDialog";
+import { useModal } from "@/components/share/useModal";
+import { toast } from "sonner";
 
 export default function DocumentListPage() {
   const [documents, setDocuments] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
+  const { confirm } = useModal();
 
   // Lấy danh sách tài liệu từ Backend
   const fetchDocuments = async () => {
@@ -40,20 +43,20 @@ export default function DocumentListPage() {
 
   // Xử lý xóa tài liệu
   const handleDelete = async (id, title) => {
-    if (
-      !window.confirm(
-        `Are you sure you want to delete the document: "${title}"?`,
-      )
-    ) {
-      return;
-    }
+    const confirmed = await confirm({
+      title: "Delete Document",
+      message: `Are you sure you want to delete the document: "${title}"?`,
+    });
+
+    if (!confirmed) return;
 
     try {
       await axiosClient.delete(`/api/admin/documents/${id}`);
       fetchDocuments(); // Tải lại danh sách sau khi xóa
+      toast.success("Document deleted successfully");
     } catch (error) {
       console.error("Error deleting document:", error);
-      alert("Failed to delete document!");
+      toast.error("Failed to delete document!");
     }
   };
 

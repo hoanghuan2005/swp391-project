@@ -339,12 +339,12 @@ export default function AIQuizTakePage() {
               </div>
 
               {/* Footer Actions */}
-              <div className="mt-12 mb-24 flex justify-end gap-4">
+              <div className="mt-16 mb-24 flex justify-end gap-4">
                 {!isSubmitted ? (
                   <Button
                     size="lg"
                     onClick={handleSubmit}
-                    className="rounded-2xl bg-[#f26522] hover:bg-[#de5b0b] text-white font-bold px-12 h-16 text-lg shadow-lg shadow-[#f26522]/20 hover:scale-[1.02] active:scale-95 transition-all"
+                    className="rounded-xl bg-[#f26522] hover:bg-[#de5b0b] text-white font-bold px-6 h-12 text-md shadow-sm cursor-pointer hover:scale-[1.02] active:scale-95 transition-all"
                   >
                     Submit Quiz
                   </Button>

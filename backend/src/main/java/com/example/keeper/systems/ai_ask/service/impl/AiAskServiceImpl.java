@@ -13,6 +13,7 @@ import com.example.keeper.systems.ai_ask.repository.DocumentChunkRepository;
 import com.example.keeper.systems.ai_ask.service.AiAskService;
 import com.example.keeper.systems.ai_ask.service.ConversationService;
 import com.example.keeper.systems.ai_ask.service.GroqService;
+import com.example.keeper.systems.ai_ask.service.EmbeddingService;
 import com.example.keeper.systems.document.entity.Document;
 import com.example.keeper.systems.document.enums.AiParseStatus;
 import com.example.keeper.systems.document.repository.DocumentRepository;
@@ -24,7 +25,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
@@ -50,6 +50,7 @@ public class AiAskServiceImpl implements AiAskService {
     private final DocumentRepository documentRepository;
     private final DocumentDiscoveryService documentDiscoveryService;
     private final GroqService groqService;
+    private final EmbeddingService embeddingService;
 
     @Override
     @Transactional
@@ -256,6 +257,7 @@ public class AiAskServiceImpl implements AiAskService {
         if (project.getDocuments() == null || project.getDocuments().isEmpty()) {
             prompt.append("(No documents attached to this workspace yet.)\n");
         } else {
+            List<UUID> validDocIds = new ArrayList<>();
             for (Document doc : project.getDocuments()) {
                 if (hasTargetedSelection && !request.getDocumentIds().contains(doc.getId())) {
                     continue;
@@ -269,20 +271,23 @@ public class AiAskServiceImpl implements AiAskService {
                             .append("]\n");
                     continue;
                 }
+                
+                validDocIds.add(doc.getId());
+            }
 
-                List<DocumentChunk> chunks = selectRelevantChunks(
-                        request.getMessage(),
-                        documentChunkRepository.findByDocumentId(doc.getId()),
-                        30000,
-                        true
-                );
+            if (!validDocIds.isEmpty()) {
+                float[] queryEmbedding = embeddingService.embed(request.getMessage());
+                List<DocumentChunk> chunks = documentChunkRepository.findSimilarChunksByDocumentIds(validDocIds, java.util.Arrays.toString(queryEmbedding), 15);
 
                 if (!chunks.isEmpty()) {
-                    prompt.append("\n[Source Document: ").append(doc.getTitle()).append("]\n");
                     for (DocumentChunk chunk : chunks) {
-                        prompt.append(chunk.getContent()).append("\n");
+                        Document doc = project.getDocuments().stream().filter(d -> d.getId().equals(chunk.getDocumentId())).findFirst().orElse(null);
+                        if (doc != null) {
+                            prompt.append("\n[Source Document: ").append(doc.getTitle()).append("]\n");
+                            prompt.append(chunk.getContent()).append("\n");
+                            addSource(sources, doc);
+                        }
                     }
-                    addSource(sources, doc);
                     hasReadyContext = true;
                 }
             }
@@ -416,11 +421,8 @@ public class AiAskServiceImpl implements AiAskService {
                 .orElseThrow(() -> new RuntimeException("Document not found"));
         ensureReadyForAi(document);
 
-        List<DocumentChunk> chunks = selectRelevantChunks(
-                request.getMessage(),
-                documentChunkRepository.findByDocumentId(docId),
-                30000
-        );
+        float[] queryEmbedding = embeddingService.embed(request.getMessage());
+        List<DocumentChunk> chunks = documentChunkRepository.findSimilarChunksByDocumentId(docId, java.util.Arrays.toString(queryEmbedding), 15);
 
         if (chunks.isEmpty()) {
             return;
@@ -471,90 +473,5 @@ public class AiAskServiceImpl implements AiAskService {
         if (status == AiParseStatus.FAILED || status == AiParseStatus.UNSUPPORTED) {
             throw new RuntimeException("Document is not available for AI context.");
         }
-    }
-
-    private List<DocumentChunk> selectRelevantChunks(String message, List<DocumentChunk> chunks, int maxCharacters) {
-        return selectRelevantChunks(message, chunks, maxCharacters, false);
-    }
-
-    private List<DocumentChunk> selectRelevantChunks(
-            String message,
-            List<DocumentChunk> chunks,
-            int maxCharacters,
-            boolean requireKeywordMatch
-    ) {
-        if (chunks == null || chunks.isEmpty()) {
-            return List.of();
-        }
-
-        List<String> keywords = extractKeywords(message);
-        List<DocumentChunk> ordered = new ArrayList<>(chunks);
-
-        if (!keywords.isEmpty()) {
-            ordered.sort(Comparator
-                    .comparingInt((DocumentChunk chunk) -> scoreChunk(chunk.getContent(), keywords))
-                    .reversed()
-                    .thenComparing(DocumentChunk::getChunkIndex));
-        } else {
-            ordered.sort(Comparator.comparing(DocumentChunk::getChunkIndex));
-        }
-
-        List<DocumentChunk> selected = new ArrayList<>();
-        int totalLength = 0;
-        for (DocumentChunk chunk : ordered) {
-            String content = chunk.getContent();
-            if (content == null || content.isBlank()) {
-                continue;
-            }
-
-            int score = scoreChunk(content, keywords);
-            if (!keywords.isEmpty() && requireKeywordMatch && score == 0) {
-                continue;
-            }
-            if (!keywords.isEmpty() && !requireKeywordMatch && score == 0 && !selected.isEmpty()) {
-                continue;
-            }
-            if (totalLength + content.length() > maxCharacters && !selected.isEmpty()) {
-                break;
-            }
-            selected.add(chunk);
-            totalLength += content.length();
-        }
-
-        selected.sort(Comparator.comparing(DocumentChunk::getChunkIndex));
-        return selected;
-    }
-
-    private List<String> extractKeywords(String message) {
-        if (message == null || message.isBlank()) {
-            return List.of();
-        }
-
-        String[] words = message.toLowerCase(Locale.ROOT).split("[^\\p{L}\\p{N}]+");
-        List<String> keywords = new ArrayList<>();
-        for (String word : words) {
-            if (word.length() >= 4 && keywords.stream().noneMatch(word::equals)) {
-                keywords.add(word);
-            }
-            if (keywords.size() >= 12) {
-                break;
-            }
-        }
-        return keywords;
-    }
-
-    private int scoreChunk(String content, List<String> keywords) {
-        if (content == null || content.isBlank()) {
-            return 0;
-        }
-
-        String lower = content.toLowerCase(Locale.ROOT);
-        int score = 0;
-        for (String keyword : keywords) {
-            if (lower.contains(keyword)) {
-                score++;
-            }
-        }
-        return score;
     }
 }

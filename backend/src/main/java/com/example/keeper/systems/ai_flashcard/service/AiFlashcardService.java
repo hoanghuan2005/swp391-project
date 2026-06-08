@@ -1,5 +1,6 @@
 package com.example.keeper.systems.ai_flashcard.service;
 
+import com.example.keeper.systems.ai_ask.service.EmbeddingService;
 import com.example.keeper.systems.ai_ask.entity.DocumentChunk;
 import com.example.keeper.systems.ai_ask.repository.DocumentChunkRepository;
 import com.example.keeper.systems.ai_flashcard.dto.FlashcardItemDto;
@@ -56,6 +57,7 @@ public class AiFlashcardService {
     private final UserRepository userRepository;
     private final DocumentRepository documentRepository;
     private final DocumentChunkRepository documentChunkRepository;
+    private final EmbeddingService embeddingService;
 
     // ====================================================================
     // 1. CÁC HÀM LẤY DỮ LIỆU TỪ DATABASE CHO SIDEBAR
@@ -167,8 +169,10 @@ public class AiFlashcardService {
             throw new RuntimeException("Document is not available for AI flashcards.");
         }
 
-        String content = documentChunkRepository.findByDocumentId(documentId)
-                .stream()
+        float[] queryEmbedding = embeddingService.embed("key concepts, terms, and important definitions");
+        List<DocumentChunk> chunks = documentChunkRepository.findSimilarChunksByDocumentId(documentId, java.util.Arrays.toString(queryEmbedding), 20);
+
+        String content = chunks.stream()
                 .map(DocumentChunk::getContent)
                 .collect(Collectors.joining("\n\n"));
 

@@ -1,6 +1,7 @@
 package com.example.keeper.systems.ai_quiz.service.impl;
 
 import com.example.keeper.systems.ai_ask.service.GroqService;
+import com.example.keeper.systems.ai_ask.service.EmbeddingService;
 import com.example.keeper.systems.ai_ask.entity.DocumentChunk;
 import com.example.keeper.systems.ai_ask.repository.DocumentChunkRepository;
 import com.example.keeper.systems.auth.entity.User;
@@ -40,6 +41,7 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
     private final GroqService groqService;
+    private final EmbeddingService embeddingService;
 
     @Override
     @Transactional
@@ -120,17 +122,29 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
 
     private String fetchContext(QuizRequest request) {
         List<DocumentChunk> chunks;
+        
+        String query = request.getTopic() != null && !request.getTopic().trim().isEmpty() 
+            ? request.getTopic() 
+            : request.getTitle();
+            
+        float[] queryEmbedding = embeddingService.embed(query);
+
         if (request.getProjectId() != null) {
             Project project = projectRepository.findById(request.getProjectId())
                     .orElseThrow(() -> new RuntimeException("Project not found"));
             project.getDocuments().forEach(this::ensureReadyForAi);
-            List<UUID> docIds = project.getDocuments().stream().map(Document::getId).toList();
-            chunks = documentChunkRepository.findByDocumentIdIn(docIds);
+            List<UUID> docIds = project.getDocuments().stream()
+                    .filter(d -> d.getAiParseStatus() == AiParseStatus.READY)
+                    .map(Document::getId)
+                    .collect(Collectors.toList());
+                    
+            if (docIds.isEmpty()) return "";
+            chunks = documentChunkRepository.findSimilarChunksByDocumentIds(docIds, java.util.Arrays.toString(queryEmbedding), 20);
         } else {
             Document document = documentRepository.findById(request.getDocumentId())
                     .orElseThrow(() -> new RuntimeException("Document not found"));
             ensureReadyForAi(document);
-            chunks = documentChunkRepository.findByDocumentId(request.getDocumentId());
+            chunks = documentChunkRepository.findSimilarChunksByDocumentId(request.getDocumentId(), java.util.Arrays.toString(queryEmbedding), 20);
         }
 
         String combined = chunks.stream()
