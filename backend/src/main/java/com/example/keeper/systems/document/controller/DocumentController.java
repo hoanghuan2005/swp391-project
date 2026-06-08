@@ -129,7 +129,30 @@ public class DocumentController {
     }
 
     // =========================
-    // API CHO AI FLASHCARD
+    // TÍNH NĂNG: FAVORITE (THẢ TIM) TÀI LIỆU
+    // =========================
+
+    @GetMapping("/favorites")
+    public List<DocumentResponse> getMyFavorites() {
+        String email = SecurityContextHolder.getContext()
+                .getAuthentication()
+                .getName();
+        // Gọi xuống service để lấy danh sách tài liệu user đã thích
+        return documentService.getMyFavorites(email);
+    }
+
+    @PostMapping("/{id}/favorite")
+    public ResponseEntity<?> toggleFavorite(@PathVariable UUID id) {
+        String email = SecurityContextHolder.getContext()
+                .getAuthentication()
+                .getName();
+        // Gọi xuống service để Thêm/Xóa tim
+        documentService.toggleFavorite(id, email);
+        return ResponseEntity.ok(Map.of("message", "Đã cập nhật trạng thái yêu thích"));
+    }
+
+    // =========================
+    // API CHO AI FLASHCARD & KHÁC
     // =========================
 
     @GetMapping("/my-documents")

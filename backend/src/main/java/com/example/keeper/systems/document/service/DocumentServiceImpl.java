@@ -50,6 +50,8 @@ public class DocumentServiceImpl implements DocumentService {
     private final DocumentParserService documentParserService;
     private final DocumentChunkRepository documentChunkRepository;
 
+
+
     @Override
     public Document create(CreateDocumentRequest request) {
         Document document = buildDocument(request);
@@ -604,5 +606,33 @@ public class DocumentServiceImpl implements DocumentService {
         }
 
         return downloadUrl;
+    }
+
+    @Override
+    public List<DocumentResponse> getMyFavorites(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        // Trả về danh sách tài liệu mà user đã yêu thích
+        return user.getFavoriteDocuments().stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional
+    public void toggleFavorite(UUID documentId, String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        Document document = getById(documentId);
+
+        // Kiểm tra nếu đã thích thì xóa, chưa thích thì thêm vào
+        if (user.getFavoriteDocuments().contains(document)) {
+            user.getFavoriteDocuments().remove(document);
+        } else {
+            user.getFavoriteDocuments().add(document);
+        }
+
+        userRepository.save(user);
     }
 }
