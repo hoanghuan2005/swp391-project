@@ -3,16 +3,21 @@ import { useParams } from "react-router-dom";
 import { Loader2, Sparkles, CheckSquare } from "lucide-react";
 import { toast } from "react-hot-toast";
 
-import { getProjectDetail, getSharedProject, removeDocumentFromProject } from "@/api/projectApi";
+import {
+  getProjectDetail,
+  getSharedProject,
+  removeDocumentFromProject,
+} from "@/api/projectApi";
 import { askAi, askSharedAi } from "@/api/aiApi";
 import axiosClient from "@/api/axiosClient";
-import ChatInterface from "@/components/chat/ChatInterface"; 
-import AISidebar from "@/components/ai-sidebar/AISidebar";
+import ChatInterface from "@/components/chat/ChatInterface";
+import AISidebar from "@/components/ai-sidebar/sidebar/AISidebar";
 
 const welcomeMessage = {
   id: "initial",
   role: "assistant",
-  content: "Welcome to your Project Workspace! Select specific sources from the sidebar to talk to, or ask a question right away to synthesize answers across the entire project.",
+  content:
+    "Welcome to your Project Workspace! Select specific sources from the sidebar to talk to, or ask a question right away to synthesize answers across the entire project.",
 };
 
 export default function ProjectWorkspacePage() {
@@ -29,7 +34,7 @@ export default function ProjectWorkspacePage() {
 
   // --- MULTI-SELECT NOTEBOOKLM LOGIC ---
   const [selectedDocs, setSelectedDocs] = useState([]); // Array instead of a single object!
-  
+
   const [conversations, setConversations] = useState([]);
   const [activeConversation, setActiveConversation] = useState(null);
 
@@ -44,7 +49,9 @@ export default function ProjectWorkspacePage() {
   const fetchProject = useCallback(async () => {
     try {
       setLoading(true);
-      let data = token ? await getSharedProject(token) : await getProjectDetail(projectId);
+      let data = token
+        ? await getSharedProject(token)
+        : await getProjectDetail(projectId);
       setProject(data);
 
       if (token) {
@@ -128,12 +135,17 @@ export default function ProjectWorkspacePage() {
   const handleSend = async (messageText) => {
     if (!messageText || isSending) return;
 
-    const pendingDocs = selectedDocs.length > 0
-      ? selectedDocs.filter((doc) => doc.aiParseStatus === "PENDING")
-      : (project.documents || []).filter((doc) => doc.aiParseStatus === "PENDING");
+    const pendingDocs =
+      selectedDocs.length > 0
+        ? selectedDocs.filter((doc) => doc.aiParseStatus === "PENDING")
+        : (project.documents || []).filter(
+            (doc) => doc.aiParseStatus === "PENDING",
+          );
 
     if (pendingDocs.length > 0) {
-      toast.error("Some documents are still being prepared for AI. Please try again shortly.");
+      toast.error(
+        "Some documents are still being prepared for AI. Please try again shortly.",
+      );
       return;
     }
 
@@ -145,7 +157,8 @@ export default function ProjectWorkspacePage() {
       const currentConversation = token
         ? null
         : activeConversation || (await createWorkspaceConversation());
-      const documentIdsToSend = selectedDocs.length > 0 ? selectedDocs.map(d => d.id) : null;
+      const documentIdsToSend =
+        selectedDocs.length > 0 ? selectedDocs.map((d) => d.id) : null;
 
       const payload = {
         conversationId: currentConversation?.id || null,
@@ -155,7 +168,9 @@ export default function ProjectWorkspacePage() {
         message: messageText,
       };
 
-      const response = token ? await askSharedAi(payload) : await askAi(payload);
+      const response = token
+        ? await askSharedAi(payload)
+        : await askAi(payload);
 
       setMessages((prev) => [
         ...prev,
@@ -193,7 +208,11 @@ export default function ProjectWorkspacePage() {
   const handleDeleteDocument = async (documentId) => {
     if (isSharedView) return;
 
-    if (!window.confirm("Are you sure you want to remove this document from the workspace?")) {
+    if (
+      !window.confirm(
+        "Are you sure you want to remove this document from the workspace?",
+      )
+    ) {
       return;
     }
 
@@ -223,8 +242,9 @@ export default function ProjectWorkspacePage() {
   if (!project) return null;
 
   return (
-    <div className={`flex overflow-hidden bg-[#fafafa] ${isSharedView ? "h-screen w-full absolute inset-0 z-50" : "h-[calc(102vh-80px)] rounded-xl -mx-8 -my-6" }`}>
-      
+    <div
+      className={`flex overflow-hidden bg-[#fafafa] ${isSharedView ? "h-screen w-full absolute inset-0 z-50" : "h-[calc(102vh-80px)] rounded-xl -mx-8 -my-6"}`}
+    >
       <AISidebar
         type="project-workspace"
         histories={conversations}
@@ -241,13 +261,17 @@ export default function ProjectWorkspacePage() {
       />
 
       <div className="flex-1 flex flex-col min-w-0">
-        <ChatInterface 
+        <ChatInterface
           title={project.name}
-          subtitle={selectedDocs.length > 0 ? `Synthesizing ${selectedDocs.length} selected sources` : "Querying entire workspace"}
+          subtitle={
+            selectedDocs.length > 0
+              ? `Synthesizing ${selectedDocs.length} selected sources`
+              : "Querying entire workspace"
+          }
           messages={messages}
           isSending={isSending}
           onSendMessage={handleSend}
-          showUploadButton={false} 
+          showUploadButton={false}
           emptyStateComponent={
             <div className="h-full flex flex-col items-center justify-center text-center p-8 max-w-lg mx-auto">
               <div className="w-16 h-16 rounded-3xl bg-[#f26522]/10 flex items-center justify-center mb-4">
@@ -257,7 +281,9 @@ export default function ProjectWorkspacePage() {
                 Project Workspace Active
               </h3>
               <p className="text-xs text-slate-500 leading-relaxed mb-6">
-                Select specific sources from the sidebar to limit the context, or leave them unchecked to have the AI synthesize answers across all {project.documents?.length || 0} documents.
+                Select specific sources from the sidebar to limit the context,
+                or leave them unchecked to have the AI synthesize answers across
+                all {project.documents?.length || 0} documents.
               </p>
             </div>
           }
@@ -266,7 +292,8 @@ export default function ProjectWorkspacePage() {
             selectedDocs.length > 0 && (
               <div className="mt-1.5 flex items-center gap-1.5 px-3 py-1 bg-orange-50 border border-orange-100 rounded-md text-[10px] text-slate-600 font-semibold w-fit">
                 <CheckSquare className="w-3.5 h-3.5 text-[#f26522]" />
-                Focused on {selectedDocs.length} source{selectedDocs.length > 1 ? 's' : ''}
+                Focused on {selectedDocs.length} source
+                {selectedDocs.length > 1 ? "s" : ""}
                 <button
                   onClick={handleClearSelection}
                   className="text-red-500 hover:text-red-700 font-bold ml-1 hover:underline cursor-pointer"

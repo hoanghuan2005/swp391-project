@@ -2,9 +2,9 @@
 
 import { Plus } from "lucide-react";
 
-import SidebarHeader from "./SidebarHeader";
-import SidebarHistory from "./SidebarHistory";
-import SidebarDocuments from "./SidebarDocuments";
+import SidebarHeader from "../sidebar/SidebarHeader";
+import SidebarHistory from "../sidebar/SidebarHistory";
+import SidebarDocuments from "../sidebar/SidebarDocuments";
 
 import { sidebarConfig } from "./sidebarConfig";
 

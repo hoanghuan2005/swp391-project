@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import axiosClient from "@/api/axiosClient";
 import useDocuments from "@/hooks/useDocuments";
 import { toast } from "react-hot-toast";
-import AISidebar from "@/components/ai-sidebar/AISidebar";
+import AISidebar from "@/components/ai-sidebar/sidebar/AISidebar";
 
 export default function AIQuizTakePage() {
   const { id } = useParams();

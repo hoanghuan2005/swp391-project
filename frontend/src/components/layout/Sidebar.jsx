@@ -481,14 +481,14 @@ export default function Sidebar({ isOpen = true }) {
                 </div>
               </DropdownMenuItem>
               <DropdownMenuSeparator className="my-1 bg-slate-100" />
-              <DropdownMenuItem
-                className="p-3 cursor-pointer rounded-xl flex items-start gap-4 hover:bg-slate-50 transition-colors"
-                onClick={() => navigate("/ai-quiz")}
-              >
-                <div className="bg-purple-100/50 p-2.5 rounded-full text-purple-500 shrink-0">
-                  <CheckCircle className="h-6 w-6" strokeWidth={2} />
-                </div>
-                <div className="flex flex-col">
+                <DropdownMenuItem
+                  className="p-3 cursor-pointer rounded-xl flex items-start gap-4 hover:bg-slate-50 transition-colors"
+                  onClick={() => navigate("/ai-tools/ai-quiz")}
+                >
+                  <div className="bg-purple-100/50 p-2.5 rounded-full text-purple-500 shrink-0">
+                    <CheckCircle className="h-6 w-6" strokeWidth={2} />
+                  </div>
+                  <div className="flex flex-col">
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-[15px] text-slate-800">
                       AI Quiz
@@ -502,6 +502,30 @@ export default function Sidebar({ isOpen = true }) {
                   </div>
                   <span className="text-[13px] text-slate-500 mt-0.5 leading-snug">
                     Generate and edit quizzes instantly to test your knowledge
+                  </span>
+                </div>
+              </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="p-3 cursor-pointer rounded-xl flex items-start gap-4 hover:bg-slate-50 transition-colors"
+                  onClick={() => navigate("/ai-tools/ai-flashcard")}
+                >
+                  <div className="bg-purple-100/50 p-2.5 rounded-full text-purple-500 shrink-0">
+                    <CheckCircle className="h-6 w-6" strokeWidth={2} />
+                  </div>
+                  <div className="flex flex-col">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-[15px] text-slate-800">
+                      AI Flashcards
+                    </span>
+                    <Badge
+                      variant="secondary"
+                      className="bg-pink-100 text-pink-600 text-[10px] h-5 px-1.5 font-bold border-none"
+                    >
+                      New
+                    </Badge>
+                  </div>
+                  <span className="text-[13px] text-slate-500 mt-0.5 leading-snug">
+                    Generate and edit flashcards instantly to test your knowledge
                   </span>
                 </div>
               </DropdownMenuItem>

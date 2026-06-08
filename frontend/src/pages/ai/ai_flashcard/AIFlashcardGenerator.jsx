@@ -13,8 +13,10 @@ import {
 import axiosClient from "@/api/axiosClient";
 import useDocuments from "@/hooks/useDocuments";
 import FlashcardItem from "./FlashcardItem";
-import AISidebar from "@/components/ai-sidebar/AISidebar";
+import AISidebar from "@/components/ai-sidebar/sidebar/AISidebar";
 import { Button } from "@/components/ui/button";
+import AIGeneratorInput from "@/components/ai-sidebar/AIGeneratorInput";
+import AIToolHeader from "@/components/ai-sidebar/AIToolHeader";
 
 export default function AIFlashcardGenerator({ contextData }) {
   const [inputText, setInputText] = useState("");
@@ -209,86 +211,37 @@ export default function AIFlashcardGenerator({ contextData }) {
         />
 
         <div className="relative flex-1 overflow-y-auto bg-slate-50/50">
-          {isGenerating && flashcards.length === 0 && (
-            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white/80 backdrop-blur-sm">
-              <Loader2 className="mb-4 h-10 w-10 animate-spin text-[#f26522]" />
-              <p className="font-medium text-slate-600">
-                Loading your study set...
-              </p>
-            </div>
-          )}
-
-          <div className="mx-auto max-w-5xl p-6">
-            <div className="mb-5">
-              <div className="flex items-center gap-2 text-[#f26522]">
-                <Sparkles className="w-5 h-5" />
-                <h1 className="text-xl font-semibold text-slate-800">
-                  AI Flashcards
-                </h1>
+          <div className="mx-auto max-w-5xl px-6 py-8">
+            {isGenerating && flashcards.length === 0 && (
+              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white/80 backdrop-blur-sm">
+                <Loader2 className="mb-4 h-10 w-10 animate-spin text-[#f26522]" />
+                <p className="font-medium text-slate-600">
+                  Loading your study set...
+                </p>
               </div>
-              <p className="text-sm text-slate-500">
-                Create flashcards from notes or uploaded documents.
-              </p>
-            </div>
+            )}
+            <AIToolHeader
+              icon={Sparkles}
+              title="AI Flashcards Generator"
+              description="Create flashcards to enhance your learning and retention."
+            />
 
             {flashcards.length === 0 && (
-              <div className="rounded-3xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-                <textarea
-                  value={inputText}
-                  onChange={(e) => setInputText(e.target.value)}
-                  placeholder="Paste your lesson content..."
-                  className="w-full min-h-[180px] resize-none border-0 outline-none p-5 text-slate-700"
-                />
-
-                {(file || selectedDoc) && (
-                  <div className="px-5 pb-3">
-                    <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-2">
-                      <FileText className="h-4 w-4 text-[#f26522]" />
-                      <span className="max-w-[220px] truncate text-sm">
-                        {selectedDoc?.title || selectedDoc?.name || file?.name}
-                      </span>
-                      <button
-                        onClick={() => {
-                          setFile(null);
-                          setSelectedDoc(null);
-                        }}
-                      >
-                        <X className="h-4 w-4 text-slate-400 hover:text-red-500" />
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex items-center justify-between border-t border-slate-100 p-4">
-                  <div>
-                    <input
-                      type="file"
-                      ref={fileInputRef}
-                      onChange={handleFileSelect}
-                      className="hidden"
-                    />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="rounded-full"
-                    >
-                      <Plus className="w-5 h-5" />
-                    </Button>
-                  </div>
-                  <button
-                    onClick={handleGenerate}
-                    disabled={isGenerating}
-                    className="flex h-10 w-10 items-center justify-center rounded-full bg-[#f26522] text-white hover:bg-[#de5b0b] disabled:opacity-50"
-                  >
-                    {isGenerating ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Send className="h-4 w-4" />
-                    )}
-                  </button>
-                </div>
-              </div>
+              <AIGeneratorInput
+                value={inputText}
+                onChange={setInputText}
+                placeholder="Paste your lesson content..."
+                fileInputRef={fileInputRef}
+                handleFileSelect={handleFileSelect}
+                activeDocument={selectedDoc || file}
+                clearDocument={() => {
+                  setFile(null);
+                  setSelectedDoc(null);
+                }}
+                onGenerate={handleGenerate}
+                isGenerating={isGenerating}
+                disabled={!inputText && !file && !selectedDoc}
+              />
             )}
 
             {flashcards.length > 0 && (
@@ -354,7 +307,7 @@ export default function AIFlashcardGenerator({ contextData }) {
                       <Trophy className="h-12 w-12" />
                     </div>
                     <h2 className="text-3xl font-bold text-slate-800 mb-3">
-                      Chúc mừng! 🎉
+                      Chúc mừng!
                     </h2>
                     <p className="text-slate-500 max-w-md mb-8 text-lg">
                       Bạn đã hoàn thành xuất sắc {flashcards.length} thẻ trong

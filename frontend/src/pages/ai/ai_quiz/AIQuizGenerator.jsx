@@ -15,11 +15,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import AISidebar from "@/components/ai-sidebar/AISidebar";
+import AISidebar from "@/components/ai-sidebar/sidebar/AISidebar";
 import axiosClient from "@/api/axiosClient";
 import useDocuments from "@/hooks/useDocuments";
 import { toast } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
+import AIGeneratorInput from "@/components/ai-sidebar/AIGeneratorInput";
+import AIToolHeader from "@/components/ai-sidebar/AIToolHeader";
 
 export default function AIQuizGenerator() {
   const [inputText, setInputText] = useState("");
@@ -241,70 +243,28 @@ export default function AIQuizGenerator() {
       />
 
       {/* MAIN CONTENT */}
-      <div className="flex-1 overflow-y-auto bg-slate-50 flex justify-center px-6 py-8">
-        <div className="w-full max-w-4xl flex flex-col">
+      <div className="relative flex-1 overflow-y-auto bg-slate-50/50">
+        <div className="mx-auto max-w-5xl px-6 py-8">
           {/* Header */}
-          <div className="mb-6">
-            <div className="flex items-center gap-2 text-[#f26522]">
-              <Target className="w-5 h-5" />
-              <h1 className="text-xl font-semibold text-slate-800">
-                AI Quiz Generator
-              </h1>
-            </div>
+          <AIToolHeader
+            icon={Target}
+            title="AI Quiz Generator"
+            description="Create quizzes instantly from any topic or document. Perfect for study sessions and self-assessment."
+          />
 
-            <p className="text-sm text-slate-500">
-              Create quizzes from topics, notes, or uploaded documents.
-            </p>
-          </div>
-
-          {/* Chat-style Input */}
-          <div className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden">
-            <textarea
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              placeholder="Enter a topic or paste your notes..."
-              className="w-full min-h-[180px] resize-none border-0 outline-none bg-transparent p-5 text-slate-700"
-            />
-
-            {/* Active Document */}
-            {activeDocument && (
-              <div className="px-5 pb-3">
-                <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-2">
-                  <FileText className="w-4 h-4 text-[#f26522]" />
-
-                  <span className="max-w-[220px] truncate text-sm">
-                    {activeDocument.title || activeDocument.name}
-                  </span>
-
-                  <X
-                    className="w-4 h-4 cursor-pointer text-slate-400 hover:text-red-500"
-                    onClick={clearDocument}
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Footer */}
-            <div className="flex items-center justify-between border-t border-slate-100 p-4">
-              <div className="flex items-center gap-2">
-                {/* Upload */}
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleFileSelect}
-                  className="hidden"
-                />
-
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="rounded-full"
-                >
-                  <Plus className="w-5 h-5" />
-                </Button>
-
-                {/* Settings */}
+          <AIGeneratorInput
+            value={inputText}
+            onChange={setInputText}
+            placeholder="Enter a topic or paste your notes..."
+            fileInputRef={fileInputRef}
+            handleFileSelect={handleFileSelect}
+            activeDocument={activeDocument}
+            clearDocument={clearDocument}
+            onGenerate={handleGenerateQuiz}
+            isGenerating={isGenerating}
+            disabled={!inputText.trim() && !file && !libraryDoc}
+            footerLeft={
+              <>
                 <Button
                   variant="ghost"
                   size="icon"
@@ -317,24 +277,9 @@ export default function AIQuizGenerator() {
                 <span className="text-xs text-slate-500 ml-2">
                   {questionCount} Questions • {difficulty}
                 </span>
-              </div>
-
-              {/* Create Button */}
-              <Button
-                onClick={handleGenerateQuiz}
-                disabled={
-                  (!inputText.trim() && !file && !libraryDoc) || isGenerating
-                }
-                className="flex h-10 w-10 items-center justify-center rounded-full bg-[#f26522] text-white hover:bg-[#de5b0b] disabled:opacity-50"
-              >
-                {isGenerating ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Send className="h-4 w-4" />
-                )}
-              </Button>
-            </div>
-          </div>
+              </>
+            }
+          />
         </div>
       </div>
 

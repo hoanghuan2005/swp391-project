@@ -296,52 +296,6 @@ const AIQuizPage = () => {
             </div>
           </div>
         </div>
-
-        {/* ================= RECENT ACTIVITY ================= */}
-        <div>
-          <div className="mb-5">
-            <h2 className="text-xl font-semibold text-slate-800">
-              Recent Activity
-            </h2>
-            <p className="mt-1 text-sm text-slate-500">
-              Your latest AI learning activities.
-            </p>
-          </div>
-
-          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            {recentActivities.map((activity) => (
-              <div
-                key={activity.id}
-                className="flex items-center justify-between border-b border-slate-100 px-5 py-4 last:border-none hover:bg-slate-50"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="h-2 w-2 rounded-full bg-[#f26522]" />
-                  <div>
-                    <p className="text-sm font-medium text-slate-700">
-                      {activity.title}
-                    </p>
-                    <p className="mt-1 text-xs text-slate-400">
-                      {activity.time}
-                    </p>
-                  </div>
-                </div>
-
-                {/* UPDATE: Click dẫn đúng vào Flashcard hoặc Quiz tương ứng */}
-                <button
-                  onClick={() =>
-                    handleNavigate(activity.type, {
-                      id: activity.id,
-                      title: activity.title,
-                    })
-                  }
-                  className="text-xs font-medium text-[#f26522] hover:underline"
-                >
-                  View
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
       </div>
     </div>
   );

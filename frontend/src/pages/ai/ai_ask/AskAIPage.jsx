@@ -12,7 +12,7 @@ import { toast } from "react-hot-toast";
 import axiosClient from "@/api/axiosClient";
 import useDocuments from "@/hooks/useDocuments";
 import ChatInterface from "@/components/chat/ChatInterface"; // <-- Added Import
-import AISidebar from "@/components/ai-sidebar/AISidebar"; // <-- Added Import
+import AISidebar from "@/components/ai-sidebar/sidebar/AISidebar"; // <-- Added Import
 
 export default function AskAIPage() {
   const [conversations, setConversations] = useState([]);
@@ -30,37 +30,40 @@ export default function AskAIPage() {
 
   const fileInputRef = useRef(null);
 
-  const handleSelectConversation = useCallback(async (conv, currentDocs = documentsRef.current) => {
-    setActiveConversation(conv);
-    setIsLoadingMessages(true);
-    try {
-      const response = await axiosClient.get(
-        `/api/ai/conversations/${conv.id}/messages`,
-      );
-      setMessages(response.data || []);
+  const handleSelectConversation = useCallback(
+    async (conv, currentDocs = documentsRef.current) => {
+      setActiveConversation(conv);
+      setIsLoadingMessages(true);
+      try {
+        const response = await axiosClient.get(
+          `/api/ai/conversations/${conv.id}/messages`,
+        );
+        setMessages(response.data || []);
 
-      // Try to restore associated document
-      if (conv.documentId) {
-        const doc = currentDocs.find((d) => d.id === conv.documentId);
-        if (doc) {
-          setSelectedDoc(doc);
+        // Try to restore associated document
+        if (conv.documentId) {
+          const doc = currentDocs.find((d) => d.id === conv.documentId);
+          if (doc) {
+            setSelectedDoc(doc);
+          } else {
+            setSelectedDoc({
+              id: conv.documentId,
+              title: "Linked Document",
+              name: "Linked Document",
+            });
+          }
         } else {
-          setSelectedDoc({
-            id: conv.documentId,
-            title: "Linked Document",
-            name: "Linked Document",
-          });
+          setSelectedDoc(null);
         }
-      } else {
-        setSelectedDoc(null);
+      } catch (error) {
+        console.error("Error fetching messages:", error);
+        toast.error("Failed to load message history");
+      } finally {
+        setIsLoadingMessages(false);
       }
-    } catch (error) {
-      console.error("Error fetching messages:", error);
-      toast.error("Failed to load message history");
-    } finally {
-      setIsLoadingMessages(false);
-    }
-  }, []);
+    },
+    [],
+  );
 
   const fetchConversations = useCallback(async () => {
     try {
@@ -144,7 +147,9 @@ export default function AskAIPage() {
     if (!userMessageContent || isLoading) return;
 
     if (selectedDoc?.aiParseStatus === "PENDING") {
-      toast.error("This document is still being prepared for AI. Please try again shortly.");
+      toast.error(
+        "This document is still being prepared for AI. Please try again shortly.",
+      );
       return;
     }
     if (["FAILED", "UNSUPPORTED"].includes(selectedDoc?.aiParseStatus)) {
