@@ -255,7 +255,7 @@ export default function Navbar({
   };
 
   return (
-    <div className="w-full bg-white border-b border-gray-100 py-2.5 sticky top-0 z-40 shadow-sm backdrop-blur-sm">
+    <div className="w-full bg-white border-b border-gray-100 py-3.5 sticky top-0 z-40 shadow-sm backdrop-blur-sm">
       <div className="w-full pr-4 sm:pr-6 flex items-center justify-between gap-2">
         {/* LOGO */}
         <div className="flex items-center shrink-0">
@@ -286,7 +286,7 @@ export default function Navbar({
                 <Search className="h-4 w-4" />
               </span>
               <Input
-                className="pl-12 h-11 bg-slate-50 border-transparent hover:border-slate-300 focus:border-orange-500 rounded-full shadow-sm text-sm"
+                className="pl-12 h-10 bg-slate-50 border-transparent hover:border-slate-300 focus:border-orange-500 rounded-full shadow-sm text-sm"
                 placeholder="Search documents..."
                 value={searchQuery}
                 onChange={(e) => {
@@ -301,7 +301,7 @@ export default function Navbar({
                 variant="ghost"
                 size="icon"
                 onClick={() => setIsFilterOpen(!isFilterOpen)}
-                className={`rounded-full h-11 w-11 shadow-sm transition-all ${isFilterOpen ? "bg-orange-100 text-orange-600" : "bg-slate-50"}`}
+                className={`rounded-full h-10 w-10 shadow-sm transition-all ${isFilterOpen ? "bg-orange-100 text-orange-600" : "bg-slate-50"}`}
               >
                 <Filter className="h-5 w-5" />
                 {(filterData.school ||
@@ -411,9 +411,9 @@ export default function Navbar({
             onClick={() => setIsNotificationOpen(!isNotificationOpen)}
             className="rounded-full h-10 w-10"
           >
-            <Bell className="h-5 w-5" />
+            <Bell className="!h-5 !w-5" />
             {unreadCount > 0 && (
-              <span className="absolute top-2 right-[72px] h-4 w-4 bg-red-500 rounded-full text-white text-[9px] flex items-center justify-center">
+              <span className="absolute top-4 right-[86px] h-4 w-4 bg-red-500 rounded-full text-white text-[9px] flex items-center justify-center">
                 {unreadCount}
               </span>
             )}

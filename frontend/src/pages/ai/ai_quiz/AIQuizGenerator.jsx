@@ -14,8 +14,17 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import AISidebar from "@/components/ai-sidebar/sidebar/AISidebar";
 import axiosClient from "@/api/axiosClient";
 import useDocuments from "@/hooks/useDocuments";
@@ -49,6 +58,9 @@ export default function AIQuizGenerator() {
   };
   const [viewMode, setViewMode] = useState(VIEW_MODE.GENERATE);
   const [selectedQuiz, setSelectedQuiz] = useState(null);
+  const [publishDialogOpen, setPublishDialogOpen] = useState(false);
+  const [courses, setCourses] = useState([]);
+  const [publishCourseId, setPublishCourseId] = useState("");
 
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
@@ -82,6 +94,14 @@ export default function AIQuizGenerator() {
       setFile(null);
     }
   };
+
+  useEffect(() => {
+    if (publishDialogOpen && courses.length === 0) {
+      axiosClient.get("/api/courses/all")
+        .then(res => setCourses(res.data))
+        .catch(err => console.error("Failed to load courses", err));
+    }
+  }, [publishDialogOpen, courses.length]);
 
   const clearDocument = () => {
     setFile(null);
@@ -240,13 +260,17 @@ export default function AIQuizGenerator() {
     }
   };
 
-  const handlePublishQuiz = async () => {
+  const handlePublishQuizClick = () => {
     if (!selectedQuiz || !selectedQuiz.id) {
       toast.error("Please save or select a generated quiz first before publishing.");
       return;
     }
+    setPublishCourseId(libraryDoc?.course?.id || "");
+    setPublishDialogOpen(true);
+  };
 
-    const courseId = libraryDoc?.course?.id || null;
+  const handlePublishQuiz = async () => {
+    const courseId = publishCourseId || null;
     
     try {
       await publish({
@@ -256,6 +280,7 @@ export default function AIQuizGenerator() {
         visibility: "PUBLIC"
       });
       toast.success("Quiz published successfully!");
+      setPublishDialogOpen(false);
     } catch (e) {
       toast.error("Failed to publish quiz.");
       console.error(e);
@@ -381,7 +406,7 @@ export default function AIQuizGenerator() {
 
                   <Button 
                     className="rounded-xl bg-[#f26522] hover:bg-[#d95316] cursor-pointer shadow-sm"
-                    onClick={handlePublishQuiz}
+                    onClick={handlePublishQuizClick}
                     disabled={publishing}
                   >
                     {publishing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
@@ -478,6 +503,57 @@ export default function AIQuizGenerator() {
               </div>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Publish Confirmation Dialog */}
+      <Dialog open={publishDialogOpen} onOpenChange={setPublishDialogOpen}>
+        <DialogContent className="sm:max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-slate-800">
+              Publish Material
+            </DialogTitle>
+            <DialogDescription className="text-slate-500 pt-2">
+              Select a course to publish this quiz to. It will be visible to everyone in that course.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-4">
+            <label className="text-sm font-medium text-slate-700 mb-2 block">
+              Select Course
+            </label>
+            <Select value={publishCourseId} onValueChange={setPublishCourseId}>
+              <SelectTrigger className="w-full h-10 rounded-xl px-3 border-slate-200">
+                <SelectValue placeholder="Select a course to publish to" />
+              </SelectTrigger>
+              <SelectContent className="rounded-xl">
+                {courses.map(c => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.code} - {c.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <DialogFooter className="mt-6 flex gap-3 sm:justify-end">
+            <Button
+              variant="outline"
+              onClick={() => setPublishDialogOpen(false)}
+              className="rounded-xl"
+              disabled={publishing}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handlePublishQuiz}
+              className="rounded-xl bg-[#f26522] hover:bg-[#d95316] text-white"
+              disabled={publishing}
+            >
+              {publishing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Publish
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

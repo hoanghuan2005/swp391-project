@@ -18,6 +18,21 @@ import useMaterialPublish from "@/hooks/useMaterialPublish";
 import FlashcardItem from "./FlashcardItem";
 import AISidebar from "@/components/ai-sidebar/sidebar/AISidebar";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import AIGeneratorInput from "@/components/ai-sidebar/AIGeneratorInput";
 import AIToolHeader from "@/components/ai-sidebar/AIToolHeader";
 
@@ -56,6 +71,9 @@ export default function AIFlashcardGenerator({ contextData }) {
   };
 
   const [viewMode, setViewMode] = useState(VIEW_MODE.GENERATE);
+  const [publishDialogOpen, setPublishDialogOpen] = useState(false);
+  const [courses, setCourses] = useState([]);
+  const [publishCourseId, setPublishCourseId] = useState("");
 
   useEffect(() => {
     if (contextData && contextData.id) {
@@ -102,6 +120,14 @@ export default function AIFlashcardGenerator({ contextData }) {
     console.log("Delete flashcard set:", id);
   };
 
+  useEffect(() => {
+    if (publishDialogOpen && courses.length === 0) {
+      axiosClient.get("/api/courses/all")
+        .then(res => setCourses(res.data))
+        .catch(err => console.error("Failed to load courses", err));
+    }
+  }, [publishDialogOpen, courses.length]);
+
   const handleCreateFlashcardSet = () => {
     setSelectedFlashcardSet(null);
     setFlashcards([]);
@@ -113,14 +139,17 @@ export default function AIFlashcardGenerator({ contextData }) {
     setViewMode(VIEW_MODE.GENERATE);
   };
 
-  const handlePublish = async () => {
+  const handlePublishClick = () => {
     if (!selectedFlashcardSet || !selectedFlashcardSet.id) {
       alert("Please save or select a generated set first before publishing.");
       return;
     }
+    setPublishCourseId(selectedDoc?.course?.id || "");
+    setPublishDialogOpen(true);
+  };
 
-    // Try to get courseId from selectedDoc if available
-    const courseId = selectedDoc?.course?.id || null;
+  const handlePublish = async () => {
+    const courseId = publishCourseId || null;
     
     try {
       await publish({
@@ -130,6 +159,7 @@ export default function AIFlashcardGenerator({ contextData }) {
         visibility: "PUBLIC"
       });
       alert("Flashcard set published successfully!");
+      setPublishDialogOpen(false);
     } catch (e) {
       alert("Failed to publish flashcard set.");
       console.error(e);
@@ -357,7 +387,7 @@ export default function AIFlashcardGenerator({ contextData }) {
 
                     <Button 
                       className="rounded-xl bg-[#f26522] hover:bg-[#d95316] cursor-pointer shadow-sm"
-                      onClick={handlePublish}
+                      onClick={handlePublishClick}
                       disabled={publishing}
                     >
                       {publishing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
@@ -520,6 +550,57 @@ export default function AIFlashcardGenerator({ contextData }) {
           </div>
         </div>
       </div>
+
+      {/* Publish Confirmation Dialog */}
+      <Dialog open={publishDialogOpen} onOpenChange={setPublishDialogOpen}>
+        <DialogContent className="sm:max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-slate-800">
+              Publish Material
+            </DialogTitle>
+            <DialogDescription className="text-slate-500 pt-2">
+              Select a course to publish this flashcard set to. It will be visible to everyone in that course.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-4">
+            <label className="text-sm font-medium text-slate-700 mb-2 block">
+              Select Course
+            </label>
+            <Select value={publishCourseId} onValueChange={setPublishCourseId}>
+              <SelectTrigger className="w-full h-10 rounded-xl px-3 border-slate-200">
+                <SelectValue placeholder="Select a course to publish to" />
+              </SelectTrigger>
+              <SelectContent className="rounded-xl">
+                {courses.map(c => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.code} - {c.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <DialogFooter className="mt-6 flex gap-3 sm:justify-end">
+            <Button
+              variant="outline"
+              onClick={() => setPublishDialogOpen(false)}
+              className="rounded-xl"
+              disabled={publishing}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handlePublish}
+              className="rounded-xl bg-[#f26522] hover:bg-[#d95316] text-white"
+              disabled={publishing}
+            >
+              {publishing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Publish
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
