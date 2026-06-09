@@ -7,6 +7,7 @@ import {
   X,
   Plus,
   Settings2,
+  ArrowLeft,
 } from "lucide-react";
 import {
   Dialog,
@@ -340,15 +341,24 @@ export default function AIQuizGenerator() {
             <div className="space-y-5">
               <div className="overflow-hidden rounded-2xl border bg-white shadow-sm">
                 <div className="px-6 py-5 text-black/80 border-b">
+                  <div className="flex items-center justify-between mb-2">
+                    <Button
+                      variant="ghost"
+                      onClick={() => setViewMode(VIEW_MODE.GENERATE)}
+                      className="text-slate-500 hover:text-[#f26522] -ml-2 rounded-xl"
+                    >
+                      <ArrowLeft className="w-4 h-4 mr-2" /> Back
+                    </Button>
+                    <div className="rounded-2xl bg-orange-100 px-4 py-1.5 text-orange-700 backdrop-blur">
+                      <span className="text-sm font-medium">Draft</span>
+                    </div>
+                  </div>
                   <div className="flex items-center justify-between">
                     <div>
                       <h2 className="text-2xl font-bold">{selectedQuiz.title}</h2>
                       <p className="mt-1 text-slate-500">
                         {selectedQuiz.questions?.length || 0} questions generated successfully
                       </p>
-                    </div>
-                    <div className="rounded-2xl bg-orange-100 px-4 py-1.5 text-orange-700 backdrop-blur">
-                      <span className="text-sm font-medium">Draft</span>
                     </div>
                   </div>
                 </div>

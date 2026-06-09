@@ -9,8 +9,8 @@ import {
   BookOpen,
   LogOut,
   User,
-  Settings,
   Bell,
+  Book,
   X,
   ChevronDown,
 } from "lucide-react";
@@ -20,7 +20,15 @@ import axiosClient from "@/api/axiosClient";
 // ==========================================
 // COMPONENT TẠO DROPDOWN CÓ TÌM KIẾM (GIỐNG ẢNH)
 // ==========================================
-const SearchableDropdown = ({ icon, label, placeholder, items, value, onChange, renderItem }) => {
+const SearchableDropdown = ({
+  icon,
+  label,
+  placeholder,
+  items,
+  value,
+  onChange,
+  renderItem,
+}) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const dropdownRef = useRef(null);
@@ -38,7 +46,7 @@ const SearchableDropdown = ({ icon, label, placeholder, items, value, onChange, 
   const filteredItems = items.filter(
     (item) =>
       item.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.name.toLowerCase().includes(searchTerm.toLowerCase())
+      item.name.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
   const selectedItem = items.find((i) => i.code === value);
@@ -48,15 +56,19 @@ const SearchableDropdown = ({ icon, label, placeholder, items, value, onChange, 
       <label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
         {icon} {label}
       </label>
-      
-      <div 
-        className={`relative flex items-center w-full border ${isOpen ? 'border-[#f26522] ring-1 ring-orange-100' : 'border-slate-200 hover:border-slate-300'} rounded-xl bg-white transition-all cursor-text`}
+
+      <div
+        className={`relative flex items-center w-full border ${isOpen ? "border-[#f26522] ring-1 ring-orange-100" : "border-slate-200 hover:border-slate-300"} rounded-xl bg-white transition-all cursor-text`}
         onClick={() => setIsOpen(true)}
       >
         <input
           type="text"
           className="w-full h-11 px-4 bg-transparent outline-none text-sm text-slate-800 placeholder-slate-400"
-          placeholder={selectedItem ? `${selectedItem.code} - ${selectedItem.name}` : placeholder}
+          placeholder={
+            selectedItem
+              ? `${selectedItem.code} - ${selectedItem.name}`
+              : placeholder
+          }
           value={isOpen ? searchTerm : ""}
           onChange={(e) => {
             setSearchTerm(e.target.value);
@@ -65,14 +77,20 @@ const SearchableDropdown = ({ icon, label, placeholder, items, value, onChange, 
           onFocus={() => setIsOpen(true)}
         />
         {value && !isOpen && (
-          <button 
+          <button
             className="absolute right-8 text-slate-400 hover:text-red-500"
-            onClick={(e) => { e.stopPropagation(); onChange(""); setSearchTerm(""); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onChange("");
+              setSearchTerm("");
+            }}
           >
             <X className="h-4 w-4" />
           </button>
         )}
-        <ChevronDown className={`absolute right-3 h-4 w-4 text-slate-400 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+        <ChevronDown
+          className={`absolute right-3 h-4 w-4 text-slate-400 transition-transform ${isOpen ? "rotate-180" : ""}`}
+        />
       </div>
 
       {isOpen && (
@@ -88,16 +106,24 @@ const SearchableDropdown = ({ icon, label, placeholder, items, value, onChange, 
                   setIsOpen(false);
                 }}
               >
-                {renderItem ? renderItem(item) : (
+                {renderItem ? (
+                  renderItem(item)
+                ) : (
                   <>
-                    <span className="font-semibold text-sm text-slate-800">{item.code}</span>
-                    <span className="text-xs text-slate-400 truncate max-w-[180px]">{item.name}</span>
+                    <span className="font-semibold text-sm text-slate-800">
+                      {item.code}
+                    </span>
+                    <span className="text-xs text-slate-400 truncate max-w-[180px]">
+                      {item.name}
+                    </span>
                   </>
                 )}
               </div>
             ))
           ) : (
-            <div className="p-4 text-center text-sm text-slate-400">Không tìm thấy kết quả</div>
+            <div className="p-4 text-center text-sm text-slate-400">
+              Không tìm thấy kết quả
+            </div>
           )}
         </div>
       )}
@@ -105,11 +131,15 @@ const SearchableDropdown = ({ icon, label, placeholder, items, value, onChange, 
   );
 };
 
-
 // ==========================================
 // NAVBAR CHÍNH
 // ==========================================
-export default function Navbar({ onMenuClick, onLogoutClick, onFilter, onSearch }) {
+export default function Navbar({
+  onMenuClick,
+  onLogoutClick,
+  onFilter,
+  onSearch,
+}) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [userName, setUserName] = useState(null);
   const [notifications, setNotifications] = useState([]);
@@ -117,14 +147,20 @@ export default function Navbar({ onMenuClick, onLogoutClick, onFilter, onSearch 
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  
+
   // State chứa dữ liệu Lọc
-  const [filterData, setFilterData] = useState({ school: "", course: "", category: "" });
-  
+  const [filterData, setFilterData] = useState({
+    school: "",
+    course: "",
+    category: "",
+  });
+
   const filterPanelRef = useRef(null);
   const notificationButtonRef = useRef(null);
   const notificationPanelRef = useRef(null);
   const [userInitial, setUserInitial] = useState("H");
+  const dropdownRef = useRef(null);
+  const profileButtonRef = useRef(null);
 
   // DỮ LIỆU TỪ HÌNH ẢNH CỦA ÔNG
   const schools = [
@@ -156,6 +192,25 @@ export default function Navbar({ onMenuClick, onLogoutClick, onFilter, onSearch 
   ];
 
   useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target) &&
+        profileButtonRef.current &&
+        !profileButtonRef.current.contains(event.target)
+      ) {
+        setIsDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  useEffect(() => {
     fetchUnreadCount();
     try {
       const token = localStorage.getItem("token");
@@ -181,8 +236,14 @@ export default function Navbar({ onMenuClick, onLogoutClick, onFilter, onSearch 
 
   useEffect(() => {
     const handleOutsideClick = (event) => {
-      if (isNotificationOpen && !notificationPanelRef.current?.contains(event.target) && !notificationButtonRef.current?.contains(event.target)) setIsNotificationOpen(false);
-      if (isFilterOpen && !filterPanelRef.current?.contains(event.target)) setIsFilterOpen(false);
+      if (
+        isNotificationOpen &&
+        !notificationPanelRef.current?.contains(event.target) &&
+        !notificationButtonRef.current?.contains(event.target)
+      )
+        setIsNotificationOpen(false);
+      if (isFilterOpen && !filterPanelRef.current?.contains(event.target))
+        setIsFilterOpen(false);
     };
     document.addEventListener("mousedown", handleOutsideClick);
     return () => document.removeEventListener("mousedown", handleOutsideClick);
@@ -196,15 +257,22 @@ export default function Navbar({ onMenuClick, onLogoutClick, onFilter, onSearch 
   return (
     <div className="w-full bg-white border-b border-gray-100 py-2.5 sticky top-0 z-40 shadow-sm backdrop-blur-sm">
       <div className="w-full pr-4 sm:pr-6 flex items-center justify-between gap-2">
-        
         {/* LOGO */}
         <div className="flex items-center shrink-0">
           <div className="w-[72px] flex items-center justify-center shrink-0">
-            <Button variant="ghost" size="icon" className="text-slate-600 hover:bg-slate-100 h-10 w-10 rounded-full" onClick={onMenuClick}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-slate-600 hover:bg-slate-100 h-10 w-10 rounded-full"
+              onClick={onMenuClick}
+            >
               <Menu className="size-6" />
             </Button>
           </div>
-          <Link to="/dashboard" className="flex items-center gap-2 font-bold text-[20px] text-slate-800 tracking-tight ml-2">
+          <Link
+            to="/dashboard"
+            className="flex items-center gap-2 font-bold text-[20px] text-slate-800 tracking-tight ml-2"
+          >
             <BookOpen className="h-7 w-7 text-[#f26522]" />
             <span className="hidden sm:inline-block">MinDoCu</span>
           </Link>
@@ -214,7 +282,9 @@ export default function Navbar({ onMenuClick, onLogoutClick, onFilter, onSearch 
         <div className="flex-1 max-w-2xl flex items-center gap-4 px-2">
           <div className="relative w-full flex items-center gap-2">
             <div className="relative w-full">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"><Search className="h-4 w-4" /></span>
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                <Search className="h-4 w-4" />
+              </span>
               <Input
                 className="pl-12 h-11 bg-slate-50 border-transparent hover:border-slate-300 focus:border-orange-500 rounded-full shadow-sm text-sm"
                 placeholder="Search documents..."
@@ -225,7 +295,7 @@ export default function Navbar({ onMenuClick, onLogoutClick, onFilter, onSearch 
                 }}
               />
             </div>
-            
+
             <div className="relative" ref={filterPanelRef}>
               <Button
                 variant="ghost"
@@ -234,7 +304,9 @@ export default function Navbar({ onMenuClick, onLogoutClick, onFilter, onSearch 
                 className={`rounded-full h-11 w-11 shadow-sm transition-all ${isFilterOpen ? "bg-orange-100 text-orange-600" : "bg-slate-50"}`}
               >
                 <Filter className="h-5 w-5" />
-                {(filterData.school || filterData.course || filterData.category) && (
+                {(filterData.school ||
+                  filterData.course ||
+                  filterData.category) && (
                   <span className="absolute top-2 right-2 h-2 w-2 bg-[#f26522] rounded-full" />
                 )}
               </Button>
@@ -243,10 +315,17 @@ export default function Navbar({ onMenuClick, onLogoutClick, onFilter, onSearch 
               {isFilterOpen && (
                 <div className="absolute right-0 top-14 w-[420px] bg-slate-50 rounded-2xl shadow-2xl border border-slate-200 z-50 animate-in slide-in-from-top-4 duration-200">
                   <div className="p-4 border-b flex justify-between items-center bg-white rounded-t-2xl">
-                    <h4 className="font-bold text-slate-800">Advanced Filter</h4>
-                    <button onClick={() => setIsFilterOpen(false)}><X size={18} className="text-slate-400 hover:text-slate-700"/></button>
+                    <h4 className="font-bold text-slate-800">
+                      Advanced Filter
+                    </h4>
+                    <button onClick={() => setIsFilterOpen(false)}>
+                      <X
+                        size={18}
+                        className="text-slate-400 hover:text-slate-700"
+                      />
+                    </button>
                   </div>
-                  
+
                   <div className="p-5 space-y-5">
                     {/* Combobox School */}
                     <SearchableDropdown
@@ -255,7 +334,9 @@ export default function Navbar({ onMenuClick, onLogoutClick, onFilter, onSearch 
                       placeholder="Enter school code or name"
                       items={schools}
                       value={filterData.school}
-                      onChange={(val) => setFilterData({ ...filterData, school: val })}
+                      onChange={(val) =>
+                        setFilterData({ ...filterData, school: val })
+                      }
                     />
 
                     {/* Combobox Course */}
@@ -265,7 +346,9 @@ export default function Navbar({ onMenuClick, onLogoutClick, onFilter, onSearch 
                       placeholder="Enter course code or name"
                       items={courses}
                       value={filterData.course}
-                      onChange={(val) => setFilterData({ ...filterData, course: val })}
+                      onChange={(val) =>
+                        setFilterData({ ...filterData, course: val })
+                      }
                     />
 
                     {/* Combobox Category */}
@@ -275,22 +358,43 @@ export default function Navbar({ onMenuClick, onLogoutClick, onFilter, onSearch 
                       placeholder="Select category"
                       items={categories}
                       value={filterData.category}
-                      onChange={(val) => setFilterData({ ...filterData, category: val })}
+                      onChange={(val) =>
+                        setFilterData({ ...filterData, category: val })
+                      }
                       renderItem={(item) => (
                         <div className="flex justify-between items-center w-full">
                           <div className="flex items-center gap-2">
-                            <span className={`w-2 h-2 rounded-full ${item.color}`}></span>
-                            <span className="font-semibold text-sm text-slate-700">{item.code}</span>
+                            <span
+                              className={`w-2 h-2 rounded-full ${item.color}`}
+                            ></span>
+                            <span className="font-semibold text-sm text-slate-700">
+                              {item.code}
+                            </span>
                           </div>
-                          <span className="text-xs text-slate-400">{item.name}</span>
+                          <span className="text-xs text-slate-400">
+                            {item.name}
+                          </span>
                         </div>
                       )}
                     />
                   </div>
 
                   <div className="p-4 bg-white border-t flex gap-3 rounded-b-2xl">
-                    <Button variant="outline" className="flex-1 rounded-xl" onClick={() => setFilterData({ school: "", course: "", category: "" })}>Reset</Button>
-                    <Button className="flex-[2] bg-[#f26522] text-white rounded-xl hover:bg-[#d9581c]" onClick={handleApplyFilter}>Áp dụng Bộ Lọc</Button>
+                    <Button
+                      variant="outline"
+                      className="flex-1 rounded-xl"
+                      onClick={() =>
+                        setFilterData({ school: "", course: "", category: "" })
+                      }
+                    >
+                      Reset
+                    </Button>
+                    <Button
+                      className="flex-[2] bg-[#f26522] text-white rounded-xl hover:bg-[#d9581c]"
+                      onClick={handleApplyFilter}
+                    >
+                      Áp dụng Bộ Lọc
+                    </Button>
                   </div>
                 </div>
               )}
@@ -300,17 +404,59 @@ export default function Navbar({ onMenuClick, onLogoutClick, onFilter, onSearch 
 
         {/* THÔNG BÁO VÀ NGƯỜI DÙNG */}
         <div className="flex items-center gap-4">
-          <Button ref={notificationButtonRef} variant="ghost" size="icon" onClick={() => setIsNotificationOpen(!isNotificationOpen)} className="rounded-full h-10 w-10">
+          <Button
+            ref={notificationButtonRef}
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsNotificationOpen(!isNotificationOpen)}
+            className="rounded-full h-10 w-10"
+          >
             <Bell className="h-5 w-5" />
-            {unreadCount > 0 && <span className="absolute top-2 right-[72px] h-4 w-4 bg-red-500 rounded-full text-white text-[9px] flex items-center justify-center">{unreadCount}</span>}
+            {unreadCount > 0 && (
+              <span className="absolute top-2 right-[72px] h-4 w-4 bg-red-500 rounded-full text-white text-[9px] flex items-center justify-center">
+                {unreadCount}
+              </span>
+            )}
           </Button>
 
-          <button onClick={() => setIsDropdownOpen(!isDropdownOpen)} className="h-10 w-10 rounded-full bg-[#f26522] text-white font-bold shadow-sm">{userInitial}</button>
+          <button
+            ref={profileButtonRef}
+            onClick={() => setIsDropdownOpen((prev) => !prev)}
+            className="h-10 w-10 rounded-full bg-[#f26522] text-white font-bold shadow-sm"
+          >
+            {userInitial}
+          </button>
 
           {isDropdownOpen && (
-            <div className="absolute right-4 top-14 w-48 bg-white rounded-xl shadow-xl border border-slate-100 py-2 z-50">
-              <Link to="/profile" className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 flex items-center gap-2"><User size={15}/> My Profile</Link>
-              <button onClick={onLogoutClick} className="w-full px-4 py-2 text-left text-xs font-bold text-red-500 hover:bg-red-50 flex items-center gap-2"><LogOut size={15}/> Log Out</button>
+            <div
+              ref={dropdownRef}
+              className="absolute right-4 top-14 w-48 bg-white rounded-xl shadow-xl border border-slate-100 pt-2 z-50"
+            >
+              <Link
+                to="/profile"
+                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 flex items-center gap-2"
+              >
+                <User size={15} /> My Profile
+              </Link>
+              <Link
+                to="/notifications"
+                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 flex items-center gap-2"
+              >
+                <Bell size={15} /> Notifications
+              </Link>
+              <Link
+                to="/my-library"
+                className="px-4 py-2 pb-3 text-xs font-semibold text-slate-600 hover:bg-slate-50 flex items-center gap-2"
+              >
+                <Book size={15} /> My Library
+              </Link>
+
+              <button
+                onClick={onLogoutClick}
+                className="border-t w-full px-4 py-3 text-left text-xs font-bold text-red-500 hover:bg-red-50 hover:rounded-b-xl flex items-center gap-2"
+              >
+                <LogOut size={15} /> Log Out
+              </button>
             </div>
           )}
         </div>

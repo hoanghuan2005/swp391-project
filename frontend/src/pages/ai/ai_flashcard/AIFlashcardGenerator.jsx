@@ -110,6 +110,7 @@ export default function AIFlashcardGenerator({ contextData }) {
     setSelectedDoc(null);
     setActiveSetTitle("Generate AI Flashcards");
     setIsCompleted(false);
+    setViewMode(VIEW_MODE.GENERATE);
   };
 
   const handlePublish = async () => {
@@ -154,10 +155,17 @@ export default function AIFlashcardGenerator({ contextData }) {
           formData,
         );
       }
+      const result = response.data.data || response.data;
       if (Array.isArray(result) || result.id) {
         setFlashcards(result.flashcards || result);
         if (result.id) {
            setSelectedFlashcardSet(result);
+           // Also append to history to update the sidebar instantly
+           setFlashcardHistory(prev => [{
+               id: result.id,
+               title: selectedDoc?.title || file?.name || "New Generated Set",
+               cards: result.flashcards?.length || result.length || 0
+           }, ...prev]);
         }
 
         setActiveSetTitle(
@@ -307,6 +315,18 @@ export default function AIFlashcardGenerator({ contextData }) {
               <div className="space-y-5">
                 <div className="overflow-hidden rounded-2xl border bg-white shadow-sm">
                   <div className="px-6 py-5 text-black/80 border-b">
+                    <div className="flex items-center justify-between mb-2">
+                      <Button
+                        variant="ghost"
+                        onClick={() => setViewMode(VIEW_MODE.GENERATE)}
+                        className="text-slate-500 hover:text-[#f26522] -ml-2 rounded-xl"
+                      >
+                        <ArrowLeft className="w-4 h-4 mr-2" /> Back
+                      </Button>
+                      <div className="rounded-2xl bg-orange-100 px-4 py-1.5 text-orange-700 backdrop-blur">
+                        <span className="text-sm font-medium">Draft</span>
+                      </div>
+                    </div>
                     <div className="flex items-center justify-between">
                       <div>
                         <h2 className="text-2xl font-bold">{activeSetTitle}</h2>
@@ -314,10 +334,6 @@ export default function AIFlashcardGenerator({ contextData }) {
                         <p className="mt-1 text-slate-500">
                           {flashcards.length} flashcards generated successfully
                         </p>
-                      </div>
-
-                      <div className="rounded-2xl bg-orange-100 px-4 py-1.5 text-orange-700 backdrop-blur">
-                        <span className="text-sm font-medium">Draft</span>
                       </div>
                     </div>
                   </div>

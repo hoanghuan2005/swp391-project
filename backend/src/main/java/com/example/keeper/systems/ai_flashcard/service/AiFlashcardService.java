@@ -155,7 +155,7 @@ public class AiFlashcardService {
     // 2. HÀM GENERATE FLASHCARD TỪ AI
     // ====================================================================
 
-    public List<FlashcardItemDto> generateFlashcards(MultipartFile file, String text) throws Exception {
+    public Map<String, Object> generateFlashcards(MultipartFile file, String text) throws Exception {
 
         String content = text != null ? text : "";
         Document linkedDocument = null;
@@ -192,7 +192,7 @@ public class AiFlashcardService {
         return generateFlashcardsFromContent(content, title, linkedDocument);
     }
 
-    public List<FlashcardItemDto> generateFlashcardsFromDocument(UUID documentId) throws Exception {
+    public Map<String, Object> generateFlashcardsFromDocument(UUID documentId) throws Exception {
         Document document = documentRepository.findById(documentId)
                 .orElseThrow(() -> new RuntimeException("Document not found"));
 
@@ -221,7 +221,7 @@ public class AiFlashcardService {
         return generateFlashcardsFromContent(content, document.getTitle(), document);
     }
 
-    private List<FlashcardItemDto> generateFlashcardsFromContent(String content, String title, Document linkedDocument) throws Exception {
+    private Map<String, Object> generateFlashcardsFromContent(String content, String title, Document linkedDocument) throws Exception {
         // --- ĐÃ SỬA: Cập nhật prompt để ép AI đọc văn bản ---
         String raw = callGroqApi("Trích xuất các khái niệm và định nghĩa quan trọng từ văn bản sau để làm flashcard. Văn bản: \n\n" + content);
 
@@ -260,7 +260,10 @@ public class AiFlashcardService {
             flashcardRepository.save(flashcard);
         }
 
-        return cards;
+        return Map.of(
+            "id", set.getId(),
+            "flashcards", cards
+        );
     }
 
     private String callGroqApi(String content) {
