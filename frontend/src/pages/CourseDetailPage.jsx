@@ -34,6 +34,8 @@ export default function CourseDetailPage() {
 
   const [course, setCourse] = useState(null);
   const [documents, setDocuments] = useState([]);
+  const [quizzes, setQuizzes] = useState([]);
+  const [flashcards, setFlashcards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [shareOpen, setShareOpen] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
@@ -46,15 +48,19 @@ export default function CourseDetailPage() {
     try {
       setLoading(true);
 
-      const [courseRes, docsRes, followStatusRes] = await Promise.all([
+      const [courseRes, docsRes, followStatusRes, quizzesRes, flashcardsRes] = await Promise.all([
         axiosClient.get(`/api/courses/${id}`),
         axiosClient.get(`/api/courses/${id}/documents`),
-        axiosClient.get(`/api/courses/${id}/follow-status`), // Kiểm tra xem người dùng đã theo dõi khóa học chưa
+        axiosClient.get(`/api/courses/${id}/follow-status`),
+        axiosClient.get(`/api/quizzes/course/${id}`),
+        axiosClient.get(`/api/ai_flashcard/course/${id}`),
       ]);
 
       setCourse(courseRes.data);
       setDocuments(docsRes.data.content || []);
       setIsFollowing(followStatusRes.data);
+      setQuizzes(quizzesRes.data || []);
+      setFlashcards(flashcardsRes.data?.data || []);
     } catch (err) {
       console.error(err);
     } finally {
@@ -277,6 +283,88 @@ export default function CourseDetailPage() {
           ))}
         </div>
       </section>
+
+      {/* Quizzes Section */}
+      {quizzes.length > 0 && (
+        <section className="mt-10">
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="text-2xl font-bold text-slate-800">
+              Published Quizzes
+            </h2>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+            {quizzes.map((quiz) => (
+              <Card
+                key={quiz.id}
+                className="shadow-sm border-orange-100 hover:shadow-md transition-all group flex flex-col h-full rounded-[20px] overflow-hidden bg-gradient-to-b from-[#fffaf7] to-white"
+              >
+                <CardContent className="p-4 flex-1 flex flex-col">
+                  <div className="w-full aspect-[4/3] bg-orange-50 rounded-xl mb-3 -mt-4 border border-orange-100 flex items-center justify-center text-[#f26522]">
+                    <Star className="w-12 h-12 opacity-50" />
+                  </div>
+                  <CardTitle className="text-[15px] mb-1 font-bold text-slate-800 line-clamp-1" title={quiz.title}>
+                    {quiz.title}
+                  </CardTitle>
+                  <CardDescription className="text-xs text-[#f26522] font-medium mb-3 flex items-center gap-1.5">
+                    {quiz.questions?.length || 0} Questions
+                  </CardDescription>
+                </CardContent>
+                <CardFooter className="-mt-3 px-4 py-3 flex gap-2">
+                  <Button
+                    asChild
+                    className="flex-1 bg-[#f26522] hover:bg-[#de5b0b] text-white font-semibold text-xs rounded-xl h-9 cursor-pointer"
+                  >
+                    <Link to={`/quiz/${quiz.id}`}>
+                      Take Quiz
+                    </Link>
+                  </Button>
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Flashcards Section */}
+      {flashcards.length > 0 && (
+        <section className="mt-10">
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="text-2xl font-bold text-slate-800">
+              Published Flashcards
+            </h2>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+            {flashcards.map((fc) => (
+              <Card
+                key={fc.id}
+                className="shadow-sm border-blue-100 hover:shadow-md transition-all group flex flex-col h-full rounded-[20px] overflow-hidden bg-gradient-to-b from-[#f7faff] to-white"
+              >
+                <CardContent className="p-4 flex-1 flex flex-col">
+                  <div className="w-full aspect-[4/3] bg-blue-50 rounded-xl mb-3 -mt-4 border border-blue-100 flex items-center justify-center text-blue-500">
+                    <BookOpen className="w-12 h-12 opacity-50" />
+                  </div>
+                  <CardTitle className="text-[15px] mb-1 font-bold text-slate-800 line-clamp-1" title={fc.title}>
+                    {fc.title}
+                  </CardTitle>
+                  <CardDescription className="text-xs text-blue-500 font-medium mb-3 flex items-center gap-1.5">
+                    {fc.cards || 0} Cards
+                  </CardDescription>
+                </CardContent>
+                <CardFooter className="-mt-3 px-4 py-3 flex gap-2">
+                  <Button
+                    asChild
+                    className="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-semibold text-xs rounded-xl h-9 cursor-pointer"
+                  >
+                    <Link to={`/flashcard?id=${fc.id}`}>
+                      Study Now
+                    </Link>
+                  </Button>
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+        </section>
+      )}
 
       <Dialog open={shareOpen} onOpenChange={setShareOpen}>
         <DialogContent className="sm:max-w-xl rounded-[28px] border-0 p-0 overflow-hidden">

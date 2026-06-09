@@ -22,6 +22,7 @@ import { toast } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import AIGeneratorInput from "@/components/ai-sidebar/AIGeneratorInput";
 import AIToolHeader from "@/components/ai-sidebar/AIToolHeader";
+import useMaterialPublish from "@/hooks/useMaterialPublish";
 
 export default function AIQuizGenerator() {
   const [inputText, setInputText] = useState("");
@@ -41,8 +42,16 @@ export default function AIQuizGenerator() {
   const [searchDocQuery, setSearchDocQuery] = useState("");
   const [openSettings, setOpenSettings] = useState(false);
 
+  const VIEW_MODE = {
+    GENERATE: "GENERATE",
+    PREVIEW: "PREVIEW",
+  };
+  const [viewMode, setViewMode] = useState(VIEW_MODE.GENERATE);
+  const [selectedQuiz, setSelectedQuiz] = useState(null);
+
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
+  const { publish, loading: publishing } = useMaterialPublish();
 
   // Fetch sidebar data
   const fetchSidebarData = async () => {
@@ -79,8 +88,18 @@ export default function AIQuizGenerator() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  const handleSelectQuiz = (quiz) => {
-    navigate(`/quiz/${quiz.id}`);
+  const handleSelectQuiz = async (quiz) => {
+    try {
+      setIsGenerating(true);
+      const response = await axiosClient.get(`/api/quizzes/${quiz.id}`);
+      setSelectedQuiz(response.data);
+      setViewMode(VIEW_MODE.PREVIEW);
+    } catch (error) {
+      console.error("Failed to load quiz details:", error);
+      toast.error("Failed to load quiz details");
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   // === ĐÃ VÁ LỖI: Thêm hàm xử lý xóa bài Quiz để tránh crash ứng dụng ===
@@ -206,7 +225,8 @@ export default function AIQuizGenerator() {
       } catch (e) {
         // ignore
       }
-      navigate(`/quiz/${response.data.id}`);
+      setSelectedQuiz(response.data);
+      setViewMode(VIEW_MODE.PREVIEW);
     } catch (error) {
       console.error("Failed to generate quiz:", error);
       const errorMsg =
@@ -216,6 +236,28 @@ export default function AIQuizGenerator() {
       toast.error(errorMsg);
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  const handlePublishQuiz = async () => {
+    if (!selectedQuiz || !selectedQuiz.id) {
+      toast.error("Please save or select a generated quiz first before publishing.");
+      return;
+    }
+
+    const courseId = libraryDoc?.course?.id || null;
+    
+    try {
+      await publish({
+        type: "QUIZ",
+        id: selectedQuiz.id,
+        courseId,
+        visibility: "PUBLIC"
+      });
+      toast.success("Quiz published successfully!");
+    } catch (e) {
+      toast.error("Failed to publish quiz.");
+      console.error(e);
     }
   };
 
@@ -229,10 +271,12 @@ export default function AIQuizGenerator() {
         histories={quizHistory}
         documents={uploadedDocuments}
         onSelectItem={handleSelectQuiz}
-        onDeleteItem={handleDeleteQuiz} // Chạy mượt mà, không lo bị undefined
+        onDeleteItem={handleDeleteQuiz}
         onCreate={() => {
           setInputText("");
           clearDocument();
+          setViewMode(VIEW_MODE.GENERATE);
+          setSelectedQuiz(null);
         }}
         onSelectDocument={handleLibrarySuccess}
         searchDocQuery={searchDocQuery}
@@ -246,40 +290,126 @@ export default function AIQuizGenerator() {
       <div className="relative flex-1 overflow-y-auto bg-slate-50/50">
         <div className="mx-auto max-w-5xl px-6 py-8">
           {/* Header */}
+          {isGenerating && (!selectedQuiz) && (
+            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white/80 backdrop-blur-sm">
+              <Loader2 className="mb-4 h-10 w-10 animate-spin text-[#f26522]" />
+              <p className="font-medium text-slate-600">
+                Generating your quiz...
+              </p>
+            </div>
+          )}
+
           <AIToolHeader
             icon={Target}
             title="AI Quiz Generator"
             description="Create quizzes instantly from any topic or document. Perfect for study sessions and self-assessment."
           />
 
-          <AIGeneratorInput
-            value={inputText}
-            onChange={setInputText}
-            placeholder="Enter a topic or paste your notes..."
-            fileInputRef={fileInputRef}
-            handleFileSelect={handleFileSelect}
-            activeDocument={activeDocument}
-            clearDocument={clearDocument}
-            onGenerate={handleGenerateQuiz}
-            isGenerating={isGenerating}
-            disabled={!inputText.trim() && !file && !libraryDoc}
-            footerLeft={
-              <>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setOpenSettings(true)}
-                  className="rounded-full"
-                >
-                  <Settings2 className="w-5 h-5" />
-                </Button>
+          {viewMode === VIEW_MODE.GENERATE && (
+            <AIGeneratorInput
+              value={inputText}
+              onChange={setInputText}
+              placeholder="Enter a topic or paste your notes..."
+              fileInputRef={fileInputRef}
+              handleFileSelect={handleFileSelect}
+              activeDocument={activeDocument}
+              clearDocument={clearDocument}
+              onGenerate={handleGenerateQuiz}
+              isGenerating={isGenerating}
+              disabled={!inputText.trim() && !file && !libraryDoc}
+              footerLeft={
+                <>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setOpenSettings(true)}
+                    className="rounded-full"
+                  >
+                    <Settings2 className="w-5 h-5" />
+                  </Button>
 
-                <span className="text-xs text-slate-500 ml-2">
-                  {questionCount} Questions • {difficulty}
-                </span>
-              </>
-            }
-          />
+                  <span className="text-xs text-slate-500 ml-2">
+                    {questionCount} Questions • {difficulty}
+                  </span>
+                </>
+              }
+            />
+          )}
+
+          {viewMode === VIEW_MODE.PREVIEW && selectedQuiz && (
+            <div className="space-y-5">
+              <div className="overflow-hidden rounded-2xl border bg-white shadow-sm">
+                <div className="px-6 py-5 text-black/80 border-b">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-2xl font-bold">{selectedQuiz.title}</h2>
+                      <p className="mt-1 text-slate-500">
+                        {selectedQuiz.questions?.length || 0} questions generated successfully
+                      </p>
+                    </div>
+                    <div className="rounded-2xl bg-orange-100 px-4 py-1.5 text-orange-700 backdrop-blur">
+                      <span className="text-sm font-medium">Draft</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-3 px-6 py-4">
+                  <Button
+                    variant="ghost"
+                    className="rounded-xl cursor-pointer bg-accent"
+                  >
+                    Save Draft
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    className="rounded-xl cursor-pointer"
+                    onClick={() => navigate(`/quiz/${selectedQuiz.id}`)}
+                  >
+                    Start Study
+                  </Button>
+
+                  <Button 
+                    className="rounded-xl bg-[#f26522] hover:bg-[#d95316] cursor-pointer shadow-sm"
+                    onClick={handlePublishQuiz}
+                    disabled={publishing}
+                  >
+                    {publishing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    Publish Material
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                {selectedQuiz.questions?.map((q, index) => (
+                  <div
+                    key={q.id}
+                    className="group relative rounded-2xl border border-slate-200 bg-white px-5 py-6 transition-all hover:-translate-y-0.5 hover:shadow-sm"
+                  >
+                    <div className="mb-3 flex items-center justify-between">
+                      <span className="rounded-full bg-[#f26522]/10 px-3 py-1 -ml-1 text-xs font-semibold text-[#f26522]">
+                        Question {index + 1}
+                      </span>
+                    </div>
+                    <h3 className="text-[19px] font-semibold text-slate-900 mb-4">
+                      {q.content}
+                    </h3>
+                    <div className="space-y-2">
+                      {q.options?.map((opt, optIdx) => (
+                        <div key={optIdx} className={`p-3 rounded-xl border border-slate-100 ${opt === q.correctAnswer ? 'bg-[#f26522]/10 border-[#f26522]/30' : 'bg-slate-50'}`}>
+                          <span className={`text-sm ${opt === q.correctAnswer ? 'text-[#f26522] font-semibold' : 'text-slate-600'}`}>{opt}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-4 p-4 rounded-xl bg-slate-50 border border-slate-100">
+                      <p className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-1">Explanation</p>
+                      <p className="text-sm text-slate-700">{q.explanation}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

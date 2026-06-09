@@ -9,9 +9,12 @@ import {
   ArrowRight,
   Trophy,
   Sparkles,
+  Trash2,
+  Edit2,
 } from "lucide-react";
 import axiosClient from "@/api/axiosClient";
 import useDocuments from "@/hooks/useDocuments";
+import useMaterialPublish from "@/hooks/useMaterialPublish";
 import FlashcardItem from "./FlashcardItem";
 import AISidebar from "@/components/ai-sidebar/sidebar/AISidebar";
 import { Button } from "@/components/ui/button";
@@ -44,6 +47,16 @@ export default function AIFlashcardGenerator({ contextData }) {
     refreshDocuments,
   } = useDocuments();
 
+  const { publish, loading: publishing } = useMaterialPublish();
+
+  const VIEW_MODE = {
+    GENERATE: "GENERATE",
+    PREVIEW: "PREVIEW",
+    STUDY: "STUDY",
+  };
+
+  const [viewMode, setViewMode] = useState(VIEW_MODE.GENERATE);
+
   useEffect(() => {
     if (contextData && contextData.id) {
       loadFlashcardSet(contextData.id);
@@ -70,6 +83,7 @@ export default function AIFlashcardGenerator({ contextData }) {
       const data = response.data.data;
       setActiveSetTitle(data.title);
       setFlashcards(data.flashcards || []);
+      setViewMode(VIEW_MODE.PREVIEW);
       resetProgress();
     } catch (error) {
       console.error("Load set error:", error);
@@ -98,6 +112,29 @@ export default function AIFlashcardGenerator({ contextData }) {
     setIsCompleted(false);
   };
 
+  const handlePublish = async () => {
+    if (!selectedFlashcardSet || !selectedFlashcardSet.id) {
+      alert("Please save or select a generated set first before publishing.");
+      return;
+    }
+
+    // Try to get courseId from selectedDoc if available
+    const courseId = selectedDoc?.course?.id || null;
+    
+    try {
+      await publish({
+        type: "FLASHCARD",
+        id: selectedFlashcardSet.id,
+        courseId,
+        visibility: "PUBLIC"
+      });
+      alert("Flashcard set published successfully!");
+    } catch (e) {
+      alert("Failed to publish flashcard set.");
+      console.error(e);
+    }
+  };
+
   const handleGenerate = async () => {
     if (!inputText && !file && !selectedDoc) return;
     setIsGenerating(true);
@@ -117,13 +154,19 @@ export default function AIFlashcardGenerator({ contextData }) {
           formData,
         );
       }
-      const result = response.data.data || response.data;
-      if (Array.isArray(result)) {
-        setFlashcards(result);
+      if (Array.isArray(result) || result.id) {
+        setFlashcards(result.flashcards || result);
+        if (result.id) {
+           setSelectedFlashcardSet(result);
+        }
+
         setActiveSetTitle(
           selectedDoc?.title || file?.name || "New Generated Set",
         );
+
         resetProgress();
+
+        setViewMode(VIEW_MODE.PREVIEW);
         try {
           await refreshDocuments();
         } catch (e) {
@@ -141,11 +184,14 @@ export default function AIFlashcardGenerator({ contextData }) {
   };
 
   const handleReset = () => {
+    setViewMode(VIEW_MODE.GENERATE);
     setFlashcards([]);
     setInputText("");
     setFile(null);
     setSelectedDoc(null);
+    setSelectedFlashcardSet(null);
     setActiveSetTitle("Generate AI Flashcards");
+    setCurrentIndex(0);
     setIsCompleted(false);
   };
 
@@ -176,6 +222,17 @@ export default function AIFlashcardGenerator({ contextData }) {
   const handlePrev = () => {
     if (isCompleted) setIsCompleted(false);
     else setCurrentIndex((p) => Math.max(0, p - 1));
+  };
+
+  const handleAddCard = () => {
+    setFlashcards((prev) => [
+      ...prev,
+      {
+        term: "",
+        definition: "",
+        isNew: true,
+      },
+    ]);
   };
 
   useEffect(() => {
@@ -226,7 +283,8 @@ export default function AIFlashcardGenerator({ contextData }) {
               description="Create flashcards to enhance your learning and retention."
             />
 
-            {flashcards.length === 0 && (
+            {/* Generate View */}
+            {viewMode === VIEW_MODE.GENERATE && (
               <AIGeneratorInput
                 value={inputText}
                 onChange={setInputText}
@@ -244,10 +302,110 @@ export default function AIFlashcardGenerator({ contextData }) {
               />
             )}
 
-            {flashcards.length > 0 && (
+            {/* Preview */}
+            {viewMode === VIEW_MODE.PREVIEW && (
+              <div className="space-y-5">
+                <div className="overflow-hidden rounded-2xl border bg-white shadow-sm">
+                  <div className="px-6 py-5 text-black/80 border-b">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h2 className="text-2xl font-bold">{activeSetTitle}</h2>
+
+                        <p className="mt-1 text-slate-500">
+                          {flashcards.length} flashcards generated successfully
+                        </p>
+                      </div>
+
+                      <div className="rounded-2xl bg-orange-100 px-4 py-1.5 text-orange-700 backdrop-blur">
+                        <span className="text-sm font-medium">Draft</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-3 px-6 py-4">
+                    <Button
+                      variant="ghost"
+                      className="rounded-xl cursor-pointer bg-accent"
+                      // onClick={handleSaveDraft}
+                    >
+                      Save Draft
+                    </Button>
+
+                    <Button
+                      variant="outline"
+                      className="rounded-xl cursor-pointer"
+                      onClick={() => setViewMode(VIEW_MODE.STUDY)}
+                    >
+                      Start Study
+                    </Button>
+
+                    <Button 
+                      className="rounded-xl bg-[#f26522] hover:bg-[#d95316] cursor-pointer shadow-sm"
+                      onClick={handlePublish}
+                      disabled={publishing}
+                    >
+                      {publishing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                      Publish Material
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div
+                    onClick={handleAddCard}
+                    className="cursor-pointer rounded-2xl border-2 border-dashed border-orange-200 bg-orange-50 p-8 text-center transition hover:border-[#f26522] hover:bg-orange-100"
+                  >
+                    <Plus className="mx-auto mb-2 h-6 w-6 text-[#f26522]" />
+                    <p className="font-medium text-[#f26522]">Add New Card</p>
+                  </div>
+                  {flashcards.map((card, index) => (
+                    <div
+                      key={index}
+                      className="group relative rounded-2xl border border-slate-200 bg-white px-5 py-6 transition-all hover:-translate-y-0.5 hover:shadow-sm transition-duration-200"
+                    >
+                      <div className="mb-3 flex items-center justify-between">
+                        <span className="rounded-full bg-orange-50 px-3 py-1 -ml-1 text-xs font-semibold text-[#f26522]/80">
+                          Card {index + 1}
+                        </span>
+                        <div className="absolutee right-4 top-4 flex gap-2 opacity-0 transition-opacity group-hover:opacity-100">
+                          <button
+                            // onClick={() => handleEditCard(index)}
+                            className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700 cursor-pointer"
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </button>
+
+                          <button
+                            // onClick={() => handleDeleteCard(index)}
+                            className="rounded-lg p-2 text-red-500 hover:bg-red-50 cursor-pointer"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                      <h3 className="text-[21px] font-semibold text-slate-900">
+                        {card.term}
+                      </h3>
+                      <p className="mt-1.5 leading-7 text-slate-600">
+                        {card.definition}
+                      </p>{" "}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Study View */}
+            {viewMode === VIEW_MODE.STUDY && flashcards.length > 0 && (
               <div className="mt-4 animate-in slide-in-from-bottom-4 duration-500">
                 <div className="mb-6 flex items-center justify-between border-b border-slate-200 pb-4">
                   <div className="flex items-center gap-3">
+                    <Button
+                      variant="outline"
+                      onClick={() => setViewMode(VIEW_MODE.PREVIEW)}
+                    >
+                      Back
+                    </Button>
                     <span className="text-[15px] font-medium text-slate-600">
                       Theo dõi tiến độ
                     </span>

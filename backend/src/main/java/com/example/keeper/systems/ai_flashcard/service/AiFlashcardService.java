@@ -117,6 +117,40 @@ public class AiFlashcardService {
         );
     }
 
+    public void publishFlashcardSet(UUID id, UUID courseId, String visibility, String userEmail) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        FlashcardSet set = flashcardSetRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Flashcard Set not found"));
+
+        if (!set.getUser().getId().equals(user.getId())) {
+            throw new RuntimeException("You do not have permission to publish this flashcard set");
+        }
+
+        set.setCourseId(courseId);
+        set.setVisibility(visibility != null ? visibility : "PRIVATE");
+        set.setStatus("PUBLISHED");
+        
+        flashcardSetRepository.save(set);
+    }
+
+    public List<Map<String, Object>> getCourseFlashcardSets(UUID courseId) {
+        List<FlashcardSet> sets = flashcardSetRepository.findByCourseIdAndStatus(courseId, "PUBLISHED");
+        
+        return sets.stream().map(set -> {
+            long cardCount = flashcardRepository.findAll().stream()
+                    .filter(c -> c.getFlashcardSet() != null && c.getFlashcardSet().getId().equals(set.getId()))
+                    .count();
+
+            return Map.<String, Object>of(
+                    "id", set.getId(),
+                    "title", set.getTitle() != null ? set.getTitle() : "Untitled",
+                    "cards", cardCount
+            );
+        }).collect(Collectors.toList());
+    }
+
     // ====================================================================
     // 2. HÀM GENERATE FLASHCARD TỪ AI
     // ====================================================================

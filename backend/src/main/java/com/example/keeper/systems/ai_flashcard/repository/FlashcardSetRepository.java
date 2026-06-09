@@ -9,4 +9,5 @@ import java.util.UUID;
 public interface FlashcardSetRepository extends JpaRepository<FlashcardSet, UUID> {
 
     List<FlashcardSet> findByUserIdOrderByCreatedAtDesc(UUID userId);
+    List<FlashcardSet> findByCourseIdAndStatus(UUID courseId, String status);
 }

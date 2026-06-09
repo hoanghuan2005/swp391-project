@@ -18,9 +18,19 @@ public class FlashcardSet extends BaseEntity {
     @Column(columnDefinition = "TEXT")
     private String sourceText;
 
+    @Column(name = "status")
+    private String status = "DRAFT"; // DRAFT or PUBLISHED
+
+    @Column(name = "visibility")
+    private String visibility = "PRIVATE"; // PRIVATE or PUBLIC
+
+    @Column(name = "course_id")
+    private java.util.UUID courseId;
+
     @ManyToOne
     @JoinColumn(name = "user_id")
     private User user;
+
 
     @ManyToOne
     @JoinColumn(name = "document_id")

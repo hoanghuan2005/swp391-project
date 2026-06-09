@@ -75,6 +75,35 @@ public class QuizServiceImpl implements QuizService {
         quizRepository.delete(quiz);
     }
 
+    @Override
+    @Transactional
+    public void publishQuiz(UUID id, UUID courseId, String visibility, String userEmail) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        Quiz quiz = quizRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Quiz not found"));
+
+        if (!quiz.getOwner().getId().equals(user.getId())) {
+            throw new RuntimeException("You do not have permission to publish this quiz");
+        }
+
+        quiz.setCourseId(courseId);
+        quiz.setVisibility(visibility != null ? visibility : "PRIVATE");
+        quiz.setStatus("PUBLISHED");
+        
+        quizRepository.save(quiz);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<QuizResponse> getCourseQuizzes(UUID courseId) {
+        return quizRepository.findByCourseIdAndStatus(courseId, "PUBLISHED")
+                .stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
     private QuizResponse mapToResponse(Quiz quiz) {
         List<QuestionDTO> questionDTOs = quiz.getQuestions().stream()
                 .map(q -> QuestionDTO.builder()

@@ -44,4 +44,18 @@ public class QuizController {
         quizService.deleteQuiz(id, email);
         return ResponseEntity.noContent().build();
     }
+
+    @PostMapping("/{id}/publish")
+    public ResponseEntity<Void> publishQuiz(
+            @PathVariable UUID id,
+            @RequestBody com.example.keeper.systems.ai_quiz.dto.request.PublishMaterialRequest request) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        quizService.publishQuiz(id, request.getCourseId(), request.getVisibility(), email);
+        return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/course/{courseId}")
+    public ResponseEntity<List<QuizResponse>> getCourseQuizzes(@PathVariable UUID courseId) {
+        return ResponseEntity.ok(quizService.getCourseQuizzes(courseId));
+    }
 }

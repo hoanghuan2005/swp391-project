@@ -29,6 +29,16 @@ public class Quiz extends BaseEntity {
     @Column(name = "project_id")
     private UUID projectId;
 
+    @Column(name = "course_id")
+    private UUID courseId;
+
+    @Column(name = "status")
+    private String status = "DRAFT"; // DRAFT or PUBLISHED
+
+    @Column(name = "visibility")
+    private String visibility = "PRIVATE"; // PRIVATE or PUBLIC
+
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "owner_id", nullable = false)
     private User owner;

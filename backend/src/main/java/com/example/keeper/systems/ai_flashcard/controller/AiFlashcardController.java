@@ -4,10 +4,12 @@ package com.example.keeper.systems.ai_flashcard.controller;
 
 import com.example.keeper.systems.ai_flashcard.service.AiFlashcardService;
 
+import com.example.keeper.systems.ai_quiz.dto.request.PublishMaterialRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import org.springframework.http.ResponseEntity;
 
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import org.springframework.web.multipart.MultipartFile;
@@ -112,15 +114,27 @@ public class AiFlashcardController {
 
 
     @GetMapping("/sets/latest")
-
     public ResponseEntity<?> getLatestSet() {
-
         return ResponseEntity.ok(
-
                 Map.of("data", Map.of("id", UUID.randomUUID(), "title", "Latest Flashcards"))
-
         );
-
     }
 
+    @PostMapping("/sets/{id}/publish")
+    public ResponseEntity<?> publishSet(
+            @PathVariable UUID id,
+            @RequestBody PublishMaterialRequest request) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        try {
+            aiFlashcardService.publishFlashcardSet(id, request.getCourseId(), request.getVisibility(), email);
+            return ResponseEntity.ok(Map.of("success", true));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/course/{courseId}")
+    public ResponseEntity<?> getCourseFlashcardSets(@PathVariable UUID courseId) {
+        return ResponseEntity.ok(Map.of("data", aiFlashcardService.getCourseFlashcardSets(courseId)));
+    }
 }
