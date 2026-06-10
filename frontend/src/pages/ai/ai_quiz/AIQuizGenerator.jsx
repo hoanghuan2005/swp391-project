@@ -8,6 +8,7 @@ import {
   Plus,
   Settings2,
   ArrowLeft,
+  Heart,
 } from "lucide-react";
 import {
   Dialog,
@@ -364,9 +365,9 @@ export default function AIQuizGenerator() {
 
           {viewMode === VIEW_MODE.PREVIEW && selectedQuiz && (
             <div className="space-y-5">
-              <div className="overflow-hidden rounded-2xl border bg-white shadow-sm">
-                <div className="px-6 py-5 text-black/80 border-b">
-                  <div className="flex items-center justify-between mb-2">
+              <div className="rounded-[28px] border border-orange-100 bg-gradient-to-br from-[#fffaf7] to-[#fff3eb] overflow-hidden mb-5">
+                <div className="p-5">
+                  <div className="flex items-center justify-between mb-4">
                     <Button
                       variant="ghost"
                       onClick={() => setViewMode(VIEW_MODE.GENERATE)}
@@ -378,40 +379,57 @@ export default function AIQuizGenerator() {
                       <span className="text-sm font-medium">Draft</span>
                     </div>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h2 className="text-2xl font-bold">{selectedQuiz.title}</h2>
-                      <p className="mt-1 text-slate-500">
-                        {selectedQuiz.questions?.length || 0} questions generated successfully
-                      </p>
+
+                  <div className="flex items-start gap-4">
+                    <div className="w-14 h-14 rounded-2xl bg-[#f66810] flex items-center justify-center text-white shadow-sm shrink-0">
+                      <Target className="w-7 h-7" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div>
+                        <h2 className="text-2xl font-bold text-slate-800 tracking-tight">{selectedQuiz.title}</h2>
+                        <p className="mt-1 text-sm text-slate-500">
+                          {selectedQuiz.questions?.length || 0} questions generated successfully
+                        </p>
+                      </div>
+                      
+                      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mt-5">
+                        <div className="flex flex-wrap gap-3">
+                          <Button
+                            variant="outline"
+                            className="rounded-full border-orange-200 hover:bg-orange-50 h-9 px-4 text-sm cursor-pointer"
+                            onClick={() => toast.success("Saved to Library!")}
+                          >
+                            Save Library
+                          </Button>
+
+                          <Button
+                            variant="outline"
+                            className="rounded-full border-orange-200 hover:bg-orange-50 h-9 px-4 text-sm cursor-pointer"
+                            onClick={() => navigate(`/quiz/${selectedQuiz.id}`)}
+                          >
+                            Start Study
+                          </Button>
+
+                          <Button 
+                            className="rounded-full bg-[#f26522] hover:bg-[#d95316] h-9 px-4 text-sm text-white cursor-pointer shadow-sm"
+                            onClick={handlePublishQuizClick}
+                            disabled={publishing}
+                          >
+                            {publishing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                            Publish Material
+                          </Button>
+
+                          <Button
+                            variant="outline"
+                            className="rounded-full border-orange-200 hover:bg-orange-50 h-9 px-4 text-sm cursor-pointer"
+                            onClick={() => toast.success("Quiz liked!")}
+                          >
+                            <Heart className="w-4 h-4 mr-1 text-slate-500 hover:text-red-500" /> Like
+                          </Button>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-
-                <div className="flex flex-wrap gap-3 px-6 py-4">
-                  <Button
-                    variant="ghost"
-                    className="rounded-xl cursor-pointer bg-accent"
-                  >
-                    Save Draft
-                  </Button>
-
-                  <Button
-                    variant="outline"
-                    className="rounded-xl cursor-pointer"
-                    onClick={() => navigate(`/quiz/${selectedQuiz.id}`)}
-                  >
-                    Start Study
-                  </Button>
-
-                  <Button 
-                    className="rounded-xl bg-[#f26522] hover:bg-[#d95316] cursor-pointer shadow-sm"
-                    onClick={handlePublishQuizClick}
-                    disabled={publishing}
-                  >
-                    {publishing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                    Publish Material
-                  </Button>
                 </div>
               </div>
 

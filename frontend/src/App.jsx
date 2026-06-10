@@ -32,6 +32,9 @@ import OAuth2Callback from "./pages/OAuth2Callback";
 import AIFlashcardGenerator from "./pages/ai/ai_flashcard/AIFlashcardGenerator";
 import AIQuizGenerator from "./pages/ai/ai_quiz/AIQuizGenerator";
 import NotificationPage from "./pages/Notification";
+import { updateTitle } from "./lib/pageTitle";
+import { useLocation } from "react-router-dom";
+import { useEffect } from "react";
 
 function ComingSoon({ pageName }) {
   return (
@@ -44,9 +47,20 @@ function ComingSoon({ pageName }) {
   );
 }
 
+function TitleManager() {
+  const location = useLocation();
+
+  useEffect(() => {
+    updateTitle(location.pathname);
+  }, [location.pathname]);
+
+  return null;
+}
+
 function App() {
   return (
     <BrowserRouter>
+      <TitleManager />
       <Routes>
         {/* Public Routes */}
         <Route path="/" element={<LandingPage />} />
@@ -108,11 +122,20 @@ function App() {
             <Route path="/admin/dashboard" element={<DashboardPage />} />
             <Route path="/admin/users" element={<UserListPage />} />
             <Route path="/admin/documents" element={<DocumentListPage />} />
-            <Route path="/admin/documents/:id" element={<AdminDocumentDetailPage />} />
+            <Route
+              path="/admin/documents/:id"
+              element={<AdminDocumentDetailPage />}
+            />
             <Route path="/admin/courses" element={<CatalogCoursesPage />} />
-            <Route path="/admin/catalog/schools" element={<CatalogSchoolsPage />} />
+            <Route
+              path="/admin/catalog/schools"
+              element={<CatalogSchoolsPage />}
+            />
             <Route path="/admin/catalog/tags" element={<CatalogTagsPage />} />
-            <Route path="/admin/catalog/languages" element={<CatalogLanguagesPage />} />
+            <Route
+              path="/admin/catalog/languages"
+              element={<CatalogLanguagesPage />}
+            />
 
             <Route
               path="/admin/settings"

@@ -7,6 +7,7 @@ import {
   XCircle,
   BrainCircuit,
   RotateCcw,
+  Heart,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import axiosClient from "@/api/axiosClient";
@@ -229,34 +230,48 @@ export default function AIQuizTakePage() {
               </Button>
 
               {/* Header / Score Board */}
-              <div className="bg-white rounded-[24px] p-6 shadow-sm border border-slate-200 mb-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
-                <div>
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="p-2.5 bg-orange-50 text-[#f26522] rounded-xl shadow-sm">
-                      <BrainCircuit className="w-6 h-6" />
+              <div className="rounded-[28px] border border-orange-100 bg-gradient-to-br from-[#fffaf7] to-[#fff3eb] overflow-hidden mb-8">
+                <div className="p-5">
+                  <div className="flex items-start gap-4">
+                    <div className="w-14 h-14 rounded-2xl bg-[#f66810] flex items-center justify-center text-white shadow-sm shrink-0">
+                      <BrainCircuit className="w-7 h-7" />
                     </div>
-                    <h1 className="text-2xl font-bold text-slate-800 tracking-tight">
-                      {quiz.title}
-                    </h1>
+                    <div className="flex-1 min-w-0">
+                      <div>
+                        <h1 className="text-2xl font-bold text-slate-800 tracking-tight">
+                          {quiz.title}
+                        </h1>
+                        <p className="text-sm text-slate-500 mt-1">
+                          {totalQuestions} Questions • Multiple Choice
+                        </p>
+                      </div>
+                      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mt-5">
+                        <div className="flex flex-wrap gap-3">
+                          <Button
+                            variant="outline"
+                            className="rounded-full border-orange-200 hover:bg-orange-50 h-9 px-4 text-sm"
+                            onClick={() => toast.success("Quiz liked!")}
+                          >
+                            <Heart className="w-4 h-4 mr-1 text-slate-500 hover:text-red-500" /> Like
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                    {isSubmitted && (
+                      <div className="text-center px-8 py-4 bg-white/60 rounded-[20px] border border-orange-200 shadow-sm animate-in zoom-in duration-300 ml-auto">
+                        <p className="text-xs font-bold text-[#f26522] uppercase tracking-widest mb-1">
+                          Final Score
+                        </p>
+                        <p className="text-4xl font-black text-[#f26522]">
+                          {score}{" "}
+                          <span className="text-xl text-[#f26522]/60 font-bold">
+                            / {totalQuestions}
+                          </span>
+                        </p>
+                      </div>
+                    )}
                   </div>
-                  <p className="text-slate-500 text-sm font-medium">
-                    {totalQuestions} Questions • Multiple Choice
-                  </p>
                 </div>
-
-                {isSubmitted && (
-                  <div className="text-center px-8 py-4 bg-[#f26522]/10 rounded-[20px] border border-[#f26522]/20 shadow-sm animate-in zoom-in duration-300">
-                    <p className="text-xs font-bold text-[#f26522] uppercase tracking-widest mb-1">
-                      Final Score
-                    </p>
-                    <p className="text-4xl font-black text-[#f26522]">
-                      {score}{" "}
-                      <span className="text-xl text-[#f26522]/60 font-bold">
-                        / {totalQuestions}
-                      </span>
-                    </p>
-                  </div>
-                )}
               </div>
 
               {/* Questions List */}

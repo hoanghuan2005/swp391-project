@@ -57,6 +57,9 @@ export default function CourseDetailPage() {
       ]);
 
       setCourse(courseRes.data);
+      if (courseRes.data?.name) {
+        document.title = `Mindocu | ${courseRes.data.name}`;
+      }
       setDocuments(docsRes.data.content || []);
       setIsFollowing(followStatusRes.data);
       setQuizzes(quizzesRes.data || []);
@@ -213,11 +216,14 @@ export default function CourseDetailPage() {
       {/* TRENDING */}
       <section className="mt-10">
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-2xl font-bold text-slate-800">
-            Trending Documents
-          </h2>
-
+          <div className="flex flex-col mb-0.5">
+            <h2 className="text-2xl font-bold text-slate-800">
+              Trending Documents
+            </h2>
+            <p className="text-sm text-slate-500 mt-1">Explore the most popular study materials in this course.</p>
+          </div>
           <Button variant="ghost">View All</Button>
+
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
@@ -287,10 +293,11 @@ export default function CourseDetailPage() {
       {/* Quizzes Section */}
       {quizzes.length > 0 && (
         <section className="mt-10">
-          <div className="flex items-center justify-between mb-5">
+          <div className="flex flex-col mb-6">
             <h2 className="text-2xl font-bold text-slate-800">
               Published Quizzes
             </h2>
+            <p className="text-sm text-slate-500 mt-1">Test your knowledge with these quizzes.</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
             {quizzes.map((quiz) => (
@@ -311,6 +318,13 @@ export default function CourseDetailPage() {
                 </CardContent>
                 <CardFooter className="-mt-3 px-4 py-3 flex gap-2">
                   <Button
+                    variant="outline"
+                    onClick={() => alert("Liked!")}
+                    className="flex-none px-2.5 rounded-xl border-slate-200 text-slate-500 hover:text-[#f22222] hover:bg-[#f22222]/10 transition-colors cursor-pointer h-9"
+                  >
+                    <Heart className="w-4 h-4" />
+                  </Button>
+                  <Button
                     asChild
                     className="flex-1 bg-[#f26522] hover:bg-[#de5b0b] text-white font-semibold text-xs rounded-xl h-9 cursor-pointer"
                   >
@@ -328,10 +342,11 @@ export default function CourseDetailPage() {
       {/* Flashcards Section */}
       {flashcards.length > 0 && (
         <section className="mt-10">
-          <div className="flex items-center justify-between mb-5">
+          <div className="flex flex-col mb-6">
             <h2 className="text-2xl font-bold text-slate-800">
               Published Flashcards
             </h2>
+            <p className="text-sm text-slate-500 mt-1">Review key concepts with flashcards.</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
             {flashcards.map((fc) => (
@@ -351,6 +366,13 @@ export default function CourseDetailPage() {
                   </CardDescription>
                 </CardContent>
                 <CardFooter className="-mt-3 px-4 py-3 flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => alert("Liked!")}
+                    className="flex-none px-2.5 rounded-xl border-slate-200 text-slate-500 hover:text-[#f22222] hover:bg-[#f22222]/10 transition-colors cursor-pointer h-9"
+                  >
+                    <Heart className="w-4 h-4" />
+                  </Button>
                   <Button
                     asChild
                     className="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-semibold text-xs rounded-xl h-9 cursor-pointer"

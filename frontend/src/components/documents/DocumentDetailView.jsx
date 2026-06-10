@@ -66,6 +66,9 @@ export default function DocumentDetailView({
         setLoading(true);
         const response = await axiosClient.get(fetchUrl);
         setDocumentDetail(response.data);
+        if (response.data?.title) {
+          document.title = `Mindocu | ${response.data.title}`;
+        }
         if (documentId) recordDocumentView(documentId).catch(console.error);
       } catch (error) {
         console.error("Failed to load document detail:", error);
@@ -87,7 +90,7 @@ export default function DocumentDetailView({
         <div className="flex items-center gap-3">
           <FileText className="w-8 h-8 text-[#f26522]" />
           <div>
-            <h1 className="text-3xl font-bold tracking-tight text-slate-800">{headerTitle}</h1>
+            <h1 className="text-3xl font-bold tracking-tight text-slate-800">{documentDetail?.title || headerTitle}</h1>
             <p className="text-sm text-slate-500">{headerDescription}</p>
           </div>
         </div>
