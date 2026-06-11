@@ -3,9 +3,12 @@ package com.example.keeper.systems.ai_quiz.service.impl;
 import com.example.keeper.systems.auth.entity.User;
 import com.example.keeper.systems.auth.repository.UserRepository;
 import com.example.keeper.systems.ai_quiz.dto.request.QuizRequest;
+import com.example.keeper.systems.ai_quiz.dto.request.QuestionUpdateRequest;
+import com.example.keeper.systems.ai_quiz.dto.request.QuizUpdateRequest;
 import com.example.keeper.systems.ai_quiz.dto.response.QuestionDTO;
 import com.example.keeper.systems.ai_quiz.dto.response.QuizResponse;
 import com.example.keeper.systems.ai_quiz.entity.Quiz;
+import com.example.keeper.systems.ai_quiz.entity.Question;
 import com.example.keeper.systems.ai_quiz.repository.QuizRepository;
 import com.example.keeper.systems.ai_quiz.service.QuizService;
 import lombok.RequiredArgsConstructor;
@@ -45,6 +48,54 @@ public class QuizServiceImpl implements QuizService {
         Quiz quiz = quizRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Quiz not found"));
         return mapToResponse(quiz);
+    }
+
+    @Override
+    @Transactional
+    public QuizResponse updateQuiz(UUID id, QuizUpdateRequest request, String userEmail) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        Quiz quiz = quizRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Quiz not found"));
+
+        if (!quiz.getOwner().getId().equals(user.getId())) {
+            throw new IllegalArgumentException("You do not have permission to edit this quiz");
+        }
+        if (request.getTitle() == null || request.getTitle().isBlank()) {
+            throw new IllegalArgumentException("Title is required");
+        }
+        if (request.getQuestions() == null || request.getQuestions().isEmpty()) {
+            throw new IllegalArgumentException("At least one question is required");
+        }
+
+        quiz.setTitle(request.getTitle().trim());
+        quiz.getQuestions().clear();
+        for (QuestionUpdateRequest item : request.getQuestions()) {
+            validateQuestion(item);
+            Question question = new Question();
+            question.setQuiz(quiz);
+            question.setContent(item.getContent().trim());
+            question.setOptions(item.getOptions().stream().map(String::trim).collect(Collectors.toList()));
+            question.setCorrectAnswer(item.getCorrectAnswer().trim());
+            question.setExplanation(item.getExplanation() != null ? item.getExplanation().trim() : "");
+            quiz.getQuestions().add(question);
+        }
+
+        return mapToResponse(quizRepository.save(quiz));
+    }
+
+    private void validateQuestion(QuestionUpdateRequest question) {
+        if (question == null || question.getContent() == null || question.getContent().isBlank()) {
+            throw new IllegalArgumentException("Every question must have content");
+        }
+        if (question.getOptions() == null || question.getOptions().size() < 2
+                || question.getOptions().stream().anyMatch(option -> option == null || option.isBlank())) {
+            throw new IllegalArgumentException("Every question must have at least two non-empty options");
+        }
+        if (question.getCorrectAnswer() == null
+                || !question.getOptions().contains(question.getCorrectAnswer())) {
+            throw new IllegalArgumentException("Every correct answer must match one of its question options");
+        }
     }
 
     @Override

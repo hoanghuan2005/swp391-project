@@ -4,6 +4,7 @@ import com.example.keeper.systems.ai_ask.service.EmbeddingService;
 import com.example.keeper.systems.ai_ask.entity.DocumentChunk;
 import com.example.keeper.systems.ai_ask.repository.DocumentChunkRepository;
 import com.example.keeper.systems.ai_flashcard.dto.FlashcardItemDto;
+import com.example.keeper.systems.ai_flashcard.dto.FlashcardSetUpdateRequest;
 import com.example.keeper.systems.ai_flashcard.entity.Flashcard;
 import com.example.keeper.systems.ai_flashcard.entity.FlashcardSet;
 import com.example.keeper.systems.ai_flashcard.repository.FlashcardRepository;
@@ -28,6 +29,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -115,6 +117,44 @@ public class AiFlashcardService {
                         "definition", card.getDefinition()
                 )).collect(Collectors.toList())
         );
+    }
+
+    @Transactional
+    public Map<String, Object> updateFlashcardSet(UUID setId, FlashcardSetUpdateRequest request) {
+        User user = getAuthenticatedUser();
+        FlashcardSet set = flashcardSetRepository.findById(setId)
+                .orElseThrow(() -> new IllegalArgumentException("Flashcard Set not found"));
+
+        if (!set.getUser().getId().equals(user.getId())) {
+            throw new IllegalArgumentException("You do not have permission to edit this flashcard set");
+        }
+        if (request.getTitle() == null || request.getTitle().isBlank()) {
+            throw new IllegalArgumentException("Title is required");
+        }
+        if (request.getFlashcards() == null || request.getFlashcards().isEmpty()) {
+            throw new IllegalArgumentException("At least one flashcard is required");
+        }
+        for (FlashcardItemDto card : request.getFlashcards()) {
+            if (card == null || card.getTerm() == null || card.getTerm().isBlank()
+                    || card.getDefinition() == null || card.getDefinition().isBlank()) {
+                throw new IllegalArgumentException("Every flashcard must have a term and definition");
+            }
+        }
+
+        set.setTitle(request.getTitle().trim());
+        flashcardSetRepository.save(set);
+
+        flashcardRepository.deleteAll(flashcardRepository.findByFlashcardSetId(setId));
+        List<Flashcard> cards = request.getFlashcards().stream().map(item -> {
+            Flashcard card = new Flashcard();
+            card.setTerm(item.getTerm().trim());
+            card.setDefinition(item.getDefinition().trim());
+            card.setFlashcardSet(set);
+            return card;
+        }).collect(Collectors.toList());
+        flashcardRepository.saveAll(cards);
+
+        return getSetDetailsById(setId);
     }
 
     public void publishFlashcardSet(UUID id, UUID courseId, String visibility, String userEmail) {

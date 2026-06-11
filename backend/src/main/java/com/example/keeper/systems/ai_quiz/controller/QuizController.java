@@ -1,6 +1,7 @@
 package com.example.keeper.systems.ai_quiz.controller;
 
 import com.example.keeper.systems.ai_quiz.dto.request.QuizRequest;
+import com.example.keeper.systems.ai_quiz.dto.request.QuizUpdateRequest;
 import com.example.keeper.systems.ai_quiz.dto.response.QuizResponse;
 import com.example.keeper.systems.ai_quiz.service.QuizGeneratorService;
 import com.example.keeper.systems.ai_quiz.service.QuizService;
@@ -36,6 +37,18 @@ public class QuizController {
     @GetMapping("/{id}")
     public ResponseEntity<QuizResponse> getQuizById(@PathVariable UUID id) {
         return ResponseEntity.ok(quizService.getQuizById(id));
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<?> updateQuiz(
+            @PathVariable UUID id,
+            @RequestBody QuizUpdateRequest request) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        try {
+            return ResponseEntity.ok(quizService.updateQuiz(id, request, email));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(java.util.Map.of("message", e.getMessage()));
+        }
     }
 
     @DeleteMapping("/{id}")

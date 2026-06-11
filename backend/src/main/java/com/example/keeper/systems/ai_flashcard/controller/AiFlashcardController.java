@@ -2,6 +2,7 @@ package com.example.keeper.systems.ai_flashcard.controller;
 
 
 
+import com.example.keeper.systems.ai_flashcard.dto.FlashcardSetUpdateRequest;
 import com.example.keeper.systems.ai_flashcard.service.AiFlashcardService;
 
 import com.example.keeper.systems.ai_quiz.dto.request.PublishMaterialRequest;
@@ -97,6 +98,20 @@ public class AiFlashcardController {
 
         return ResponseEntity.ok(Map.of("data", setDetails));
 
+    }
+
+    @PutMapping("/sets/{id}")
+    public ResponseEntity<?> updateFlashcardSet(
+            @PathVariable UUID id,
+            @RequestBody FlashcardSetUpdateRequest request) {
+        try {
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "data", aiFlashcardService.updateFlashcardSet(id, request)
+            ));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", e.getMessage()));
+        }
     }
 
 
