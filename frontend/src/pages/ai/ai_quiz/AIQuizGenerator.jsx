@@ -2,10 +2,6 @@ import React, { useState, useRef, useEffect } from "react";
 import {
   Loader2,
   Target,
-  Send,
-  FileText,
-  X,
-  Plus,
   Settings2,
   ArrowLeft,
   Heart,
@@ -34,6 +30,8 @@ import { useNavigate } from "react-router-dom";
 import AIGeneratorInput from "@/components/ai-sidebar/AIGeneratorInput";
 import AIToolHeader from "@/components/ai-sidebar/AIToolHeader";
 import useMaterialPublish from "@/hooks/useMaterialPublish";
+import QuizEditor from "./QuizEditor";
+import { Input } from "@/components/ui/input";
 
 export default function AIQuizGenerator() {
   const [inputText, setInputText] = useState("");
@@ -42,12 +40,12 @@ export default function AIQuizGenerator() {
   const [questionCount, setQuestionCount] = useState(10);
   const [difficulty, setDifficulty] = useState("Medium");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Sidebar states
   const [quizHistory, setQuizHistory] = useState([]);
   const {
     documents: uploadedDocuments,
-    loading: documentsLoading,
     refreshDocuments,
   } = useDocuments();
   const [searchDocQuery, setSearchDocQuery] = useState("");
@@ -138,6 +136,29 @@ export default function AIQuizGenerator() {
     } catch (error) {
       console.error("Failed to delete quiz:", error);
       toast.error("Failed to delete quiz session");
+    }
+  };
+
+  const handleSaveDraft = async () => {
+    if (!selectedQuiz?.id) return;
+
+    setIsSaving(true);
+    try {
+      const response = await axiosClient.put(`/api/quizzes/${selectedQuiz.id}`, {
+        title: selectedQuiz.title,
+        questions: selectedQuiz.questions,
+      });
+      setSelectedQuiz(response.data);
+      setQuizHistory((current) =>
+        current.map((quiz) =>
+          quiz.id === response.data.id ? response.data : quiz,
+        ),
+      );
+      toast.success("Quiz draft saved successfully!");
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to save quiz draft.");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -244,7 +265,7 @@ export default function AIQuizGenerator() {
       clearDocument();
       try {
         await refreshDocuments();
-      } catch (e) {
+      } catch {
         // ignore
       }
       setSelectedQuiz(response.data);
@@ -379,14 +400,23 @@ export default function AIQuizGenerator() {
                       <span className="text-sm font-medium">Draft</span>
                     </div>
                   </div>
-
                   <div className="flex items-start gap-4">
                     <div className="w-14 h-14 rounded-2xl bg-[#f66810] flex items-center justify-center text-white shadow-sm shrink-0">
                       <Target className="w-7 h-7" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div>
-                        <h2 className="text-2xl font-bold text-slate-800 tracking-tight">{selectedQuiz.title}</h2>
+                        <Input
+                          value={selectedQuiz.title}
+                          onChange={(event) =>
+                            setSelectedQuiz((current) => ({
+                              ...current,
+                              title: event.target.value,
+                            }))
+                          }
+                          className="h-11 rounded-xl text-2xl font-bold"
+                          aria-label="Quiz title"
+                        />
                         <p className="mt-1 text-sm text-slate-500">
                           {selectedQuiz.questions?.length || 0} questions generated successfully
                         </p>
@@ -397,9 +427,11 @@ export default function AIQuizGenerator() {
                           <Button
                             variant="outline"
                             className="rounded-full border-orange-200 hover:bg-orange-50 h-9 px-4 text-sm cursor-pointer"
-                            onClick={() => toast.success("Saved to Library!")}
+                            onClick={handleSaveDraft}
+                            disabled={isSaving}
                           >
-                            Save Library
+                            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Save Draft
                           </Button>
 
                           <Button
@@ -433,34 +465,18 @@ export default function AIQuizGenerator() {
                 </div>
               </div>
 
-              <div className="space-y-4">
-                {selectedQuiz.questions?.map((q, index) => (
-                  <div
-                    key={q.id}
-                    className="group relative rounded-2xl border border-slate-200 bg-white px-5 py-6 transition-all hover:-translate-y-0.5 hover:shadow-sm"
-                  >
-                    <div className="mb-3 flex items-center justify-between">
-                      <span className="rounded-full bg-[#f26522]/10 px-3 py-1 -ml-1 text-xs font-semibold text-[#f26522]">
-                        Question {index + 1}
-                      </span>
-                    </div>
-                    <h3 className="text-[19px] font-semibold text-slate-900 mb-4">
-                      {q.content}
-                    </h3>
-                    <div className="space-y-2">
-                      {q.options?.map((opt, optIdx) => (
-                        <div key={optIdx} className={`p-3 rounded-xl border border-slate-100 ${opt === q.correctAnswer ? 'bg-[#f26522]/10 border-[#f26522]/30' : 'bg-slate-50'}`}>
-                          <span className={`text-sm ${opt === q.correctAnswer ? 'text-[#f26522] font-semibold' : 'text-slate-600'}`}>{opt}</span>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="mt-4 p-4 rounded-xl bg-slate-50 border border-slate-100">
-                      <p className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-1">Explanation</p>
-                      <p className="text-sm text-slate-700">{q.explanation}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <QuizEditor
+                questions={selectedQuiz.questions || []}
+                setQuestions={(update) =>
+                  setSelectedQuiz((current) => ({
+                    ...current,
+                    questions:
+                      typeof update === "function"
+                        ? update(current.questions || [])
+                        : update,
+                  }))
+                }
+              />
             </div>
           )}
         </div>

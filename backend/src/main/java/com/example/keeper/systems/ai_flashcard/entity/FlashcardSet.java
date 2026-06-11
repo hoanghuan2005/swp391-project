@@ -8,7 +8,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 @Getter
-@Setter
+@Setter 
 @Entity
 @Table(name = "flashcard_sets")
 public class FlashcardSet extends BaseEntity {

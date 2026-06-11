@@ -1,16 +1,10 @@
 import React, { useRef, useState, useEffect } from "react";
 import {
-  FileText,
-  X,
-  Plus,
-  Send,
   Loader2,
   ArrowLeft,
   ArrowRight,
   Trophy,
   Sparkles,
-  Trash2,
-  Edit2,
   Heart,
 } from "lucide-react";
 import axiosClient from "@/api/axiosClient";
@@ -36,11 +30,14 @@ import {
 } from "@/components/ui/select";
 import AIGeneratorInput from "@/components/ai-sidebar/AIGeneratorInput";
 import AIToolHeader from "@/components/ai-sidebar/AIToolHeader";
+import FlashcardEditor from "./FlashcardEditor";
+import { Input } from "@/components/ui/input";
 
 export default function AIFlashcardGenerator({ contextData }) {
   const [inputText, setInputText] = useState("");
   const [file, setFile] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [flashcards, setFlashcards] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedFlashcardSet, setSelectedFlashcardSet] = useState(null);
@@ -59,7 +56,6 @@ export default function AIFlashcardGenerator({ contextData }) {
   const [flashcardHistory, setFlashcardHistory] = useState([]);
   const {
     documents: uploadedDocuments,
-    loading: documentsLoading,
     refreshDocuments,
   } = useDocuments();
 
@@ -102,6 +98,7 @@ export default function AIFlashcardGenerator({ contextData }) {
       const data = response.data.data;
       setActiveSetTitle(data.title);
       setFlashcards(data.flashcards || []);
+      setSelectedFlashcardSet(data);
       setViewMode(VIEW_MODE.PREVIEW);
       resetProgress();
     } catch (error) {
@@ -119,6 +116,41 @@ export default function AIFlashcardGenerator({ contextData }) {
   const handleDeleteFlashcardSet = (e, id) => {
     e.stopPropagation();
     console.log("Delete flashcard set:", id);
+  };
+
+  const handleSaveDraft = async () => {
+    if (!selectedFlashcardSet?.id) return;
+
+    setIsSaving(true);
+    try {
+      const response = await axiosClient.put(
+        `/api/ai_flashcard/sets/${selectedFlashcardSet.id}`,
+        {
+          title: activeSetTitle,
+          flashcards,
+        },
+      );
+      const updatedSet = response.data.data;
+      setFlashcards(updatedSet.flashcards || []);
+      setActiveSetTitle(updatedSet.title);
+      setSelectedFlashcardSet((current) => ({ ...current, ...updatedSet }));
+      setFlashcardHistory((current) =>
+        current.map((set) =>
+          set.id === updatedSet.id
+            ? {
+                ...set,
+                title: updatedSet.title,
+                cards: updatedSet.flashcards?.length || 0,
+              }
+            : set,
+        ),
+      );
+      alert("Flashcard draft saved successfully!");
+    } catch (error) {
+      alert(error.response?.data?.message || "Failed to save flashcard draft.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   useEffect(() => {
@@ -208,7 +240,7 @@ export default function AIFlashcardGenerator({ contextData }) {
         setViewMode(VIEW_MODE.PREVIEW);
         try {
           await refreshDocuments();
-        } catch (e) {
+        } catch {
           /* ignore */
         }
       } else {
@@ -261,17 +293,6 @@ export default function AIFlashcardGenerator({ contextData }) {
   const handlePrev = () => {
     if (isCompleted) setIsCompleted(false);
     else setCurrentIndex((p) => Math.max(0, p - 1));
-  };
-
-  const handleAddCard = () => {
-    setFlashcards((prev) => [
-      ...prev,
-      {
-        term: "",
-        definition: "",
-        isNew: true,
-      },
-    ]);
   };
 
   useEffect(() => {
@@ -358,14 +379,20 @@ export default function AIFlashcardGenerator({ contextData }) {
                         <span className="text-sm font-medium">Draft</span>
                       </div>
                     </div>
-
                     <div className="flex items-start gap-4">
                       <div className="w-14 h-14 rounded-2xl bg-[#f66810] flex items-center justify-center text-white shadow-sm shrink-0">
                         <Sparkles className="w-7 h-7" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div>
-                          <h2 className="text-2xl font-bold text-slate-800 tracking-tight">{activeSetTitle}</h2>
+                          <Input
+                            value={activeSetTitle}
+                            onChange={(event) =>
+                              setActiveSetTitle(event.target.value)
+                            }
+                            className="h-11 rounded-xl text-2xl font-bold"
+                            aria-label="Flashcard set title"
+                          />
                           <p className="mt-1 text-sm text-slate-500">
                             {flashcards.length} flashcards generated successfully
                           </p>
@@ -376,9 +403,11 @@ export default function AIFlashcardGenerator({ contextData }) {
                             <Button
                               variant="outline"
                               className="rounded-full border-orange-200 hover:bg-orange-50 h-9 px-4 text-sm cursor-pointer"
-                              onClick={() => alert("Saved to Library!")}
+                              onClick={handleSaveDraft}
+                              disabled={isSaving || !selectedFlashcardSet?.id}
                             >
-                              Save Library
+                              {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                              Save Draft
                             </Button>
 
                             <Button
@@ -412,48 +441,7 @@ export default function AIFlashcardGenerator({ contextData }) {
                   </div>
                 </div>
 
-                <div className="space-y-4">
-                  <div
-                    onClick={handleAddCard}
-                    className="cursor-pointer rounded-2xl border-2 border-dashed border-orange-200 bg-orange-50 p-8 text-center transition hover:border-[#f26522] hover:bg-orange-100"
-                  >
-                    <Plus className="mx-auto mb-2 h-6 w-6 text-[#f26522]" />
-                    <p className="font-medium text-[#f26522]">Add New Card</p>
-                  </div>
-                  {flashcards.map((card, index) => (
-                    <div
-                      key={index}
-                      className="group relative rounded-2xl border border-slate-200 bg-white px-5 py-6 transition-all hover:-translate-y-0.5 hover:shadow-sm transition-duration-200"
-                    >
-                      <div className="mb-3 flex items-center justify-between">
-                        <span className="rounded-full bg-orange-50 px-3 py-1 -ml-1 text-xs font-semibold text-[#f26522]/80">
-                          Card {index + 1}
-                        </span>
-                        <div className="absolutee right-4 top-4 flex gap-2 opacity-0 transition-opacity group-hover:opacity-100">
-                          <button
-                            // onClick={() => handleEditCard(index)}
-                            className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700 cursor-pointer"
-                          >
-                            <Edit2 className="h-4 w-4" />
-                          </button>
-
-                          <button
-                            // onClick={() => handleDeleteCard(index)}
-                            className="rounded-lg p-2 text-red-500 hover:bg-red-50 cursor-pointer"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </div>
-                      <h3 className="text-[21px] font-semibold text-slate-900">
-                        {card.term}
-                      </h3>
-                      <p className="mt-1.5 leading-7 text-slate-600">
-                        {card.definition}
-                      </p>{" "}
-                    </div>
-                  ))}
-                </div>
+                <FlashcardEditor cards={flashcards} setCards={setFlashcards} />
               </div>
             )}
 
