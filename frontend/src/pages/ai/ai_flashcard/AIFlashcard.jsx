@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import axios from 'axios';
+import axiosClient from '../../../api/axiosClient';
 import { Loader2, Sparkles, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
 
 const AIFlashcard = () => {
@@ -14,10 +14,8 @@ const AIFlashcard = () => {
         setIsLoading(true);
 
         try {
-            const token = localStorage.getItem('token');
-            const response = await axios.post('http://localhost:8080/api/ai/flashcards/generate', 
-                { content: inputText },
-                { headers: { 'Authorization': `Bearer ${token}` } }
+            const response = await axiosClient.post('/api/ai/flashcards/generate', 
+                { content: inputText }
             );
 
             const data = response.data.data || response.data; 

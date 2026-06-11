@@ -1,7 +1,11 @@
 import axios from 'axios';
 
+export const backendBaseUrl = import.meta.env.VITE_API_URL 
+  ? (import.meta.env.VITE_API_URL.endsWith('/api') ? import.meta.env.VITE_API_URL.slice(0, -4) : import.meta.env.VITE_API_URL)
+  : "http://localhost:8080";
+
 const axiosClient = axios.create({
-  baseURL: "http://localhost:8080",
+  baseURL: backendBaseUrl,
   timeout: 20000,
   // TẠM TẮT DÒNG NÀY ĐỂ TRÁNH LỖI CORS 401
   // withCredentials: true, 
@@ -44,7 +48,7 @@ axiosClient.interceptors.response.use(
           throw new Error("No refresh token available");
         }
 
-        const res = await axios.post("http://localhost:8080/api/auth/refresh-token", {
+        const res = await axios.post(`${backendBaseUrl}/api/auth/refresh-token`, {
           refreshToken: refreshToken,
         });
 

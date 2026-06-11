@@ -466,29 +466,12 @@ export default function Sidebar({ isOpen = true }) {
               <DropdownMenuSeparator className="my-1 bg-slate-100" />
               <DropdownMenuItem
                 className="p-3 cursor-pointer rounded-xl flex items-start gap-4 hover:bg-slate-50 transition-colors"
-                onClick={() => navigate("/ai-notes")}
+                onClick={() => navigate("/ai-tools/ai-quiz")}
               >
-                <div className="bg-purple-100/50 p-2.5 rounded-full text-purple-400 shrink-0">
-                  <FileText className="h-6 w-6" strokeWidth={2} />
+                <div className="bg-purple-100/50 p-2.5 rounded-full text-purple-500 shrink-0">
+                  <CheckCircle className="h-6 w-6" strokeWidth={2} />
                 </div>
                 <div className="flex flex-col">
-                  <span className="font-semibold text-[15px] text-slate-800">
-                    AI Notes
-                  </span>
-                  <span className="text-[13px] text-slate-500 mt-0.5 leading-snug">
-                    Turn all your material into organized summaries
-                  </span>
-                </div>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator className="my-1 bg-slate-100" />
-                <DropdownMenuItem
-                  className="p-3 cursor-pointer rounded-xl flex items-start gap-4 hover:bg-slate-50 transition-colors"
-                  onClick={() => navigate("/ai-tools/ai-quiz")}
-                >
-                  <div className="bg-purple-100/50 p-2.5 rounded-full text-purple-500 shrink-0">
-                    <CheckCircle className="h-6 w-6" strokeWidth={2} />
-                  </div>
-                  <div className="flex flex-col">
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-[15px] text-slate-800">
                       AI Quiz
@@ -505,14 +488,14 @@ export default function Sidebar({ isOpen = true }) {
                   </span>
                 </div>
               </DropdownMenuItem>
-                <DropdownMenuItem
-                  className="p-3 cursor-pointer rounded-xl flex items-start gap-4 hover:bg-slate-50 transition-colors"
-                  onClick={() => navigate("/ai-tools/ai-flashcard")}
-                >
-                  <div className="bg-purple-100/50 p-2.5 rounded-full text-purple-500 shrink-0">
-                    <CheckCircle className="h-6 w-6" strokeWidth={2} />
-                  </div>
-                  <div className="flex flex-col">
+              <DropdownMenuItem
+                className="p-3 cursor-pointer rounded-xl flex items-start gap-4 hover:bg-slate-50 transition-colors"
+                onClick={() => navigate("/ai-tools/ai-flashcard")}
+              >
+                <div className="bg-purple-100/50 p-2.5 rounded-full text-purple-500 shrink-0">
+                  <CheckCircle className="h-6 w-6" strokeWidth={2} />
+                </div>
+                <div className="flex flex-col">
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-[15px] text-slate-800">
                       AI Flashcards
@@ -525,7 +508,8 @@ export default function Sidebar({ isOpen = true }) {
                     </Badge>
                   </div>
                   <span className="text-[13px] text-slate-500 mt-0.5 leading-snug">
-                    Generate and edit flashcards instantly to test your knowledge
+                    Generate and edit flashcards instantly to test your
+                    knowledge
                   </span>
                 </div>
               </DropdownMenuItem>
@@ -547,13 +531,6 @@ export default function Sidebar({ isOpen = true }) {
           to="/my-library"
           icon={LibraryBig}
           label="Library"
-          isOpen={isOpen}
-          pathname={location.pathname}
-        />
-        <NavItem
-          to="/ai-notes"
-          icon={FileText}
-          label="AI Notes"
           isOpen={isOpen}
           pathname={location.pathname}
         />

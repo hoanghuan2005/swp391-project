@@ -27,7 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import AISidebar from "@/components/ai-sidebar/sidebar/AISidebar";
-import axiosClient from "@/api/axiosClient";
+import axiosClient, { backendBaseUrl } from "@/api/axiosClient";
 import useDocuments from "@/hooks/useDocuments";
 import { toast } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
@@ -198,7 +198,7 @@ export default function AIQuizGenerator() {
         const token = localStorage.getItem("token");
 
         const uploadResponse = await fetch(
-          "http://localhost:8080/api/documents/upload",
+          `${backendBaseUrl}/api/documents/upload`,
           {
             method: "POST",
             headers: {

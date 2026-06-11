@@ -36,4 +36,13 @@ export const sidebarConfig = {
     emptyMessage: "No chats available",
     createButton: "New Chat",
   },
+
+  mindmap: {
+    type: "mindmap",
+    title: "AI Mind Map",
+    subtitle: "Visualize your knowledge",
+    historyTitle: "Your Mind Maps",
+    emptyMessage: "No mind maps yet",
+    createButton: "New Mind Map",
+  },
 };

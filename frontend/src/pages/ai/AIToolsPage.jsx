@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { BookOpen, BrainCircuit, Sparkles, ArrowLeft } from "lucide-react";
+import { BookOpen, BrainCircuit, Brain, Sparkles, ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import AIFlashcardGenerator from "./ai_flashcard/AIFlashcardGenerator.jsx";
@@ -23,6 +23,12 @@ const AIQuizPage = () => {
         state: { selectedData: data },
       });
     }
+
+    if (view === "mindmap") {
+      navigate("/ai-tools/ai-mindmap", {
+        state: { selectedData: data },
+      });
+    }
   };
 
   const tools = [
@@ -38,6 +44,13 @@ const AIQuizPage = () => {
       title: "AI Quiz",
       desc: "Practice with AI-generated quizzes and assessments.",
       icon: <BrainCircuit className="h-5 w-5 text-[#f26522]" />,
+      enabled: true,
+    },
+    {
+      id: "mindmap",
+      title: "AI Mind Map",
+      desc: "Transform documents into interactive mind maps for visual learning.",
+      icon: <Brain className="h-5 w-5 text-[#f26522]" />,
       enabled: true,
     },
   ];

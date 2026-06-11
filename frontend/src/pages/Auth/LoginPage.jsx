@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import confetti from "canvas-confetti";
 import { jwtDecode } from "jwt-decode";
 
-import axiosClient from "../../api/axiosClient";
+import axiosClient, { backendBaseUrl } from "../../api/axiosClient";
 import backgroundImage from "../../assets/picture-study.png";
 
 const fireSuccessConfetti = () => {
@@ -89,7 +89,7 @@ const LoginPage = () => {
   };
 
   const handleGoogleLogin = () => {
-    window.location.href = "http://localhost:8080/oauth2/authorization/google";
+    window.location.href = `${backendBaseUrl}/oauth2/authorization/google`;
   };
 
   return (

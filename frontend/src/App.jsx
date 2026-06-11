@@ -31,6 +31,7 @@ import WorkspaceOverviewPage from "./pages/workspace/WorkspaceOverviewPage";
 import OAuth2Callback from "./pages/OAuth2Callback";
 import AIFlashcardGenerator from "./pages/ai/ai_flashcard/AIFlashcardGenerator";
 import AIQuizGenerator from "./pages/ai/ai_quiz/AIQuizGenerator";
+import AIMindMapPage from "./pages/ai/ai_mindmap/AIMindMapPage";
 import NotificationPage from "./pages/Notification";
 import { updateTitle } from "./lib/pageTitle";
 import { useLocation } from "react-router-dom";
@@ -97,6 +98,7 @@ function App() {
             element={<AIFlashcardGenerator />}
           />
           <Route path="/ai-tools/ai-quiz" element={<AIQuizGenerator />} />
+          <Route path="/ai-tools/ai-mindmap" element={<AIMindMapPage />} />
           <Route path="/courses" element={<ComingSoon pageName="Courses" />} />
           <Route
             path="/projects"

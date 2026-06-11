@@ -3,7 +3,7 @@ import { Mail, Lock, Eye, EyeOff, User, ShieldCheck } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import confetti from "canvas-confetti";
 
-import axiosClient from "../../api/axiosClient";
+import axiosClient, { backendBaseUrl } from "../../api/axiosClient";
 import backgroundImage from "../../assets/picture-study.png";
 
 const fireSuccessConfetti = () => {
@@ -78,7 +78,7 @@ const SignUpPage = () => {
   };
 
   const signupWithGoogle = () => {
-    window.location.href = "http://localhost:8080/oauth2/authorization/google";
+    window.location.href = `${backendBaseUrl}/oauth2/authorization/google`;
   };
 
   return (

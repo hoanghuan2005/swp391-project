@@ -280,13 +280,13 @@ export default function Navbar({
 
         {/* THANH TÌM KIẾM & BỘ LỌC */}
         <div className="flex-1 max-w-2xl flex items-center gap-4 px-2">
-          <div className="relative w-full flex items-center gap-2">
+          <div className="relative w-full flex items-center gap-3">
             <div className="relative w-full">
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
-                <Search className="h-4 w-4" />
+                <Search className="h-5 w-5" />
               </span>
               <Input
-                className="pl-12 h-10 bg-slate-50 border-transparent hover:border-slate-300 focus:border-orange-500 rounded-full shadow-sm text-sm"
+                className="pl-12 h-11 bg-slate-50 border-transparent hover:border-slate-200 focus:border-orange-500 rounded-full shadow-sm text-sm"
                 placeholder="Search documents..."
                 value={searchQuery}
                 onChange={(e) => {
@@ -301,7 +301,7 @@ export default function Navbar({
                 variant="ghost"
                 size="icon"
                 onClick={() => setIsFilterOpen(!isFilterOpen)}
-                className={`rounded-full h-10 w-10 shadow-sm transition-all ${isFilterOpen ? "bg-orange-100 text-orange-600" : "bg-slate-50"}`}
+                className={`rounded-full h-11 w-11 shadow-sm transition-all ${isFilterOpen ? "bg-orange-100 text-orange-600" : "bg-slate-50"}`}
               >
                 <Filter className="h-5 w-5" />
                 {(filterData.school ||
