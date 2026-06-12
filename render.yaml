@@ -2,7 +2,7 @@ services:
   # Backend - Spring Boot
   - type: web
     name: backend
-    env: java
+    runtime: java21
     plan: free
     branch: main
     buildCommand: ./mvnw clean package -DskipTests
@@ -17,7 +17,7 @@ services:
   # Frontend - React
   - type: web
     name: frontend
-    env: node
+    runtime: node # Render hỗ trợ node
     plan: free
     branch: main
     buildCommand: npm install && npm run build
