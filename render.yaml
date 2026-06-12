@@ -2,7 +2,7 @@ services:
   # Backend - Spring Boot
   - type: web
     name: backend
-    runtime: java
+    runtime: java17
     plan: free
     branch: main
     buildCommand: ./mvnw clean package -DskipTests
