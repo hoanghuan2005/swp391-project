@@ -3,12 +3,15 @@ package com.example.keeper.systems.ai_flashcard.service;
 import com.example.keeper.systems.ai_ask.service.EmbeddingService;
 import com.example.keeper.systems.ai_ask.entity.DocumentChunk;
 import com.example.keeper.systems.ai_ask.repository.DocumentChunkRepository;
+import com.example.keeper.systems.ai_ask.service.GroqService;
 import com.example.keeper.systems.ai_flashcard.dto.FlashcardItemDto;
 import com.example.keeper.systems.ai_flashcard.dto.FlashcardSetUpdateRequest;
 import com.example.keeper.systems.ai_flashcard.entity.Flashcard;
 import com.example.keeper.systems.ai_flashcard.entity.FlashcardSet;
 import com.example.keeper.systems.ai_flashcard.repository.FlashcardRepository;
 import com.example.keeper.systems.ai_flashcard.repository.FlashcardSetRepository;
+import com.example.keeper.systems.ai_usage.service.AiUsageService;
+import com.example.keeper.systems.ai_usage.enums.AiUsageFeature;
 import com.example.keeper.systems.auth.entity.User;
 import com.example.keeper.systems.auth.repository.UserRepository;
 import com.example.keeper.systems.document.entity.Document;
@@ -25,12 +28,9 @@ import org.apache.pdfbox.text.PDFTextStripper;
 import org.apache.poi.xwpf.extractor.XWPFWordExtractor;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.*;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
@@ -42,17 +42,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class AiFlashcardService {
 
-    @Value("${groq.api.key}")
-    private String groqApiKey;
-
-    @Value("${groq.api.url}")
-    private String groqApiUrl;
-
-    @Value("${groq.model}")
-    private String model;
-
     private final ObjectMapper objectMapper;
-    private final RestTemplate restTemplate;
+    private final GroqService groqService;
 
     private final FlashcardRepository flashcardRepository;
     private final FlashcardSetRepository flashcardSetRepository;
@@ -60,6 +51,7 @@ public class AiFlashcardService {
     private final DocumentRepository documentRepository;
     private final DocumentChunkRepository documentChunkRepository;
     private final EmbeddingService embeddingService;
+    private final AiUsageService aiUsageService;
 
     // ====================================================================
     // 1. CÁC HÀM LẤY DỮ LIỆU TỪ DATABASE CHO SIDEBAR
@@ -195,6 +187,7 @@ public class AiFlashcardService {
     // 2. HÀM GENERATE FLASHCARD TỪ AI
     // ====================================================================
 
+    @Transactional
     public Map<String, Object> generateFlashcards(MultipartFile file, String text) throws Exception {
 
         String content = text != null ? text : "";
@@ -232,6 +225,7 @@ public class AiFlashcardService {
         return generateFlashcardsFromContent(content, title, linkedDocument);
     }
 
+    @Transactional
     public Map<String, Object> generateFlashcardsFromDocument(UUID documentId) throws Exception {
         Document document = documentRepository.findById(documentId)
                 .orElseThrow(() -> new RuntimeException("Document not found"));
@@ -262,8 +256,25 @@ public class AiFlashcardService {
     }
 
     private Map<String, Object> generateFlashcardsFromContent(String content, String title, Document linkedDocument) throws Exception {
-        // --- ĐÃ SỬA: Cập nhật prompt để ép AI đọc văn bản ---
-        String raw = callGroqApi("Trích xuất các khái niệm và định nghĩa quan trọng từ văn bản sau để làm flashcard. Văn bản: \n\n" + content);
+        User user = getAuthenticatedUser();
+        aiUsageService.checkQuota(user.getEmail());
+
+        String systemPrompt = "Bạn là trợ lý AI chuyên tạo flashcard. "
+                + "Nhiệm vụ: Trích xuất các khái niệm (term) và định nghĩa (definition) "
+                + "TỪ ĐÚNG NỘI DUNG VĂN BẢN MÀ USER CUNG CẤP. "
+                + "Tuyệt đối KHÔNG tự bịa ra nội dung nếu văn bản không có. "
+                + "Luôn trả về duy nhất 1 mảng JSON hợp lệ, không markdown, không giải thích thêm.";
+
+        String userPrompt =
+                "Trích xuất các khái niệm và định nghĩa quan trọng từ văn bản sau để làm flashcard. "
+                        + "Văn bản:\n\n"
+                        + content;
+
+        String raw = groqService.generateContent(
+                systemPrompt,
+                userPrompt,
+                0.1
+        );
 
         String cleanJson = raw
                 .replaceAll("(?s).*(\\[.*\\]).*", "$1")
@@ -283,7 +294,8 @@ public class AiFlashcardService {
             throw new RuntimeException("AI did not generate valid flashcards.");
         }
 
-        User user = getAuthenticatedUser();
+        aiUsageService.recordUsage(user.getEmail(), AiUsageFeature.FLASHCARD_GENERATION);
+
         FlashcardSet set = new FlashcardSet();
         set.setTitle(title != null ? title : "AI Flashcard Set");
         set.setSourceText(content);
@@ -292,46 +304,21 @@ public class AiFlashcardService {
 
         flashcardSetRepository.save(set);
 
-        for (FlashcardItemDto item : cards) {
-            Flashcard flashcard = new Flashcard();
-            flashcard.setTerm(item.getTerm());
-            flashcard.setDefinition(item.getDefinition());
-            flashcard.setFlashcardSet(set);
-            flashcardRepository.save(flashcard);
-        }
+        List<Flashcard> flashcards = cards.stream()
+                .map(item -> {
+                    Flashcard flashcard = new Flashcard();
+                    flashcard.setTerm(item.getTerm());
+                    flashcard.setDefinition(item.getDefinition());
+                    flashcard.setFlashcardSet(set);
+                    return flashcard;
+                })
+                .collect(Collectors.toList());
+
+        flashcardRepository.saveAll(flashcards);
 
         return Map.of(
             "id", set.getId(),
             "flashcards", cards
         );
-    }
-
-    private String callGroqApi(String content) {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.setBearerAuth(groqApiKey);
-
-        // --- ĐÃ SỬA: Ép cứng System Prompt không cho phép AI tự bịa nội dung ---
-        String systemPrompt = "Bạn là trợ lý AI chuyên tạo flashcard. " +
-                "Nhiệm vụ: Trích xuất các khái niệm (term) và định nghĩa (definition) TỪ ĐÚNG NỘI DUNG VĂN BẢN MÀ USER CUNG CẤP. " +
-                "Tuyệt đối KHÔNG tự bịa ra nội dung nếu văn bản không có. " +
-                "Luôn trả về duy nhất 1 mảng JSON hợp lệ, không markdown, không giải thích thêm.";
-
-        Map<String, Object> requestBody = Map.of(
-                "model", model,
-                "messages", List.of(
-                        Map.of("role", "system", "content", systemPrompt),
-                        Map.of("role", "user", "content", content)),
-                "temperature", 0.1);
-
-        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
-
-        try {
-            ResponseEntity<String> response = restTemplate.postForEntity(groqApiUrl, entity, String.class);
-            return objectMapper.readTree(response.getBody()).path("choices").get(0).path("message").path("content").asText();
-        } catch (Exception e) {
-            e.printStackTrace();
-            return "[]";
-        }
     }
 }

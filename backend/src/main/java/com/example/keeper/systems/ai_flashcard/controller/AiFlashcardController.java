@@ -20,6 +20,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.Map;
 
 import java.util.UUID;
+import com.example.keeper.systems.ai_usage.exception.AiQuotaExceededException;
 
 
 
@@ -51,6 +52,8 @@ public class AiFlashcardController {
         try {
             var result = aiFlashcardService.generateFlashcards(file, text);
             return ResponseEntity.ok(Map.of("success", true, "data", result));
+        } catch (AiQuotaExceededException e) {
+            throw e;
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body(
                     Map.of("success", false, "message", e.getMessage())
@@ -70,6 +73,8 @@ public class AiFlashcardController {
         try {
             var result = aiFlashcardService.generateFlashcardsFromDocument(documentId);
             return ResponseEntity.ok(Map.of("success", true, "data", result));
+        } catch (AiQuotaExceededException e) {
+            throw e;
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body(
                     Map.of("success", false, "message", e.getMessage())

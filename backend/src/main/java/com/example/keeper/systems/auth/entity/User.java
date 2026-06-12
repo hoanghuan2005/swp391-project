@@ -1,5 +1,6 @@
 package com.example.keeper.systems.auth.entity;
 
+import com.example.keeper.systems.auth.enums.SubscriptionTier;
 import com.example.keeper.systems.base.BaseEntity;
 import com.example.keeper.systems.course.entity.Course;
 import com.example.keeper.systems.profile.entity.UserProfile;
@@ -69,4 +70,8 @@ public class User extends BaseEntity {
             inverseJoinColumns = @JoinColumn(name = "document_id")
     )
     private Set<com.example.keeper.systems.document.entity.Document> favoriteDocuments = new HashSet<>();
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "subscription_tier",nullable = false)
+    private SubscriptionTier subscriptionTier = SubscriptionTier.FREE;
 }

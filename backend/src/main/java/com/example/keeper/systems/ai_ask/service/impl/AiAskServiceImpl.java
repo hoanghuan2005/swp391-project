@@ -23,6 +23,9 @@ import com.example.keeper.systems.project.repository.ProjectRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.example.keeper.systems.ai_usage.service.AiUsageService;
+import com.example.keeper.systems.ai_usage.enums.AiUsageFeature;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -51,6 +54,7 @@ public class AiAskServiceImpl implements AiAskService {
     private final DocumentDiscoveryService documentDiscoveryService;
     private final GroqService groqService;
     private final EmbeddingService embeddingService;
+    private final AiUsageService aiUsageService;
 
     @Override
     @Transactional
@@ -121,7 +125,15 @@ public class AiAskServiceImpl implements AiAskService {
         prompt.append("USER: ").append(userQuery).append("\n");
         prompt.append("ASSISTANT: ");
 
+        String email = SecurityContextHolder.getContext()
+                .getAuthentication()
+                .getName();
+
+        aiUsageService.checkQuota(email);
+
         String aiAnswer = groqService.generateContent(prompt.toString());
+
+        aiUsageService.recordUsage(email, AiUsageFeature.ASK_AI);
 
         return buildResponse(conversation, aiAnswer, sources);
     }
@@ -271,7 +283,7 @@ public class AiAskServiceImpl implements AiAskService {
                             .append("]\n");
                     continue;
                 }
-                
+
                 validDocIds.add(doc.getId());
             }
 

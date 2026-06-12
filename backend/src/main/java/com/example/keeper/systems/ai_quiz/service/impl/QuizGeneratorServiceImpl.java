@@ -4,6 +4,8 @@ import com.example.keeper.systems.ai_ask.service.GroqService;
 import com.example.keeper.systems.ai_ask.service.EmbeddingService;
 import com.example.keeper.systems.ai_ask.entity.DocumentChunk;
 import com.example.keeper.systems.ai_ask.repository.DocumentChunkRepository;
+import com.example.keeper.systems.ai_usage.service.AiUsageService;
+import com.example.keeper.systems.ai_usage.enums.AiUsageFeature;
 import com.example.keeper.systems.auth.entity.User;
 import com.example.keeper.systems.auth.repository.UserRepository;
 import com.example.keeper.systems.document.entity.Document;
@@ -42,6 +44,7 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
     private final ObjectMapper objectMapper;
     private final GroqService groqService;
     private final EmbeddingService embeddingService;
+    private final AiUsageService aiUsageService;
 
     @Override
     @Transactional
@@ -67,9 +70,18 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
         }
         // ------------------------
 
-        String prompt = buildPrompt(context, request.getTopic(), request.getQuestionCount(), request.getDifficulty());
+        String prompt = buildPrompt(
+                context,
+                request.getTopic(),
+                request.getQuestionCount(),
+                request.getDifficulty()
+        );
+
+        aiUsageService.checkQuota(userEmail);
         String aiResponse = groqService.generateContent(prompt);
+        aiUsageService.recordUsage(userEmail, AiUsageFeature.QUIZ_GENERATION);
         log.info("Raw AI response for quiz: {}", aiResponse);
+
 
         try {
             String jsonContent = extractJsonArray(aiResponse);
