@@ -10,6 +10,13 @@ import {
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import axiosClient from "@/api/axiosClient";
+import {
+  askAi,
+  createAiConversation,
+  deleteAiConversation,
+  getAiConversationMessages,
+  getAiConversations,
+} from "@/api/aiApi";
 import useDocuments from "@/hooks/useDocuments";
 import ChatInterface from "@/components/chat/ChatInterface"; // <-- Added Import
 import AISidebar from "@/components/ai-sidebar/sidebar/AISidebar"; // <-- Added Import
@@ -35,10 +42,8 @@ export default function AskAIPage() {
       setActiveConversation(conv);
       setIsLoadingMessages(true);
       try {
-        const response = await axiosClient.get(
-          `/api/ai/conversations/${conv.id}/messages`,
-        );
-        setMessages(response.data || []);
+        const savedMessages = await getAiConversationMessages(conv.id);
+        setMessages(savedMessages || []);
 
         // Try to restore associated document
         if (conv.documentId) {
@@ -67,8 +72,7 @@ export default function AskAIPage() {
 
   const fetchConversations = useCallback(async () => {
     try {
-      const response = await axiosClient.get("/api/ai/conversations");
-      const chats = response.data || [];
+      const chats = (await getAiConversations()) || [];
       setConversations(chats);
 
       // Auto-select first chat if present
@@ -100,8 +104,7 @@ export default function AskAIPage() {
         documentId: doc ? doc.id : null,
       };
 
-      const response = await axiosClient.post("/api/ai/conversations", payload);
-      const newConv = response.data;
+      const newConv = await createAiConversation(payload);
 
       setConversations((prev) => [newConv, ...prev]);
       setActiveConversation(newConv);
@@ -126,7 +129,7 @@ export default function AskAIPage() {
       return;
 
     try {
-      await axiosClient.delete(`/api/ai/conversations/${convId}`);
+      await deleteAiConversation(convId);
       setConversations((prev) => prev.filter((c) => c.id !== convId));
 
       if (activeConversation?.id === convId) {
@@ -170,11 +173,7 @@ export default function AskAIPage() {
             : "New Chat",
           documentId: selectedDoc ? selectedDoc.id : null,
         };
-        const response = await axiosClient.post(
-          "/api/ai/conversations",
-          payload,
-        );
-        currentConv = response.data;
+        currentConv = await createAiConversation(payload);
         setConversations((prev) => [currentConv, ...prev]);
         setActiveConversation(currentConv);
       } catch (error) {
@@ -194,7 +193,7 @@ export default function AskAIPage() {
     setMessages((prev) => [...prev, userMessage]);
 
     try {
-      const response = await axiosClient.post("/api/ai/ask", {
+      const response = await askAi({
         conversationId: currentConv.id,
         message: userMessageContent,
         documentId: selectedDoc ? selectedDoc.id : null,
@@ -202,17 +201,16 @@ export default function AskAIPage() {
 
       // Response has assistantMessageId and answer
       const aiMessage = {
-        id: response.data.assistantMessageId || Date.now() + 1,
+        id: response.assistantMessageId || Date.now() + 1,
         role: "ASSISTANT",
-        content: response.data.answer,
-        sources: response.data.sources || [],
+        content: response.answer,
+        sources: response.sources || [],
       };
 
       setMessages((prev) => [...prev, aiMessage]);
 
       // Reload conversations list to update title if updated
-      const convListRes = await axiosClient.get("/api/ai/conversations");
-      const updatedConversations = convListRes.data || [];
+      const updatedConversations = (await getAiConversations()) || [];
       setConversations(updatedConversations);
 
       const refreshedConv = updatedConversations.find(

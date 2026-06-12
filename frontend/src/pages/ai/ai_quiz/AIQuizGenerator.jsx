@@ -32,6 +32,13 @@ import AIToolHeader from "@/components/ai-sidebar/AIToolHeader";
 import useMaterialPublish from "@/hooks/useMaterialPublish";
 import QuizEditor from "./QuizEditor";
 import { Input } from "@/components/ui/input";
+import {
+  deleteQuiz,
+  generateQuiz,
+  getQuizById,
+  getUserQuizzes,
+  updateQuiz,
+} from "@/api/quizApi";
 
 export default function AIQuizGenerator() {
   const [inputText, setInputText] = useState("");
@@ -68,8 +75,8 @@ export default function AIQuizGenerator() {
   // Fetch sidebar data
   const fetchSidebarData = async () => {
     try {
-      const historyRes = await axiosClient.get("/api/quizzes/my-quizzes");
-      setQuizHistory(historyRes.data || []);
+      const history = await getUserQuizzes();
+      setQuizHistory(history || []);
     } catch (error) {
       console.error("Sidebar fetch error:", error);
     }
@@ -111,8 +118,8 @@ export default function AIQuizGenerator() {
   const handleSelectQuiz = async (quiz) => {
     try {
       setIsGenerating(true);
-      const response = await axiosClient.get(`/api/quizzes/${quiz.id}`);
-      setSelectedQuiz(response.data);
+      const quizDetails = await getQuizById(quiz.id);
+      setSelectedQuiz(quizDetails);
       setViewMode(VIEW_MODE.PREVIEW);
     } catch (error) {
       console.error("Failed to load quiz details:", error);
@@ -130,7 +137,7 @@ export default function AIQuizGenerator() {
     }
 
     try {
-      await axiosClient.delete(`/api/quizzes/${quizId}`);
+      await deleteQuiz(quizId);
       toast.success("Quiz deleted successfully");
       setQuizHistory((prev) => prev.filter((q) => q.id !== quizId));
     } catch (error) {
@@ -144,14 +151,14 @@ export default function AIQuizGenerator() {
 
     setIsSaving(true);
     try {
-      const response = await axiosClient.put(`/api/quizzes/${selectedQuiz.id}`, {
+      const updatedQuiz = await updateQuiz(selectedQuiz.id, {
         title: selectedQuiz.title,
         questions: selectedQuiz.questions,
       });
-      setSelectedQuiz(response.data);
+      setSelectedQuiz(updatedQuiz);
       setQuizHistory((current) =>
         current.map((quiz) =>
-          quiz.id === response.data.id ? response.data : quiz,
+          quiz.id === updatedQuiz.id ? updatedQuiz : quiz,
         ),
       );
       toast.success("Quiz draft saved successfully!");
@@ -260,7 +267,7 @@ export default function AIQuizGenerator() {
         topic: inputText.trim() || null,
       };
 
-      const response = await axiosClient.post("/api/quizzes/generate", payload);
+      const generatedQuiz = await generateQuiz(payload);
       toast.success("Quiz generated successfully!");
       clearDocument();
       try {
@@ -268,7 +275,7 @@ export default function AIQuizGenerator() {
       } catch {
         // ignore
       }
-      setSelectedQuiz(response.data);
+      setSelectedQuiz(generatedQuiz);
       setViewMode(VIEW_MODE.PREVIEW);
     } catch (error) {
       console.error("Failed to generate quiz:", error);

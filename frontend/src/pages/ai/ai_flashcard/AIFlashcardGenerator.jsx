@@ -32,6 +32,13 @@ import AIGeneratorInput from "@/components/ai-sidebar/AIGeneratorInput";
 import AIToolHeader from "@/components/ai-sidebar/AIToolHeader";
 import FlashcardEditor from "./FlashcardEditor";
 import { Input } from "@/components/ui/input";
+import {
+  generateFlashcards,
+  generateFlashcardsFromDocument,
+  getFlashcardSet,
+  getFlashcardSets,
+  updateFlashcardSet,
+} from "@/api/flashcardApi";
 
 export default function AIFlashcardGenerator({ contextData }) {
   const [inputText, setInputText] = useState("");
@@ -80,8 +87,8 @@ export default function AIFlashcardGenerator({ contextData }) {
 
   const fetchSidebarData = async () => {
     try {
-      const historyRes = await axiosClient.get("/api/ai_flashcard/sets");
-      setFlashcardHistory(historyRes.data.data || []);
+      const historyResponse = await getFlashcardSets();
+      setFlashcardHistory(historyResponse.data || []);
     } catch (error) {
       console.error("Sidebar fetch error:", error);
     }
@@ -94,8 +101,8 @@ export default function AIFlashcardGenerator({ contextData }) {
   const loadFlashcardSet = async (setId) => {
     try {
       setIsGenerating(true);
-      const response = await axiosClient.get(`/api/ai_flashcard/sets/${setId}`);
-      const data = response.data.data;
+      const response = await getFlashcardSet(setId);
+      const data = response.data;
       setActiveSetTitle(data.title);
       setFlashcards(data.flashcards || []);
       setSelectedFlashcardSet(data);
@@ -123,14 +130,11 @@ export default function AIFlashcardGenerator({ contextData }) {
 
     setIsSaving(true);
     try {
-      const response = await axiosClient.put(
-        `/api/ai_flashcard/sets/${selectedFlashcardSet.id}`,
-        {
+      const response = await updateFlashcardSet(selectedFlashcardSet.id, {
           title: activeSetTitle,
           flashcards,
-        },
-      );
-      const updatedSet = response.data.data;
+      });
+      const updatedSet = response.data;
       setFlashcards(updatedSet.flashcards || []);
       setActiveSetTitle(updatedSet.title);
       setSelectedFlashcardSet((current) => ({ ...current, ...updatedSet }));
@@ -205,20 +209,14 @@ export default function AIFlashcardGenerator({ contextData }) {
     try {
       let response;
       if (selectedDoc) {
-        response = await axiosClient.post(
-          "/api/ai_flashcard/generate-from-document",
-          { documentId: selectedDoc.id },
-        );
+        response = await generateFlashcardsFromDocument(selectedDoc.id);
       } else {
         const formData = new FormData();
         if (file) formData.append("document", file);
         if (inputText) formData.append("text", inputText);
-        response = await axiosClient.post(
-          "/api/ai_flashcard/generate",
-          formData,
-        );
+        response = await generateFlashcards(formData);
       }
-      const result = response.data.data || response.data;
+      const result = response.data || response;
       if (Array.isArray(result) || result.id) {
         setFlashcards(result.flashcards || result);
         if (result.id) {
