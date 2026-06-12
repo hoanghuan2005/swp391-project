@@ -39,6 +39,9 @@ import {
   getUserQuizzes,
   updateQuiz,
 } from "@/api/quizApi";
+import AiUsageBadge from "@/components/ai-usage/AiUsageBadge";
+import useAiUsage from "@/hooks/useAiUsage";
+import { isAiQuotaExceeded } from "@/api/aiUsageApi";
 
 export default function AIQuizGenerator() {
   const [inputText, setInputText] = useState("");
@@ -55,6 +58,12 @@ export default function AIQuizGenerator() {
     documents: uploadedDocuments,
     refreshDocuments,
   } = useDocuments();
+  const {
+    subscriptionTier,
+    remainingUsage,
+    loading: aiUsageLoading,
+    refreshAiUsage,
+  } = useAiUsage();
   const [searchDocQuery, setSearchDocQuery] = useState("");
   const [openSettings, setOpenSettings] = useState(false);
 
@@ -268,6 +277,7 @@ export default function AIQuizGenerator() {
       };
 
       const generatedQuiz = await generateQuiz(payload);
+      await refreshAiUsage();
       toast.success("Quiz generated successfully!");
       clearDocument();
       try {
@@ -279,6 +289,13 @@ export default function AIQuizGenerator() {
       setViewMode(VIEW_MODE.PREVIEW);
     } catch (error) {
       console.error("Failed to generate quiz:", error);
+      if (isAiQuotaExceeded(error)) {
+        toast.error(
+          error.response?.data?.message || "Daily AI request limit reached.",
+        );
+        await refreshAiUsage();
+        return;
+      }
       const errorMsg =
         error.response?.data?.message ||
         error.message ||
@@ -386,6 +403,12 @@ export default function AIQuizGenerator() {
                   <span className="text-xs text-slate-500 ml-2">
                     {questionCount} Questions • {difficulty}
                   </span>
+
+                  <AiUsageBadge
+                    subscriptionTier={subscriptionTier}
+                    remainingUsage={remainingUsage}
+                    loading={aiUsageLoading}
+                  />
                 </>
               }
             />

@@ -39,6 +39,9 @@ import {
   getFlashcardSets,
   updateFlashcardSet,
 } from "@/api/flashcardApi";
+import AiUsageBadge from "@/components/ai-usage/AiUsageBadge";
+import useAiUsage from "@/hooks/useAiUsage";
+import { isAiQuotaExceeded } from "@/api/aiUsageApi";
 
 export default function AIFlashcardGenerator({ contextData }) {
   const [inputText, setInputText] = useState("");
@@ -65,6 +68,12 @@ export default function AIFlashcardGenerator({ contextData }) {
     documents: uploadedDocuments,
     refreshDocuments,
   } = useDocuments();
+  const {
+    subscriptionTier,
+    remainingUsage,
+    loading: aiUsageLoading,
+    refreshAiUsage,
+  } = useAiUsage();
 
   const { publish, loading: publishing } = useMaterialPublish();
 
@@ -216,6 +225,7 @@ export default function AIFlashcardGenerator({ contextData }) {
         if (inputText) formData.append("text", inputText);
         response = await generateFlashcards(formData);
       }
+      await refreshAiUsage();
       const result = response.data || response;
       if (Array.isArray(result) || result.id) {
         setFlashcards(result.flashcards || result);
@@ -246,7 +256,14 @@ export default function AIFlashcardGenerator({ contextData }) {
       }
     } catch (error) {
       console.error(error);
-      alert("Error generating flashcards!");
+      if (isAiQuotaExceeded(error)) {
+        alert(
+          error.response?.data?.message || "Daily AI request limit reached.",
+        );
+        await refreshAiUsage();
+      } else {
+        alert("Error generating flashcards!");
+      }
     } finally {
       setIsGenerating(false);
     }
@@ -357,6 +374,13 @@ export default function AIFlashcardGenerator({ contextData }) {
                 onGenerate={handleGenerate}
                 isGenerating={isGenerating}
                 disabled={!inputText && !file && !selectedDoc}
+                footerLeft={
+                  <AiUsageBadge
+                    subscriptionTier={subscriptionTier}
+                    remainingUsage={remainingUsage}
+                    loading={aiUsageLoading}
+                  />
+                }
               />
             )}
 

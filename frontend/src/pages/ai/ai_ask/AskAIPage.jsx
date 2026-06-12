@@ -20,12 +20,21 @@ import {
 import useDocuments from "@/hooks/useDocuments";
 import ChatInterface from "@/components/chat/ChatInterface"; // <-- Added Import
 import AISidebar from "@/components/ai-sidebar/sidebar/AISidebar"; // <-- Added Import
+import AiUsageBadge from "@/components/ai-usage/AiUsageBadge";
+import useAiUsage from "@/hooks/useAiUsage";
+import { isAiQuotaExceeded } from "@/api/aiUsageApi";
 
 export default function AskAIPage() {
   const [conversations, setConversations] = useState([]);
   const [activeConversation, setActiveConversation] = useState(null);
   const [messages, setMessages] = useState([]);
   const { documents, refreshDocuments } = useDocuments();
+  const {
+    subscriptionTier,
+    remainingUsage,
+    loading: aiUsageLoading,
+    refreshAiUsage,
+  } = useAiUsage();
   const [selectedDoc, setSelectedDoc] = useState(null);
   const documentsRef = useRef([]);
 
@@ -198,6 +207,7 @@ export default function AskAIPage() {
         message: userMessageContent,
         documentId: selectedDoc ? selectedDoc.id : null,
       });
+      await refreshAiUsage();
 
       // Response has assistantMessageId and answer
       const aiMessage = {
@@ -221,7 +231,14 @@ export default function AskAIPage() {
       }
     } catch (error) {
       console.error("Error asking AI:", error);
-      toast.error("AI failed to respond. Please try again.");
+      if (isAiQuotaExceeded(error)) {
+        toast.error(
+          error.response?.data?.message || "Daily AI request limit reached.",
+        );
+        await refreshAiUsage();
+      } else {
+        toast.error("AI failed to respond. Please try again.");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -352,18 +369,25 @@ export default function AskAIPage() {
           </div>
         }
         contextBadgeComponent={
-          selectedDoc && (
-            <div className="mt-1.5 flex items-center gap-1.5 px-3 py-1 bg-orange-50 border border-orange-100 rounded-md text-[10px] text-slate-600 font-semibold w-fit">
-              <FileText className="w-3.5 h-3.5 text-[#f26522]" />
-              Focused on document content.
-              <button
-                onClick={() => setSelectedDoc(null)}
-                className="text-red-500 hover:text-red-700 font-bold ml-1 hover:underline cursor-pointer"
-              >
-                Clear
-              </button>
-            </div>
-          )
+          <div className="mt-1.5 flex flex-wrap items-center gap-2">
+            <AiUsageBadge
+              subscriptionTier={subscriptionTier}
+              remainingUsage={remainingUsage}
+              loading={aiUsageLoading}
+            />
+            {selectedDoc && (
+              <div className="flex items-center gap-1.5 px-3 py-1 bg-orange-50 border border-orange-100 rounded-md text-[10px] text-slate-600 font-semibold w-fit">
+                <FileText className="w-3.5 h-3.5 text-[#f26522]" />
+                Focused on document content.
+                <button
+                  onClick={() => setSelectedDoc(null)}
+                  className="text-red-500 hover:text-red-700 font-bold ml-1 hover:underline cursor-pointer"
+                >
+                  Clear
+                </button>
+              </div>
+            )}
+          </div>
         }
       />
     </div>
