@@ -68,7 +68,6 @@ public class AiFlashcardService {
         List<FlashcardSet> sets = flashcardSetRepository.findByUserIdOrderByCreatedAtDesc(user.getId());
 
         return sets.stream().map(set -> {
-            // Đếm số lượng flashcard thực tế thuộc về Set này
             long cardCount = flashcardRepository.findAll().stream()
                     .filter(c -> c.getFlashcardSet() != null && c.getFlashcardSet().getId().equals(set.getId()))
                     .count();
@@ -76,7 +75,7 @@ public class AiFlashcardService {
             return Map.<String, Object>of(
                     "id", set.getId(),
                     "title", set.getTitle() != null ? set.getTitle() : "Untitled",
-                    "cards", cardCount // <--- Đã thay số 0 thành biến đếm thực tế
+                    "cards", cardCount
             );
         }).collect(Collectors.toList());
     }
@@ -163,13 +162,13 @@ public class AiFlashcardService {
         set.setCourseId(courseId);
         set.setVisibility(visibility != null ? visibility : "PRIVATE");
         set.setStatus("PUBLISHED");
-        
+
         flashcardSetRepository.save(set);
     }
 
     public List<Map<String, Object>> getCourseFlashcardSets(UUID courseId) {
         List<FlashcardSet> sets = flashcardSetRepository.findByCourseIdAndStatus(courseId, "PUBLISHED");
-        
+
         return sets.stream().map(set -> {
             long cardCount = flashcardRepository.findAll().stream()
                     .filter(c -> c.getFlashcardSet() != null && c.getFlashcardSet().getId().equals(set.getId()))
@@ -211,12 +210,10 @@ public class AiFlashcardService {
                     .orElse(null);
         }
 
-        // --- ĐÃ THÊM: In log ra Console để kiểm tra nội dung đọc được ---
         System.out.println("====== NỘI DUNG TRÍCH XUẤT ĐƯỢC TỪ FILE ======");
         System.out.println(content);
         System.out.println("===============================================");
 
-        // --- ĐÃ THÊM: Chặn lỗi nếu file không có chữ ---
         if (content == null || content.trim().isEmpty()) {
             throw new RuntimeException("Lỗi: Không tìm thấy chữ nào trong file này (File trống hoặc toàn hình ảnh).");
         }
@@ -317,8 +314,49 @@ public class AiFlashcardService {
         flashcardRepository.saveAll(flashcards);
 
         return Map.of(
-            "id", set.getId(),
-            "flashcards", cards
+                "id", set.getId(),
+                "flashcards", cards
         );
+    }
+
+    // ====================================================================
+    // 3. CÁC HÀM THẢ TIM (FAVORITE) CHO FLASHCARD
+    // ====================================================================
+
+    @Transactional
+    public void toggleFavorite(UUID setId, String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        FlashcardSet flashcardSet = flashcardSetRepository.findById(setId)
+                .orElseThrow(() -> new RuntimeException("Flashcard set not found"));
+
+        if (flashcardSet.getFavoritedByUsers().contains(user)) {
+            flashcardSet.getFavoritedByUsers().remove(user);
+        } else {
+            flashcardSet.getFavoritedByUsers().add(user);
+        }
+
+        flashcardSetRepository.save(flashcardSet);
+    }
+
+    public List<Map<String, Object>> getMyFavorites(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        List<FlashcardSet> favoriteSets = flashcardSetRepository.findByFavoritedByUsersContains(user);
+
+        // Trả về định dạng giống với getAllSetsByUser() để frontend dễ xử lý
+        return favoriteSets.stream().map(set -> {
+            long cardCount = flashcardRepository.findAll().stream()
+                    .filter(c -> c.getFlashcardSet() != null && c.getFlashcardSet().getId().equals(set.getId()))
+                    .count();
+
+            return Map.<String, Object>of(
+                    "id", set.getId(),
+                    "title", set.getTitle() != null ? set.getTitle() : "Untitled",
+                    "cards", cardCount
+            );
+        }).collect(Collectors.toList());
     }
 }

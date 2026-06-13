@@ -157,4 +157,25 @@ public class AiFlashcardController {
     public ResponseEntity<?> getCourseFlashcardSets(@PathVariable UUID courseId) {
         return ResponseEntity.ok(Map.of("data", aiFlashcardService.getCourseFlashcardSets(courseId)));
     }
+
+    // ====================================================================
+    // API LẤY DANH SÁCH FLASHCARD ĐÃ THÍCH
+    // ====================================================================
+    @GetMapping("/favorites")
+    public ResponseEntity<?> getMyFavoriteFlashcards() {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        // Trả về trực tiếp list để Frontend dễ map
+        return ResponseEntity.ok(aiFlashcardService.getMyFavorites(email));
+    }
+
+    // ====================================================================
+    // API THẢ TIM / BỎ TIM FLASHCARD
+    // ====================================================================
+    @PostMapping("/{id}/favorite")
+    public ResponseEntity<?> toggleFavorite(@PathVariable UUID id) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        aiFlashcardService.toggleFavorite(id, email);
+        return ResponseEntity.ok(Map.of("success", true, "message", "Đã cập nhật trạng thái yêu thích"));
+    }
+    
 }
