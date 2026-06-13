@@ -14,7 +14,7 @@ import {
   Heart,
   Download,
   Eye,
-  UserCheck2
+  UserCheck2,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -40,6 +40,7 @@ export default function MyLibrary() {
   const [createModalOpen, setCreateModalOpen] = useState(false);
 
   const [favoriteDocs, setFavoriteDocs] = useState([]);
+  const [favoriteFlashcards, setFavoriteFlashcards] = useState([]); // State mới cho Flashcard Yêu thích
   const [isFavoritesLoading, setIsFavoritesLoading] = useState(false);
 
   const navigate = useNavigate();
@@ -68,13 +69,29 @@ export default function MyLibrary() {
     }
   }, []);
 
+  // Hàm gọi API lấy flashcard yêu thích
+  const fetchFavoriteFlashcards = useCallback(async () => {
+    try {
+      const response = await axiosClient.get("/api/ai_flashcard/favorites");
+      setFavoriteFlashcards(response.data || []);
+    } catch (error) {
+      console.error("Error fetching favorite flashcards:", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchProjects();
+    fetchFavoriteDocuments();
+    fetchFavoriteFlashcards(); // Gọi thêm fetch này
+  }, [fetchProjects, fetchFavoriteDocuments, fetchFavoriteFlashcards]);
+
   const handleDeleteWorkspace = async (e, id, name) => {
     e.preventDefault();
     e.stopPropagation();
 
     if (
       !window.confirm(
-        `Are you sure you want to delete the workspace "${name}"? All associated AI data will be removed.`,
+        `Are you sure you want to delete the workspace "${name}"? All associated AI data will be removed.`
       )
     ) {
       return;
@@ -101,6 +118,18 @@ export default function MyLibrary() {
     }
   };
 
+  // Hàm xử lý xóa Flashcard khỏi Favorites
+  const handleRemoveFavoriteFlashcard = async (id) => {
+    try {
+      await axiosClient.post(`/api/ai_flashcard/${id}/favorite`);
+      toast.success("Removed flashcard from favorites");
+      setFavoriteFlashcards((prev) => prev.filter((fc) => fc.id !== id));
+    } catch (error) {
+      console.error("Failed to remove favorite flashcard:", error);
+      toast.error("Something went wrong");
+    }
+  };
+
   const handleDownload = async (id, title) => {
     try {
       const res = await axiosClient.get(`/api/documents/${id}/download`);
@@ -111,11 +140,6 @@ export default function MyLibrary() {
       toast.error("Error downloading document!");
     }
   };
-
-  useEffect(() => {
-    fetchProjects();
-    fetchFavoriteDocuments();
-  }, [fetchProjects, fetchFavoriteDocuments]);
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-8">
@@ -239,7 +263,7 @@ export default function MyLibrary() {
                                 handleDeleteWorkspace(
                                   e,
                                   project.id,
-                                  project.name,
+                                  project.name
                                 )
                               }
                               className="opacity-0 group-hover:opacity-100 p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all cursor-pointer"
@@ -259,12 +283,11 @@ export default function MyLibrary() {
                           {project.description || "No description provided."}
                         </p>
 
-                        {/* ĐÃ VÁ LỖI TẠI ĐÂY: Khôi phục lại footer và thẻ đóng đúng chuẩn */}
                         <div className="pt-4 border-t border-slate-50 flex items-center justify-between text-xs text-slate-400 -mb-2">
                           <span className="flex items-center gap-1.5 font-medium">
                             <Calendar className="w-4 h-4" />{" "}
                             {new Date(project.createdAt).toLocaleDateString(
-                              "en-GB",
+                              "en-GB"
                             )}
                           </span>
                           <span className="flex items-center font-bold text-[#f26522] opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0">
@@ -357,7 +380,7 @@ export default function MyLibrary() {
                 <Skeleton key={i} className="h-72 w-full rounded-[20px]" />
               ))}
             </div>
-          ) : favoriteDocs.length === 0 ? (
+          ) : favoriteDocs.length === 0 && favoriteFlashcards.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-center bg-slate-50 rounded-[32px] border border-dashed border-slate-200">
               <div className="w-16 h-16 rounded-3xl bg-white shadow-sm flex items-center justify-center mb-4">
                 <Heart className="w-8 h-8 text-slate-300 fill-slate-100" />
@@ -366,58 +389,119 @@ export default function MyLibrary() {
                 No Favorites Bookmarked
               </h3>
               <p className="text-slate-500 max-w-sm text-sm">
-                Tap the heart button on public documents across the system to
+                Tap the heart button on public documents or flashcards to
                 review them instantly here.
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-              {favoriteDocs.map((doc) => (
-                <Card
-                  key={doc.id}
-                  className="shadow-sm border-slate-100 hover:shadow-md transition-all group flex flex-col h-full rounded-[20px] overflow-hidden bg-white border"
-                >
-                  <CardContent className="p-4 flex-1 flex flex-col">
-                    <div className="w-full aspect-[4/3] bg-slate-50 rounded-xl mb-3 border border-slate-200 flex items-center justify-center text-slate-300">
-                      <FileText className="w-12 h-12" />
-                    </div>
-                    <CardTitle
-                      className="text-[15px] mb-1 font-bold text-slate-800 line-clamp-1"
-                      title={doc.title}
-                    >
-                      {doc.title || "Untitled Document"}
-                    </CardTitle>
-                    <CardDescription className="text-xs text-slate-500 font-medium mb-3 flex items-center gap-1.5">
-                      <BookOpen className="w-3.5 h-3.5" />{" "}
-                      {doc.course?.code || "General"}
-                    </CardDescription>
-                  </CardContent>
-                  <CardFooter className="px-4 pb-4 pt-0 flex gap-2">
-                    <Button
-                      variant="outline"
-                      onClick={() => handleRemoveFavorite(doc.id)}
-                      className="flex-none px-2.5 rounded-xl border-red-100 text-red-500 bg-red-50 hover:bg-red-100 h-9"
-                    >
-                      <Heart className="w-4 h-4 fill-current" />
-                    </Button>
-                    <Button
-                      asChild
-                      variant="secondary"
-                      className="flex-1 bg-slate-100 text-slate-700 hover:bg-slate-200 font-semibold text-xs rounded-xl h-9"
-                    >
-                      <Link to={`/documents/${doc.id}`}>
-                        <Eye className="w-3.5 h-3.5 mr-1.5" /> View
-                      </Link>
-                    </Button>
-                    <Button
-                      onClick={() => handleDownload(doc.id, doc.title)}
-                      className="flex-1 bg-[#f26522]/10 text-[#f26522] hover:bg-[#f26522] hover:text-white font-semibold text-xs rounded-xl h-9"
-                    >
-                      <Download className="w-3.5 h-3.5 mr-1.5" /> Download
-                    </Button>
-                  </CardFooter>
-                </Card>
-              ))}
+            <div className="space-y-8">
+              {/* KHU VỰC HIỂN THỊ DOCUMENTS YÊU THÍCH */}
+              {favoriteDocs.length > 0 && (
+                <div>
+                  <h3 className="text-lg font-bold text-slate-700 mb-4 flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-blue-500" /> Favorite Documents
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                    {favoriteDocs.map((doc) => (
+                      <Card
+                        key={doc.id}
+                        className="shadow-sm border-slate-100 hover:shadow-md transition-all group flex flex-col h-full rounded-[20px] overflow-hidden bg-white border"
+                      >
+                        <CardContent className="p-4 flex-1 flex flex-col">
+                          <div className="w-full aspect-[4/3] bg-slate-50 rounded-xl mb-3 border border-slate-200 flex items-center justify-center text-slate-300">
+                            <FileText className="w-12 h-12" />
+                          </div>
+                          <CardTitle
+                            className="text-[15px] mb-1 font-bold text-slate-800 line-clamp-1"
+                            title={doc.title}
+                          >
+                            {doc.title || "Untitled Document"}
+                          </CardTitle>
+                          <CardDescription className="text-xs text-slate-500 font-medium mb-3 flex items-center gap-1.5">
+                            <BookOpen className="w-3.5 h-3.5" />{" "}
+                            {doc.course?.code || "General"}
+                          </CardDescription>
+                        </CardContent>
+                        <CardFooter className="px-4 pb-4 pt-0 flex gap-2">
+                          <Button
+                            variant="outline"
+                            onClick={() => handleRemoveFavorite(doc.id)}
+                            className="flex-none px-2.5 rounded-xl border-red-100 text-red-500 bg-red-50 hover:bg-red-100 h-9"
+                          >
+                            <Heart className="w-4 h-4 fill-current" />
+                          </Button>
+                          <Button
+                            asChild
+                            variant="secondary"
+                            className="flex-1 bg-slate-100 text-slate-700 hover:bg-slate-200 font-semibold text-xs rounded-xl h-9"
+                          >
+                            <Link to={`/documents/${doc.id}`}>
+                              <Eye className="w-3.5 h-3.5 mr-1.5" /> View
+                            </Link>
+                          </Button>
+                          <Button
+                            onClick={() => handleDownload(doc.id, doc.title)}
+                            className="flex-1 bg-[#f26522]/10 text-[#f26522] hover:bg-[#f26522] hover:text-white font-semibold text-xs rounded-xl h-9"
+                          >
+                            <Download className="w-3.5 h-3.5 mr-1.5" /> Download
+                          </Button>
+                        </CardFooter>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* KHU VỰC HIỂN THỊ FLASHCARDS YÊU THÍCH */}
+              {favoriteFlashcards.length > 0 && (
+                <div>
+                  <h3 className="text-lg font-bold text-slate-700 mb-4 flex items-center gap-2">
+                    <Layers className="w-5 h-5 text-[#f26522]" /> Favorite Flashcards
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                    {favoriteFlashcards.map((fc) => (
+                      <Card
+                        key={fc.id}
+                        className="shadow-sm border-slate-100 hover:shadow-md transition-all group flex flex-col h-full rounded-[20px] overflow-hidden bg-white border"
+                      >
+                        <CardContent className="p-4 flex-1 flex flex-col">
+                          <div className="w-full aspect-[4/3] bg-orange-50 rounded-xl mb-3 border border-orange-100 flex items-center justify-center text-orange-300">
+                            <Layers className="w-12 h-12 text-[#f26522] opacity-50" />
+                          </div>
+                          <CardTitle
+                            className="text-[15px] mb-1 font-bold text-slate-800 line-clamp-1"
+                            title={fc.title}
+                          >
+                            {fc.title || "Untitled Flashcard"}
+                          </CardTitle>
+                          <CardDescription className="text-xs text-slate-500 font-medium mb-3">
+                            {fc.cards || 0} Terms
+                          </CardDescription>
+                        </CardContent>
+                        <CardFooter className="px-4 pb-4 pt-0 flex gap-2">
+                          <Button
+                            variant="outline"
+                            onClick={() => handleRemoveFavoriteFlashcard(fc.id)}
+                            className="flex-none px-2.5 rounded-xl border-red-100 text-red-500 bg-red-50 hover:bg-red-100 h-9"
+                          >
+                            <Heart className="w-4 h-4 fill-current" />
+                          </Button>
+                          <Button
+                            asChild
+                            variant="secondary"
+                            className="flex-1 bg-[#f26522]/10 text-[#f26522] hover:bg-[#f26522] hover:text-white font-semibold text-xs rounded-xl h-9"
+                          >
+                            {/* Chỉnh lại link cho đúng path study flashcard của dự án bạn */}
+                            <Link to={`/flashcards/${fc.id}`}>
+                              <Eye className="w-3.5 h-3.5 mr-1.5" /> Study
+                            </Link>
+                          </Button>
+                        </CardFooter>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </TabsContent>
