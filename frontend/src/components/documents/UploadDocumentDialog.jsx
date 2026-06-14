@@ -20,6 +20,9 @@ import {
   FileText,
 } from "lucide-react";
 import axiosClient from "@/api/axiosClient";
+import { isDocumentQuotaExceeded } from "@/api/documentQuotaApi";
+import QuotaExceededDialog from "@/components/quota/QuotaExceededDialog";
+import useDocumentQuota from "@/hooks/useDocumentQuota";
 import { toast } from "sonner";
 
 export default function UploadDocumentDialog({
@@ -39,6 +42,24 @@ export default function UploadDocumentDialog({
   const [selectedFile, setSelectedFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
+  const [quotaDialog, setQuotaDialog] = useState({
+    open: false,
+    type: "DOCUMENT",
+    message: "",
+  });
+  const {
+    subscriptionTier,
+    uploadsToday,
+    dailyUploadLimit,
+    totalDocuments,
+    totalDocumentLimit,
+    maxFileSizeBytes,
+    loading: quotaLoading,
+    refreshDocumentQuota,
+  } = useDocumentQuota();
+  const maxFileSizeMb = maxFileSizeBytes
+    ? Math.round(maxFileSizeBytes / 1024 / 1024)
+    : null;
 
   const [schoolOptions, setSchoolOptions] = useState([]);
   const [subjectOptions, setSubjectOptions] = useState([]);
@@ -155,6 +176,15 @@ export default function UploadDocumentDialog({
       return;
     }
 
+    if (maxFileSizeBytes && selectedFile.size > maxFileSizeBytes) {
+      setQuotaDialog({
+        open: true,
+        type: "FILE_SIZE",
+        message: `Maximum file size for your plan is ${maxFileSizeMb}MB.`,
+      });
+      return;
+    }
+
     const courseCode = subjectQuery.split("-")[0]?.trim();
 
     if (!selectedSubject) {
@@ -170,6 +200,7 @@ export default function UploadDocumentDialog({
 
     setUploading(true);
     setUploadError("");
+    const toastId = toast.loading("Uploading document...");
 
     try {
       const uploadPromise = async () => {
@@ -229,15 +260,9 @@ export default function UploadDocumentDialog({
         return uploadResponse;
       };
 
-      const uploadPromiseInstance = uploadPromise();
-
-      toast.promise(uploadPromiseInstance, {
-        loading: "Uploading document...",
-        success: "Document uploaded successfully!",
-        error: "Upload failed",
-      });
-
-      const uploadedDoc = await uploadPromiseInstance;
+      const uploadedDoc = await uploadPromise();
+      toast.success("Document uploaded successfully!", { id: toastId });
+      await refreshDocumentQuota();
 
       const normalizedDoc = {
         visibility: "PUBLIC",
@@ -257,6 +282,21 @@ export default function UploadDocumentDialog({
     } catch (error) {
       console.error("Upload failed", error);
 
+      if (isDocumentQuotaExceeded(error)) {
+        toast.dismiss(toastId);
+        const message = error.response?.data?.message;
+        setQuotaDialog({
+          open: true,
+          type: message?.toLowerCase().includes("file size")
+            ? "FILE_SIZE"
+            : "DOCUMENT",
+          message,
+        });
+        await refreshDocumentQuota();
+        return;
+      }
+
+      toast.error("Upload failed", { id: toastId });
       setUploadError("Upload failed. Please try again.");
     } finally {
       setUploading(false);
@@ -264,8 +304,9 @@ export default function UploadDocumentDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-xl rounded-2xl p-6">
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-xl rounded-2xl p-6">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold">
             Upload Document
@@ -274,6 +315,13 @@ export default function UploadDocumentDialog({
             Share your knowledge. Fill out the specific areas so others can
             easily find it.
           </DialogDescription>
+          <p className="pt-2 text-xs font-medium text-slate-500">
+            {quotaLoading || !maxFileSizeMb
+              ? "Loading document limits..."
+              : subscriptionTier === "PRO"
+                ? `PRO: Unlimited documents, max ${maxFileSizeMb}MB`
+                : `Documents: ${uploadsToday}/${dailyUploadLimit} uploads today, ${totalDocuments}/${totalDocumentLimit} stored, max ${maxFileSizeMb}MB`}
+          </p>
         </DialogHeader>
         <div className="grid gap-5 py-4">
           {/* File Input */}
@@ -291,7 +339,7 @@ export default function UploadDocumentDialog({
                 Click to upload or drag and drop
               </p>
               <p className="text-xs text-slate-500 mt-1">
-                PDF, DOCX, PPTX (max. 10MB)
+                PDF, DOCX, PPTX (max. {maxFileSizeMb || 10}MB)
               </p>
               {selectedFile && (
                 <p className="text-xs text-slate-700 mt-2 font-medium text-[#f26522]">
@@ -428,7 +476,16 @@ export default function UploadDocumentDialog({
             {uploading ? "Uploading..." : "Upload"}
           </Button>
         </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+      <QuotaExceededDialog
+        open={quotaDialog.open}
+        onOpenChange={(quotaOpen) =>
+          setQuotaDialog((current) => ({ ...current, open: quotaOpen }))
+        }
+        type={quotaDialog.type}
+        message={quotaDialog.message}
+      />
+    </>
   );
 }

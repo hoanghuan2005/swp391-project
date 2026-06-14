@@ -49,11 +49,13 @@ public class DocumentServiceImpl implements DocumentService {
     private final FileStorageService fileStorageService;
     private final DocumentParserService documentParserService;
     private final DocumentChunkRepository documentChunkRepository;
+    private final DocumentQuotaService documentQuotaService;
 
 
 
     @Override
     public Document create(CreateDocumentRequest request) {
+        documentQuotaService.validateDocumentCreation(getCurrentUserEmail());
         Document document = buildDocument(request);
         document.setFileUrl(request.getFileUrl());
         document.setAiParseStatus(AiParseStatus.UNSUPPORTED);
@@ -62,6 +64,8 @@ public class DocumentServiceImpl implements DocumentService {
 
     @Override
     public Document uploadAndCreate(MultipartFile file, CreateDocumentRequest request) {
+        documentQuotaService.validateUpload(getCurrentUserEmail(), file.getSize());
+
         FileUploadResult uploadResult = fileStorageService.uploadFile(file, "documents");
         String fileUrl = uploadResult.getSecureUrl();
         String publicId = uploadResult.getPublicId();
@@ -139,8 +143,7 @@ public class DocumentServiceImpl implements DocumentService {
     }
 
     private Document buildDocument(CreateDocumentRequest request) {
-        String currentUserEmail = org.springframework.security.core.context.SecurityContextHolder
-                .getContext().getAuthentication().getName();
+        String currentUserEmail = getCurrentUserEmail();
 
         User user = userRepository.findByEmail(currentUserEmail)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy user đăng nhập!"));
@@ -167,6 +170,11 @@ public class DocumentServiceImpl implements DocumentService {
         document.setTags(resolveTags(request));
 
         return document;
+    }
+
+    private String getCurrentUserEmail() {
+        return org.springframework.security.core.context.SecurityContextHolder
+                .getContext().getAuthentication().getName();
     }
 
     private Course resolveCourse(CreateDocumentRequest request) {

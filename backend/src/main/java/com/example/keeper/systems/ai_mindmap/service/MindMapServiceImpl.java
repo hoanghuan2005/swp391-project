@@ -3,12 +3,15 @@ package com.example.keeper.systems.ai_mindmap.service;
 import com.example.keeper.systems.ai_ask.entity.DocumentChunk;
 import com.example.keeper.systems.ai_ask.repository.DocumentChunkRepository;
 import com.example.keeper.systems.ai_ask.service.GroqService;
+import com.example.keeper.systems.ai_usage.enums.AiUsageFeature;
+import com.example.keeper.systems.ai_usage.service.AiUsageService;
 import com.example.keeper.systems.ai_mindmap.dto.response.MindMapResponse;
 import com.example.keeper.systems.ai_mindmap.entity.MindMap;
 import com.example.keeper.systems.ai_mindmap.enums.MindMapStatus;
 import com.example.keeper.systems.ai_mindmap.repository.MindMapRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -22,6 +25,7 @@ public class MindMapServiceImpl implements MindMapService {
     private final DocumentChunkRepository documentChunkRepository;
     private final GroqService groqService;
     private final ObjectMapper objectMapper;
+    private final AiUsageService aiUsageService;
 
     @Override
     public MindMapResponse generate(UUID documentId) {
@@ -39,6 +43,12 @@ public class MindMapServiceImpl implements MindMapService {
 
         String prompt = buildMindMapPrompt(content);
 
+        String email = SecurityContextHolder.getContext()
+                .getAuthentication()
+                .getName();
+
+        aiUsageService.checkQuota(email);
+
         String aiResponse =
                 groqService.generateContent(prompt);
 
@@ -46,6 +56,7 @@ public class MindMapServiceImpl implements MindMapService {
         aiResponse = aiResponse.replaceAll("```json\\s*", "").replaceAll("```\\s*", "").trim();
 
         validateJson(aiResponse);
+        aiUsageService.recordUsage(email, AiUsageFeature.MINDMAP_GENERATION);
 
         MindMap mindMap = MindMap.builder()
                 .documentId(documentId)

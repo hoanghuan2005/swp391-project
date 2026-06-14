@@ -23,6 +23,9 @@ import AISidebar from "@/components/ai-sidebar/sidebar/AISidebar"; // <-- Added 
 import AiUsageBadge from "@/components/ai-usage/AiUsageBadge";
 import useAiUsage from "@/hooks/useAiUsage";
 import { isAiQuotaExceeded } from "@/api/aiUsageApi";
+import useDocumentQuota from "@/hooks/useDocumentQuota";
+import { isDocumentQuotaExceeded } from "@/api/documentQuotaApi";
+import QuotaExceededDialog from "@/components/quota/QuotaExceededDialog";
 
 export default function AskAIPage() {
   const [conversations, setConversations] = useState([]);
@@ -35,8 +38,15 @@ export default function AskAIPage() {
     loading: aiUsageLoading,
     refreshAiUsage,
   } = useAiUsage();
+  const { refreshDocumentQuota } = useDocumentQuota();
   const [selectedDoc, setSelectedDoc] = useState(null);
+  const [quotaDialog, setQuotaDialog] = useState({
+    open: false,
+    type: "AI",
+    message: "",
+  });
   const documentsRef = useRef([]);
+  const userSelectedDocumentRef = useRef(false);
 
   // Removed local 'input' state and 'messagesEndRef' as ChatInterface handles them now
   const [isLoading, setIsLoading] = useState(false);
@@ -85,8 +95,8 @@ export default function AskAIPage() {
       setConversations(chats);
 
       // Auto-select first chat if present
-      if (chats.length > 0) {
-        await handleSelectConversation(chats[0], chats);
+      if (chats.length > 0 && !userSelectedDocumentRef.current) {
+        await handleSelectConversation(chats[0], documentsRef.current);
       }
     } catch (error) {
       console.error("Error fetching conversations:", error);
@@ -158,13 +168,16 @@ export default function AskAIPage() {
   const handleSend = async (userMessageContent) => {
     if (!userMessageContent || isLoading) return;
 
-    if (selectedDoc?.aiParseStatus === "PENDING") {
+    const selectedDocument = selectedDoc;
+    const selectedDocumentId = selectedDocument?.id ?? null;
+
+    if (selectedDocument?.aiParseStatus === "PENDING") {
       toast.error(
         "This document is still being prepared for AI. Please try again shortly.",
       );
       return;
     }
-    if (["FAILED", "UNSUPPORTED"].includes(selectedDoc?.aiParseStatus)) {
+    if (["FAILED", "UNSUPPORTED"].includes(selectedDocument?.aiParseStatus)) {
       toast.error("This document is not available for AI context.");
       return;
     }
@@ -177,10 +190,10 @@ export default function AskAIPage() {
     if (!currentConv) {
       try {
         const payload = {
-          title: selectedDoc
-            ? `Chat: ${selectedDoc.title || selectedDoc.name}`
+          title: selectedDocument
+            ? `Chat: ${selectedDocument.title || selectedDocument.name}`
             : "New Chat",
-          documentId: selectedDoc ? selectedDoc.id : null,
+          documentId: selectedDocumentId,
         };
         currentConv = await createAiConversation(payload);
         setConversations((prev) => [currentConv, ...prev]);
@@ -205,7 +218,7 @@ export default function AskAIPage() {
       const response = await askAi({
         conversationId: currentConv.id,
         message: userMessageContent,
-        documentId: selectedDoc ? selectedDoc.id : null,
+        documentId: selectedDocumentId,
       });
       await refreshAiUsage();
 
@@ -232,9 +245,11 @@ export default function AskAIPage() {
     } catch (error) {
       console.error("Error asking AI:", error);
       if (isAiQuotaExceeded(error)) {
-        toast.error(
-          error.response?.data?.message || "Daily AI request limit reached.",
-        );
+        setQuotaDialog({
+          open: true,
+          type: "AI",
+          message: error.response?.data?.message,
+        });
         await refreshAiUsage();
       } else {
         toast.error("AI failed to respond. Please try again.");
@@ -268,6 +283,7 @@ export default function AskAIPage() {
       );
 
       toast.success(`Uploaded ${file.name} successfully!`, { id: toastId });
+      await refreshDocumentQuota();
 
       // Reload documents and auto start chat with this document
       try {
@@ -282,6 +298,19 @@ export default function AskAIPage() {
       }
     } catch (error) {
       console.error("Error uploading document:", error);
+      if (isDocumentQuotaExceeded(error)) {
+        toast.dismiss(toastId);
+        const message = error.response?.data?.message;
+        setQuotaDialog({
+          open: true,
+          type: message?.toLowerCase().includes("file size")
+            ? "FILE_SIZE"
+            : "DOCUMENT",
+          message,
+        });
+        await refreshDocumentQuota();
+        return;
+      }
       toast.error("Failed to upload document", { id: toastId });
     } finally {
       setIsUploading(false);
@@ -293,9 +322,11 @@ export default function AskAIPage() {
 
   const handleSelectDocument = (doc) => {
     if (selectedDoc?.id === doc.id) {
+      userSelectedDocumentRef.current = false;
       setSelectedDoc(null);
       toast.success("Cleared document focus");
     } else {
+      userSelectedDocumentRef.current = true;
       setSelectedDoc(doc);
       toast.success(`Focused on: ${doc.title || doc.name}`);
 
@@ -389,6 +420,14 @@ export default function AskAIPage() {
             )}
           </div>
         }
+      />
+      <QuotaExceededDialog
+        open={quotaDialog.open}
+        onOpenChange={(open) =>
+          setQuotaDialog((current) => ({ ...current, open }))
+        }
+        type={quotaDialog.type}
+        message={quotaDialog.message}
       />
     </div>
   );

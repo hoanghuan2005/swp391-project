@@ -42,6 +42,9 @@ import {
 import AiUsageBadge from "@/components/ai-usage/AiUsageBadge";
 import useAiUsage from "@/hooks/useAiUsage";
 import { isAiQuotaExceeded } from "@/api/aiUsageApi";
+import useDocumentQuota from "@/hooks/useDocumentQuota";
+import { isDocumentQuotaExceeded } from "@/api/documentQuotaApi";
+import QuotaExceededDialog from "@/components/quota/QuotaExceededDialog";
 
 export default function AIQuizGenerator() {
   const [inputText, setInputText] = useState("");
@@ -64,8 +67,14 @@ export default function AIQuizGenerator() {
     loading: aiUsageLoading,
     refreshAiUsage,
   } = useAiUsage();
+  const { refreshDocumentQuota } = useDocumentQuota();
   const [searchDocQuery, setSearchDocQuery] = useState("");
   const [openSettings, setOpenSettings] = useState(false);
+  const [quotaDialog, setQuotaDialog] = useState({
+    open: false,
+    type: "AI",
+    message: "",
+  });
 
   const VIEW_MODE = {
     GENERATE: "GENERATE",
@@ -246,15 +255,23 @@ export default function AIQuizGenerator() {
         );
 
         if (!uploadResponse.ok) {
-          throw new Error(
-            "Upload failed with status: " + uploadResponse.status,
+          const errorData = await uploadResponse.json().catch(() => null);
+          const uploadError = new Error(
+            errorData?.message ||
+              "Upload failed with status: " + uploadResponse.status,
           );
+          uploadError.response = {
+            status: uploadResponse.status,
+            data: errorData,
+          };
+          throw uploadError;
         }
 
         const data = await uploadResponse.json();
         finalDocumentId = data.id;
         documentTitle = file.name;
 
+        await refreshDocumentQuota();
         await waitForDocumentReady(finalDocumentId);
         window.dispatchEvent(new CustomEvent("documents:uploaded"));
       }
@@ -289,10 +306,24 @@ export default function AIQuizGenerator() {
       setViewMode(VIEW_MODE.PREVIEW);
     } catch (error) {
       console.error("Failed to generate quiz:", error);
+      if (isDocumentQuotaExceeded(error)) {
+        const message = error.response?.data?.message;
+        setQuotaDialog({
+          open: true,
+          type: message?.toLowerCase().includes("file size")
+            ? "FILE_SIZE"
+            : "DOCUMENT",
+          message,
+        });
+        await refreshDocumentQuota();
+        return;
+      }
       if (isAiQuotaExceeded(error)) {
-        toast.error(
-          error.response?.data?.message || "Daily AI request limit reached.",
-        );
+        setQuotaDialog({
+          open: true,
+          type: "AI",
+          message: error.response?.data?.message,
+        });
         await refreshAiUsage();
         return;
       }
@@ -620,6 +651,14 @@ export default function AIQuizGenerator() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <QuotaExceededDialog
+        open={quotaDialog.open}
+        onOpenChange={(open) =>
+          setQuotaDialog((current) => ({ ...current, open }))
+        }
+        type={quotaDialog.type}
+        message={quotaDialog.message}
+      />
     </div>
   );
 }

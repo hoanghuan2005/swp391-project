@@ -37,6 +37,11 @@ import axiosClient, { backendBaseUrl } from "@/api/axiosClient";
 import { generateMindMap, getMindMapByDocument } from "@/api/mindmapApi";
 import { toast } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
+import useAiUsage from "@/hooks/useAiUsage";
+import { isAiQuotaExceeded } from "@/api/aiUsageApi";
+import useDocumentQuota from "@/hooks/useDocumentQuota";
+import { isDocumentQuotaExceeded } from "@/api/documentQuotaApi";
+import QuotaExceededDialog from "@/components/quota/QuotaExceededDialog";
 
 /* ───────────────────────────────────────────
  * COLOR PALETTE for depth levels
@@ -383,12 +388,19 @@ function AIMindMapPageInner() {
   const [mindMapHistory, setMindMapHistory] = useState([]);
   const [selectedMindMap, setSelectedMindMap] = useState(null);
   const [currentTreeData, setCurrentTreeData] = useState(null);
+  const [quotaDialog, setQuotaDialog] = useState({
+    open: false,
+    type: "AI",
+    message: "",
+  });
 
   const {
     documents: uploadedDocuments,
     loading: documentsLoading,
     refreshDocuments,
   } = useDocuments();
+  const { refreshAiUsage } = useAiUsage();
+  const { refreshDocumentQuota } = useDocumentQuota();
   const [searchDocQuery, setSearchDocQuery] = useState("");
 
   const fileInputRef = useRef(null);
@@ -618,11 +630,20 @@ function AIMindMapPageInner() {
             body: formData,
           }
         );
-        if (!uploadResponse.ok) throw new Error("Upload failed");
+        if (!uploadResponse.ok) {
+          const errorData = await uploadResponse.json().catch(() => null);
+          const uploadError = new Error(errorData?.message || "Upload failed");
+          uploadError.response = {
+            status: uploadResponse.status,
+            data: errorData,
+          };
+          throw uploadError;
+        }
 
         const data = await uploadResponse.json();
         finalDocumentId = data.id;
 
+        await refreshDocumentQuota();
         await waitForDocumentReady(finalDocumentId);
         window.dispatchEvent(new CustomEvent("documents:uploaded"));
       }
@@ -633,6 +654,7 @@ function AIMindMapPageInner() {
       }
 
       const result = await generateMindMap(finalDocumentId);
+      await refreshAiUsage();
 
       toast.success("Mind map generated successfully!");
 
@@ -641,9 +663,30 @@ function AIMindMapPageInner() {
       setViewMode(VIEW_MODE.VIEW);
 
       clearDocument();
-      try { await refreshDocuments(); } catch (e) { /* ignore */ }
+      try { await refreshDocuments(); } catch { /* ignore */ }
     } catch (error) {
       console.error("Failed to generate mind map:", error);
+      if (isDocumentQuotaExceeded(error)) {
+        const message = error.response?.data?.message;
+        setQuotaDialog({
+          open: true,
+          type: message?.toLowerCase().includes("file size")
+            ? "FILE_SIZE"
+            : "DOCUMENT",
+          message,
+        });
+        await refreshDocumentQuota();
+        return;
+      }
+      if (isAiQuotaExceeded(error)) {
+        setQuotaDialog({
+          open: true,
+          type: "AI",
+          message: error.response?.data?.message,
+        });
+        await refreshAiUsage();
+        return;
+      }
       const errorMsg =
         error.response?.data?.message ||
         error.message ||
@@ -891,6 +934,14 @@ function AIMindMapPageInner() {
           )}
         </div>
       </div>
+      <QuotaExceededDialog
+        open={quotaDialog.open}
+        onOpenChange={(open) =>
+          setQuotaDialog((current) => ({ ...current, open }))
+        }
+        type={quotaDialog.type}
+        message={quotaDialog.message}
+      />
     </div>
   );
 }
