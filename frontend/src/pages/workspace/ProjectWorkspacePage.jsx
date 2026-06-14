@@ -8,8 +8,13 @@ import {
   getSharedProject,
   removeDocumentFromProject,
 } from "@/api/projectApi";
-import { askAi, askSharedAi } from "@/api/aiApi";
-import axiosClient from "@/api/axiosClient";
+import {
+  askAi,
+  askSharedAi,
+  createAiConversation,
+  getAiConversationMessages,
+  getAiConversations,
+} from "@/api/aiApi";
 import ChatInterface from "@/components/chat/ChatInterface";
 import AISidebar from "@/components/ai-sidebar/sidebar/AISidebar";
 
@@ -39,10 +44,7 @@ export default function ProjectWorkspacePage() {
   const [activeConversation, setActiveConversation] = useState(null);
 
   const loadConversationMessages = useCallback(async (conversationId) => {
-    const response = await axiosClient.get(
-      `/api/ai/conversations/${conversationId}/messages`,
-    );
-    const savedMessages = response.data || [];
+    const savedMessages = (await getAiConversationMessages(conversationId)) || [];
     setMessages(savedMessages.length > 0 ? savedMessages : [welcomeMessage]);
   }, []);
 
@@ -62,10 +64,8 @@ export default function ProjectWorkspacePage() {
         return;
       }
 
-      const response = await axiosClient.get(
-        `/api/ai/conversations?projectId=${data.id}`,
-      );
-      const savedConversations = response.data || [];
+      const savedConversations =
+        (await getAiConversations({ projectId: data.id })) || [];
       setConversations(savedConversations);
 
       if (savedConversations.length > 0) {
@@ -104,11 +104,10 @@ export default function ProjectWorkspacePage() {
   };
 
   const createWorkspaceConversation = async (title = "New Chat") => {
-    const response = await axiosClient.post("/api/ai/conversations", {
+    const newConversation = await createAiConversation({
       title,
       projectId: project.id,
     });
-    const newConversation = response.data;
     setConversations((prev) => [newConversation, ...prev]);
     setActiveConversation(newConversation);
     return newConversation;

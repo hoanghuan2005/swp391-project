@@ -101,7 +101,7 @@ public class SecurityConfig {
                                                                 "/api/tags/**",
 
                                                                 "/api/projects/shared/**",
-                                                                "/api/ai/shared/ask",
+//                                                                "/api/ai/shared/ask",
                                                                 
                                                                 "/error",
 

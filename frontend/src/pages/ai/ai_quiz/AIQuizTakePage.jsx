@@ -10,7 +10,7 @@ import {
   Heart,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import axiosClient from "@/api/axiosClient";
+import { deleteQuiz, getQuizById, getUserQuizzes } from "@/api/quizApi";
 import useDocuments from "@/hooks/useDocuments";
 import { toast } from "react-hot-toast";
 import AISidebar from "@/components/ai-sidebar/sidebar/AISidebar";
@@ -35,8 +35,8 @@ export default function AIQuizTakePage() {
 
   const fetchSidebarData = async () => {
     try {
-      const historyRes = await axiosClient.get("/api/quizzes/my-quizzes");
-      setQuizHistory(historyRes.data || []);
+      const history = await getUserQuizzes();
+      setQuizHistory(history || []);
     } catch (error) {
       console.error("Sidebar fetch error:", error);
     } finally {
@@ -48,8 +48,8 @@ export default function AIQuizTakePage() {
     const fetchQuiz = async () => {
       try {
         setLoading(true);
-        const response = await axiosClient.get(`/api/quizzes/${id}`);
-        setQuiz(response.data);
+        const quizData = await getQuizById(id);
+        setQuiz(quizData);
         setIsSubmitted(false);
         setAnswers({});
         setScore(0);
@@ -81,7 +81,7 @@ export default function AIQuizTakePage() {
     }
 
     try {
-      await axiosClient.delete(`/api/quizzes/${quizId}`);
+      await deleteQuiz(quizId);
       toast.success("Quiz deleted successfully");
       setQuizHistory((prev) => prev.filter((q) => q.id !== quizId));
 

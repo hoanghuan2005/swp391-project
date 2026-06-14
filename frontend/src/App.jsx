@@ -35,6 +35,7 @@ import AIFlashcardGenerator from "./pages/ai/ai_flashcard/AIFlashcardGenerator";
 import AIQuizGenerator from "./pages/ai/ai_quiz/AIQuizGenerator";
 import AIMindMapPage from "./pages/ai/ai_mindmap/AIMindMapPage";
 import NotificationPage from "./pages/Notification";
+import PricingPage from "./pages/PricingPage";
 import { updateTitle } from "./lib/pageTitle";
 import { useLocation } from "react-router-dom";
 import { useEffect } from "react";
@@ -118,6 +119,7 @@ function App() {
             element={<ProjectWorkspacePage />}
           />
           <Route path="/notifications" element={<NotificationPage />} />
+          <Route path="/pricing" element={<PricingPage />} />
         </Route>
 
         {/* AdminLayout routes */}

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import axiosClient from "@/api/axiosClient";
 import Survey from "@/pages/Survey";
+import useAiUsage from "@/hooks/useAiUsage";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -83,6 +84,8 @@ export default function ProfilePage() {
       `${item.name} ${item.code}`.toLowerCase().includes(query)
     );
   }, [profileData.schoolName, schoolOptions]);
+
+  const { subscriptionTier, loading: aiUsageLoading } = useAiUsage();
 
   const loadProfileAndOptions = async () => {
     try {
@@ -293,7 +296,7 @@ export default function ProfilePage() {
 
               <div className="mt-2 px-3 py-1 rounded-full bg-orange-100 text-[#f26522] text-xs font-bold flex items-center gap-1">
                 <Award size={12} />
-                Free Plan
+                {aiUsageLoading ? "Loading..." : `${subscriptionTier} Plan`}
               </div>
 
               <p className="text-sm text-slate-500 mt-3">

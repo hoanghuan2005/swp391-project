@@ -20,6 +20,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.Map;
 
 import java.util.UUID;
+import com.example.keeper.systems.ai_usage.exception.AiQuotaExceededException;
 
 
 
@@ -51,6 +52,8 @@ public class AiFlashcardController {
         try {
             var result = aiFlashcardService.generateFlashcards(file, text);
             return ResponseEntity.ok(Map.of("success", true, "data", result));
+        } catch (AiQuotaExceededException e) {
+            throw e;
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body(
                     Map.of("success", false, "message", e.getMessage())
@@ -70,6 +73,8 @@ public class AiFlashcardController {
         try {
             var result = aiFlashcardService.generateFlashcardsFromDocument(documentId);
             return ResponseEntity.ok(Map.of("success", true, "data", result));
+        } catch (AiQuotaExceededException e) {
+            throw e;
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body(
                     Map.of("success", false, "message", e.getMessage())
@@ -152,4 +157,25 @@ public class AiFlashcardController {
     public ResponseEntity<?> getCourseFlashcardSets(@PathVariable UUID courseId) {
         return ResponseEntity.ok(Map.of("data", aiFlashcardService.getCourseFlashcardSets(courseId)));
     }
+
+    // ====================================================================
+    // API LẤY DANH SÁCH FLASHCARD ĐÃ THÍCH
+    // ====================================================================
+    @GetMapping("/favorites")
+    public ResponseEntity<?> getMyFavoriteFlashcards() {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        // Trả về trực tiếp list để Frontend dễ map
+        return ResponseEntity.ok(aiFlashcardService.getMyFavorites(email));
+    }
+
+    // ====================================================================
+    // API THẢ TIM / BỎ TIM FLASHCARD
+    // ====================================================================
+    @PostMapping("/{id}/favorite")
+    public ResponseEntity<?> toggleFavorite(@PathVariable UUID id) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        aiFlashcardService.toggleFavorite(id, email);
+        return ResponseEntity.ok(Map.of("success", true, "message", "Đã cập nhật trạng thái yêu thích"));
+    }
+    
 }

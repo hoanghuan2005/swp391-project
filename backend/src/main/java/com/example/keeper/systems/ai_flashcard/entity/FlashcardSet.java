@@ -7,8 +7,11 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.HashSet;
+import java.util.Set;
+
 @Getter
-@Setter 
+@Setter
 @Entity
 @Table(name = "flashcard_sets")
 public class FlashcardSet extends BaseEntity {
@@ -31,8 +34,18 @@ public class FlashcardSet extends BaseEntity {
     @JoinColumn(name = "user_id")
     private User user;
 
-
     @ManyToOne
     @JoinColumn(name = "document_id")
     private Document document;
+
+    // ==========================================
+    // ĐOẠN THÊM MỚI CHO TÍNH NĂNG THẢ TIM (FAVORITE)
+    // ==========================================
+    @ManyToMany
+    @JoinTable(
+            name = "flashcard_set_favorites", // Tên bảng trung gian sẽ được tự động tạo trong database
+            joinColumns = @JoinColumn(name = "flashcard_set_id"),
+            inverseJoinColumns = @JoinColumn(name = "user_id")
+    )
+    private Set<User> favoritedByUsers = new HashSet<>();
 }

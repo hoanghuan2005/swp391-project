@@ -7,6 +7,7 @@ import {
   Sparkles,
   Heart,
 } from "lucide-react";
+import { toast } from "react-hot-toast"; // Đã thêm import toast
 import axiosClient from "@/api/axiosClient";
 import useDocuments from "@/hooks/useDocuments";
 import useMaterialPublish from "@/hooks/useMaterialPublish";
@@ -32,6 +33,16 @@ import AIGeneratorInput from "@/components/ai-sidebar/AIGeneratorInput";
 import AIToolHeader from "@/components/ai-sidebar/AIToolHeader";
 import FlashcardEditor from "./FlashcardEditor";
 import { Input } from "@/components/ui/input";
+import {
+  generateFlashcards,
+  generateFlashcardsFromDocument,
+  getFlashcardSet,
+  getFlashcardSets,
+  updateFlashcardSet,
+} from "@/api/flashcardApi";
+import AiUsageBadge from "@/components/ai-usage/AiUsageBadge";
+import useAiUsage from "@/hooks/useAiUsage";
+import { isAiQuotaExceeded } from "@/api/aiUsageApi";
 
 export default function AIFlashcardGenerator({ contextData }) {
   const [inputText, setInputText] = useState("");
@@ -43,21 +54,27 @@ export default function AIFlashcardGenerator({ contextData }) {
   const [selectedFlashcardSet, setSelectedFlashcardSet] = useState(null);
   const [selectedDoc, setSelectedDoc] = useState(null);
   const [activeSetTitle, setActiveSetTitle] = useState(
-    "Generate AI Flashcards",
+    "Generate AI Flashcards"
   );
 
   // State Tracking
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isTrackingProgress, setIsTrackingProgress] = useState(true);
   const [isCompleted, setIsCompleted] = useState(false);
+  
+  // State Like Flashcard
+  const [isLiked, setIsLiked] = useState(false);
 
   const fileInputRef = useRef(null);
 
   const [flashcardHistory, setFlashcardHistory] = useState([]);
+  const { documents: uploadedDocuments, refreshDocuments } = useDocuments();
   const {
-    documents: uploadedDocuments,
-    refreshDocuments,
-  } = useDocuments();
+    subscriptionTier,
+    remainingUsage,
+    loading: aiUsageLoading,
+    refreshAiUsage,
+  } = useAiUsage();
 
   const { publish, loading: publishing } = useMaterialPublish();
 
@@ -78,10 +95,19 @@ export default function AIFlashcardGenerator({ contextData }) {
     }
   }, [contextData]);
 
+  // Đồng bộ trạng thái Like khi load Flashcard
+  useEffect(() => {
+    if (selectedFlashcardSet) {
+      setIsLiked(selectedFlashcardSet.isFavorite || false);
+    } else {
+      setIsLiked(false);
+    }
+  }, [selectedFlashcardSet]);
+
   const fetchSidebarData = async () => {
     try {
-      const historyRes = await axiosClient.get("/api/ai_flashcard/sets");
-      setFlashcardHistory(historyRes.data.data || []);
+      const historyResponse = await getFlashcardSets();
+      setFlashcardHistory(historyResponse.data || []);
     } catch (error) {
       console.error("Sidebar fetch error:", error);
     }
@@ -94,8 +120,8 @@ export default function AIFlashcardGenerator({ contextData }) {
   const loadFlashcardSet = async (setId) => {
     try {
       setIsGenerating(true);
-      const response = await axiosClient.get(`/api/ai_flashcard/sets/${setId}`);
-      const data = response.data.data;
+      const response = await getFlashcardSet(setId);
+      const data = response.data;
       setActiveSetTitle(data.title);
       setFlashcards(data.flashcards || []);
       setSelectedFlashcardSet(data);
@@ -123,14 +149,11 @@ export default function AIFlashcardGenerator({ contextData }) {
 
     setIsSaving(true);
     try {
-      const response = await axiosClient.put(
-        `/api/ai_flashcard/sets/${selectedFlashcardSet.id}`,
-        {
-          title: activeSetTitle,
-          flashcards,
-        },
-      );
-      const updatedSet = response.data.data;
+      const response = await updateFlashcardSet(selectedFlashcardSet.id, {
+        title: activeSetTitle,
+        flashcards,
+      });
+      const updatedSet = response.data;
       setFlashcards(updatedSet.flashcards || []);
       setActiveSetTitle(updatedSet.title);
       setSelectedFlashcardSet((current) => ({ ...current, ...updatedSet }));
@@ -142,22 +165,44 @@ export default function AIFlashcardGenerator({ contextData }) {
                 title: updatedSet.title,
                 cards: updatedSet.flashcards?.length || 0,
               }
-            : set,
-        ),
+            : set
+        )
       );
-      alert("Flashcard draft saved successfully!");
+      toast.success("Flashcard draft saved successfully!");
     } catch (error) {
-      alert(error.response?.data?.message || "Failed to save flashcard draft.");
+      toast.error(error.response?.data?.message || "Failed to save flashcard draft.");
     } finally {
       setIsSaving(false);
     }
   };
 
+  // Hàm xử lý Like
+  const handleLikeFlashcard = async () => {
+    if (!selectedFlashcardSet || !selectedFlashcardSet.id) {
+      toast.error("Please save the flashcard set first!");
+      return;
+    }
+    
+    try {
+      await axiosClient.post(`/api/ai_flashcard/${selectedFlashcardSet.id}/favorite`);
+      setIsLiked(!isLiked);
+      if (!isLiked) {
+        toast.success("Added to favorites!");
+      } else {
+        toast.success("Removed from favorites!");
+      }
+    } catch (error) {
+      console.error("Like error:", error);
+      toast.error("Failed to update favorite status!");
+    }
+  };
+
   useEffect(() => {
     if (publishDialogOpen && courses.length === 0) {
-      axiosClient.get("/api/courses/all")
-        .then(res => setCourses(res.data))
-        .catch(err => console.error("Failed to load courses", err));
+      axiosClient
+        .get("/api/courses/all")
+        .then((res) => setCourses(res.data))
+        .catch((err) => console.error("Failed to load courses", err));
     }
   }, [publishDialogOpen, courses.length]);
 
@@ -174,7 +219,7 @@ export default function AIFlashcardGenerator({ contextData }) {
 
   const handlePublishClick = () => {
     if (!selectedFlashcardSet || !selectedFlashcardSet.id) {
-      alert("Please save or select a generated set first before publishing.");
+      toast.error("Please save or select a generated set first before publishing.");
       return;
     }
     setPublishCourseId(selectedDoc?.course?.id || "");
@@ -183,18 +228,18 @@ export default function AIFlashcardGenerator({ contextData }) {
 
   const handlePublish = async () => {
     const courseId = publishCourseId || null;
-    
+
     try {
       await publish({
         type: "FLASHCARD",
         id: selectedFlashcardSet.id,
         courseId,
-        visibility: "PUBLIC"
+        visibility: "PUBLIC",
       });
-      alert("Flashcard set published successfully!");
+      toast.success("Flashcard set published successfully!");
       setPublishDialogOpen(false);
     } catch (e) {
-      alert("Failed to publish flashcard set.");
+      toast.error("Failed to publish flashcard set.");
       console.error(e);
     }
   };
@@ -205,38 +250,34 @@ export default function AIFlashcardGenerator({ contextData }) {
     try {
       let response;
       if (selectedDoc) {
-        response = await axiosClient.post(
-          "/api/ai_flashcard/generate-from-document",
-          { documentId: selectedDoc.id },
-        );
+        response = await generateFlashcardsFromDocument(selectedDoc.id);
       } else {
         const formData = new FormData();
         if (file) formData.append("document", file);
         if (inputText) formData.append("text", inputText);
-        response = await axiosClient.post(
-          "/api/ai_flashcard/generate",
-          formData,
-        );
+        response = await generateFlashcards(formData);
       }
-      const result = response.data.data || response.data;
+      await refreshAiUsage();
+      const result = response.data || response;
       if (Array.isArray(result) || result.id) {
         setFlashcards(result.flashcards || result);
         if (result.id) {
-           setSelectedFlashcardSet(result);
-           // Also append to history to update the sidebar instantly
-           setFlashcardHistory(prev => [{
-               id: result.id,
-               title: selectedDoc?.title || file?.name || "New Generated Set",
-               cards: result.flashcards?.length || result.length || 0
-           }, ...prev]);
+          setSelectedFlashcardSet(result);
+          setFlashcardHistory((prev) => [
+            {
+              id: result.id,
+              title: selectedDoc?.title || file?.name || "New Generated Set",
+              cards: result.flashcards?.length || result.length || 0,
+            },
+            ...prev,
+          ]);
         }
 
         setActiveSetTitle(
-          selectedDoc?.title || file?.name || "New Generated Set",
+          selectedDoc?.title || file?.name || "New Generated Set"
         );
 
         resetProgress();
-
         setViewMode(VIEW_MODE.PREVIEW);
         try {
           await refreshDocuments();
@@ -244,11 +285,18 @@ export default function AIFlashcardGenerator({ contextData }) {
           /* ignore */
         }
       } else {
-        alert("Data returned is not correct!");
+        toast.error("Data returned is not correct!");
       }
     } catch (error) {
       console.error(error);
-      alert("Error generating flashcards!");
+      if (isAiQuotaExceeded(error)) {
+        toast.error(
+          error.response?.data?.message || "Daily AI request limit reached."
+        );
+        await refreshAiUsage();
+      } else {
+        toast.error("Error generating flashcards!");
+      }
     } finally {
       setIsGenerating(false);
     }
@@ -359,6 +407,13 @@ export default function AIFlashcardGenerator({ contextData }) {
                 onGenerate={handleGenerate}
                 isGenerating={isGenerating}
                 disabled={!inputText && !file && !selectedDoc}
+                footerLeft={
+                  <AiUsageBadge
+                    subscriptionTier={subscriptionTier}
+                    remainingUsage={remainingUsage}
+                    loading={aiUsageLoading}
+                  />
+                }
               />
             )}
 
@@ -397,7 +452,7 @@ export default function AIFlashcardGenerator({ contextData }) {
                             {flashcards.length} flashcards generated successfully
                           </p>
                         </div>
-                        
+
                         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mt-5">
                           <div className="flex flex-wrap gap-3">
                             <Button
@@ -406,7 +461,9 @@ export default function AIFlashcardGenerator({ contextData }) {
                               onClick={handleSaveDraft}
                               disabled={isSaving || !selectedFlashcardSet?.id}
                             >
-                              {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                              {isSaving && (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              )}
                               Save Draft
                             </Button>
 
@@ -418,21 +475,34 @@ export default function AIFlashcardGenerator({ contextData }) {
                               Start Study
                             </Button>
 
-                            <Button 
+                            <Button
                               className="rounded-full bg-[#f26522] hover:bg-[#d95316] h-9 px-4 text-sm text-white cursor-pointer shadow-sm"
                               onClick={handlePublishClick}
                               disabled={publishing}
                             >
-                              {publishing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                              {publishing ? (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              ) : null}
                               Publish Material
                             </Button>
 
                             <Button
                               variant="outline"
-                              className="rounded-full border-orange-200 hover:bg-orange-50 h-9 px-4 text-sm cursor-pointer"
-                              onClick={() => alert("Flashcard liked!")}
+                              className={`rounded-full h-9 px-4 text-sm cursor-pointer transition-colors ${
+                                isLiked
+                                  ? "border-red-200 bg-red-50 hover:bg-red-100 text-red-600"
+                                  : "border-orange-200 hover:bg-orange-50 text-slate-700"
+                              }`}
+                              onClick={handleLikeFlashcard}
                             >
-                              <Heart className="w-4 h-4 mr-1 text-slate-500 hover:text-red-500" /> Like
+                              <Heart
+                                className={`w-4 h-4 mr-1 transition-all ${
+                                  isLiked
+                                    ? "fill-red-500 text-red-500"
+                                    : "text-slate-500"
+                                }`}
+                              />{" "}
+                              {isLiked ? "Liked" : "Like"}
                             </Button>
                           </div>
                         </div>
@@ -461,10 +531,16 @@ export default function AIFlashcardGenerator({ contextData }) {
                     </span>
                     <button
                       onClick={() => setIsTrackingProgress(!isTrackingProgress)}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${isTrackingProgress ? "bg-[#f26522]" : "bg-slate-300"}`}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                        isTrackingProgress ? "bg-[#f26522]" : "bg-slate-300"
+                      }`}
                     >
                       <span
-                        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform ${isTrackingProgress ? "translate-x-5" : "translate-x-1"}`}
+                        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform ${
+                          isTrackingProgress
+                            ? "translate-x-5"
+                            : "translate-x-1"
+                        }`}
                       />
                     </button>
                   </div>
@@ -503,7 +579,11 @@ export default function AIFlashcardGenerator({ contextData }) {
                     <div
                       className="h-full bg-[#f26522] transition-all duration-300 ease-out"
                       style={{
-                        width: `${isCompleted ? 100 : ((currentIndex + 1) / flashcards.length) * 100}%`,
+                        width: `${
+                          isCompleted
+                            ? 100
+                            : ((currentIndex + 1) / flashcards.length) * 100
+                        }%`,
                       }}
                     />
                   </div>
@@ -563,7 +643,8 @@ export default function AIFlashcardGenerator({ contextData }) {
               Publish Material
             </DialogTitle>
             <DialogDescription className="text-slate-500 pt-2">
-              Select a course to publish this flashcard set to. It will be visible to everyone in that course.
+              Select a course to publish this flashcard set to. It will be
+              visible to everyone in that course.
             </DialogDescription>
           </DialogHeader>
 
@@ -571,12 +652,15 @@ export default function AIFlashcardGenerator({ contextData }) {
             <label className="text-sm font-medium text-slate-700 mb-2 block">
               Select Course
             </label>
-            <Select value={publishCourseId} onValueChange={setPublishCourseId}>
+            <Select
+              value={publishCourseId}
+              onValueChange={setPublishCourseId}
+            >
               <SelectTrigger className="w-full h-10 rounded-xl px-3 border-slate-200">
                 <SelectValue placeholder="Select a course to publish to" />
               </SelectTrigger>
               <SelectContent className="rounded-xl">
-                {courses.map(c => (
+                {courses.map((c) => (
                   <SelectItem key={c.id} value={c.id}>
                     {c.code} - {c.name}
                   </SelectItem>
