@@ -17,6 +17,7 @@ export default function SearchSelect({
   renderLeft,
   renderRight,
   searchKeys = [],
+  disabled = false,
 }) {
   const [open, setOpen] = useState(false);
 
@@ -55,6 +56,7 @@ export default function SearchSelect({
         <Input
           placeholder={placeholder}
           value={value}
+          disabled={disabled}
           onChange={(e) => {
             const inputValue = e.target.value;
 
@@ -64,7 +66,7 @@ export default function SearchSelect({
 
             setOpen(true);
           }}
-          onFocus={() => setOpen(true)}
+          onFocus={() => !disabled && setOpen(true)}
           className="rounded-lg border-gray-300 focus-visible:ring-[#f26522] focus-visible:border-[#f26522]"
         />
 

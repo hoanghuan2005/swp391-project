@@ -14,5 +14,7 @@ public class SurveyResponse {
 
     private Integer startYear;
 
+    private String major;
+
     private Set<String> languages;
 }

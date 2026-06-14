@@ -32,5 +32,23 @@ public class DocumentResponse {
         private UUID id;
         private String code;
         private String name;
+        private MajorInfo major;
+    }
+
+    @Data
+    @Builder
+    public static class MajorInfo {
+        private UUID id;
+        private String code;
+        private String name;
+        private SchoolInfo school;
+    }
+
+    @Data
+    @Builder
+    public static class SchoolInfo {
+        private UUID id;
+        private String code;
+        private String name;
     }
 }

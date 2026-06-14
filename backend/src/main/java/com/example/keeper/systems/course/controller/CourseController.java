@@ -30,13 +30,19 @@ public class CourseController {
         return courseService.create(request);
     }
 
+    @PutMapping("/{id}")
+    public Course update(@PathVariable UUID id, @RequestBody CreateCourseRequest request) {
+        return courseService.update(id, request);
+    }
+
     @GetMapping
     public Page<Course> getAll(
             @RequestParam(required = false) String search,
+            @RequestParam(required = false) UUID majorId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "8") int size) {
         Pageable pageable = PageRequest.of(Math.max(page, 0), Math.max(size, 1));
-        return courseService.search(search, pageable);
+        return courseService.search(search, majorId, pageable);
     }
 
     @GetMapping("/all")

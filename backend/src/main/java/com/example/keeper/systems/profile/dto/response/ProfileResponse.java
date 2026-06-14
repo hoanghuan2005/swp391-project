@@ -21,6 +21,8 @@ public class ProfileResponse {
 
     private Integer startYear;
 
+    private String major;
+
     private List<String> languages;
 
     private long uploads;

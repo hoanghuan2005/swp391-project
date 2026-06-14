@@ -62,34 +62,6 @@ const AIQuizPage = () => {
     { label: "Study Time", value: "12h", sub: "this week" },
   ];
 
-  // Thêm 'type' và 'id' vào hoạt động gần đây để biết click vào sẽ mở tool nào
-  const recentActivities = [
-    {
-      id: "activity-1",
-      title: "Generated 25 flashcards from Software Engineering.pdf",
-      time: "2 hours ago",
-      type: "flashcard",
-    },
-    {
-      id: "activity-2",
-      title: "Completed Java OOP Quiz with score 18/20",
-      time: "Yesterday",
-      type: "quiz",
-    },
-    {
-      id: "activity-3",
-      title: "Reviewed Networking flashcards",
-      time: "2 days ago",
-      type: "flashcard",
-    },
-    {
-      id: "activity-4",
-      title: "Uploaded Database lecture slides",
-      time: "3 days ago",
-      type: "flashcard",
-    },
-  ];
-
   return (
     <div className="min-h-screen px-4 py-6">
       {/* ================= MENU ================= */}
@@ -164,7 +136,7 @@ const AIQuizPage = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
             {tools.map((tool) => (
               <div
                 key={tool.id}

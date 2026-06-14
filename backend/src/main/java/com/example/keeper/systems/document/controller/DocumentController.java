@@ -56,6 +56,7 @@ public class DocumentController {
             @RequestParam(required = false) Visibility visibility,
             @RequestParam(required = false) UUID uploadedById,
             @RequestParam(required = false) UUID courseId,
+            @RequestParam(required = false) UUID majorId,
             @RequestParam(required = false) String courseCode,
             @RequestParam(required = false) String courseName,
             @RequestParam(required = false) List<String> tagNames) {
@@ -83,6 +84,7 @@ public class DocumentController {
         request.setUploadedById(resolvedUploadedById);
 
         request.setCourseId(courseId);
+        request.setMajorId(majorId);
         request.setCourseCode(courseCode);
         request.setCourseName(courseName);
         request.setTagNames(tagNames);

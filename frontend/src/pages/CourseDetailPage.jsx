@@ -27,6 +27,7 @@ import {
   Copy,
   Star,
   Heart,
+  ChevronLeft,
 } from "lucide-react";
 
 export default function CourseDetailPage() {
@@ -48,13 +49,14 @@ export default function CourseDetailPage() {
     try {
       setLoading(true);
 
-      const [courseRes, docsRes, followStatusRes, quizzesRes, flashcardsRes] = await Promise.all([
-        axiosClient.get(`/api/courses/${id}`),
-        axiosClient.get(`/api/courses/${id}/documents`),
-        axiosClient.get(`/api/courses/${id}/follow-status`),
-        axiosClient.get(`/api/quizzes/course/${id}`),
-        axiosClient.get(`/api/ai_flashcard/course/${id}`),
-      ]);
+      const [courseRes, docsRes, followStatusRes, quizzesRes, flashcardsRes] =
+        await Promise.all([
+          axiosClient.get(`/api/courses/${id}`),
+          axiosClient.get(`/api/courses/${id}/documents`),
+          axiosClient.get(`/api/courses/${id}/follow-status`),
+          axiosClient.get(`/api/quizzes/course/${id}`),
+          axiosClient.get(`/api/ai_flashcard/course/${id}`),
+        ]);
 
       setCourse(courseRes.data);
       if (courseRes.data?.name) {
@@ -119,19 +121,29 @@ export default function CourseDetailPage() {
       {/* COURSE HEADER */}
       <div className="rounded-[28px] border border-orange-100 bg-gradient-to-br from-[#fffaf7] to-[#fff3eb] overflow-hidden">
         <div className="p-5">
-          {/* Breadcrumb */}
-          <div className="flex items-center gap-2 text-[13px] text-slate-400 mb-4">
-            <Link to="/" className="hover:text-[#f66810] transition-colors">
-              University
-            </Link>
+          <div className="flex items-center gap-3">
+            <div>
+              <Link
+                to="/home"
+                className="flex items-center gap-1 text-sm text-slate-400 hover:text-[#f66810] rounded-full transition-transform mb-4"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </Link>
+            </div>
+            {/* Breadcrumb */}
+            <div className="flex items-center gap-2 text-[13px] text-slate-400 mb-4">
+              <Link to="/" className="hover:text-[#f66810] transition-colors">
+                {course.major?.school?.name || "University"}
+              </Link>
 
-            <span>/</span>
+              <span>/</span>
 
-            <span>FPT</span>
+              <span>{course.major?.name || "General"}</span>
 
-            <span>/</span>
+              <span>/</span>
 
-            <span className="text-[#f66810] font-medium">{course.code}</span>
+              <span className="text-[#f66810] font-medium">{course.code}</span>
+            </div>
           </div>
 
           {/* TOP INFO */}
@@ -220,10 +232,11 @@ export default function CourseDetailPage() {
             <h2 className="text-2xl font-bold text-slate-800">
               Trending Documents
             </h2>
-            <p className="text-sm text-slate-500 mt-1">Explore the most popular study materials in this course.</p>
+            <p className="text-sm text-slate-500 mt-1">
+              Explore the most popular study materials in this course.
+            </p>
           </div>
           <Button variant="ghost">View All</Button>
-
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
@@ -297,7 +310,9 @@ export default function CourseDetailPage() {
             <h2 className="text-2xl font-bold text-slate-800">
               Published Quizzes
             </h2>
-            <p className="text-sm text-slate-500 mt-1">Test your knowledge with these quizzes.</p>
+            <p className="text-sm text-slate-500 mt-1">
+              Test your knowledge with these quizzes.
+            </p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
             {quizzes.map((quiz) => (
@@ -309,7 +324,10 @@ export default function CourseDetailPage() {
                   <div className="w-full aspect-[4/3] bg-orange-50 rounded-xl mb-3 -mt-4 border border-orange-100 flex items-center justify-center text-[#f26522]">
                     <Star className="w-12 h-12 opacity-50" />
                   </div>
-                  <CardTitle className="text-[15px] mb-1 font-bold text-slate-800 line-clamp-1" title={quiz.title}>
+                  <CardTitle
+                    className="text-[15px] mb-1 font-bold text-slate-800 line-clamp-1"
+                    title={quiz.title}
+                  >
                     {quiz.title}
                   </CardTitle>
                   <CardDescription className="text-xs text-[#f26522] font-medium mb-3 flex items-center gap-1.5">
@@ -328,9 +346,7 @@ export default function CourseDetailPage() {
                     asChild
                     className="flex-1 bg-[#f26522] hover:bg-[#de5b0b] text-white font-semibold text-xs rounded-xl h-9 cursor-pointer"
                   >
-                    <Link to={`/quiz/${quiz.id}`}>
-                      Take Quiz
-                    </Link>
+                    <Link to={`/quiz/${quiz.id}`}>Take Quiz</Link>
                   </Button>
                 </CardFooter>
               </Card>
@@ -346,7 +362,9 @@ export default function CourseDetailPage() {
             <h2 className="text-2xl font-bold text-slate-800">
               Published Flashcards
             </h2>
-            <p className="text-sm text-slate-500 mt-1">Review key concepts with flashcards.</p>
+            <p className="text-sm text-slate-500 mt-1">
+              Review key concepts with flashcards.
+            </p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
             {flashcards.map((fc) => (
@@ -358,7 +376,10 @@ export default function CourseDetailPage() {
                   <div className="w-full aspect-[4/3] bg-blue-50 rounded-xl mb-3 -mt-4 border border-blue-100 flex items-center justify-center text-blue-500">
                     <BookOpen className="w-12 h-12 opacity-50" />
                   </div>
-                  <CardTitle className="text-[15px] mb-1 font-bold text-slate-800 line-clamp-1" title={fc.title}>
+                  <CardTitle
+                    className="text-[15px] mb-1 font-bold text-slate-800 line-clamp-1"
+                    title={fc.title}
+                  >
                     {fc.title}
                   </CardTitle>
                   <CardDescription className="text-xs text-blue-500 font-medium mb-3 flex items-center gap-1.5">
@@ -377,9 +398,7 @@ export default function CourseDetailPage() {
                     asChild
                     className="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-semibold text-xs rounded-xl h-9 cursor-pointer"
                   >
-                    <Link to={`/flashcard?id=${fc.id}`}>
-                      Study Now
-                    </Link>
+                    <Link to={`/flashcard?id=${fc.id}`}>Study Now</Link>
                   </Button>
                 </CardFooter>
               </Card>

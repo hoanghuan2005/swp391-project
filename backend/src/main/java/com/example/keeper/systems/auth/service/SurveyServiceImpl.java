@@ -65,6 +65,7 @@ public class SurveyServiceImpl implements SurveyService {
                 profile.setSchoolCode(resolvedSchoolCode);
                 profile.setSchoolName(resolvedSchoolName);
                 profile.setStartYear(request.getStartYear());
+                profile.setMajor(request.getMajor());
                 userProfileRepository.save(profile);
                 Set<Language> languages = request.getLanguageIds() != null
                                 ? new HashSet<>(languageRepository.findAllById(request.getLanguageIds()))
@@ -77,6 +78,7 @@ public class SurveyServiceImpl implements SurveyService {
                                 .schoolCode(profile.getSchoolCode())
                                 .schoolName(profile.getSchoolName())
                                 .startYear(profile.getStartYear())
+                                .major(profile.getMajor())
                                 .languages(
                                                 languages.stream()
                                                                 .map(Language::getName)

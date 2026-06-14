@@ -15,9 +15,11 @@ public interface CourseService {
 
     Course create(CreateCourseRequest request);
 
+    Course update(UUID id, CreateCourseRequest request);
+
     List<Course> getAll();
 
-    Page<Course> search(String query, Pageable pageable);
+    Page<Course> search(String query, java.util.UUID majorId, Pageable pageable);
 
     Course getById(UUID id);
 

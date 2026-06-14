@@ -16,5 +16,7 @@ public class SurveyRequest {
 
     private Integer startYear;
 
+    private String major;
+
     private Set<UUID> languageIds;
 }

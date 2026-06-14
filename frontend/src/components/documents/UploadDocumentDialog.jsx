@@ -15,6 +15,7 @@ import {
 import {
   UploadCloud,
   GraduationCap,
+  Layers,
   BookOpen,
   Tags,
   FileText,
@@ -29,8 +30,10 @@ export default function UploadDocumentDialog({
   targetProjectId,
 }) {
   const [schoolQuery, setSchoolQuery] = useState("");
+  const [majorQuery, setMajorQuery] = useState("");
   const [subjectQuery, setSubjectQuery] = useState("");
   const [selectedSchool, setSelectedSchool] = useState(null);
+  const [selectedMajor, setSelectedMajor] = useState(null);
   const [selectedSubject, setSelectedSubject] = useState(null);
   const [selectedTags, setSelectedTags] = useState([]);
   const [subjectName, setSubjectName] = useState("");
@@ -41,6 +44,8 @@ export default function UploadDocumentDialog({
   const [uploadError, setUploadError] = useState("");
 
   const [schoolOptions, setSchoolOptions] = useState([]);
+  const [majorOptions, setMajorOptions] = useState([]);
+  const [allCourses, setAllCourses] = useState([]);
   const [subjectOptions, setSubjectOptions] = useState([]);
   const [tagOptions, setTagOptions] = useState([]);
 
@@ -63,19 +68,13 @@ export default function UploadDocumentDialog({
         setSchoolOptions(
           Array.isArray(schoolsRes.data)
             ? schoolsRes.data.map((school) => ({
+                id: school.id,
                 code: school.code,
                 name: school.name,
               }))
             : [],
         );
-        setSubjectOptions(
-          Array.isArray(coursesRes.data)
-            ? coursesRes.data.map((course) => ({
-                code: course.code,
-                name: course.name,
-              }))
-            : [],
-        );
+        setAllCourses(Array.isArray(coursesRes.data) ? coursesRes.data : []);
         setTagOptions(
           Array.isArray(tagsRes.data)
             ? tagsRes.data.map((tag) => tag.name)
@@ -104,10 +103,12 @@ export default function UploadDocumentDialog({
       setSelectedFile(null);
 
       setSchoolQuery("");
+      setMajorQuery("");
       setSubjectQuery("");
       setCategoryQuery("");
 
       setSelectedSchool(null);
+      setSelectedMajor(null);
       setSelectedSubject(null);
       setSelectedCategory(null);
 
@@ -117,8 +118,62 @@ export default function UploadDocumentDialog({
       setSubjectNameOpen(false);
 
       setUploadError("");
+      setMajorOptions([]);
+      setSubjectOptions([]);
     }
   }, [open]);
+
+  const handleSchoolSelect = async (school) => {
+    setSelectedSchool(school);
+    setSelectedMajor(null);
+    setMajorQuery("");
+    setSelectedSubject(null);
+    setSubjectQuery("");
+    setSubjectName("");
+    setSubjectNameOpen(false);
+    setMajorOptions([]);
+    setSubjectOptions([]);
+
+    if (school) {
+      try {
+        const res = await axiosClient.get(`/api/majors?schoolId=${school.id}`);
+        setMajorOptions(
+          Array.isArray(res.data)
+            ? res.data.map((m) => ({
+                id: m.id,
+                code: m.code,
+                name: m.name,
+              }))
+            : [],
+        );
+      } catch (error) {
+        console.error("Failed to fetch majors for school", school.id, error);
+      }
+    }
+  };
+
+  const handleMajorSelect = (major) => {
+    setSelectedMajor(major);
+    setSelectedSubject(null);
+    setSubjectQuery("");
+    setSubjectName("");
+    setSubjectNameOpen(false);
+
+    if (major) {
+      const filteredCourses = allCourses.filter(
+        (course) => course.major?.id === major.id,
+      );
+      setSubjectOptions(
+        filteredCourses.map((course) => ({
+          id: course.id,
+          code: course.code,
+          name: course.name,
+        })),
+      );
+    } else {
+      setSubjectOptions([]);
+    }
+  };
 
   const handleFileSelect = (event) => {
     const file = event.target.files?.[0];
@@ -148,21 +203,38 @@ export default function UploadDocumentDialog({
   const handleUploadDocument = async () => {
     if (!selectedFile) {
       const message = "Please select a file to upload.";
-
       setUploadError(message);
       toast.error(message);
+      return;
+    }
 
+    if (!selectedSchool) {
+      const message = "Please select a school.";
+      setUploadError(message);
+      toast.error(message);
+      return;
+    }
+
+    if (!selectedMajor) {
+      const message = "Please select a major.";
+      setUploadError(message);
+      toast.error(message);
       return;
     }
 
     const courseCode = subjectQuery.split("-")[0]?.trim();
 
-    if (!selectedSubject) {
-      const message = "Please select a course.";
-
+    if (!selectedSubject && !subjectNameOpen) {
+      const message = "Please select or enter a course.";
       setUploadError(message);
       toast.error(message);
+      return;
+    }
 
+    if (subjectNameOpen && !subjectName.trim()) {
+      const message = "Please enter the course name.";
+      setUploadError(message);
+      toast.error(message);
       return;
     }
 
@@ -183,10 +255,16 @@ export default function UploadDocumentDialog({
           formData.append("uploadedById", uploadedById);
         }
 
-        formData.append("courseCode", courseCode);
-
-        if (subjectNameOpen && subjectName.trim()) {
-          formData.append("courseName", subjectName.trim());
+        if (selectedSubject?.id) {
+          formData.append("courseId", selectedSubject.id);
+        } else {
+          formData.append("courseCode", courseCode);
+          if (selectedMajor?.id) {
+            formData.append("majorId", selectedMajor.id);
+          }
+          if (subjectNameOpen && subjectName.trim()) {
+            formData.append("courseName", subjectName.trim());
+          }
         }
 
         if (selectedCategory?.id) {
@@ -220,7 +298,6 @@ export default function UploadDocumentDialog({
                 "Failed to attach document to workspace",
                 linkError,
               );
-
               toast.error("Uploaded but failed to attach to workspace");
             }
           }
@@ -252,11 +329,9 @@ export default function UploadDocumentDialog({
       );
 
       onUploadSuccess?.(normalizedDoc);
-
       onOpenChange(false);
     } catch (error) {
       console.error("Upload failed", error);
-
       setUploadError("Upload failed. Please try again.");
     } finally {
       setUploading(false);
@@ -316,7 +391,7 @@ export default function UploadDocumentDialog({
             options={schoolOptions}
             value={schoolQuery}
             setValue={setSchoolQuery}
-            onSelect={setSelectedSchool}
+            onSelect={handleSchoolSelect}
             displayValue={(school) => `${school.code} - ${school.name}`}
             searchKeys={["code", "name"]}
             renderLeft={(school) => (
@@ -329,80 +404,110 @@ export default function UploadDocumentDialog({
             )}
           />
 
-          {/* subject Input */}
+          {/* major Input */}
           <SearchSelect
-            label="Course"
-            icon={<BookOpen size={16} className="text-[#f26522]" />}
-            placeholder="Enter course code or name"
-            options={subjectOptions}
-            value={subjectQuery}
-            setValue={setSubjectQuery}
-            onSelect={(course) => {
-              setSelectedSubject(course);
-              setSubjectNameOpen(false);
-            }}
-            onInputChange={(value) => {
-              const trimmed = value.trim().toLowerCase();
-
-              const hasMatch = subjectOptions.some(
-                (option) => option.code.toLowerCase() === trimmed,
-              );
-
-              setSubjectNameOpen(Boolean(trimmed) && !hasMatch);
-            }}
-            displayValue={(course) => `${course.code} - ${course.name}`}
+            label="Major"
+            icon={<Layers size={16} className="text-[#f26522]" />}
+            placeholder={
+              selectedSchool
+                ? "Enter major code or name"
+                : "Please select a school first"
+            }
+            disabled={!selectedSchool}
+            options={majorOptions}
+            value={majorQuery}
+            setValue={setMajorQuery}
+            onSelect={handleMajorSelect}
+            displayValue={(major) => `${major.code} - ${major.name}`}
             searchKeys={["code", "name"]}
-            renderLeft={(course) => (
-              <span className="font-semibold text-slate-700">
-                {course.code}
-              </span>
+            renderLeft={(major) => (
+              <span className="font-semibold text-slate-700">{major.code}</span>
             )}
-            renderRight={(course) => (
-              <span className="text-slate-500 text-[11px]">{course.name}</span>
+            renderRight={(major) => (
+              <span className="text-slate-500 text-[11px]">{major.name}</span>
             )}
           />
 
-          {subjectNameOpen && (
-            <div className="space-y-1">
-              <Label className="flex items-center gap-2 text-slate-700 font-semibold">
-                <FileText size={16} className="text-[#f26522]" /> Course Name
-              </Label>
-              <Input
-                placeholder="New subject! Enter full name here:"
-                className="rounded-lg border-gray-300 focus-visible:ring-[#f26522] focus-visible:border-[#f26522]"
-                value={subjectName}
-                onChange={(e) => setSubjectName(e.target.value)}
-              />
-            </div>
-          )}
+          <div className="grid grid-cols-2 gap-4">
+            {/* subject Input */}
+            <SearchSelect
+              label="Course"
+              icon={<BookOpen size={16} className="text-[#f26522]" />}
+              placeholder={
+                selectedMajor
+                  ? "Enter course code or name"
+                  : "Please select a major first"
+              }
+              disabled={!selectedMajor}
+              options={subjectOptions}
+              value={subjectQuery}
+              setValue={setSubjectQuery}
+              onSelect={(course) => {
+                setSelectedSubject(course);
+                setSubjectNameOpen(false);
+              }}
+              onInputChange={(value) => {
+                const trimmed = value.trim().toLowerCase();
 
-          {/* category Input */}
-          <SearchSelect
-            label="Category"
-            icon={<FileText size={16} className="text-[#f26522]" />}
-            placeholder="Select category"
-            options={categoryOptions}
-            value={categoryQuery}
-            setValue={setCategoryQuery}
-            onSelect={setSelectedCategory}
-            displayValue={(c) => `${c.code} - ${c.name}`}
-            searchKeys={["code", "name"]}
-            renderLeft={(c) => (
-              <div className="flex items-center gap-2">
-                <div
-                  className="w-2 h-2 rounded-full"
-                  style={{
-                    backgroundColor: c.color || "#f26522",
-                  }}
+                const hasMatch = subjectOptions.some(
+                  (option) => option.code.toLowerCase() === trimmed,
+                );
+
+                setSubjectNameOpen(Boolean(trimmed) && !hasMatch);
+              }}
+              displayValue={(course) => `${course.code} - ${course.name}`}
+              searchKeys={["code", "name"]}
+              renderLeft={(course) => (
+                <span className="font-semibold text-slate-700">
+                  {course.code}
+                </span>
+              )}
+              renderRight={(course) => (
+                <span className="text-slate-500 text-[11px]">
+                  {course.name}
+                </span>
+              )}
+            />
+            {subjectNameOpen && (
+              <div className="space-y-1">
+                <Label className="flex items-center gap-2 text-slate-700 font-semibold">
+                  <FileText size={16} className="text-[#f26522]" /> Course Name
+                </Label>
+                <Input
+                  placeholder="New subject! Enter full name here:"
+                  className="rounded-lg border-gray-300 focus-visible:ring-[#f26522] focus-visible:border-[#f26522]"
+                  value={subjectName}
+                  onChange={(e) => setSubjectName(e.target.value)}
                 />
-
-                <span className="font-semibold">{c.code}</span>
               </div>
             )}
-            renderRight={(c) => (
-              <span className="text-slate-500 text-[11px]">{c.name}</span>
-            )}
-          />
+            {/* category Input */}
+            <SearchSelect
+              label="Category"
+              icon={<FileText size={16} className="text-[#f26522]" />}
+              placeholder="Select category"
+              options={categoryOptions}
+              value={categoryQuery}
+              setValue={setCategoryQuery}
+              onSelect={setSelectedCategory}
+              displayValue={(c) => `${c.code} - ${c.name}`}
+              searchKeys={["code", "name"]}
+              renderLeft={(c) => (
+                <div className="flex items-center gap-2">
+                  <div
+                    className="w-2 h-2 rounded-full"
+                    style={{
+                      backgroundColor: c.color || "#f26522",
+                    }}
+                  />
+                  <span className="font-semibold">{c.code}</span>
+                </div>
+              )}
+              renderRight={(c) => (
+                <span className="text-slate-500 text-[11px]">{c.name}</span>
+              )}
+            />
+          </div>
 
           {/* tags Input */}
           <MultiSearchSelect

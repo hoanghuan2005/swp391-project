@@ -20,6 +20,8 @@ import AdminDocumentDetailPage from "./pages/Admin/DocumentDetailPage";
 import CatalogSchoolsPage from "./pages/Admin/CatalogSchoolsPage";
 import CatalogTagsPage from "./pages/Admin/CatalogTagsPage";
 import CatalogLanguagesPage from "./pages/Admin/CatalogLanguagesPage";
+import CatalogMajorsPage from "./pages/Admin/CatalogMajorsPage";
+import SettingsPage from "./pages/Admin/SettingsPage";
 import CourseDetailPage from "./pages/CourseDetailPage";
 import CatalogCoursesPage from "./pages/Admin/CatalogCoursesPage";
 import AskAIPage from "./pages/ai/ai_ask/AskAIPage";
@@ -133,15 +135,18 @@ function App() {
               path="/admin/catalog/schools"
               element={<CatalogSchoolsPage />}
             />
+            <Route
+              path="/admin/catalog/majors"
+              element={<CatalogMajorsPage />}
+            />
             <Route path="/admin/catalog/tags" element={<CatalogTagsPage />} />
             <Route
               path="/admin/catalog/languages"
               element={<CatalogLanguagesPage />}
             />
-
             <Route
               path="/admin/settings"
-              element={<ComingSoon pageName="Admin Settings" />}
+              element={<SettingsPage />}
             />
           </Route>
         </Route>

@@ -20,7 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Search, Trash2 } from "lucide-react";
+import { Plus, Search, Trash2, Pencil } from "lucide-react";
 import { useModal } from "@/components/share/useModal";
 import { toast } from "sonner";
 
@@ -37,12 +37,15 @@ export default function BaseCrud({
   searchFilter,
   hideHeader = false,
   cardTitle,
+  onFieldChange,
 }) {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState(initialFormState);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   const { confirm } = useModal();
 
   const loadData = async () => {
@@ -70,16 +73,23 @@ export default function BaseCrud({
     return data.filter((item) => searchFilter(item, keyword));
   }, [data, query, searchFilter]);
 
-  const handleCreate = async () => {
+  const handleSubmit = async () => {
     try {
-      await axiosClient.post(apiUrl, form);
+      if (isEditing) {
+        await axiosClient.put(`${apiUrl}/${editingId}`, form);
+        toast.success(`${entityName} updated successfully`);
+      } else {
+        await axiosClient.post(apiUrl, form);
+        toast.success(`${entityName} created successfully`);
+      }
       setDialogOpen(false);
       setForm(initialFormState);
-      toast.success(`${entityName} created successfully`);
+      setIsEditing(false);
+      setEditingId(null);
       loadData();
     } catch (error) {
-      console.error(`Failed to create ${entityName}:`, error);
-      toast.error(`Unable to create ${entityName}. Please check the form.`);
+      console.error(`Failed to save ${entityName}:`, error);
+      toast.error(`Unable to save ${entityName}. Please check the form.`);
     }
   };
 
@@ -98,6 +108,41 @@ export default function BaseCrud({
     } catch (error) {
       console.error(`Failed to delete ${entityName}:`, error);
       toast.error(`Unable to delete ${entityName}.`);
+    }
+  };
+
+  const handleEditClick = (item) => {
+    setIsEditing(true);
+    setEditingId(item.id);
+
+    const editForm = {};
+    Object.keys(initialFormState).forEach((key) => {
+      if (key === "schoolId") {
+        editForm[key] = item.school?.id || item.major?.school?.id || "";
+      } else if (key === "majorId") {
+        editForm[key] = item.major?.id || "";
+      } else {
+        editForm[key] = item[key] !== undefined && item[key] !== null ? item[key] : "";
+      }
+    });
+
+    setForm(editForm);
+    setDialogOpen(true);
+    if (onFieldChange) {
+      onFieldChange("__init__", null, editForm, setForm);
+    }
+  };
+
+  const handleFieldChange = (fieldName, val) => {
+    let finalVal = val;
+    const field = formFields.find((f) => f.name === fieldName);
+    if (field?.uppercase && typeof finalVal === "string") {
+      finalVal = finalVal.toUpperCase();
+    }
+    const updatedForm = { ...form, [fieldName]: finalVal };
+    setForm(updatedForm);
+    if (onFieldChange) {
+      onFieldChange(fieldName, finalVal, updatedForm, setForm);
     }
   };
 
@@ -134,7 +179,15 @@ export default function BaseCrud({
             </div>
             <Button
               className="rounded-xl bg-[#f26522] text-white hover:bg-[#d95316] flex items-center gap-2"
-              onClick={() => setDialogOpen(true)}
+              onClick={() => {
+                setIsEditing(false);
+                setEditingId(null);
+                setForm(initialFormState);
+                setDialogOpen(true);
+                if (onFieldChange) {
+                  onFieldChange("__init__", null, initialFormState, setForm);
+                }
+              }}
             >
               <Plus className="w-4 h-4" />
               Add {entityName.toLowerCase()}
@@ -186,7 +239,15 @@ export default function BaseCrud({
                           {col.render(item)}
                         </TableCell>
                       ))}
-                      <TableCell className="text-right">
+                      <TableCell className="text-right space-x-1">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => handleEditClick(item)}
+                          className="text-slate-500 hover:text-[#f26522] hover:bg-orange-50"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </Button>
                         <Button
                           size="icon"
                           variant="ghost"
@@ -208,24 +269,44 @@ export default function BaseCrud({
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="rounded-2xl">
           <DialogHeader>
-            <DialogTitle>Add {entityName.toLowerCase()}</DialogTitle>
+            <DialogTitle>{isEditing ? "Edit" : "Add"} {entityName.toLowerCase()}</DialogTitle>
             <DialogDescription>
-              Create a new {entityName.toLowerCase()} record.
+              {isEditing ? "Modify" : "Create"} a {entityName.toLowerCase()} record.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4">
             {formFields.map((field) => (
               <div key={field.name} className="grid gap-2">
                 <Label>{field.label}</Label>
-                <Input
-                  value={form[field.name]}
-                  onChange={(event) => {
-                    let val = event.target.value;
-                    if (field.uppercase) val = val.toUpperCase();
-                    setForm((prev) => ({ ...prev, [field.name]: val }));
-                  }}
-                  placeholder={field.placeholder}
-                />
+                {field.type === "select" ? (
+                  <select
+                    value={form[field.name] || ""}
+                    onChange={(event) => handleFieldChange(field.name, event.target.value)}
+                    className="w-full h-10 px-3 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-[#f26522] text-slate-700 text-sm"
+                  >
+                    <option value="">Select {field.label.toLowerCase()}...</option>
+                    {field.options?.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                ) : field.type === "textarea" ? (
+                  <textarea
+                    value={form[field.name] || ""}
+                    onChange={(event) => handleFieldChange(field.name, event.target.value)}
+                    placeholder={field.placeholder}
+                    className="w-full p-3 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-[#f26522] text-slate-700 text-sm"
+                    rows={3}
+                  />
+                ) : (
+                  <Input
+                    value={form[field.name] || ""}
+                    onChange={(event) => handleFieldChange(field.name, event.target.value)}
+                    placeholder={field.placeholder}
+                    className="rounded-xl border-slate-200 focus-visible:ring-[#f26522]"
+                  />
+                )}
               </div>
             ))}
           </div>
@@ -235,7 +316,7 @@ export default function BaseCrud({
             </Button>
             <Button
               className="bg-[#f26522] text-white hover:bg-[#d95316]"
-              onClick={handleCreate}
+              onClick={handleSubmit}
             >
               Save {entityName.toLowerCase()}
             </Button>

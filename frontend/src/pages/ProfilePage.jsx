@@ -36,6 +36,7 @@ import {
   Calendar,
   BookOpen,
   Search,
+  Layers,
 } from "lucide-react";
 
 export default function ProfilePage() {
@@ -45,6 +46,7 @@ export default function ProfilePage() {
     schoolCode: "",
     schoolName: "",
     startYear: "",
+    major: "",
     followers: 0,
     uploads: 0,
     upvotes: 0,
@@ -107,6 +109,7 @@ export default function ProfilePage() {
         schoolCode: profile.schoolCode || "",
         schoolName: profile.schoolName || "",
         startYear: profile.startYear ? String(profile.startYear) : "",
+        major: profile.major || "",
         followers: profile.followers || 0,
         uploads: profile.uploads || 0,
         upvotes: profile.upvotes || 0,
@@ -218,6 +221,7 @@ export default function ProfilePage() {
         schoolCode: profileData.schoolCode || null,
         schoolName: profileData.schoolName || null,
         startYear: profileData.startYear ? Number(profileData.startYear) : null,
+        major: profileData.major || null,
         languageIds: selectedLanguageIds,
         avatarUrl: uploadedAvatarUrl,
       });
@@ -294,6 +298,7 @@ export default function ProfilePage() {
 
               <p className="text-sm text-slate-500 mt-3">
                 {profileData.schoolName || "No School Selected"}
+                {profileData.major && ` • ${profileData.major}`}
               </p>
 
               <div className="flex flex-wrap gap-2 justify-center mt-4">
@@ -497,6 +502,22 @@ export default function ProfilePage() {
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+
+                {/* MAJOR */}
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                    <Layers size={15} className="text-[#f26522]" />
+                    Major / Specialization
+                  </label>
+
+                  <Input
+                    name="major"
+                    value={profileData.major}
+                    onChange={handleInputChange}
+                    placeholder="e.g. Software Engineering"
+                    className="h-11 rounded-xl border-orange-100 focus-visible:ring-[#f26522]"
+                  />
                 </div>
 
                 {/* LANGUAGES */}

@@ -18,6 +18,8 @@ public class ProfileUpdateRequest {
 
     private Integer startYear;
 
+    private String major;
+
     private List<UUID> languageIds;
 
     private String avatarUrl;

@@ -49,6 +49,7 @@ public class DocumentServiceImpl implements DocumentService {
     private final FileStorageService fileStorageService;
     private final DocumentParserService documentParserService;
     private final DocumentChunkRepository documentChunkRepository;
+    private final com.example.keeper.systems.major.repository.MajorRepository majorRepository;
 
 
 
@@ -178,6 +179,26 @@ public class DocumentServiceImpl implements DocumentService {
         String courseCode = safeTrim(request.getCourseCode());
         if (courseCode == null) {
             throw new IllegalArgumentException("Course code is required");
+        }
+
+        if (request.getMajorId() != null) {
+            return courseRepository.findByMajorIdAndCode(request.getMajorId(), courseCode)
+                    .orElseGet(() -> {
+                        String courseName = safeTrim(request.getCourseName());
+                        if (courseName == null) {
+                            throw new IllegalArgumentException("Course name is required for new course code");
+                        }
+
+                        com.example.keeper.systems.major.entity.Major major = majorRepository.findById(request.getMajorId())
+                                .orElseThrow(() -> new RuntimeException("Major not found"));
+
+                        Course course = new Course();
+                        course.setCode(courseCode);
+                        course.setName(courseName);
+                        course.setDescription(null);
+                        course.setMajor(major);
+                        return courseRepository.save(course);
+                    });
         }
 
         return courseRepository.findByCode(courseCode)
@@ -418,10 +439,20 @@ public class DocumentServiceImpl implements DocumentService {
                         : document.getAiParseStatus().name())
                 .downloadCount(document.getDownloadCount())
                 .createdAt(document.getCreatedAt())
-                .course(DocumentDetailResponse.CourseInfo.builder()
-                        .id(document.getCourse() == null ? null : document.getCourse().getId())
-                        .code(document.getCourse() == null ? null : document.getCourse().getCode())
-                        .name(document.getCourse() == null ? null : document.getCourse().getName())
+                .course(document.getCourse() == null ? null : DocumentDetailResponse.CourseInfo.builder()
+                        .id(document.getCourse().getId())
+                        .code(document.getCourse().getCode())
+                        .name(document.getCourse().getName())
+                        .major(document.getCourse().getMajor() == null ? null : DocumentDetailResponse.MajorInfo.builder()
+                                .id(document.getCourse().getMajor().getId())
+                                .code(document.getCourse().getMajor().getCode())
+                                .name(document.getCourse().getMajor().getName())
+                                .school(document.getCourse().getMajor().getSchool() == null ? null : DocumentDetailResponse.SchoolInfo.builder()
+                                        .id(document.getCourse().getMajor().getSchool().getId())
+                                        .code(document.getCourse().getMajor().getSchool().getCode())
+                                        .name(document.getCourse().getMajor().getSchool().getName())
+                                        .build())
+                                .build())
                         .build())
                 .uploadedBy(DocumentDetailResponse.UserInfo.builder()
                         .id(document.getUploadedBy() == null ? null : document.getUploadedBy().getId())
@@ -458,10 +489,20 @@ public class DocumentServiceImpl implements DocumentService {
                         : document.getAiParseStatus().name())
                 .downloadCount(document.getDownloadCount())
                 .createdAt(document.getCreatedAt())
-                .course(DocumentResponse.CourseInfo.builder()
-                        .id(document.getCourse() == null ? null : document.getCourse().getId())
-                        .code(document.getCourse() == null ? null : document.getCourse().getCode())
-                        .name(document.getCourse() == null ? null : document.getCourse().getName())
+                .course(document.getCourse() == null ? null : DocumentResponse.CourseInfo.builder()
+                        .id(document.getCourse().getId())
+                        .code(document.getCourse().getCode())
+                        .name(document.getCourse().getName())
+                        .major(document.getCourse().getMajor() == null ? null : DocumentResponse.MajorInfo.builder()
+                                .id(document.getCourse().getMajor().getId())
+                                .code(document.getCourse().getMajor().getCode())
+                                .name(document.getCourse().getMajor().getName())
+                                .school(document.getCourse().getMajor().getSchool() == null ? null : DocumentResponse.SchoolInfo.builder()
+                                        .id(document.getCourse().getMajor().getSchool().getId())
+                                        .code(document.getCourse().getMajor().getSchool().getCode())
+                                        .name(document.getCourse().getMajor().getSchool().getName())
+                                        .build())
+                                .build())
                         .build())
                 .tags(document.getTags() == null
                         ? List.of()

@@ -146,6 +146,14 @@ public class DocumentDiscoveryServiceImpl implements DocumentDiscoveryService {
             append(metadata, document.getCourse().getCode());
             append(metadata, document.getCourse().getName());
             append(metadata, document.getCourse().getDescription());
+            if (document.getCourse().getMajor() != null) {
+                append(metadata, document.getCourse().getMajor().getCode());
+                append(metadata, document.getCourse().getMajor().getName());
+                if (document.getCourse().getMajor().getSchool() != null) {
+                    append(metadata, document.getCourse().getMajor().getSchool().getCode());
+                    append(metadata, document.getCourse().getMajor().getSchool().getName());
+                }
+            }
         }
         if (document.getTags() != null) {
             document.getTags().forEach(tag -> append(metadata, tag.getName()));

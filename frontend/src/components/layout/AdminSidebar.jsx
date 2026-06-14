@@ -7,6 +7,7 @@ import {
   FileText,
   BookOpen,
   GraduationCap,
+  Layers,
   Tags,
   Globe,
 } from "lucide-react";
@@ -133,6 +134,13 @@ export default function AdminSidebar({ isOpen = true }) {
           to="/admin/catalog/schools"
           icon={GraduationCap}
           label="Schools"
+          isOpen={isOpen}
+          pathname={location.pathname}
+        />
+        <AdminNavItem
+          to="/admin/catalog/majors"
+          icon={Layers}
+          label="Majors"
           isOpen={isOpen}
           pathname={location.pathname}
         />

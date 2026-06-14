@@ -24,6 +24,7 @@ public class CourseServiceImpl implements CourseService {
     private final CourseRepository courseRepository;
     private final DocumentRepository documentRepository;
     private final UserRepository userRepository;
+    private final com.example.keeper.systems.major.repository.MajorRepository majorRepository;
 
     @Override
     public Course create(CreateCourseRequest request) {
@@ -31,6 +32,30 @@ public class CourseServiceImpl implements CourseService {
         course.setCode(request.getCode());
         course.setName(request.getName());
         course.setDescription(request.getDescription());
+
+        if (request.getMajorId() != null) {
+            com.example.keeper.systems.major.entity.Major major = majorRepository.findById(request.getMajorId())
+                    .orElseThrow(() -> new RuntimeException("Major not found"));
+            course.setMajor(major);
+        }
+
+        return courseRepository.save(course);
+    }
+
+    @Override
+    public Course update(UUID id, CreateCourseRequest request) {
+        Course course = getById(id);
+        course.setCode(request.getCode());
+        course.setName(request.getName());
+        course.setDescription(request.getDescription());
+
+        if (request.getMajorId() != null) {
+            com.example.keeper.systems.major.entity.Major major = majorRepository.findById(request.getMajorId())
+                    .orElseThrow(() -> new RuntimeException("Major not found"));
+            course.setMajor(major);
+        } else {
+            course.setMajor(null);
+        }
 
         return courseRepository.save(course);
     }
@@ -41,16 +66,27 @@ public class CourseServiceImpl implements CourseService {
     }
 
     @Override
-    public Page<Course> search(String query, Pageable pageable) {
-        if (query == null || query.trim().isEmpty()) {
-            return courseRepository.findAll(pageable);
-        }
+    public Page<Course> search(String query, UUID majorId, Pageable pageable) {
+        boolean hasQuery = query != null && !query.trim().isEmpty();
+        boolean hasMajor = majorId != null;
 
-        String trimmed = query.trim();
-        return courseRepository.findByCodeContainingIgnoreCaseOrNameContainingIgnoreCase(
-                trimmed,
-                trimmed,
-                pageable);
+        if (hasMajor) {
+            if (hasQuery) {
+                return courseRepository.searchByMajorIdAndQuery(majorId, query.trim(), pageable);
+            } else {
+                return courseRepository.findByMajorId(majorId, pageable);
+            }
+        } else {
+            if (hasQuery) {
+                String trimmed = query.trim();
+                return courseRepository.findByCodeContainingIgnoreCaseOrNameContainingIgnoreCase(
+                        trimmed,
+                        trimmed,
+                        pageable);
+            } else {
+                return courseRepository.findAll(pageable);
+            }
+        }
     }
 
     @Override

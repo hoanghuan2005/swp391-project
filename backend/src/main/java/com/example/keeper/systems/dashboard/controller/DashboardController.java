@@ -24,6 +24,7 @@ public class DashboardController {
     private final SchoolRepository schoolRepository;
     private final TagRepository tagRepository;
     private final LanguageRepository languageRepository;
+    private final com.example.keeper.systems.major.repository.MajorRepository majorRepository;
 
     @GetMapping("/stats")
     public ResponseEntity<DashboardStatsResponse> getDashboardStats() {
@@ -35,6 +36,7 @@ public class DashboardController {
                 .totalSchools(schoolRepository.count())
                 .totalTags(tagRepository.count())
                 .totalLanguages(languageRepository.count())
+                .totalMajors(majorRepository.count())
                 .build();
 
         return ResponseEntity.ok(stats);

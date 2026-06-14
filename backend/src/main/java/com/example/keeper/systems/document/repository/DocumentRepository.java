@@ -29,6 +29,8 @@ public interface DocumentRepository extends JpaRepository<Document, UUID> {
     @Query("""
             select distinct d from Document d
             left join d.course c
+            left join c.major m
+            left join m.school s
             left join d.tags t
             left join d.category cat
             left join d.uploadedBy u
@@ -41,6 +43,10 @@ public interface DocumentRepository extends JpaRepository<Document, UUID> {
                 or lower(c.code) like lower(concat('%', :keyword, '%'))
                 or lower(c.name) like lower(concat('%', :keyword, '%'))
                 or lower(cast(c.description as String)) like lower(concat('%', :keyword, '%'))
+                or lower(m.code) like lower(concat('%', :keyword, '%'))
+                or lower(m.name) like lower(concat('%', :keyword, '%'))
+                or lower(s.code) like lower(concat('%', :keyword, '%'))
+                or lower(s.name) like lower(concat('%', :keyword, '%'))
                 or lower(t.name) like lower(concat('%', :keyword, '%'))
                 or lower(cat.code) like lower(concat('%', :keyword, '%'))
                 or lower(cat.name) like lower(concat('%', :keyword, '%'))

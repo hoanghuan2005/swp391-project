@@ -29,4 +29,7 @@ public class UserProfile extends BaseEntity {
 
     @Column(name = "start_year")
     private Integer startYear;
+
+    @Column(name = "major")
+    private String major;
 }

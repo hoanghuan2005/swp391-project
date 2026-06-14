@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Calendar, GraduationCap, Search, X } from "lucide-react";
+import { Calendar, GraduationCap, Search, X, Layers } from "lucide-react";
 import axiosClient from "@/api/axiosClient";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,7 +24,8 @@ import {
 } from "@/components/ui/input-group";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ScrollArea } from "@/components/ui/scroll-area";import { toast } from "react-hot-toast";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { toast } from "react-hot-toast";
 
 export default function Survey({ onClose, forceOpen = false }) {
   const SCHOOL_STORAGE_KEY = "profileSchool";
@@ -49,6 +50,10 @@ export default function Survey({ onClose, forceOpen = false }) {
   const [schoolName, setSchoolName] = useState("");
   const [schoolCode, setSchoolCode] = useState("");
   const [startYear, setStartYear] = useState("");
+  const [majorName, setMajorName] = useState("");
+  const [majorOpen, setMajorOpen] = useState(false);
+  const [majorOptions, setMajorOptions] = useState([]);
+  const [loadingMajors, setLoadingMajors] = useState(false);
   const [languageOptions, setLanguageOptions] = useState([]);
   const [selectedLanguageIds, setSelectedLanguageIds] = useState([]);
   const [loadingLanguages, setLoadingLanguages] = useState(true);
@@ -56,6 +61,32 @@ export default function Survey({ onClose, forceOpen = false }) {
   const [loadingSchools, setLoadingSchools] = useState(true);
   const [schoolOpen, setSchoolOpen] = useState(false);
   const [yearOpen, setYearOpen] = useState(false);
+
+  const fetchMajorsForSchool = async (schoolId) => {
+    if (!schoolId) {
+      setMajorOptions([]);
+      return;
+    }
+    try {
+      setLoadingMajors(true);
+      const res = await axiosClient.get(`/api/majors?schoolId=${schoolId}`);
+      setMajorOptions(res.data || []);
+    } catch (error) {
+      console.error("Failed to fetch majors for school", schoolId, error);
+      setMajorOptions([]);
+    } finally {
+      setLoadingMajors(false);
+    }
+  };
+
+  const filteredMajors = useMemo(() => {
+    const query = majorName.trim().toLowerCase();
+    if (!query) return majorOptions;
+
+    return majorOptions.filter((item) =>
+      `${item.name} ${item.code}`.toLowerCase().includes(query),
+    );
+  }, [majorName, majorOptions]);
 
   const years = useMemo(
     () => Array.from({ length: 12 }, (_, i) => 2026 - i),
@@ -143,10 +174,7 @@ export default function Survey({ onClose, forceOpen = false }) {
       const response = await axiosClient.post("/api/survey", surveyPayload);
 
       if (response?.data) {
-        persistSchool(
-          response.data.schoolCode,
-          response.data.schoolName,
-        );
+        persistSchool(response.data.schoolCode, response.data.schoolName);
       }
 
       localStorage.setItem("surveyCompleted", "true");
@@ -192,6 +220,7 @@ export default function Survey({ onClose, forceOpen = false }) {
       schoolCode: resolvedSchool || null,
       schoolName: schoolName.trim() || null,
       startYear: startYear ? Number(startYear) : null,
+      major: majorName.trim() || null,
       languageIds: selectedLanguageIds,
     };
 
@@ -223,7 +252,7 @@ export default function Survey({ onClose, forceOpen = false }) {
     >
       <DialogContent
         showCloseButton={false}
-        className="!max-w-[500px] rounded-xl p-0 overflow-hidden bg-white shadow-xl"
+        className="!max-w-[570px] rounded-xl p-0 overflow-hidden bg-white shadow-xl"
       >
         <DialogTitle className="sr-only">Learning Survey</DialogTitle>
         <DialogDescription className="sr-only">
@@ -275,6 +304,8 @@ export default function Survey({ onClose, forceOpen = false }) {
                           setSchoolName(event.target.value);
                           setSchoolCode("");
                           setSchoolOpen(true);
+                          setMajorName("");
+                          setMajorOptions([]);
                         }}
                         onFocus={() => setSchoolOpen(true)}
                         onBlur={() => {
@@ -305,6 +336,7 @@ export default function Survey({ onClose, forceOpen = false }) {
                                   setSchoolName(item.name);
                                   setSchoolCode(item.code);
                                   setSchoolOpen(false);
+                                  fetchMajorsForSchool(item.id);
                                 }}
                                 className="w-full justify-between rounded-none px-3 py-2 text-xs hover:bg-slate-50"
                               >
@@ -352,7 +384,7 @@ export default function Survey({ onClose, forceOpen = false }) {
 
                     {yearOpen && (
                       <div className="absolute z-20 mt-2 w-full rounded-xl border border-slate-200 bg-white shadow-md">
-                        <ScrollArea className="max-h-40">
+                        <div className="max-h-40 overflow-y-auto">
                           {filteredYears.length === 0 ? (
                             <div className="p-3 text-xs text-slate-500">
                               No years match your search.
@@ -371,6 +403,71 @@ export default function Survey({ onClose, forceOpen = false }) {
                                 className="w-full justify-start rounded-none px-3 py-2 text-xs hover:bg-slate-50"
                               >
                                 {year}
+                              </Button>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                    <Layers className="h-4 w-4 text-[#f26522]" />
+                    Major / Specialization
+                  </Label>
+                  <div className="relative">
+                    <InputGroup className="rounded-xl border-slate-200 bg-white/90">
+                      <InputGroupAddon>
+                        <Search className="h-4 w-4 text-slate-400" />
+                      </InputGroupAddon>
+                      <InputGroupInput
+                        value={majorName}
+                        placeholder={
+                          schoolCode
+                            ? "Search your major"
+                            : "Please select a school first"
+                        }
+                        disabled={!schoolCode}
+                        onChange={(event) => {
+                          setMajorName(event.target.value);
+                          setMajorOpen(true);
+                        }}
+                        onFocus={() => schoolCode && setMajorOpen(true)}
+                        onBlur={() => {
+                          setTimeout(() => setMajorOpen(false), 120);
+                        }}
+                      />
+                    </InputGroup>
+
+                    {majorOpen && schoolCode && (
+                      <div className="absolute z-20 mt-2 w-full rounded-xl border border-slate-200 bg-white shadow-md">
+                        <ScrollArea className="max-h-48">
+                          {loadingMajors ? (
+                            <div className="p-3 text-xs text-slate-500">
+                              Loading majors...
+                            </div>
+                          ) : filteredMajors.length === 0 ? (
+                            <div className="p-3 text-xs text-slate-500">
+                              No majors match your search.
+                            </div>
+                          ) : (
+                            filteredMajors.map((item) => (
+                              <Button
+                                key={item.id}
+                                type="button"
+                                variant="ghost"
+                                onMouseDown={(event) => {
+                                  event.preventDefault();
+                                  setMajorName(item.name);
+                                  setMajorOpen(false);
+                                }}
+                                className="w-full justify-start rounded-none px-3 py-2 text-xs hover:bg-slate-50"
+                              >
+                                <span className="text-slate-700">
+                                  {item.code} - {item.name}
+                                </span>
                               </Button>
                             ))
                           )}

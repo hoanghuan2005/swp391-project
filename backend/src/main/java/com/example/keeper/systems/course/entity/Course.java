@@ -5,6 +5,8 @@ import com.example.keeper.systems.base.BaseEntity;
 import com.example.keeper.systems.document.entity.Document;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
+import com.example.keeper.systems.major.entity.Major;
+
 import jakarta.persistence.*;
 
 import lombok.AllArgsConstructor;
@@ -20,10 +22,12 @@ import java.util.List;
 @Entity
 @NoArgsConstructor
 @AllArgsConstructor
-@Table(name = "courses")
+@Table(name = "courses", uniqueConstraints = {
+    @UniqueConstraint(columnNames = {"major_id", "code"})
+})
 public class Course extends BaseEntity {
 
-    @Column(nullable = false, unique = true, length = 50)
+    @Column(nullable = false, length = 50)
     private String code;
 
     @Column(nullable = false)
@@ -31,6 +35,10 @@ public class Course extends BaseEntity {
 
     @Column(columnDefinition = "TEXT")
     private String description;
+
+    @ManyToOne
+    @JoinColumn(name = "major_id")
+    private Major major;
 
     @OneToMany(mappedBy = "course")
     @JsonIgnore

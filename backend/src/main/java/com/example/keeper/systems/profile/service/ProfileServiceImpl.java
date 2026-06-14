@@ -93,6 +93,7 @@ public class ProfileServiceImpl implements ProfileService {
         profile.setSchoolCode(resolvedSchoolCode);
         profile.setSchoolName(resolvedSchoolName);
         profile.setStartYear(request.getStartYear());
+        profile.setMajor(request.getMajor());
 
         userProfileRepository.save(profile);
 
@@ -141,6 +142,9 @@ public class ProfileServiceImpl implements ProfileService {
                 .startYear(profile != null
                         ? profile.getStartYear()
                         : null)
+                .major(profile != null
+                        ? profile.getMajor()
+                        : "")
                 .languages(user.getLanguages() != null
                         ? user.getLanguages()
                         .stream()

@@ -223,31 +223,45 @@ export default function Homepage() {
 
   const filteredDocuments = useMemo(() => {
     return documents.filter((doc) => {
+      const docSearchText = [
+        doc.title,
+        doc.course?.code,
+        doc.course?.name,
+        doc.course?.major?.code,
+        doc.course?.major?.name,
+        doc.course?.major?.school?.code,
+        doc.course?.major?.school?.name,
+      ].filter(Boolean).join(" ").toLowerCase();
+
       const matchesSearch = searchQuery
-        ? doc.title?.toLowerCase().includes(searchQuery.toLowerCase())
+        ? docSearchText.includes(searchQuery.toLowerCase())
         : true;
+
       const matchesCourse = filterData.course
         ? doc.course?.code
             ?.toLowerCase()
             .includes(filterData.course.toLowerCase()) ||
           doc.course?.name
             ?.toLowerCase()
+            .includes(filterData.course.toLowerCase()) ||
+          doc.course?.major?.code
+            ?.toLowerCase()
+            .includes(filterData.course.toLowerCase()) ||
+          doc.course?.major?.name
+            ?.toLowerCase()
             .includes(filterData.course.toLowerCase())
         : true;
+
       const matchesCategory = filterData.category
         ? doc.category?.toLowerCase() === filterData.category.toLowerCase()
         : true;
 
-      // Sửa lỗi trắng trang khi backend trả về school null
-      const docSchool =
-        doc.schoolCode ||
-        doc.school?.code ||
-        doc.course?.schoolCode ||
-        doc.school ||
-        "";
+      const docSchoolCode = doc.course?.major?.school?.code || doc.schoolCode || doc.school?.code || doc.course?.schoolCode || "";
+      const docSchoolName = doc.course?.major?.school?.name || doc.school?.name || "";
       const matchesSchool = filterData.school
-        ? docSchool.toLowerCase().includes(filterData.school.toLowerCase()) ||
-          filterData.school.toLowerCase().includes(docSchool.toLowerCase())
+        ? docSchoolCode.toLowerCase().includes(filterData.school.toLowerCase()) ||
+          docSchoolName.toLowerCase().includes(filterData.school.toLowerCase()) ||
+          filterData.school.toLowerCase().includes(docSchoolCode.toLowerCase())
         : true;
 
       return matchesSearch && matchesSchool && matchesCourse && matchesCategory;

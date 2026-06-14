@@ -13,6 +13,7 @@ import com.example.keeper.systems.course.repository.CourseRepository;
 import com.example.keeper.systems.notification.repository.NotificationRepository;
 import com.example.keeper.systems.school.entity.School;
 import com.example.keeper.systems.school.repository.SchoolRepository;
+import com.example.keeper.systems.major.entity.Major;
 import com.example.keeper.systems.tag.entity.Tag;
 import com.example.keeper.systems.tag.repository.TagRepository;
 import lombok.RequiredArgsConstructor;
@@ -42,9 +43,18 @@ public class DataInitializer implements CommandLineRunner {
         private final TagRepository tagRepository;
         private final CategoryRepository categoryRepository;
         private final NotificationRepository notificationRepository;
+        private final jakarta.persistence.EntityManager entityManager;
+        private final com.example.keeper.systems.major.repository.MajorRepository majorRepository;
 
         @Override
+        @jakarta.transaction.Transactional
         public void run(String... args) {
+                // Drop the constraint if it exists
+                try {
+                        entityManager.createNativeQuery("ALTER TABLE courses DROP CONSTRAINT IF EXISTS uk_61og8rbqdd2y28rx2et5fdnxd").executeUpdate();
+                } catch (Exception e) {
+                        System.err.println("Failed to drop unique constraint: " + e.getMessage());
+                }
 
                 /*
                  * =========================
@@ -143,7 +153,51 @@ public class DataInitializer implements CommandLineRunner {
                                                         .code("UEH")
                                                         .name("University of Economics Ho Chi Minh City")
                                                         .description("Ho Chi Minh City, Vietnam")
-                                                        .build()));
+                                                         .build()));
+                }
+
+                /*
+                 * =========================
+                 * MAJOR
+                 * =========================
+                 */
+                if (majorRepository.count() == 0) {
+                        School fpt = schoolRepository.findByCode("FPT").orElseThrow();
+                        School hcmus = schoolRepository.findByCode("HCMUS").orElseThrow();
+                        School uit = schoolRepository.findByCode("UIT").orElseThrow();
+
+                        majorRepository.saveAll(List.of(
+                                        Major.builder()
+                                                        .code("SE")
+                                                        .name("Software Engineering")
+                                                        .description("Software Engineering major")
+                                                        .school(fpt)
+                                                        .build(),
+                                        Major.builder()
+                                                        .code("AI")
+                                                        .name("Artificial Intelligence")
+                                                        .description("Artificial Intelligence major")
+                                                        .school(fpt)
+                                                        .build(),
+                                        Major.builder()
+                                                        .code("BA")
+                                                        .name("Business Administration")
+                                                        .description("Business Administration major")
+                                                        .school(fpt)
+                                                        .build(),
+                                        Major.builder()
+                                                        .code("CS")
+                                                        .name("Computer Science")
+                                                        .description("Computer Science major")
+                                                        .school(hcmus)
+                                                        .build(),
+                                        Major.builder()
+                                                        .code("IT")
+                                                        .name("Information Technology")
+                                                        .description("Information Technology major")
+                                                        .school(uit)
+                                                        .build()
+                        ));
                 }
 
                 /*
@@ -153,43 +207,26 @@ public class DataInitializer implements CommandLineRunner {
                  */
 
                 if (courseRepository.count() == 0) {
+                        School fpt = schoolRepository.findByCode("FPT").orElseThrow();
+                        Major se = majorRepository.findBySchoolIdAndCode(fpt.getId(), "SE").orElseThrow();
+                        Major ai = majorRepository.findBySchoolIdAndCode(fpt.getId(), "AI").orElseThrow();
 
-                        courseRepository.saveAll(List.of(
+                        Course c1 = new Course("SWP391", "Software Architecture and Design", "Core architecture concepts and design patterns");
+                        c1.setMajor(se);
+                        Course c2 = new Course("PRF192", "Programming Fundamentals", "Introduction to programming using Java");
+                        c2.setMajor(se);
+                        Course c3 = new Course("SSG104", "Understanding Group Dynamics", "Teamwork and communication");
+                        c3.setMajor(se);
+                        Course c4 = new Course("DBI202", "Database Systems", "Relational database design and SQL");
+                        c4.setMajor(se);
+                        Course c5 = new Course("WEB301", "Web Application Development", "Building web applications");
+                        c5.setMajor(se);
+                        Course c6 = new Course("MAD101", "Mobile Application Development", "Mobile app development fundamentals");
+                        c6.setMajor(se);
+                        Course c7 = new Course("AI101", "Introduction to AI", "Artificial Intelligence basics");
+                        c7.setMajor(ai);
 
-                                        new Course(
-                                                        "SWP391",
-                                                        "Software Architecture and Design",
-                                                        "Core architecture concepts and design patterns"),
-
-                                        new Course(
-                                                        "PRF192",
-                                                        "Programming Fundamentals",
-                                                        "Introduction to programming using Java"),
-
-                                        new Course(
-                                                        "SSG104",
-                                                        "Understanding Group Dynamics",
-                                                        "Teamwork and communication"),
-
-                                        new Course(
-                                                        "DBI202",
-                                                        "Database Systems",
-                                                        "Relational database design and SQL"),
-
-                                        new Course(
-                                                        "WEB301",
-                                                        "Web Application Development",
-                                                        "Building web applications"),
-
-                                        new Course(
-                                                        "MAD101",
-                                                        "Mobile Application Development",
-                                                        "Mobile app development fundamentals"),
-
-                                        new Course(
-                                                        "AI101",
-                                                        "Introduction to AI",
-                                                        "Artificial Intelligence basics")));
+                        courseRepository.saveAll(List.of(c1, c2, c3, c4, c5, c6, c7));
                 }
 
                 /*

@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BookOpen } from "lucide-react";
 import CatalogSchoolsPage from "./CatalogSchoolsPage";
+import CatalogMajorsPage from "./CatalogMajorsPage";
 import CatalogTagsPage from "./CatalogTagsPage";
 import CatalogLanguagesPage from "./CatalogLanguagesPage";
 
@@ -31,12 +32,17 @@ export default function SettingsPage() {
           <Tabs defaultValue="schools" className="space-y-6">
             <TabsList className="rounded-xl">
               <TabsTrigger value="schools">Schools</TabsTrigger>
+              <TabsTrigger value="majors">Majors</TabsTrigger>
               <TabsTrigger value="tags">Tags</TabsTrigger>
               <TabsTrigger value="languages">Languages</TabsTrigger>
             </TabsList>
 
             <TabsContent value="schools" className="space-y-4">
               <CatalogSchoolsPage hideHeader={true} />
+            </TabsContent>
+
+            <TabsContent value="majors" className="space-y-4">
+              <CatalogMajorsPage hideHeader={true} />
             </TabsContent>
 
             <TabsContent value="tags" className="space-y-4">

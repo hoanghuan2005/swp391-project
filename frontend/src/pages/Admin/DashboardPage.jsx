@@ -8,6 +8,7 @@ import {
   GraduationCap,
   Globe,
   LayoutDashboard,
+  Layers,
   Tags,
   Users,
 } from "lucide-react";
@@ -18,6 +19,7 @@ const numberFormatter = new Intl.NumberFormat("en-US");
 const defaultStats = {
   totalUsers: 0,
   totalCourses: 0,
+  totalMajors: 0,
   totalDocuments: 0,
   totalSchools: 0,
   totalTags: 0,
@@ -56,6 +58,14 @@ const statCards = [
     href: "/admin/catalog/schools",
     icon: GraduationCap,
     iconClassName: "bg-emerald-50 text-emerald-600",
+  },
+  {
+    key: "totalMajors",
+    title: "Total Majors",
+    caption: "Academic majors",
+    href: "/admin/catalog/majors",
+    icon: Layers,
+    iconClassName: "bg-cyan-50 text-cyan-600",
   },
   {
     key: "totalTags",

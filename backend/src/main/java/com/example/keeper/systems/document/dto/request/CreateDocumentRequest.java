@@ -33,6 +33,8 @@ public class CreateDocumentRequest {
 
     private UUID courseId;
 
+    private UUID majorId;
+
     private String courseCode;
 
     private String courseName;

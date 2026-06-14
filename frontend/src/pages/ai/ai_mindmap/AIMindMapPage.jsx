@@ -788,18 +788,6 @@ function AIMindMapPageInner() {
               <div className="absolute top-3 left-3 right-3 z-10 flex items-center justify-between">
                 {/* Left side */}
                 <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => {
-                      setViewMode(VIEW_MODE.GENERATE);
-                      setSelectedMindMap(null);
-                      setCurrentTreeData(null);
-                      setNodes([]);
-                      setEdges([]);
-                    }}
-                    className="flex items-center gap-1.5 rounded-xl bg-white/90 border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 shadow-sm backdrop-blur-sm hover:bg-white transition"
-                  >
-                    New Mind Map
-                  </button>
                   {selectedMindMap && (
                     <div className="rounded-xl bg-white/90 border border-slate-200 px-3 py-2 text-sm text-slate-600 shadow-sm backdrop-blur-sm">
                       <span className="font-medium">{selectedMindMap.title}</span>

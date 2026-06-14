@@ -29,6 +29,7 @@ export default function MainLayout() {
   const isAiAskPage = location.pathname.startsWith("/ask-ai");
   const isWorkspacePage = location.pathname.startsWith("/workspace");
   const isAdminPage = location.pathname.startsWith("/admin");
+  const isCourseDetailPage = location.pathname.startsWith("/courses/");
   const isAuthPage = [
     "/login",
     "/signup",
@@ -44,7 +45,8 @@ export default function MainLayout() {
       isWorkspacePage ||
       isAdminPage ||
       isAuthPage ||
-      isAiToolsPage
+      isAiToolsPage ||
+      isCourseDetailPage
     ) {
       setShowSurvey(false);
       setShowSurveyReminder(false);
@@ -89,7 +91,7 @@ export default function MainLayout() {
     };
 
     checkSurveyState();
-  }, [isAiAskPage, isWorkspacePage, isAdminPage, isAuthPage, isAiToolsPage]);
+  }, [isAiAskPage, isWorkspacePage, isAdminPage, isAuthPage, isAiToolsPage, isCourseDetailPage]);
 
   return (
     <div className="h-screen bg-white text-slate-900 font-sans flex flex-col overflow-hidden">

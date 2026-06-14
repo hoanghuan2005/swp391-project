@@ -12,4 +12,5 @@ public class DashboardStatsResponse {
     private long totalSchools;
     private long totalTags;
     private long totalLanguages;
+    private long totalMajors;
 }

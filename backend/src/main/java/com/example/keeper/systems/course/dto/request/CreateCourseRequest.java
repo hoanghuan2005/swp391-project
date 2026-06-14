@@ -12,4 +12,6 @@ public class CreateCourseRequest {
     private String name;
 
     private String description;
+
+    private java.util.UUID majorId;
 }
