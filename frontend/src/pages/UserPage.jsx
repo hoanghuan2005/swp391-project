@@ -35,6 +35,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { forceDownload } from "@/lib/downloadHelper";
+import { getFileExtension } from "@/lib/utils";
 
 export default function UserPage() {
   const { userId } = useParams();
@@ -417,7 +418,7 @@ export default function UserPage() {
                         {/* Top bar representing header */}
                         <div className="flex items-center justify-between pb-1 border-b border-slate-100/70">
                           <span className="text-[9px] font-extrabold text-[#f26522] uppercase tracking-wider">
-                            {doc.fileType || doc.mimeType?.split("/")[1] || "DOC"}
+                            {getFileExtension(doc)}
                           </span>
                           <FileText className="w-3.5 h-3.5 text-slate-300" />
                         </div>

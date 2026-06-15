@@ -24,6 +24,20 @@ public class ProjectDetailResponse {
         private UUID id;
         private String title;
         private String fileType;
+        private String mimeType;
+        private String description;
         private String aiParseStatus;
+        private Integer downloadCount;
+        private Integer viewCount;
+        private LocalDateTime createdAt;
+        private CourseInfo course;
+    }
+
+    @Data
+    @Builder
+    public static class CourseInfo {
+        private UUID id;
+        private String code;
+        private String name;
     }
 }

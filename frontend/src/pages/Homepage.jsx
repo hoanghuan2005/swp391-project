@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Link, useOutletContext } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { forceDownload } from "@/lib/downloadHelper";
+import { getFileExtension } from "@/lib/utils";
 import {
   Card,
   CardTitle,
@@ -440,7 +441,7 @@ export default function Homepage() {
                           <div className="flex items-center gap-1 pb-1 border-b border-slate-100/70">
                             <FileText className="w-3.5 h-3.5 text-slate-300" />
                             <span className="text-[9px] font-extrabold text-[#f26522] uppercase tracking-wider">
-                              {doc.fileType || doc.mimeType?.split("/")[1] || "DOC"}
+                              {getFileExtension(doc)}
                             </span>
                           </div>
                           

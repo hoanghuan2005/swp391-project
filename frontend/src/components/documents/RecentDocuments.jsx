@@ -23,6 +23,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import axiosClient from "@/api/axiosClient";
 import { forceDownload } from "@/lib/downloadHelper";
+import { getFileExtension } from "@/lib/utils";
 
 export default function RecentDocuments({ favoritedIds = [], onToggleFavorite }) {
   const [documents, setDocuments] = useState([]);
@@ -117,7 +118,7 @@ export default function RecentDocuments({ favoritedIds = [], onToggleFavorite })
                       <div className="flex items-center gap-1 pb-1 border-b border-slate-100/70">
                         <FileText className="w-3.5 h-3.5 text-slate-300" />
                         <span className="text-[9px] font-extrabold text-[#f26522] uppercase tracking-wider">
-                          {doc.fileType || doc.mimeType?.split("/")[1] || "DOC"}
+                          {getFileExtension(doc)}
                         </span>
                       </div>
                       

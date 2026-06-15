@@ -7,6 +7,7 @@ import {
   Trophy,
   Sparkles,
   Heart,
+  Layers,
 } from "lucide-react";
 import { toast } from "react-hot-toast"; // Đã thêm import toast
 import axiosClient from "@/api/axiosClient";
@@ -430,7 +431,7 @@ export default function AIFlashcardGenerator({ contextData }) {
               </div>
             )}
             <AIToolHeader
-              icon={Sparkles}
+              icon={Layers}
               title="AI Flashcards Generator"
               description="Create flashcards to enhance your learning and retention."
             />
@@ -480,7 +481,7 @@ export default function AIFlashcardGenerator({ contextData }) {
                     </div>
                     <div className="flex items-start gap-4">
                       <div className="w-14 h-14 rounded-2xl bg-[#f66810] flex items-center justify-center text-white shadow-sm shrink-0">
-                        <Sparkles className="w-7 h-7" />
+                        <Layers className="w-7 h-7" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div>
@@ -563,7 +564,7 @@ export default function AIFlashcardGenerator({ contextData }) {
                       Back
                     </Button>
                     <span className="text-[15px] font-medium text-slate-600">
-                      Theo dõi tiến độ
+                      Track Progress
                     </span>
                     <button
                       onClick={() => setIsTrackingProgress(!isTrackingProgress)}
@@ -631,24 +632,23 @@ export default function AIFlashcardGenerator({ contextData }) {
                       <Trophy className="h-12 w-12" />
                     </div>
                     <h2 className="text-3xl font-bold text-slate-800 mb-3">
-                      Chúc mừng!
+                      Congratulations!
                     </h2>
                     <p className="text-slate-500 max-w-md mb-8 text-lg">
-                      Bạn đã hoàn thành xuất sắc {flashcards.length} thẻ trong
-                      bộ bài này. Hãy tiếp tục duy trì phong độ nhé!
+                      You have successfully completed all {flashcards.length} cards in this deck. Keep up the great work!
                     </p>
                     <div className="flex gap-4">
                       <button
                         onClick={resetProgress}
                         className="rounded-xl border border-slate-200 bg-white px-6 py-3 font-medium text-slate-700 transition hover:bg-slate-50 shadow-sm"
                       >
-                        Học lại từ đầu
+                        Restart Study
                       </button>
                       <button
                         onClick={handleReset}
                         className="rounded-xl bg-[#f26522] px-6 py-3 font-medium text-white transition hover:bg-[#d95316] shadow-md shadow-orange-500/20"
                       >
-                        Tạo bộ thẻ mới
+                        Create New Set
                       </button>
                     </div>
                   </div>

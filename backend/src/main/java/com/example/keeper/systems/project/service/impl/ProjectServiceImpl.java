@@ -139,8 +139,18 @@ public class ProjectServiceImpl implements ProjectService {
                 .map(doc -> ProjectDetailResponse.DocumentInfo.builder()
                         .id(doc.getId())
                         .title(doc.getTitle())
-                        .fileType(doc.getMimeType() != null ? doc.getMimeType() : doc.getOriginalFileName())
+                        .fileType(resolveFileType(doc))
+                        .mimeType(doc.getMimeType())
+                        .description(doc.getDescription())
                         .aiParseStatus(doc.getAiParseStatus() == null ? null : doc.getAiParseStatus().name())
+                        .downloadCount(doc.getDownloadCount() != null ? doc.getDownloadCount() : 0)
+                        .viewCount(doc.getViewCount() != null ? doc.getViewCount() : 0)
+                        .createdAt(doc.getCreatedAt())
+                        .course(doc.getCourse() == null ? null : ProjectDetailResponse.CourseInfo.builder()
+                                .id(doc.getCourse().getId())
+                                .code(doc.getCourse().getCode())
+                                .name(doc.getCourse().getName())
+                                .build())
                         .build())
                 .collect(Collectors.toList());
 
@@ -153,5 +163,16 @@ public class ProjectServiceImpl implements ProjectService {
                 .createdAt(project.getCreatedAt())
                 .documents(docInfos)
                 .build();
+    }
+
+    private String resolveFileType(Document document) {
+        String originalFileName = document.getOriginalFileName();
+        if (originalFileName != null) {
+            int extensionIndex = originalFileName.lastIndexOf('.');
+            if (extensionIndex > 0 && extensionIndex < originalFileName.length() - 1) {
+                return originalFileName.substring(extensionIndex + 1).toLowerCase();
+            }
+        }
+        return document.getMimeType();
     }
 }

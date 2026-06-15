@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import {
   Loader2,
-  Target,
+  ListChecks,
   Settings2,
   ArrowLeft,
   Heart,
@@ -397,7 +397,7 @@ export default function AIQuizGenerator() {
           )}
 
           <AIToolHeader
-            icon={Target}
+            icon={ListChecks}
             title="AI Quiz Generator"
             description="Create quizzes instantly from any topic or document. Perfect for study sessions and self-assessment."
           />
@@ -457,7 +457,7 @@ export default function AIQuizGenerator() {
                   </div>
                   <div className="flex items-start gap-4">
                     <div className="w-14 h-14 rounded-2xl bg-[#f66810] flex items-center justify-center text-white shadow-sm shrink-0">
-                      <Target className="w-7 h-7" />
+                      <ListChecks className="w-7 h-7" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div>

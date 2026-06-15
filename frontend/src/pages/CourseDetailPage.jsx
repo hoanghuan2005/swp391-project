@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { forceDownload } from "@/lib/downloadHelper";
+import { getFileExtension } from "@/lib/utils";
 import { CardTitle } from "@/components/ui/card";
 import { CardDescription } from "@/components/ui/card";
 import { CardFooter } from "@/components/ui/card";
@@ -31,6 +32,8 @@ import {
   Star,
   Heart,
   ChevronLeft,
+  ListChecks,
+  Layers,
 } from "lucide-react";
 
 export default function CourseDetailPage() {
@@ -43,6 +46,7 @@ export default function CourseDetailPage() {
   const [loading, setLoading] = useState(true);
   const [shareOpen, setShareOpen] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const [favoritedIds, setFavoritedIds] = useState([]);
   const [favoritedFlashcardIds, setFavoritedFlashcardIds] = useState([]);
@@ -285,111 +289,119 @@ export default function CourseDetailPage() {
     );
   }
 
+  const filteredDocuments = documents.filter((doc) => {
+    const searchTarget = [
+      doc.title,
+      doc.description
+    ].filter(Boolean).join(" ").toLowerCase();
+    return searchTarget.includes(searchQuery.toLowerCase());
+  });
+
   return (
-    <div className="pb-14">
+    <div className="py-4">
       {/* COURSE HEADER */}
-      <div className="rounded-[28px] border border-orange-100 bg-gradient-to-br from-[#fffaf7] to-[#fff3eb] overflow-hidden">
-        <div className="p-5">
-          <div className="flex items-center gap-3">
-            <div>
-              <Link
-                to="/home"
-                className="flex items-center gap-1 text-sm text-slate-400 hover:text-[#f66810] rounded-full transition-transform mb-4"
-              >
-                <ChevronLeft className="w-5 h-5" />
-              </Link>
-            </div>
-            {/* Breadcrumb */}
-            <div className="flex items-center gap-2 text-[13px] text-slate-400 mb-4">
-              <Link to="/" className="hover:text-[#f66810] transition-colors">
-                {course.major?.school?.name || "University"}
-              </Link>
-
-              <span>/</span>
-
-              <span>{course.major?.name || "General"}</span>
-
-              <span>/</span>
-
-              <span className="text-[#f66810] font-medium">{course.code}</span>
-            </div>
+      <div className="rounded-2xl border border-orange-200/60 bg-gradient-to-br from-orange-50/60 to-white overflow-hidden mb-6 shadow-sm transition-all px-2">
+        <div className="p-7 px-8">
+          
+          {/* BREADCRUMB & BACK BUTTON */}
+          <div className="flex items-center gap-2 text-sm text-slate-400 mb-3">
+            <Link
+              to="/home"
+              className="flex items-center justify-center -ml-1 rounded-full text-slate-455 hover:text-[#f66810] hover:bg-orange-50 transition-colors cursor-pointer shrink-0"
+              title="Back to Home"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </Link>
+            <Link to="/" className="hover:text-[#f66810] transition-colors font-medium">
+              {course.major?.school?.name || "University"}
+            </Link>
+            <span className="text-slate-300">/</span>
+            <span className="hover:text-[#f66810] transition-colors font-medium">{course.major?.name || "General"}</span>
+            <span className="text-slate-300">/</span>
+            <span className="text-[#f66810] font-semibold truncate max-w-[250px]">
+              {course.code}
+            </span>
           </div>
 
-          {/* TOP INFO */}
-          <div className="flex items-start gap-4">
-            {/* ICON */}
-            <div className="w-14 h-14 rounded-2xl bg-[#f66810] flex items-center justify-center text-white shadow-sm shrink-0">
-              <BookOpen className="w-7 h-7" />
-            </div>
-
-            {/* CONTENT */}
-            <div className="flex-1 min-w-0">
-              {/* TITLE */}
-              <div>
-                <h1 className="text-2xl font-bold text-slate-800 tracking-tight">
-                  {course.name}
-                </h1>
-
-                <p className="text-sm text-slate-500 mt-1">{course.code}</p>
+          {/* MAIN CONTENT AREA */}
+          <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6">
+            
+            {/* LEFT COLUMN: Icon + Title + Badges */}
+            <div className="flex items-start gap-4.5 flex-1 min-w-0">
+              {/* ICON (Phóng to lên w-14 h-14) */}
+              <div className="w-14 h-14 rounded-2xl bg-[#f66810] flex items-center justify-center text-white shadow-md shadow-orange-500/10 shrink-0">
+                <BookOpen className="w-8 h-8" />
               </div>
 
-              {/* STATS */}
-              <div className="flex flex-wrap gap-3 mt-4">
-                <div className="flex items-center gap-2 bg-white border border-orange-100 rounded-full px-3 py-1 text-sm text-slate-600">
-                  <FileText className="w-3 h-3 text-[#f66810]" />
-                  <span>{documents.length} documents</span>
+              {/* TEXT CONTENT */}
+              <div className="flex-1 min-w-0 space-y-2">
+                <div>
+                  {/* TITLE */}
+                  <h1 className="text-2xl font-extrabold text-slate-850 tracking-tight leading-tight">
+                    {course.name}
+                  </h1>
+                  <p className="text-sm text-slate-500 mt-1">{course.code}</p>
                 </div>
 
-                <div className="flex items-center gap-2 bg-white border border-orange-100 rounded-full px-3 py-1 text-sm text-slate-600">
-                  <Eye className="w-3 h-3 text-[#f66810]" />
-                  <span>2.1k views</span>
-                </div>
+                {/* STATS BADGES */}
+                <div className="flex flex-wrap gap-2.5 pt-1">
+                  <div className="flex items-center gap-2 bg-white border border-orange-100/90 rounded-full px-3.5 py-1 text-xs font-medium text-slate-600 shadow-sm">
+                    <FileText className="w-4 h-4 text-[#f66810]" />
+                    <span>{documents.length} documents</span>
+                  </div>
 
-                <div className="flex items-center gap-2 bg-white border border-orange-100 rounded-full px-3 py-1 text-sm text-slate-600">
-                  <Star className="w-3 h-3 text-[#f66810]" />
-                  <span>4.8 rating</span>
-                </div>
-              </div>
+                  <div className="flex items-center gap-2 bg-white border border-orange-100/90 rounded-full px-3.5 py-1 text-xs font-medium text-slate-650 shadow-sm">
+                    <Eye className="w-4 h-4 text-[#f66810]" />
+                    <span>2.1k views</span>
+                  </div>
 
-              {/* ACTION ROW */}
-              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mt-5">
-                {/* BUTTONS */}
-                <div className="flex flex-wrap gap-3">
-                  <Button
-                    className="rounded-full bg-[#f66810] hover:bg-[#de5b0b] h-9 px-4 text-sm shadow-sm"
-                    onClick={handleFollowToggle}
-                  >
-                    {isFollowing ? "Unfollow Course" : "Follow Course"}
-                  </Button>
-
-                  <Button
-                    variant="secondary"
-                    className="rounded-full bg-orange-100 hover:bg-orange-200 text-[#f66810] h-9 px-4 text-sm"
-                  >
-                    Practice Exam
-                  </Button>
-
-                  <Button
-                    variant="outline"
-                    onClick={() => setShareOpen(true)}
-                    className="rounded-full border-orange-200 hover:bg-orange-50 h-9 px-4 text-sm"
-                  >
-                    <Share2 className="w-4 h-4 mr-1" />
-                    Share
-                  </Button>
-                </div>
-
-                {/* SEARCH */}
-                <div className="relative w-full lg:w-[370px]">
-                  <Search className="absolute -left-9 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
-
-                  <Input
-                    placeholder={`Find in ${course.code}`}
-                    className="pl-10 h-9 rounded-full border-orange-100 bg-white focus-visible:ring-[#f66810] -ml-12"
-                  />
+                  <div className="flex items-center gap-2 bg-white border border-orange-100/90 rounded-full px-3.5 py-1 text-xs font-medium text-slate-650 shadow-sm">
+                    <Star className="w-4 h-4 text-[#f66810]" />
+                    <span>4.8 ratings</span>
+                  </div>
                 </div>
               </div>
             </div>
+
+            {/* RIGHT COLUMN: ACTIONS & SEARCH (Gộp chung thành hàng ngang cân đối) */}
+            <div className="flex flex-col items-center gap-3 w-full xl:w-auto justify-start xl:justify-end shrink-0 pt-2 xl:pt-0">
+              <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto justify-start xl:justify-end shrink-0 pt-2 xl:pt-0">
+                <Button
+                  variant="outline"
+                  onClick={() => setShareOpen(true)}
+                  className="rounded-2xl border-orange-200/80 hover:bg-orange-50/40 h-11 px-6 text-sm font-semibold text-slate-700 shadow-sm transition-all"
+                >
+                  <Share2 className="w-4 h-4 mr-2 text-slate-500" />
+                  Share
+                </Button>
+
+                <Button
+                  variant="secondary"
+                  className="rounded-2xl bg-orange-100/70 hover:bg-orange-200/70 text-[#f66810] h-11 px-6 text-sm font-bold border-0 outline-none focus:ring-0 cursor-pointer shadow-sm transition-all"
+                >
+                  Practice Quiz
+                </Button>
+
+                <Button
+                  className="rounded-2xl bg-[#f66810] hover:bg-[#de5b0b] text-white h-11 px-6 text-sm font-bold shadow-md shadow-orange-500/15 flex items-center cursor-pointer transition-all"
+                  onClick={handleFollowToggle}
+                >
+                  {isFollowing ? "Unfollow" : "Follow Course"}
+                </Button>
+              </div>
+
+              {/* SEARCH INPUT (Chiều cao h-11 đồng bộ) */}
+              <div className="relative w-full sm:w-[260px] md:w-[422px] pt-1">
+                <Search className="absolute left-4.5 top-1/2 transform -translate-y-1/2 w-4.5 h-4.5 text-slate-400" />
+                <Input
+                  placeholder={`Search in ${course.code}...`}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-11 h-11 rounded-2xl border-orange-200/60 bg-white focus-visible:ring-[#f66810] w-full text-sm shadow-sm"
+                />
+              </div>
+            </div>
+
           </div>
         </div>
       </div>
@@ -398,8 +410,9 @@ export default function CourseDetailPage() {
       <section className="mt-10">
         <div className="flex items-center justify-between mb-5">
           <div className="flex flex-col mb-0.5">
-            <h2 className="text-2xl font-bold text-slate-800">
-              Trending Documents
+            <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2.5">
+              <FileText className="w-6 h-6 text-[#f66810]" />
+              <span>Trending Documents</span>
             </h2>
             <p className="text-sm text-slate-500 mt-1">
               Explore the most popular study materials in this course.
@@ -409,7 +422,12 @@ export default function CourseDetailPage() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-          {documents.map((doc) => (
+          {filteredDocuments.length === 0 ? (
+            <div className="col-span-full text-center py-12 text-slate-500 bg-slate-50 rounded-[20px] border border-dashed border-slate-200">
+              No documents match "{searchQuery}"
+            </div>
+          ) : (
+            filteredDocuments.map((doc) => (
             <Card
               key={doc.id}
               className="shadow-sm border-slate-100 hover:shadow-md transition-all group flex flex-col h-full rounded-[20px] overflow-hidden bg-white"
@@ -422,7 +440,7 @@ export default function CourseDetailPage() {
                     {/* Top bar representing header */}
                     <div className="flex items-center justify-between pb-1 border-b border-slate-100/70">
                       <span className="text-[9px] font-extrabold text-[#f26522] uppercase tracking-wider">
-                        {doc.fileType || doc.mimeType?.split("/")[1] || "DOC"}
+                        {getFileExtension(doc)}
                       </span>
                       <FileText className="w-3.5 h-3.5 text-slate-300" />
                     </div>
@@ -499,7 +517,7 @@ export default function CourseDetailPage() {
                 </Button>
               </CardFooter>
             </Card>
-          ))}
+          )))}
         </div>
       </section>
 
@@ -507,8 +525,9 @@ export default function CourseDetailPage() {
       {quizzes.length > 0 && (
         <section className="mt-10">
           <div className="flex flex-col mb-6">
-            <h2 className="text-2xl font-bold text-slate-800">
-              Published Quizzes
+            <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2.5">
+              <ListChecks className="w-6 h-6 text-[#f66810]" />
+              <span>Published Quizzes</span>
             </h2>
             <p className="text-sm text-slate-500 mt-1">
               Test your knowledge with these quizzes.
@@ -559,8 +578,9 @@ export default function CourseDetailPage() {
       {flashcards.length > 0 && (
         <section className="mt-10">
           <div className="flex flex-col mb-6">
-            <h2 className="text-2xl font-bold text-slate-800">
-              Published Flashcards
+            <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2.5">
+              <Layers className="w-6 h-6 text-blue-500" />
+              <span>Published Flashcards</span>
             </h2>
             <p className="text-sm text-slate-500 mt-1">
               Review key concepts with flashcards.
