@@ -118,7 +118,7 @@ public class DataInitializer implements CommandLineRunner {
 
                 // Seed additional creators if not already present
                 String[][] mockUsers = {
-                                { "Hoàng Huấn", "hoanghuan@example.com", "hoanghuan123", "FPT", "FPT University",
+                                { "Hoàng Huân", "hoanghuan@example.com", "hoanghuan123", "FPT", "FPT University",
                                                 "2022", "Software Engineering" },
                                 { "Minh Thư", "minhthu@example.com", "minhthu123", "HCMUS", "University of Science",
                                                 "2023", "Computer Science" },

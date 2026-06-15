@@ -620,6 +620,8 @@ ${
                               navigate(`/documents/${item.referenceId}`);
                             } else if (item.referenceType === "USER" && item.referenceId) {
                               navigate(`/users/${item.referenceId}`);
+                            } else if (item.referenceType === "WORKSPACE" && item.referenceId) {
+                              navigate(`/workspace/${item.referenceId}`);
                             }
                           }}
                           className={`p-3 text-left hover:bg-slate-50 transition-colors cursor-pointer flex gap-3 ${!item.isRead ? "bg-orange-50/20" : ""}`}

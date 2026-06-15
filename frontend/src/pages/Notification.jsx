@@ -32,6 +32,8 @@ export default function NotificationPage() {
         navigate(`/users/${item.referenceId}`);
       } else if (item.referenceType === "DOCUMENT" && item.referenceId) {
         navigate(`/documents/${item.referenceId}`);
+      } else if (item.referenceType === "WORKSPACE" && item.referenceId) {
+        navigate(`/workspace/${item.referenceId}`);
       }
       return;
     }
@@ -51,6 +53,8 @@ export default function NotificationPage() {
       navigate(`/documents/${item.referenceId}`);
     } else if (item.referenceType === "USER" && item.referenceId) {
       navigate(`/users/${item.referenceId}`);
+    } else if (item.referenceType === "WORKSPACE" && item.referenceId) {
+      navigate(`/workspace/${item.referenceId}`);
     }
   };
 

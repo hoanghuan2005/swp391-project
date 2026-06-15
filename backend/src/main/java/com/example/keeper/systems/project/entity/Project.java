@@ -29,6 +29,10 @@ public class Project extends BaseEntity {
     @Column(name = "share_token", unique = true, nullable = false)
     private String shareToken;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private ProjectVisibility visibility = ProjectVisibility.PRIVATE;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "owner_id", nullable = false)
     private User owner;

@@ -5,5 +5,6 @@ public enum ReferenceType {
     QUIZ,
     FLASHCARD,
     GROUP,
-    USER
+    USER,
+    WORKSPACE
 }

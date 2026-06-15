@@ -15,8 +15,21 @@ public class ProjectDetailResponse {
     private String description;
     private String shareToken;
     private UUID ownerId;
+    private String visibility;
+    private String currentUserRole;
+    private List<MemberInfo> members;
     private LocalDateTime createdAt;
     private List<DocumentInfo> documents;
+
+    @Data
+    @Builder
+    public static class MemberInfo {
+        private UUID userId;
+        private String username;
+        private String email;
+        private String role;
+        private String avatarUrl;
+    }
 
     @Data
     @Builder

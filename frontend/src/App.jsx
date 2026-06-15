@@ -30,6 +30,7 @@ import AIFlashcard from "./pages/ai/ai_flashcard/AIFlashcard";
 import AIQuizPage from "./pages/ai/AIToolsPage";
 import AIQuizTakePage from "./pages/ai/ai_quiz/AIQuizTakePage";
 import WorkspaceOverviewPage from "./pages/workspace/WorkspaceOverviewPage";
+import AcceptInvitationPage from "./pages/workspace/AcceptInvitationPage";
 import OAuth2Callback from "./pages/OAuth2Callback";
 import AIFlashcardGenerator from "./pages/ai/ai_flashcard/AIFlashcardGenerator";
 import AIQuizGenerator from "./pages/ai/ai_quiz/AIQuizGenerator";
@@ -120,6 +121,10 @@ function App() {
           <Route
             path="/workspace/shared/:token/ai"
             element={<ProjectWorkspacePage />}
+          />
+          <Route
+            path="/workspace/invite/accept"
+            element={<AcceptInvitationPage />}
           />
           <Route path="/notifications" element={<NotificationPage />} />
           <Route path="/pricing" element={<PricingPage />} />
