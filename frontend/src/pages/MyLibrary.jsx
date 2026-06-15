@@ -43,6 +43,14 @@ export default function MyLibrary() {
   const [favoriteFlashcards, setFavoriteFlashcards] = useState([]); // State mới cho Flashcard Yêu thích
   const [isFavoritesLoading, setIsFavoritesLoading] = useState(false);
 
+  const [followedUsers, setFollowedUsers] = useState([]);
+  const [isFollowedLoading, setIsFollowedLoading] = useState(false);
+
+  const [myFlashcardSets, setMyFlashcardSets] = useState([]);
+  const [isFlashcardsLoading, setIsFlashcardsLoading] = useState(false);
+  const [myQuizzes, setMyQuizzes] = useState([]);
+  const [isQuizzesLoading, setIsQuizzesLoading] = useState(false);
+
   const navigate = useNavigate();
 
   const fetchProjects = useCallback(async () => {
@@ -79,11 +87,74 @@ export default function MyLibrary() {
     }
   }, []);
 
+  const fetchFollowedUsers = useCallback(async () => {
+    try {
+      setIsFollowedLoading(true);
+      let currentUserId = localStorage.getItem("userId");
+      if (!currentUserId) {
+        const profileRes = await axiosClient.get("/api/profile");
+        currentUserId = profileRes.data?.id;
+        if (currentUserId) {
+          localStorage.setItem("userId", currentUserId);
+        }
+      }
+      if (currentUserId) {
+        const res = await axiosClient.get(`/api/follows/following/${currentUserId}?page=0&size=50`);
+        setFollowedUsers(res.data.content || []);
+      }
+    } catch (error) {
+      console.error("Error fetching followed users:", error);
+    } finally {
+      setIsFollowedLoading(false);
+    }
+  }, []);
+
+  const fetchMyFlashcards = useCallback(async () => {
+    try {
+      setIsFlashcardsLoading(true);
+      const res = await axiosClient.get("/api/ai_flashcard/sets");
+      setMyFlashcardSets(res.data?.data || []);
+    } catch (error) {
+      console.error("Error fetching my flashcards:", error);
+    } finally {
+      setIsFlashcardsLoading(false);
+    }
+  }, []);
+
+  const fetchMyQuizzes = useCallback(async () => {
+    try {
+      setIsQuizzesLoading(true);
+      const res = await axiosClient.get("/api/quizzes/my-quizzes");
+      setMyQuizzes(res.data || []);
+    } catch (error) {
+      console.error("Error fetching my quizzes:", error);
+    } finally {
+      setIsQuizzesLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchProjects();
     fetchFavoriteDocuments();
-    fetchFavoriteFlashcards(); // Gọi thêm fetch này
-  }, [fetchProjects, fetchFavoriteDocuments, fetchFavoriteFlashcards]);
+    fetchFavoriteFlashcards();
+    fetchFollowedUsers();
+    fetchMyFlashcards();
+    fetchMyQuizzes();
+  }, [fetchProjects, fetchFavoriteDocuments, fetchFavoriteFlashcards, fetchFollowedUsers, fetchMyFlashcards, fetchMyQuizzes]);
+
+  const handleUnfollowUser = async (userId, fullName) => {
+    if (!window.confirm(`Bạn có chắc chắn muốn bỏ theo dõi ${fullName}?`)) {
+      return;
+    }
+    try {
+      await axiosClient.delete(`/api/follows/${userId}`);
+      toast.success(`Đã bỏ theo dõi ${fullName}`);
+      setFollowedUsers((prev) => prev.filter((user) => user.id !== userId));
+    } catch (error) {
+      console.error("Failed to unfollow user:", error);
+      toast.error("Không thể bỏ theo dõi");
+    }
+  };
 
   const handleDeleteWorkspace = async (e, id, name) => {
     e.preventDefault();
@@ -307,66 +378,76 @@ export default function MyLibrary() {
         {/* DOCUMENTS CONTENT */}
         <TabsContent value="documents" className="mt-0">
           {isLoading ? (
-            <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {[1, 2, 3, 4].map((i) => (
-                <Skeleton key={i} className="h-28 w-full rounded-2xl" />
+                <Skeleton key={i} className="h-48 w-full rounded-3xl" />
               ))}
             </div>
           ) : documents.length === 0 ? (
-            <div className="text-center py-20 bg-slate-50 rounded-[32px]">
-              <FileText className="w-12 h-12 text-slate-200 mx-auto mb-4" />
+            <div className="text-center py-20 bg-slate-50 rounded-[32px] border border-dashed border-slate-200">
+              <FileText className="w-12 h-12 text-slate-300 mx-auto mb-4" />
               <p className="text-slate-500 font-medium">
                 You haven't uploaded any documents yet.
               </p>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {documents.map((doc) => (
-                <div
-                  key={doc.id}
-                  className="rounded-xl border border-slate-100 bg-white shadow-sm hover:shadow-md transition-all overflow-hidden p-4 flex items-center justify-between"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-lg bg-orange-50 flex items-center justify-center">
-                      <FileText className="w-6 h-6 text-[#f26522]" />
-                    </div>
-                    <div>
-                      <Link to={`/documents/${doc.id}`} className="block">
-                        <h4 className="font-bold text-slate-800 text-sm hover:text-[#f26522] transition-colors">
-                          {doc.title}
-                        </h4>
-                        <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
-                          <BookOpen className="w-3 h-3" />{" "}
+                <Card key={doc.id} className="rounded-3xl border-slate-100 hover:border-[#f26522]/20 hover:shadow-md transition-all group overflow-hidden bg-white border border-1">
+                  <CardContent className="py-4 px-6 flex flex-col h-full">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="w-12 h-12 rounded-2xl bg-orange-50 flex items-center justify-center group-hover:bg-[#f26522] transition-colors">
+                        <FileText className="w-6 h-6 text-[#f26522] group-hover:text-white transition-colors" />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => navigate(`/documents/${doc.id}/edit`)}
+                          className="opacity-0 group-hover:opacity-100 p-2 text-slate-400 hover:text-[#f26522] hover:bg-orange-50 rounded-xl transition-all cursor-pointer"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            if (!window.confirm("Delete this document?")) return;
+                            try {
+                              await axiosClient.delete(`/api/documents/${doc.id}`);
+                              toast.success("Document deleted");
+                              await refreshDocuments();
+                            } catch (err) {
+                              toast.error("Failed to delete document");
+                            }
+                          }}
+                          className="opacity-0 group-hover:opacity-100 p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all cursor-pointer"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                        <div className="flex items-center gap-1 text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100">
                           {doc.course?.code || "General"}
-                        </p>
-                      </Link>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => navigate(`/documents/${doc.id}/edit`)}
-                      className="p-2 rounded-md text-slate-600 hover:bg-slate-100"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={async (e) => {
-                        e.stopPropagation();
-                        if (!window.confirm("Delete this document?")) return;
-                        try {
-                          await axiosClient.delete(`/api/documents/${doc.id}`);
-                          toast.success("Document deleted");
-                          await refreshDocuments();
-                        } catch (err) {
-                          toast.error("Failed to delete document");
-                        }
-                      }}
-                      className="p-2 rounded-md text-slate-600 hover:text-white hover:bg-red-500"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
+                    <Link to={`/documents/${doc.id}`}>
+                      <h3 className="text-lg font-bold text-slate-800 group-hover:text-[#f26522] transition-colors mb-2 truncate">
+                        {doc.title}
+                      </h3>
+                    </Link>
+                    <p className="text-sm text-slate-500 line-clamp-2 mb-5 flex-1">
+                      {doc.description || "No description provided."}
+                    </p>
+                    <div className="pt-4 border-t border-slate-50 flex items-center justify-between text-xs text-slate-400 -mb-2">
+                      <Button
+                        asChild
+                        variant="secondary"
+                        className="bg-[#f26522]/10 text-[#f26522] hover:bg-[#f26522] hover:text-white font-semibold text-xs rounded-xl h-8 w-full"
+                      >
+                        <Link to={`/documents/${doc.id}`}>
+                          <Eye className="w-3.5 h-3.5 mr-1.5" /> View Document
+                        </Link>
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
               ))}
             </div>
           )}
@@ -405,11 +486,43 @@ export default function MyLibrary() {
                     {favoriteDocs.map((doc) => (
                       <Card
                         key={doc.id}
-                        className="shadow-sm border-slate-100 hover:shadow-md transition-all group flex flex-col h-full rounded-[20px] overflow-hidden bg-white border"
+                        className="shadow-sm border-slate-100 hover:shadow-md transition-all group flex flex-col h-full rounded-[20px] overflow-hidden bg-white border border-1"
                       >
-                        <CardContent className="p-4 flex-1 flex flex-col">
-                          <div className="w-full aspect-[4/3] bg-slate-50 rounded-xl mb-3 border border-slate-200 flex items-center justify-center text-slate-300">
-                            <FileText className="w-12 h-12" />
+                        <CardContent className="p-3.5 flex-1 flex flex-col">
+                          <div className="relative w-full aspect-[4/3] bg-slate-50 rounded-xl mb-3 -mt-4 border border-slate-200 group-hover:border-[#f26522]/20 transition-colors flex items-center justify-center overflow-hidden">
+                            {/* Simulated Paper Sheet */}
+                            <div className="w-[85%] h-[80%] bg-white rounded-lg shadow-sm border border-slate-100 p-2.5 flex flex-col gap-1 transform rotate-1 group-hover:rotate-0 transition-transform duration-200 select-none overflow-hidden">
+                              {/* Top bar representing header */}
+                              <div className="flex items-center justify-between pb-1 border-b border-slate-100/70">
+                                <span className="text-[9px] font-extrabold text-[#f26522] uppercase tracking-wider">
+                                  {doc.fileType || doc.mimeType?.split("/")[1] || "DOC"}
+                                </span>
+                                <FileText className="w-3.5 h-3.5 text-slate-300" />
+                              </div>
+                              
+                              {/* Body showing document content snippet */}
+                              <p className="text-[9.5px] text-slate-400 font-serif leading-relaxed line-clamp-3 text-left whitespace-normal break-words">
+                                {doc.description || doc.title || "No description provided for this document. Open to view full study guide content."}
+                              </p>
+                              
+                              {/* Simulated lines decoration if description is short */}
+                              <div className="mt-auto flex flex-col gap-1 opacity-50">
+                                <div className="w-[90%] h-0.5 bg-slate-100 rounded-full" />
+                                <div className="w-[70%] h-0.5 bg-slate-100 rounded-full" />
+                              </div>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleRemoveFavorite(doc.id);
+                              }}
+                              className="absolute top-2 right-2 w-8 h-8 rounded-full border shadow-sm backdrop-blur-sm transition-all duration-200 flex items-center justify-center cursor-pointer active:scale-90 hover:scale-105 z-10 bg-red-50 text-red-500 border-red-100"
+                            >
+                              <Heart className="w-4 h-4 fill-current" />
+                            </button>
                           </div>
                           <CardTitle
                             className="text-[15px] mb-1 font-bold text-slate-800 line-clamp-1"
@@ -421,19 +534,20 @@ export default function MyLibrary() {
                             <BookOpen className="w-3.5 h-3.5" />{" "}
                             {doc.course?.code || "General"}
                           </CardDescription>
+                          <div className="text-[11px] text-slate-400 mt-auto flex justify-between items-center">
+                            <span>
+                              {new Date(doc.createdAt).toLocaleDateString("en-GB")}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Download className="w-3.5 h-3.5" /> {doc.downloadCount || 0}
+                            </span>
+                          </div>
                         </CardContent>
-                        <CardFooter className="px-4 pb-4 pt-0 flex gap-2">
-                          <Button
-                            variant="outline"
-                            onClick={() => handleRemoveFavorite(doc.id)}
-                            className="flex-none px-2.5 rounded-xl border-red-100 text-red-500 bg-red-50 hover:bg-red-100 h-9"
-                          >
-                            <Heart className="w-4 h-4 fill-current" />
-                          </Button>
+                        <CardFooter className="-mt-3 px-4 py-3 flex gap-2">
                           <Button
                             asChild
                             variant="secondary"
-                            className="flex-1 bg-slate-100 text-slate-700 hover:bg-slate-200 font-semibold text-xs rounded-xl h-9"
+                            className="flex-1 bg-slate-100 text-slate-700 hover:bg-slate-200 font-bold text-xs rounded-xl h-9"
                           >
                             <Link to={`/documents/${doc.id}`}>
                               <Eye className="w-3.5 h-3.5 mr-1.5" /> View
@@ -441,9 +555,10 @@ export default function MyLibrary() {
                           </Button>
                           <Button
                             onClick={() => handleDownload(doc.id, doc.title)}
-                            className="flex-1 bg-[#f26522]/10 text-[#f26522] hover:bg-[#f26522] hover:text-white font-semibold text-xs rounded-xl h-9"
+                            className="w-9 h-9 rounded-xl bg-[#f26522]/10 text-[#f26522] hover:bg-[#f26522] hover:text-white flex items-center justify-center transition-colors shrink-0 p-0"
+                            title="Download Document"
                           >
-                            <Download className="w-3.5 h-3.5 mr-1.5" /> Download
+                            <Download className="w-4 h-4" />
                           </Button>
                         </CardFooter>
                       </Card>
@@ -462,11 +577,22 @@ export default function MyLibrary() {
                     {favoriteFlashcards.map((fc) => (
                       <Card
                         key={fc.id}
-                        className="shadow-sm border-slate-100 hover:shadow-md transition-all group flex flex-col h-full rounded-[20px] overflow-hidden bg-white border"
+                        className="shadow-sm border-slate-100 hover:shadow-md transition-all group flex flex-col h-full rounded-[20px] overflow-hidden bg-white border border-1"
                       >
                         <CardContent className="p-4 flex-1 flex flex-col">
-                          <div className="w-full aspect-[4/3] bg-orange-50 rounded-xl mb-3 border border-orange-100 flex items-center justify-center text-orange-300">
+                          <div className="relative w-full aspect-[4/3] bg-orange-50 rounded-xl mb-3 -mt-4 border border-orange-100 group-hover:border-[#f26522]/20 flex items-center justify-center text-orange-300">
                             <Layers className="w-12 h-12 text-[#f26522] opacity-50" />
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleRemoveFavoriteFlashcard(fc.id);
+                              }}
+                              className="absolute top-2 right-2 w-8 h-8 rounded-full border shadow-sm backdrop-blur-sm transition-all duration-200 flex items-center justify-center cursor-pointer active:scale-90 hover:scale-105 z-10 bg-red-50 text-red-500 border-red-100"
+                            >
+                              <Heart className="w-4 h-4 fill-current" />
+                            </button>
                           </div>
                           <CardTitle
                             className="text-[15px] mb-1 font-bold text-slate-800 line-clamp-1"
@@ -477,22 +603,20 @@ export default function MyLibrary() {
                           <CardDescription className="text-xs text-slate-500 font-medium mb-3">
                             {fc.cards || 0} Terms
                           </CardDescription>
+                          <div className="text-[11px] text-slate-400 mt-auto flex justify-between items-center">
+                            <span>
+                              {new Date(fc.createdAt).toLocaleDateString("en-GB")}
+                            </span>
+                            <span>Flashcard Set</span>
+                          </div>
                         </CardContent>
-                        <CardFooter className="px-4 pb-4 pt-0 flex gap-2">
-                          <Button
-                            variant="outline"
-                            onClick={() => handleRemoveFavoriteFlashcard(fc.id)}
-                            className="flex-none px-2.5 rounded-xl border-red-100 text-red-500 bg-red-50 hover:bg-red-100 h-9"
-                          >
-                            <Heart className="w-4 h-4 fill-current" />
-                          </Button>
+                        <CardFooter className="-mt-3 px-4 py-3 flex gap-2">
                           <Button
                             asChild
                             variant="secondary"
-                            className="flex-1 bg-[#f26522]/10 text-[#f26522] hover:bg-[#f26522] hover:text-white font-semibold text-xs rounded-xl h-9"
+                            className="w-full bg-[#f26522]/10 text-[#f26522] hover:bg-[#f26522] hover:text-white font-bold text-xs rounded-xl h-9"
                           >
-                            {/* Chỉnh lại link cho đúng path study flashcard của dự án bạn */}
-                            <Link to={`/flashcards/${fc.id}`}>
+                            <Link to={`/ai-tools/ai-flashcard?id=${fc.id}`}>
                               <Eye className="w-3.5 h-3.5 mr-1.5" /> Study
                             </Link>
                           </Button>
@@ -508,26 +632,235 @@ export default function MyLibrary() {
 
         {/* FLASHCARDS CONTENT */}
         <TabsContent value="flashcards" className="mt-0">
-          <div className="flex flex-col items-center justify-center py-20 text-center bg-slate-50 rounded-[32px] border border-dashed border-slate-200">
-            <div className="w-16 h-16 rounded-3xl bg-white shadow-sm flex items-center justify-center mb-4">
-              <Layers className="w-8 h-8 text-slate-300" />
+          {isFlashcardsLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[1, 2, 3].map((i) => (
+                <Skeleton key={i} className="h-48 w-full rounded-3xl" />
+              ))}
             </div>
-            <h3 className="text-xl font-bold text-slate-800 mb-1">
-              Your Flashcard Decks
-            </h3>
-          </div>
+          ) : myFlashcardSets.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-center bg-slate-50 rounded-[32px] border border-dashed border-slate-200">
+              <div className="w-16 h-16 rounded-3xl bg-white shadow-sm flex items-center justify-center mb-4">
+                <Layers className="w-8 h-8 text-slate-300" />
+              </div>
+              <h3 className="text-xl font-bold text-slate-800 mb-1">
+                No Flashcard Decks Saved
+              </h3>
+              <p className="text-slate-500 mb-6 max-w-sm text-sm">
+                Generate flashcards from documents and save them to your library to study.
+              </p>
+              <Button
+                onClick={() => navigate("/ai-tools/ai-flashcard")}
+                variant="outline"
+                className="rounded-xl border-slate-200 gap-2"
+              >
+                <Plus className="w-4 h-4" /> Generate Flashcards
+              </Button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {myFlashcardSets.map((set) => (
+                <Card key={set.id} className="rounded-3xl border-slate-100 hover:border-[#f26522]/20 hover:shadow-md transition-all group overflow-hidden bg-white">
+                  <CardContent className="py-4 px-6 flex flex-col h-full">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="w-12 h-12 rounded-2xl bg-orange-50 flex items-center justify-center group-hover:bg-[#f26522] transition-colors">
+                        <Layers className="w-6 h-6 text-[#f26522] group-hover:text-white transition-colors" />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            if (!window.confirm("Delete this flashcard set?")) return;
+                            try {
+                              await axiosClient.delete(`/api/ai_flashcard/sets/${set.id}`);
+                              toast.success("Flashcard set deleted");
+                              fetchMyFlashcards();
+                            } catch (err) {
+                              toast.error("Failed to delete flashcard set");
+                            }
+                          }}
+                          className="opacity-0 group-hover:opacity-100 p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all cursor-pointer"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                        <div className="flex items-center gap-1 text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100">
+                          {set.cards || 0} Cards
+                        </div>
+                      </div>
+                    </div>
+                    <h3 className="text-lg font-bold text-slate-800 group-hover:text-[#f26522] transition-colors mb-2 truncate">
+                      {set.title}
+                    </h3>
+                    <p className="text-sm text-slate-500 line-clamp-2 mb-5 flex-1">
+                      Start studying these terms to test your knowledge.
+                    </p>
+                    <div className="pt-4 border-t border-slate-50 flex items-center justify-between text-xs text-slate-400 -mb-2">
+                      <Button
+                        asChild
+                        variant="secondary"
+                        className="bg-[#f26522]/10 text-[#f26522] hover:bg-[#f26522] hover:text-white font-semibold text-xs rounded-xl h-8 w-full"
+                      >
+                        <Link to={`/ai-tools/ai-flashcard?id=${set.id}`}>
+                          <Eye className="w-3.5 h-3.5 mr-1.5" /> Start Study
+                        </Link>
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </TabsContent>
 
         {/* QUIZZES CONTENT */}
         <TabsContent value="quizzes" className="mt-0">
-          <div className="flex flex-col items-center justify-center py-20 text-center bg-slate-50 rounded-[32px] border border-dashed border-slate-200">
-            <div className="w-16 h-16 rounded-3xl bg-white shadow-sm flex items-center justify-center mb-4">
-              <ListChecks className="w-8 h-8 text-slate-300" />
+          {isQuizzesLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[1, 2, 3].map((i) => (
+                <Skeleton key={i} className="h-48 w-full rounded-3xl" />
+              ))}
             </div>
-            <h3 className="text-xl font-bold text-slate-800 mb-1">
-              Your Quizzes
-            </h3>
-          </div>
+          ) : myQuizzes.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-center bg-slate-50 rounded-[32px] border border-dashed border-slate-200">
+              <div className="w-16 h-16 rounded-3xl bg-white shadow-sm flex items-center justify-center mb-4">
+                <ListChecks className="w-8 h-8 text-slate-300" />
+              </div>
+              <h3 className="text-xl font-bold text-slate-800 mb-1">
+                No Quizzes Saved
+              </h3>
+              <p className="text-slate-500 mb-6 max-w-sm text-sm">
+                Generate quizzes from documents and save them to your library to test yourself.
+              </p>
+              <Button
+                onClick={() => navigate("/ai-tools/ai-quiz")}
+                variant="outline"
+                className="rounded-xl border-slate-200 gap-2"
+              >
+                <Plus className="w-4 h-4" /> Generate Quiz
+              </Button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {myQuizzes.map((quiz) => (
+                <Card key={quiz.id} className="rounded-3xl border-slate-100 hover:border-[#f26522]/20 hover:shadow-md transition-all group overflow-hidden bg-white">
+                  <CardContent className="py-4 px-6 flex flex-col h-full">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="w-12 h-12 rounded-2xl bg-orange-50 flex items-center justify-center group-hover:bg-[#f26522] transition-colors">
+                        <ListChecks className="w-6 h-6 text-[#f26522] group-hover:text-white transition-colors" />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            if (!window.confirm("Delete this quiz?")) return;
+                            try {
+                              await axiosClient.delete(`/api/quizzes/${quiz.id}`);
+                              toast.success("Quiz deleted");
+                              fetchMyQuizzes();
+                            } catch (err) {
+                              toast.error("Failed to delete quiz");
+                            }
+                          }}
+                          className="opacity-0 group-hover:opacity-100 p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all cursor-pointer"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                        <div className="flex items-center gap-1 text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100">
+                          {quiz.questions?.length || 0} Questions
+                        </div>
+                      </div>
+                    </div>
+                    <h3 className="text-lg font-bold text-slate-800 group-hover:text-[#f26522] transition-colors mb-2 truncate">
+                      {quiz.title}
+                    </h3>
+                    <p className="text-sm text-slate-500 line-clamp-2 mb-5 flex-1">
+                      Test your understanding of the material.
+                    </p>
+                    <div className="pt-4 border-t border-slate-50 flex items-center justify-between text-xs text-slate-400 -mb-2">
+                      <Button
+                        asChild
+                        variant="secondary"
+                        className="bg-[#f26522]/10 text-[#f26522] hover:bg-[#f26522] hover:text-white font-semibold text-xs rounded-xl h-8 w-full"
+                      >
+                        <Link to={`/quiz/${quiz.id}`}>
+                          <Eye className="w-3.5 h-3.5 mr-1.5" /> Start Quiz
+                        </Link>
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* FOLLOWED CREATORS CONTENT */}
+        <TabsContent value="followed" className="mt-0">
+          {isFollowedLoading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {[1, 2, 3, 4].map((i) => (
+                <Skeleton key={i} className="h-60 w-full rounded-3xl" />
+              ))}
+            </div>
+          ) : followedUsers.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-center bg-slate-50 rounded-[32px] border border-dashed border-slate-200">
+              <div className="w-16 h-16 rounded-3xl bg-white shadow-sm flex items-center justify-center mb-4">
+                <UserCheck2 className="w-8 h-8 text-slate-300" />
+              </div>
+              <h3 className="text-xl font-bold text-slate-800 mb-1">
+                Chưa theo dõi ai
+              </h3>
+              <p className="text-slate-500 max-w-sm text-sm">
+                Theo dõi các nhà sáng tạo tài liệu hữu ích để nhận được thông báo mới nhất khi họ đăng tải tài liệu.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {followedUsers.map((user) => {
+                const userInitial = user.fullName?.charAt(0).toUpperCase() || "U";
+                return (
+                  <div
+                    key={user.id}
+                    className="bg-white rounded-3xl border border-slate-100 p-6 shadow-sm hover:shadow-md transition-all duration-200 flex flex-col items-center text-center group"
+                  >
+                    {/* User Avatar */}
+                    <Link to={`/users/${user.id}`} className="block">
+                      {user.avatarUrl ? (
+                        <img
+                          src={user.avatarUrl}
+                          alt={user.fullName}
+                          className="w-20 h-20 rounded-full object-cover border-4 border-orange-50 shadow-sm group-hover:scale-105 transition-transform"
+                        />
+                      ) : (
+                        <div className="w-20 h-20 rounded-full bg-orange-100/50 text-[#f26522] font-bold text-2xl flex items-center justify-center border-4 border-orange-50 shadow-sm group-hover:scale-105 transition-transform">
+                          {userInitial}
+                        </div>
+                      )}
+                    </Link>
+
+                    {/* Full Name */}
+                    <Link to={`/users/${user.id}`} className="block mt-4 flex-1">
+                      <h4 className="font-extrabold text-slate-800 text-base line-clamp-1 group-hover:text-[#f26522] transition-colors">
+                        {user.fullName}
+                      </h4>
+                      <p className="text-xs text-slate-400 font-medium mt-1 mb-4 flex items-center gap-1.5 justify-center">
+                        <BookOpen className="w-3.5 h-3.5" /> {user.documentCount || 0} tài liệu
+                      </p>
+                    </Link>
+
+                    {/* Unfollow Button */}
+                    <Button
+                      variant="outline"
+                      onClick={() => handleUnfollowUser(user.id, user.fullName)}
+                      className="w-full rounded-xl border-slate-200 text-slate-600 hover:bg-red-50 hover:text-red-500 hover:border-red-100 font-semibold text-xs h-9 transition-all"
+                    >
+                      Bỏ theo dõi
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </TabsContent>
       </Tabs>
 

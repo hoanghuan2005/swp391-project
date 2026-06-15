@@ -25,6 +25,18 @@ public class CourseServiceImpl implements CourseService {
     private final DocumentRepository documentRepository;
     private final UserRepository userRepository;
     private final com.example.keeper.systems.major.repository.MajorRepository majorRepository;
+    private final com.example.keeper.systems.ai_flashcard.repository.FlashcardSetRepository flashcardSetRepository;
+    private final com.example.keeper.systems.ai_quiz.repository.QuizRepository quizRepository;
+
+    private void populateCounts(Course course) {
+        if (course == null) return;
+        
+        long fcCount = flashcardSetRepository.findByCourseIdAndStatus(course.getId(), "PUBLISHED").size();
+        course.setFlashcardCount((int) fcCount);
+
+        long qCount = quizRepository.findByCourseIdAndStatus(course.getId(), "PUBLISHED").size();
+        course.setQuizCount((int) qCount);
+    }
 
     @Override
     public Course create(CreateCourseRequest request) {
@@ -62,7 +74,9 @@ public class CourseServiceImpl implements CourseService {
 
     @Override
     public List<Course> getAll() {
-        return courseRepository.findAll();
+        List<Course> list = courseRepository.findAll();
+        list.forEach(this::populateCounts);
+        return list;
     }
 
     @Override
@@ -70,28 +84,34 @@ public class CourseServiceImpl implements CourseService {
         boolean hasQuery = query != null && !query.trim().isEmpty();
         boolean hasMajor = majorId != null;
 
+        Page<Course> result;
         if (hasMajor) {
             if (hasQuery) {
-                return courseRepository.searchByMajorIdAndQuery(majorId, query.trim(), pageable);
+                result = courseRepository.searchByMajorIdAndQuery(majorId, query.trim(), pageable);
             } else {
-                return courseRepository.findByMajorId(majorId, pageable);
+                result = courseRepository.findByMajorId(majorId, pageable);
             }
         } else {
             if (hasQuery) {
                 String trimmed = query.trim();
-                return courseRepository.findByCodeContainingIgnoreCaseOrNameContainingIgnoreCase(
+                result = courseRepository.findByCodeContainingIgnoreCaseOrNameContainingIgnoreCase(
                         trimmed,
                         trimmed,
                         pageable);
             } else {
-                return courseRepository.findAll(pageable);
+                result = courseRepository.findAll(pageable);
             }
         }
+        result.forEach(this::populateCounts);
+        return result;
     }
 
     @Override
     public Course getById(UUID id) {
-        return courseRepository.findById(id).orElseThrow();
+        Course course = courseRepository.findById(id)
+                .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("Course not found with id: " + id));
+        populateCounts(course);
+        return course;
     }
 
     @Override
@@ -105,7 +125,7 @@ public class CourseServiceImpl implements CourseService {
     public Page<Document> getDocumentsByCourse(UUID courseId, Pageable pageable) {
 
         Course course = courseRepository.findById(courseId)
-                .orElseThrow(() -> new RuntimeException("Course not found"));
+                .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("Course not found with id: " + courseId));
 
         return documentRepository.findByCourseId(course.getId(), pageable);
     }
@@ -160,6 +180,8 @@ public class CourseServiceImpl implements CourseService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        return user.getFollowedCourses();
+        List<Course> list = user.getFollowedCourses();
+        list.forEach(this::populateCounts);
+        return list;
     }
 }

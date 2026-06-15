@@ -1,5 +1,13 @@
 import React, { useState } from "react";
-import { BookOpen, BrainCircuit, Brain, Sparkles, ArrowLeft } from "lucide-react";
+import {
+  BookOpen,
+  BrainCircuit,
+  Brain,
+  Sparkles,
+  ArrowLeft,
+  ListChecks,
+  Layers,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import AIFlashcardGenerator from "./ai_flashcard/AIFlashcardGenerator.jsx";
@@ -36,21 +44,21 @@ const AIQuizPage = () => {
       id: "flashcard",
       title: "AI Flashcards",
       desc: "Generate smart flashcards from your learning materials.",
-      icon: <BookOpen className="h-5 w-5 text-[#f26522]" />,
+      icon: <Layers className="h-6 w-6 text-[#f26522]" />,
       enabled: true,
     },
     {
       id: "quiz",
       title: "AI Quiz",
       desc: "Practice with AI-generated quizzes and assessments.",
-      icon: <BrainCircuit className="h-5 w-5 text-[#f26522]" />,
+      icon: <ListChecks className="h-6 w-6 text-[#f26522]" />,
       enabled: true,
     },
     {
       id: "mindmap",
       title: "AI Mind Map",
       desc: "Transform documents into interactive mind maps for visual learning.",
-      icon: <Brain className="h-5 w-5 text-[#f26522]" />,
+      icon: <Brain className="h-6 w-6 text-[#f26522]" />,
       enabled: true,
     },
   ];
@@ -136,42 +144,61 @@ const AIQuizPage = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3">
             {tools.map((tool) => (
               <div
                 key={tool.id}
                 onClick={() => tool.enabled && handleNavigate(tool.id)}
-                className={`group rounded-2xl border p-6 transition-all duration-200 ${
+                className={`group relative overflow-hidden rounded-2xl border p-5 transition-all duration-300 ${
                   tool.enabled
-                    ? "cursor-pointer border-slate-200 bg-white hover:-translate-y-0.5 shadow-sm hover:shadow-md"
-                    : "border-slate-200 bg-slate-100/70 opacity-70"
+                    ? "cursor-pointer border-slate-100 shadow-sm bg-white hover:-translate-y-1 hover:shadow-md"
+                    : "select-none border-slate-100 bg-slate-50/70 opacity-60"
                 }`}
               >
-                <div className="flex items-start justify-between">
-                  <div className="flex gap-4">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#f26522]/10">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-start gap-4">
+                    <div
+                      className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition-colors duration-300 ${
+                        tool.enabled
+                          ? "bg-[#f26522]/10 text-[#f26522] group-hover:text-white"
+                          : "bg-slate-200/60 text-slate-400"
+                      }`}
+                    >
                       {tool.icon}
                     </div>
+
                     <div>
-                      <h3 className="text-lg font-semibold text-slate-800">
+                      <h3 className="text-base font-semibold text-slate-800 transition-colors duration-200 group-hover:text-[#f26522]">
                         {tool.title}
                       </h3>
-                      <p className="mt-1 text-sm leading-6 text-slate-500">
+                      <p className="mt-1.5 text-xs leading-5 text-slate-500 line-clamp-2">
                         {tool.desc}
                       </p>
                     </div>
                   </div>
+
+                  {/* Badge "Soon" thanh lịch hơn */}
                   {!tool.enabled && (
-                    <span className="rounded-full bg-slate-200 px-2 py-1 text-xs font-medium text-slate-500">
+                    <span className="shrink-0 rounded-md bg-slate-200/70 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">
                       Soon
                     </span>
                   )}
                 </div>
-                <div className="mt-5 flex items-center justify-between">
-                  <span className="text-sm font-medium text-[#f26522]">
+
+                <div className="flex items-center justify-between pt-4">
+                  <span
+                    className={`text-sm font-semibold ${
+                      tool.enabled
+                        ? "text-slate-600 group-hover:text-[#f26522]"
+                        : "text-slate-400"
+                    }`}
+                  >
                     {tool.enabled ? "Open Tool" : "Coming Soon"}
                   </span>
-                  <ArrowLeft className="h-4 w-4 rotate-180 text-slate-400 transition group-hover:translate-x-1 group-hover:text-[#f26522]" />
+
+                  {tool.enabled && (
+                    <ArrowLeft className="h-4 w-4 rotate-180 text-slate-400 transition-all duration-300 group-hover:translate-x-1 group-hover:text-[#f26522]" />
+                  )}
                 </div>
               </div>
             ))}

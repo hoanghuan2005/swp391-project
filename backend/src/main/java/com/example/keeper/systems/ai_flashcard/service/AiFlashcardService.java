@@ -4,6 +4,7 @@ import com.example.keeper.systems.ai_ask.service.EmbeddingService;
 import com.example.keeper.systems.ai_ask.entity.DocumentChunk;
 import com.example.keeper.systems.ai_ask.repository.DocumentChunkRepository;
 import com.example.keeper.systems.ai_ask.service.GroqService;
+import com.example.keeper.systems.ai_ask.service.DocumentParserService;
 import com.example.keeper.systems.ai_flashcard.dto.FlashcardItemDto;
 import com.example.keeper.systems.ai_flashcard.dto.FlashcardSetUpdateRequest;
 import com.example.keeper.systems.ai_flashcard.entity.Flashcard;
@@ -33,11 +34,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import lombok.extern.slf4j.Slf4j;
+
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AiFlashcardService {
@@ -52,6 +56,7 @@ public class AiFlashcardService {
     private final DocumentChunkRepository documentChunkRepository;
     private final EmbeddingService embeddingService;
     private final AiUsageService aiUsageService;
+    private final DocumentParserService documentParserService;
 
     // ====================================================================
     // 1. CÁC HÀM LẤY DỮ LIỆU TỪ DATABASE CHO SIDEBAR
@@ -67,7 +72,9 @@ public class AiFlashcardService {
         User user = getAuthenticatedUser();
         List<FlashcardSet> sets = flashcardSetRepository.findByUserIdOrderByCreatedAtDesc(user.getId());
 
-        return sets.stream().map(set -> {
+        return sets.stream()
+                .filter(FlashcardSet::isSavedToLibrary)
+                .map(set -> {
             long cardCount = flashcardRepository.findAll().stream()
                     .filter(c -> c.getFlashcardSet() != null && c.getFlashcardSet().getId().equals(set.getId()))
                     .count();
@@ -133,6 +140,9 @@ public class AiFlashcardService {
         }
 
         set.setTitle(request.getTitle().trim());
+        if (request.getSavedToLibrary() != null) {
+            set.setSavedToLibrary(request.getSavedToLibrary());
+        }
         flashcardSetRepository.save(set);
 
         flashcardRepository.deleteAll(flashcardRepository.findByFlashcardSetId(setId));
@@ -162,6 +172,7 @@ public class AiFlashcardService {
         set.setCourseId(courseId);
         set.setVisibility(visibility != null ? visibility : "PRIVATE");
         set.setStatus("PUBLISHED");
+        set.setSavedToLibrary(true);
 
         flashcardSetRepository.save(set);
     }
@@ -224,6 +235,7 @@ public class AiFlashcardService {
 
     @Transactional
     public Map<String, Object> generateFlashcardsFromDocument(UUID documentId) throws Exception {
+        documentParserService.ensureChunksExist(documentId);
         Document document = documentRepository.findById(documentId)
                 .orElseThrow(() -> new RuntimeException("Document not found"));
 
@@ -231,7 +243,7 @@ public class AiFlashcardService {
             throw new RuntimeException("Document is still being processed for AI. Please try again shortly.");
         }
         if (document.getAiParseStatus() == AiParseStatus.FAILED || document.getAiParseStatus() == AiParseStatus.UNSUPPORTED) {
-            throw new RuntimeException("Document is not available for AI flashcards.");
+            log.warn("Document {} parsing status is {}, using metadata fallback for flashcard generation.", documentId, document.getAiParseStatus());
         }
 
         float[] queryEmbedding = embeddingService.embed("key concepts, terms, and important definitions");
@@ -242,7 +254,13 @@ public class AiFlashcardService {
                 .collect(Collectors.joining("\n\n"));
 
         if (content.trim().isEmpty()) {
-            throw new RuntimeException("No parsed text found for this document.");
+            String desc = document.getDescription();
+            if (desc != null && !desc.trim().isEmpty()) {
+                content = "Document Title: " + document.getTitle() + "\nDocument Description: " + desc;
+            } else {
+                content = "Document Title: " + document.getTitle();
+            }
+            log.info("Using document metadata fallback content for flashcard generation on document: {}", documentId);
         }
 
         if (content.length() > 30000) {

@@ -8,4 +8,5 @@ import java.util.List;
 public class FlashcardSetUpdateRequest {
     private String title;
     private List<FlashcardItemDto> flashcards;
+    private Boolean savedToLibrary;
 }

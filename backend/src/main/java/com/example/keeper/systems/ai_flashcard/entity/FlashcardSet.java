@@ -27,6 +27,9 @@ public class FlashcardSet extends BaseEntity {
     @Column(name = "visibility")
     private String visibility = "PRIVATE"; // PRIVATE or PUBLIC
 
+    @Column(name = "saved_to_library", nullable = false, columnDefinition = "boolean default false")
+    private boolean savedToLibrary = false;
+
     @Column(name = "course_id")
     private java.util.UUID courseId;
 

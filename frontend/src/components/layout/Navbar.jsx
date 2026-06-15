@@ -13,8 +13,11 @@ import {
   Book,
   X,
   ChevronDown,
+  GraduationCap,
+  Layers,
+  Tag,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import axiosClient from "@/api/axiosClient";
 
 // ==========================================
@@ -28,6 +31,7 @@ const SearchableDropdown = ({
   value,
   onChange,
   renderItem,
+  disabled = false,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -43,27 +47,38 @@ const SearchableDropdown = ({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const filteredItems = items.filter(
+  const filteredItems = (items || []).filter(
     (item) =>
-      item.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.name.toLowerCase().includes(searchTerm.toLowerCase()),
+      item &&
+      ((item.code || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (item.name || "").toLowerCase().includes(searchTerm.toLowerCase())),
   );
 
-  const selectedItem = items.find((i) => i.code === value);
+  const selectedItem = (items || []).find((i) => i && i.code === value);
 
   return (
-    <div className="relative flex flex-col gap-1.5" ref={dropdownRef}>
+    <div
+      className={`relative flex flex-col gap-1.5 ${disabled ? "opacity-60 pointer-events-none" : ""}`}
+      ref={dropdownRef}
+    >
       <label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
         {icon} {label}
       </label>
 
       <div
-        className={`relative flex items-center w-full border ${isOpen ? "border-[#f26522] ring-1 ring-orange-100" : "border-slate-200 hover:border-slate-300"} rounded-xl bg-white transition-all cursor-text`}
-        onClick={() => setIsOpen(true)}
+        className={`relative flex items-center w-full border ${
+          disabled
+            ? "border-slate-100 bg-slate-50 cursor-not-allowed"
+            : isOpen
+              ? "border-[#f26522] ring-1 ring-orange-100 cursor-text"
+              : "border-slate-200 hover:border-slate-300 cursor-text"
+        } rounded-xl bg-white transition-all`}
+        onClick={() => !disabled && setIsOpen(true)}
       >
         <input
           type="text"
-          className="w-full h-11 px-4 bg-transparent outline-none text-sm text-slate-800 placeholder-slate-400"
+          disabled={disabled}
+          className="w-full h-11 px-4 bg-transparent outline-none text-sm text-slate-800 placeholder-slate-400 disabled:cursor-not-allowed"
           placeholder={
             selectedItem
               ? `${selectedItem.code} - ${selectedItem.name}`
@@ -74,9 +89,9 @@ const SearchableDropdown = ({
             setSearchTerm(e.target.value);
             setIsOpen(true);
           }}
-          onFocus={() => setIsOpen(true)}
+          onFocus={() => !disabled && setIsOpen(true)}
         />
-        {value && !isOpen && (
+        {value && !isOpen && !disabled && (
           <button
             className="absolute right-8 text-slate-400 hover:text-red-500"
             onClick={(e) => {
@@ -93,7 +108,7 @@ const SearchableDropdown = ({
         />
       </div>
 
-      {isOpen && (
+      {isOpen && !disabled && (
         <div className="absolute top-[72px] left-0 w-full bg-white border border-slate-100 shadow-xl rounded-xl max-h-[220px] overflow-y-auto z-50">
           {filteredItems.length > 0 ? (
             filteredItems.map((item, index) => (
@@ -140,6 +155,7 @@ export default function Navbar({
   onFilter,
   onSearch,
 }) {
+  const navigate = useNavigate();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [userName, setUserName] = useState(null);
   const [notifications, setNotifications] = useState([]);
@@ -151,6 +167,7 @@ export default function Navbar({
   // State chứa dữ liệu Lọc
   const [filterData, setFilterData] = useState({
     school: "",
+    major: "",
     course: "",
     category: "",
   });
@@ -162,34 +179,93 @@ export default function Navbar({
   const dropdownRef = useRef(null);
   const profileButtonRef = useRef(null);
 
-  // DỮ LIỆU TỪ HÌNH ẢNH CỦA ÔNG
-  const schools = [
-    { code: "FPT", name: "FPT University" },
-    { code: "HCMUS", name: "University of Science" },
-    { code: "UIT", name: "University of Information Technology" },
-    { code: "HUST", name: "Hanoi University of Science and Technology" },
-    { code: "NEU", name: "National Economics University" },
-    { code: "UEH", name: "University of Economics Ho Chi Minh City" },
-  ];
+  // Dynamic filter state lists loaded from backend APIs
+  const [schools, setSchools] = useState([]);
+  const [majors, setMajors] = useState([]);
+  const [courses, setCourses] = useState([]);
+  const [categories, setCategories] = useState([]);
 
-  const courses = [
-    { code: "SWP391", name: "Software Architecture and Design" },
-    { code: "PRF192", name: "Programming Fundamentals" },
-    { code: "SSG104", name: "Understanding Group Dynamics" },
-    { code: "DBI202", name: "Database Systems" },
-    { code: "WEB301", name: "Web Application Development" },
-    { code: "MAD101", name: "Mobile Application Development" },
-    { code: "AI101", name: "Introduction to AI" },
-  ];
+  // Fetch initial schools and categories
+  useEffect(() => {
+    const loadInitialData = async () => {
+      try {
+        const schoolsRes = await axiosClient.get("/api/schools");
+        setSchools(schoolsRes.data || []);
+      } catch (error) {
+        console.error("Failed to load schools:", error);
+      }
+      try {
+        const categoriesRes = await axiosClient.get("/api/categories/active");
+        setCategories(categoriesRes.data || []);
+      } catch (error) {
+        console.error("Failed to load categories:", error);
+      }
+    };
+    loadInitialData();
+  }, []);
 
-  const categories = [
-    { code: "SLIDE", name: "Slide", color: "bg-purple-500" },
-    { code: "FINAL_EXAM", name: "Final Exam", color: "bg-red-500" },
-    { code: "ASSIGNMENT", name: "Assignment", color: "bg-orange-500" },
-    { code: "LAB", name: "Lab", color: "bg-pink-400" },
-    { code: "PROJECT", name: "Project", color: "bg-cyan-400" },
-    { code: "REFERENCE", name: "Reference", color: "bg-blue-600" },
-  ];
+  // Fetch majors dynamically when selected school changes
+  useEffect(() => {
+    const loadMajors = async () => {
+      try {
+        let url = "/api/majors";
+        if (filterData.school) {
+          const selectedSchool = schools.find(
+            (s) => s.code === filterData.school,
+          );
+          if (selectedSchool) {
+            url += `?schoolId=${selectedSchool.id}`;
+          }
+        }
+        const res = await axiosClient.get(url);
+        setMajors(res.data || []);
+      } catch (error) {
+        console.error("Failed to load majors:", error);
+      }
+    };
+    loadMajors();
+  }, [filterData.school, schools]);
+
+  // Fetch courses dynamically when selected major changes
+  useEffect(() => {
+    const loadCourses = async () => {
+      try {
+        let url = "/api/courses";
+        if (filterData.major) {
+          const selectedMajor = majors.find((m) => m.code === filterData.major);
+          if (selectedMajor) {
+            url += `?majorId=${selectedMajor.id}&size=100`;
+          }
+        } else {
+          url += "?size=100";
+        }
+        const res = await axiosClient.get(url);
+        const content = res.data?.content || res.data || [];
+        setCourses(content);
+      } catch (error) {
+        console.error("Failed to load courses:", error);
+      }
+    };
+    loadCourses();
+  }, [filterData.major, majors]);
+
+  // Handlers to handle cascading resets cleanly on parent updates
+  const handleSchoolChange = (val) => {
+    setFilterData((prev) => ({
+      ...prev,
+      school: val,
+      major: "",
+      course: "",
+    }));
+  };
+
+  const handleMajorChange = (val) => {
+    setFilterData((prev) => ({
+      ...prev,
+      major: val,
+      course: "",
+    }));
+  };
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -210,8 +286,20 @@ export default function Navbar({
     };
   }, []);
 
+  const fetchNotifications = async () => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+    try {
+      const res = await axiosClient.get("/api/notifications?page=0&size=5");
+      setNotifications(res.data.content || []);
+    } catch (error) {
+      console.error("Failed to fetch notifications:", error);
+    }
+  };
+
   useEffect(() => {
     fetchUnreadCount();
+    fetchNotifications();
     try {
       const token = localStorage.getItem("token");
       if (token) {
@@ -228,6 +316,8 @@ export default function Navbar({
   }, []);
 
   const fetchUnreadCount = async () => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
     try {
       const res = await axiosClient.get("/api/notifications/unread-count");
       setUnreadCount(res.data.count);
@@ -270,7 +360,7 @@ export default function Navbar({
             </Button>
           </div>
           <Link
-            to="/dashboard"
+            to="/home"
             className="flex items-center gap-2 font-bold text-[20px] text-slate-800 tracking-tight ml-2"
           >
             <BookOpen className="h-7 w-7 text-[#f26522]" />
@@ -305,6 +395,7 @@ export default function Navbar({
               >
                 <Filter className="h-5 w-5" />
                 {(filterData.school ||
+                  filterData.major ||
                   filterData.course ||
                   filterData.category) && (
                   <span className="absolute top-2 right-2 h-2 w-2 bg-[#f26522] rounded-full" />
@@ -313,87 +404,147 @@ export default function Navbar({
 
               {/* BẢNG LỌC NÂNG CAO */}
               {isFilterOpen && (
-                <div className="absolute right-0 top-14 w-[420px] bg-slate-50 rounded-2xl shadow-2xl border border-slate-200 z-50 animate-in slide-in-from-top-4 duration-200">
-                  <div className="p-4 border-b flex justify-between items-center bg-white rounded-t-2xl">
-                    <h4 className="font-bold text-slate-800">
-                      Advanced Filter
-                    </h4>
+                <div className="absolute right-0 top-13 w-[400px] bg-white rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-slate-200/50 z-50 animate-in slide-in-from-top-4 duration-200">
+                  <div className="p-4 border-b flex justify-between items-center bg-white rounded-t-[24px]">
+                    <div className="flex items-center gap-2">
+                      <Filter className="h-5 w-5 text-[#f26522]" />
+                      <h4 className="font-extrabold text-slate-800 text-[16px]">
+                        Advanced Filter
+                      </h4>
+                    </div>
                     <button onClick={() => setIsFilterOpen(false)}>
                       <X
                         size={18}
-                        className="text-slate-400 hover:text-slate-700"
+                        className="text-slate-400 hover:text-slate-700 cursor-pointer"
                       />
                     </button>
                   </div>
 
-                  <div className="p-5 space-y-5">
-                    {/* Combobox School */}
-                    <SearchableDropdown
-                      icon={<span className="text-orange-500">🎓</span>}
-                      label="School"
-                      placeholder="Enter school code or name"
-                      items={schools}
-                      value={filterData.school}
-                      onChange={(val) =>
-                        setFilterData({ ...filterData, school: val })
-                      }
-                    />
+                  <div className="p-4 space-y-5">
+                    {/* Academic Cascade Connector Wrapper */}
+                    <div className="bg-slate-50/70 p-4 rounded-2xl border border-slate-100/80 space-y-4 relative">
+                      {/* Cascade connection dashed line */}
+                      <div className="absolute left-[18px] top-[45px] bottom-[5px] border-l-2 border-dashed border-orange-200" />
+                      {/* Combobox School */}
+                      <div className="pl-6 relative">
+                        <div className="absolute left-[-3px] top-[42px] w-3 h-3 rounded-full bg-[#f26522] border-2 border-white shadow-sm" />
+                        <SearchableDropdown
+                          icon={
+                            <GraduationCap className="h-4 w-4 text-[#f26522]" />
+                          }
+                          label="School"
+                          placeholder="Select School"
+                          items={schools}
+                          value={filterData.school}
+                          onChange={handleSchoolChange}
+                        />
+                      </div>
 
-                    {/* Combobox Course */}
-                    <SearchableDropdown
-                      icon={<span className="text-orange-500">📖</span>}
-                      label="Course"
-                      placeholder="Enter course code or name"
-                      items={courses}
-                      value={filterData.course}
-                      onChange={(val) =>
-                        setFilterData({ ...filterData, course: val })
-                      }
-                    />
+                      {/* Combobox Major */}
+                      <div className="pl-6 relative">
+                        <div
+                          className={`absolute left-[-3px] top-[42px] w-3 h-3 rounded-full border-2 border-white shadow-sm transition-colors ${
+                            filterData.school ? "bg-[#f26522]" : "bg-slate-300"
+                          }`}
+                        />
+                        <SearchableDropdown
+                          icon={<Layers className="h-4 w-4 text-[#f26522]" />}
+                          label="Major"
+                          placeholder={
+                            filterData.school
+                              ? "Select Major"
+                              : "Please select school first"
+                          }
+                          items={majors}
+                          value={filterData.major}
+                          onChange={handleMajorChange}
+                          disabled={!filterData.school}
+                        />
+                      </div>
 
-                    {/* Combobox Category */}
-                    <SearchableDropdown
-                      icon={<span className="text-orange-500">📄</span>}
-                      label="Category"
-                      placeholder="Select category"
-                      items={categories}
-                      value={filterData.category}
-                      onChange={(val) =>
-                        setFilterData({ ...filterData, category: val })
-                      }
-                      renderItem={(item) => (
-                        <div className="flex justify-between items-center w-full">
-                          <div className="flex items-center gap-2">
-                            <span
-                              className={`w-2 h-2 rounded-full ${item.color}`}
-                            ></span>
-                            <span className="font-semibold text-sm text-slate-700">
-                              {item.code}
-                            </span>
-                          </div>
-                          <span className="text-xs text-slate-400">
-                            {item.name}
-                          </span>
-                        </div>
-                      )}
-                    />
+                      {/* Combobox Course */}
+                      <div className="pl-6 relative">
+                        <div
+                          className={`absolute left-[-3px] top-[42px] w-3 h-3 rounded-full border-2 border-white shadow-sm transition-colors ${
+                            filterData.major ? "bg-[#f26522]" : "bg-slate-300"
+                          }`}
+                        />
+                        <SearchableDropdown
+                          icon={<BookOpen className="h-4 w-4 text-[#f26522]" />}
+                          label="Course"
+                          placeholder={
+                            filterData.major
+                              ? "Select Course"
+                              : "Please select major first"
+                          }
+                          items={courses}
+                          value={filterData.course}
+                          onChange={(val) =>
+                            setFilterData((prev) => ({ ...prev, course: val }))
+                          }
+                          disabled={!filterData.major}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Category Selection Grid */}
+                    <div className="flex flex-col gap-2.5">
+                      <label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                        <Tag className="h-4 w-4 text-[#f26522]" /> Category
+                      </label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {categories.map((cat) => {
+                          const isSelected = filterData.category === cat.code;
+
+                          return (
+                            <button
+                              key={cat.id || cat.code}
+                              type="button"
+                              onClick={() => {
+                                setFilterData((prev) => ({
+                                  ...prev,
+                                  category: isSelected ? "" : cat.code,
+                                }));
+                              }}
+                              className={`h-9 px-2.5 rounded-lg border text-[11px] font-bold
+flex items-center justify-center
+transition-all cursor-pointer select-none
+${
+  isSelected
+    ? "bg-[#f26522]/10 border-[#f26522] text-[#f26522] shadow-sm"
+    : "bg-white border-slate-200/60 text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+}`}
+                            >
+                              <span className="truncate whitespace-nowrap leading-normal">
+                                {cat.name}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="p-4 bg-white border-t flex gap-3 rounded-b-2xl">
+                  <div className="p-4.5 bg-slate-50/50 border-t border-slate-100 flex gap-3 rounded-b-[24px]">
                     <Button
                       variant="outline"
-                      className="flex-1 rounded-xl"
+                      className="flex-1 rounded-xl font-bold cursor-pointer"
                       onClick={() =>
-                        setFilterData({ school: "", course: "", category: "" })
+                        setFilterData({
+                          school: "",
+                          major: "",
+                          course: "",
+                          category: "",
+                        })
                       }
                     >
                       Reset
                     </Button>
                     <Button
-                      className="flex-[2] bg-[#f26522] text-white rounded-xl hover:bg-[#d9581c]"
+                      className="flex-[2] bg-[#f26522] text-white rounded-xl hover:bg-[#d9581c] font-bold shadow-md shadow-orange-500/10 cursor-pointer"
                       onClick={handleApplyFilter}
                     >
-                      Áp dụng Bộ Lọc
+                      Apply{" "}
                     </Button>
                   </div>
                 </div>
@@ -403,63 +554,158 @@ export default function Navbar({
         </div>
 
         {/* THÔNG BÁO VÀ NGƯỜI DÙNG */}
-        <div className="flex items-center gap-4">
-          <Button
-            ref={notificationButtonRef}
-            variant="ghost"
-            size="icon"
-            onClick={() => setIsNotificationOpen(!isNotificationOpen)}
-            className="rounded-full h-10 w-10"
-          >
-            <Bell className="!h-5 !w-5" />
-            {unreadCount > 0 && (
-              <span className="absolute top-4 right-[86px] h-4 w-4 bg-red-500 rounded-full text-white text-[9px] flex items-center justify-center">
-                {unreadCount}
-              </span>
-            )}
-          </Button>
+        {localStorage.getItem("token") ? (
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              <Button
+                ref={notificationButtonRef}
+                variant="ghost"
+                size="icon"
+                onClick={() => {
+                  setIsNotificationOpen(!isNotificationOpen);
+                  if (!isNotificationOpen) {
+                    fetchNotifications();
+                    fetchUnreadCount();
+                  }
+                }}
+                className="rounded-full h-10 w-10"
+              >
+                <Bell className="!h-5 !w-5" />
+                {unreadCount > 0 && (
+                  <span className="absolute top-1 right-1 h-4 w-4 bg-red-500 rounded-full text-white text-[9px] flex items-center justify-center font-bold">
+                    {unreadCount}
+                  </span>
+                )}
+              </Button>
 
-          <button
-            ref={profileButtonRef}
-            onClick={() => setIsDropdownOpen((prev) => !prev)}
-            className="h-10 w-10 rounded-full bg-[#f26522] text-white font-bold shadow-sm"
-          >
-            {userInitial}
-          </button>
-
-          {isDropdownOpen && (
-            <div
-              ref={dropdownRef}
-              className="absolute right-4 top-14 w-48 bg-white rounded-xl shadow-xl border border-slate-100 pt-2 z-50"
-            >
-              <Link
-                to="/profile"
-                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 flex items-center gap-2"
-              >
-                <User size={15} /> My Profile
-              </Link>
-              <Link
-                to="/notifications"
-                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 flex items-center gap-2"
-              >
-                <Bell size={15} /> Notifications
-              </Link>
-              <Link
-                to="/my-library"
-                className="px-4 py-2 pb-3 text-xs font-semibold text-slate-600 hover:bg-slate-50 flex items-center gap-2"
-              >
-                <Book size={15} /> My Library
-              </Link>
-
-              <button
-                onClick={onLogoutClick}
-                className="border-t w-full px-4 py-3 text-left text-xs font-bold text-red-500 hover:bg-red-50 hover:rounded-b-xl flex items-center gap-2"
-              >
-                <LogOut size={15} /> Log Out
-              </button>
+              {isNotificationOpen && (
+                <div
+                  ref={notificationPanelRef}
+                  className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-xl border border-slate-100 z-50 overflow-hidden"
+                >
+                  <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                    <span className="font-extrabold text-sm text-slate-800">Thông báo</span>
+                    <button
+                      onClick={async () => {
+                        try {
+                          await axiosClient.put("/api/notifications/read-all");
+                          setUnreadCount(0);
+                          setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+                        } catch (err) {
+                          console.error(err);
+                        }
+                      }}
+                      className="text-xs text-[#f26522] hover:text-[#d9581c] font-bold"
+                    >
+                      Đọc tất cả
+                    </button>
+                  </div>
+                  <div className="max-h-64 overflow-y-auto divide-y divide-slate-100">
+                    {notifications.length === 0 ? (
+                      <div className="p-6 text-center text-xs text-slate-400">Không có thông báo nào</div>
+                    ) : (
+                      notifications.map((item) => (
+                        <div
+                          key={item.id}
+                          onClick={async () => {
+                            setIsNotificationOpen(false);
+                            try {
+                              if (!item.isRead) {
+                                  await axiosClient.put(`/api/notifications/${item.id}/read`);
+                              }
+                            } catch (err) {
+                              console.error(err);
+                            }
+                            if (item.referenceType === "DOCUMENT" && item.referenceId) {
+                              navigate(`/documents/${item.referenceId}`);
+                            } else if (item.referenceType === "USER" && item.referenceId) {
+                              navigate(`/users/${item.referenceId}`);
+                            }
+                          }}
+                          className={`p-3 text-left hover:bg-slate-50 transition-colors cursor-pointer flex gap-3 ${!item.isRead ? "bg-orange-50/20" : ""}`}
+                        >
+                          <div className="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center text-[#f26522] shrink-0">
+                            <Bell className="h-4 w-4" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="font-bold text-xs text-slate-700 truncate">{item.title}</p>
+                            <p className="text-[11px] text-slate-500 line-clamp-2 mt-0.5">{item.message}</p>
+                            <p className="text-[10px] text-slate-400 mt-1">{new Date(item.createdAt).toLocaleString()}</p>
+                          </div>
+                          {!item.isRead && (
+                            <div className="w-1.5 h-1.5 rounded-full bg-orange-500 mt-2 shrink-0" />
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                  <Link
+                    to="/notifications"
+                    onClick={() => setIsNotificationOpen(false)}
+                    className="block p-3 text-center text-xs font-bold text-[#f26522] hover:bg-slate-50 border-t border-slate-100 bg-slate-50/30"
+                  >
+                    Xem tất cả thông báo
+                  </Link>
+                </div>
+              )}
             </div>
-          )}
-        </div>
+
+            <button
+              ref={profileButtonRef}
+              onClick={() => setIsDropdownOpen((prev) => !prev)}
+              className="h-10 w-10 rounded-full bg-[#f26522] text-white font-bold shadow-sm"
+            >
+              {userInitial}
+            </button>
+
+            {isDropdownOpen && (
+              <div
+                ref={dropdownRef}
+                className="absolute right-4 top-14 w-48 bg-white rounded-xl shadow-xl border border-slate-100 pt-2 z-50"
+              >
+                <Link
+                  to="/profile"
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 flex items-center gap-2"
+                >
+                  <User size={15} /> My Profile
+                </Link>
+                <Link
+                  to="/notifications"
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 flex items-center gap-2"
+                >
+                  <Bell size={15} /> Notifications
+                </Link>
+                <Link
+                  to="/my-library"
+                  className="px-4 py-2 pb-3 text-xs font-semibold text-slate-600 hover:bg-slate-50 flex items-center gap-2"
+                >
+                  <Book size={15} /> My Library
+                </Link>
+
+                <button
+                  onClick={onLogoutClick}
+                  className="border-t w-full px-4 py-3 text-left text-xs font-bold text-red-500 hover:bg-red-50 hover:rounded-b-xl flex items-center gap-2"
+                >
+                  <LogOut size={15} /> Log Out
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="flex items-center gap-3">
+            <Link
+              to="/login"
+              className="text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors hidden sm:block"
+            >
+              Log in
+            </Link>
+            <Link to="/signup">
+              <Button className="rounded-full bg-[#f26522] hover:bg-[#f26522]/90 text-white font-semibold px-4 h-9">
+                Sign up
+              </Button>
+            </Link>
+          </div>
+        )}
       </div>
     </div>
   );

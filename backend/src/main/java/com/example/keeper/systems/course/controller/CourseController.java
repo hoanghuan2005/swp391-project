@@ -98,16 +98,13 @@ public class CourseController {
 
     @GetMapping("/{id}/follow-status")
     public boolean isFollowing(@PathVariable UUID id) {
-
-        String email = SecurityContextHolder
-                .getContext()
-                .getAuthentication()
-                .getName();
-
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
-        return courseService.isFollowing(id, user.getId());
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        if (email == null || "anonymousUser".equals(email)) {
+            return false;
+        }
+        return userRepository.findByEmail(email)
+                .map(user -> courseService.isFollowing(id, user.getId()))
+                .orElse(false);
     }
 
     @GetMapping("/followed")

@@ -2,6 +2,7 @@ package com.example.keeper.systems.ai_quiz.service.impl;
 
 import com.example.keeper.systems.ai_ask.service.GroqService;
 import com.example.keeper.systems.ai_ask.service.EmbeddingService;
+import com.example.keeper.systems.ai_ask.service.DocumentParserService;
 import com.example.keeper.systems.ai_ask.entity.DocumentChunk;
 import com.example.keeper.systems.ai_ask.repository.DocumentChunkRepository;
 import com.example.keeper.systems.ai_usage.service.AiUsageService;
@@ -45,6 +46,7 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
     private final GroqService groqService;
     private final EmbeddingService embeddingService;
     private final AiUsageService aiUsageService;
+    private final DocumentParserService documentParserService;
 
     @Override
     @Transactional
@@ -57,7 +59,29 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
             context = fetchContext(request);
         }
 
-        // --- NEW SAFETY CHECK ---
+        // --- SAFETY CHECK & FALLBACK CONTEXT ---
+        if (context.trim().isEmpty()) {
+            if (request.getDocumentId() != null) {
+                Document document = documentRepository.findById(request.getDocumentId()).orElse(null);
+                if (document != null) {
+                    context = "Document Title: " + document.getTitle();
+                    if (document.getDescription() != null && !document.getDescription().trim().isEmpty()) {
+                        context += "\nDocument Description: " + document.getDescription();
+                    }
+                    log.info("Using document metadata fallback context for document: {}", request.getDocumentId());
+                }
+            } else if (request.getProjectId() != null) {
+                Project project = projectRepository.findById(request.getProjectId()).orElse(null);
+                if (project != null) {
+                    context = "Project Name: " + project.getName();
+                    if (project.getDescription() != null && !project.getDescription().trim().isEmpty()) {
+                        context += "\nProject Description: " + project.getDescription();
+                    }
+                    log.info("Using project metadata fallback context for project: {}", request.getProjectId());
+                }
+            }
+        }
+
         // If the document hasn't been vectorized yet (0 chunks) AND the user didn't type a topic
         if (context.trim().isEmpty() && (request.getTopic() == null || request.getTopic().trim().isEmpty())) {
             // Fall back to using the document's title as the topic so Gemini doesn't crash
@@ -144,8 +168,12 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
         if (request.getProjectId() != null) {
             Project project = projectRepository.findById(request.getProjectId())
                     .orElseThrow(() -> new RuntimeException("Project not found"));
-            project.getDocuments().forEach(this::ensureReadyForAi);
-            List<UUID> docIds = project.getDocuments().stream()
+            project.getDocuments().forEach(d -> {
+                documentParserService.ensureChunksExist(d.getId());
+            });
+            Project updatedProject = projectRepository.findById(request.getProjectId()).orElse(project);
+            updatedProject.getDocuments().forEach(this::ensureReadyForAi);
+            List<UUID> docIds = updatedProject.getDocuments().stream()
                     .filter(d -> d.getAiParseStatus() == AiParseStatus.READY)
                     .map(Document::getId)
                     .collect(Collectors.toList());
@@ -153,6 +181,7 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
             if (docIds.isEmpty()) return "";
             chunks = documentChunkRepository.findSimilarChunksByDocumentIds(docIds, java.util.Arrays.toString(queryEmbedding), 20);
         } else {
+            documentParserService.ensureChunksExist(request.getDocumentId());
             Document document = documentRepository.findById(request.getDocumentId())
                     .orElseThrow(() -> new RuntimeException("Document not found"));
             ensureReadyForAi(document);
@@ -173,7 +202,7 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
             throw new RuntimeException("Document is still being processed for AI. Please try again shortly.");
         }
         if (status == AiParseStatus.FAILED || status == AiParseStatus.UNSUPPORTED) {
-            throw new RuntimeException("Document is not available for AI quiz generation.");
+            log.warn("Document {} parsing status is {}, using metadata fallback for generation.", document.getId(), status);
         }
     }
 

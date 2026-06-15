@@ -1,0 +1,650 @@
+import React, { useEffect, useState, useCallback } from "react";
+import { useParams, Link, useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import {
+  UserPlus,
+  UserCheck,
+  FileText,
+  Users,
+  User,
+  Calendar,
+  Download,
+  Eye,
+  BookOpen,
+  ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
+  X,
+  Heart,
+} from "lucide-react";
+import axiosClient from "@/api/axiosClient";
+import { toast } from "react-hot-toast";
+import {
+  Card,
+  CardContent,
+  CardTitle,
+  CardDescription,
+  CardFooter,
+} from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { forceDownload } from "@/lib/downloadHelper";
+
+export default function UserPage() {
+  const { userId } = useParams();
+  const navigate = useNavigate();
+
+  const [userProfile, setUserProfile] = useState(null);
+  const [documents, setDocuments] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isFollowLoading, setIsFollowLoading] = useState(false);
+
+  const [favoritedIds, setFavoritedIds] = useState([]);
+  const [likeConfirmOpen, setLikeConfirmOpen] = useState(false);
+  const [docToLike, setDocToLike] = useState(null);
+
+  // Modals state
+  const [modalType, setModalType] = useState(null); // 'followers' or 'following' or null
+  const [modalData, setModalData] = useState([]);
+  const [modalPage, setModalPage] = useState(0);
+  const [modalTotalPages, setModalTotalPages] = useState(0);
+  const [isModalLoading, setIsModalLoading] = useState(false);
+
+  const currentUserId = localStorage.getItem("userId");
+
+  const loadUserProfile = useCallback(async () => {
+    try {
+      const res = await axiosClient.get(`/api/follows/profile/${userId}`);
+      setUserProfile(res.data);
+    } catch (error) {
+      console.error("Failed to load user profile:", error);
+      toast.error("User not found or system error");
+    }
+  }, [userId]);
+
+  const loadUserDocuments = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const res = await axiosClient.get(`/api/follows/profile/${userId}/documents`);
+      setDocuments(res.data || []);
+    } catch (error) {
+      console.error("Failed to load documents:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [userId]);
+
+  const fetchUserFavorites = useCallback(async () => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+    try {
+      const res = await axiosClient.get("/api/documents/favorites");
+      if (Array.isArray(res.data)) {
+        setFavoritedIds(res.data.map((doc) => doc.id));
+      }
+    } catch (e) {
+      if (e.response?.status !== 401) {
+        console.error("Failed to fetch initial favorites status:", e);
+      }
+    }
+  }, []);
+
+  const handleToggleFavoriteClick = (doc) => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      toast.error("Please log in to save documents!");
+      return;
+    }
+    
+    const isCurrentlyFavorited = favoritedIds.includes(doc.id);
+    if (isCurrentlyFavorited) {
+      performToggleFavorite(doc.id, true);
+    } else {
+      setDocToLike(doc);
+      setLikeConfirmOpen(true);
+    }
+  };
+
+  const handleConfirmLike = async () => {
+    if (!docToLike) return;
+    setLikeConfirmOpen(false);
+    await performToggleFavorite(docToLike.id, false);
+    setDocToLike(null);
+  };
+
+  const performToggleFavorite = async (id, isRemoving) => {
+    if (isRemoving) {
+      setFavoritedIds((prev) => prev.filter((favId) => favId !== id));
+      toast.success("Removed from Library");
+    } else {
+      setFavoritedIds((prev) => [...prev, id]);
+      toast.success("Added to favorites successfully!");
+    }
+
+    try {
+      await axiosClient.post(`/api/documents/${id}/favorite`);
+    } catch (error) {
+      if (isRemoving) {
+        setFavoritedIds((prev) => [...prev, id]);
+      } else {
+        setFavoritedIds((prev) => prev.filter((favId) => favId !== id));
+      }
+
+      if (error.response?.status === 401) {
+        toast.error("Session expired, please log in again!");
+      } else {
+        toast.error("System error, failed to save document");
+      }
+    }
+  };
+
+  const handleDownload = async (id, title) => {
+    try {
+      const res = await axiosClient.get(`/api/documents/${id}/download`);
+      const url = res.data.downloadUrl;
+      if (url) await forceDownload(url, title || "document");
+    } catch (error) {
+      toast.error("Error downloading document!");
+    }
+  };
+
+  useEffect(() => {
+    loadUserProfile();
+    loadUserDocuments();
+    fetchUserFavorites();
+    setModalType(null); // reset modals on userId change
+  }, [userId, loadUserProfile, loadUserDocuments, fetchUserFavorites]);
+
+  // Follow / Unfollow logic
+  const handleFollowToggle = async () => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      toast.error("Vui lòng đăng nhập để theo dõi người dùng này!");
+      navigate("/login");
+      return;
+    }
+
+    if (isFollowLoading || !userProfile) return;
+    setIsFollowLoading(true);
+
+    try {
+      const isFollowing = userProfile.isFollowedByCurrentUser;
+      if (isFollowing) {
+        await axiosClient.delete(`/api/follows/${userId}`);
+        toast.success(`Unfollowed ${userProfile.fullName}`);
+        setUserProfile((prev) => ({
+          ...prev,
+          isFollowedByCurrentUser: false,
+          followersCount: Math.max(0, prev.followersCount - 1),
+        }));
+      } else {
+        await axiosClient.post(`/api/follows/${userId}`);
+        toast.success(`Following ${userProfile.fullName}`);
+        setUserProfile((prev) => ({
+          ...prev,
+          isFollowedByCurrentUser: true,
+          followersCount: prev.followersCount + 1,
+        }));
+      }
+    } catch (error) {
+      console.error("Follow action failed:", error);
+      toast.error(error.response?.data?.message || "Lỗi hệ thống");
+    } finally {
+      setIsFollowLoading(false);
+    }
+  };
+
+  // Load modal follow list
+  const loadModalData = useCallback(async (type, page) => {
+    setIsModalLoading(true);
+    try {
+      const endpoint = `/api/follows/${type}/${userId}?page=${page}&size=10`;
+      const res = await axiosClient.get(endpoint);
+      setModalData(res.data.content || []);
+      setModalTotalPages(res.data.totalPages || 0);
+    } catch (error) {
+      console.error(`Failed to load ${type}:`, error);
+    } finally {
+      setIsModalLoading(false);
+    }
+  }, [userId]);
+
+  const openModal = (type) => {
+    setModalType(type);
+    setModalPage(0);
+    loadModalData(type, 0);
+  };
+
+  const handleModalPageChange = (newPage) => {
+    if (newPage >= 0 && newPage < modalTotalPages) {
+      setModalPage(newPage);
+      loadModalData(modalType, newPage);
+    }
+  };
+
+  const handleModalFollowToggle = async (item, index) => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      toast.error("Vui lòng đăng nhập!");
+      navigate("/login");
+      return;
+    }
+
+    try {
+      if (item.isFollowedByCurrentUser) {
+        await axiosClient.delete(`/api/follows/${item.id}`);
+        toast.success(`Unfollowed ${item.fullName}`);
+        setModalData((prev) =>
+          prev.map((itm, idx) =>
+            idx === index ? { ...itm, isFollowedByCurrentUser: false } : itm
+          )
+        );
+        // If viewing current user's profile, we update counts accordingly
+        if (userId === currentUserId && modalType === "following") {
+          setUserProfile((prev) => ({
+            ...prev,
+            followingCount: Math.max(0, prev.followingCount - 1),
+          }));
+        }
+      } else {
+        await axiosClient.post(`/api/follows/${item.id}`);
+        toast.success(`Following ${item.fullName}`);
+        setModalData((prev) =>
+          prev.map((itm, idx) =>
+            idx === index ? { ...itm, isFollowedByCurrentUser: true } : itm
+          )
+        );
+        if (userId === currentUserId && modalType === "following") {
+          setUserProfile((prev) => ({
+            ...prev,
+            followingCount: prev.followingCount + 1,
+          }));
+        }
+      }
+    } catch (error) {
+      console.error("Action failed:", error);
+    }
+  };
+
+  if (!userProfile) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#f26522]" />
+      </div>
+    );
+  }
+
+  const isSelf = currentUserId === userId;
+  const userInitial = userProfile.fullName.charAt(0).toUpperCase();
+
+  return (
+    <div className="max-w-6xl mx-auto px-4 py-6">
+      {/* User Header Profile Card */}
+      <div className="bg-white rounded-xl border border-slate-100 p-7 pt-7 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6 mb-10 relative">
+        {/* Back Arrow inside the Card */}
+        <button
+          onClick={() => navigate(-1)}
+          className="absolute top-2 left-2 flex items-center justify-center w-8 h-8 rounded-full text-slate-400 hover:text-[#f26522] hover:bg-orange-50 transition-all cursor-pointer hover:scale-105 active:scale-95"
+          aria-label="Go back"
+        >
+          <ChevronLeft size={18} />
+        </button>
+
+        <div className="flex flex-col md:flex-row items-center gap-6 text-center md:text-left">
+          {/* Avatar Area */}
+          {userProfile.avatarUrl ? (
+            <img
+              src={userProfile.avatarUrl}
+              alt={userProfile.fullName}
+              className="w-24 h-24 rounded-full object-cover border-4 border-orange-50 shadow-sm"
+            />
+          ) : (
+            <div className="w-24 h-24 rounded-full bg-[#f26522]/10 text-[#f26522] font-bold text-3xl flex items-center justify-center border-4 border-orange-50 shadow-sm">
+              {userInitial}
+            </div>
+          )}
+
+          <div>
+            <h1 className="text-2xl font-extrabold text-slate-800 tracking-tight flex items-center gap-2">
+              {userProfile.fullName}
+              {isSelf && (
+                <span className="text-[11px] font-bold bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">
+                  You
+                </span>
+              )}
+            </h1>
+            <p className="text-slate-400 text-sm font-medium mt-1 flex items-center gap-1.5 justify-center md:justify-start">
+              <User size={14} className="text-slate-400" /> Community Member
+            </p>
+
+            {/* Stats Row */}
+            <div className="flex items-center gap-5 mt-4 text-sm font-semibold text-slate-600 justify-center md:justify-start">
+              <div className="text-center md:text-left">
+                <span className="block text-slate-800 font-extrabold text-lg leading-none">
+                  {userProfile.totalDocuments}
+                </span>
+                <span className="text-xs text-slate-400 font-medium">Documents</span>
+              </div>
+              <div
+                onClick={() => openModal("followers")}
+                className="text-center md:text-left cursor-pointer hover:opacity-80 transition-opacity"
+              >
+                <span className="block text-slate-800 font-extrabold text-lg leading-none">
+                  {userProfile.followersCount}
+                </span>
+                <span className="text-xs text-slate-400 font-medium flex items-center gap-1">
+                  <Users size={12} /> Followers
+                </span>
+              </div>
+              <div
+                onClick={() => openModal("following")}
+                className="text-center md:text-left cursor-pointer hover:opacity-80 transition-opacity"
+              >
+                <span className="block text-slate-800 font-extrabold text-lg leading-none">
+                  {userProfile.followingCount}
+                </span>
+                <span className="text-xs text-slate-400 font-medium flex items-center gap-1">
+                  <User size={12} /> Following
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Follow CTA Button */}
+        {!isSelf && (
+          <Button
+            onClick={handleFollowToggle}
+            disabled={isFollowLoading}
+            className={`w-full md:w-auto h-11 px-8 rounded-full font-bold transition-all duration-200 cursor-pointer shadow-sm ${
+              userProfile.isFollowedByCurrentUser
+                ? "bg-slate-100 border border-slate-200 text-slate-700 hover:bg-slate-200"
+                : "bg-[#f26522] hover:bg-[#d9581c] text-white shadow-md shadow-orange-500/10"
+            }`}
+          >
+            {userProfile.isFollowedByCurrentUser ? (
+              <span className="flex items-center gap-2">
+                <UserCheck size={16} /> Bỏ theo dõi
+              </span>
+            ) : (
+              <span className="flex items-center gap-2">
+                <UserPlus size={16} /> Theo dõi
+              </span>
+            )}
+          </Button>
+        )}
+      </div>
+
+      {/* User's Documents Section */}
+      <div className="mb-10">
+        <div className="flex items-center gap-2 mb-6">
+          <FileText className="w-6 h-6 text-[#f26522]" />
+          <h2 className="text-xl font-bold text-slate-800 tracking-tight">
+            Uploaded Documents ({documents.length})
+          </h2>
+        </div>
+
+        {isLoading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[1, 2, 3].map((n) => (
+              <div key={n} className="h-60 bg-slate-50 border border-slate-100 rounded-3xl animate-pulse" />
+            ))}
+          </div>
+        ) : documents.length === 0 ? (
+          <div className="text-center p-12 bg-slate-50 rounded-3xl border border-slate-100 text-slate-400 font-medium text-sm">
+            <FileText size={40} className="mx-auto mb-3 text-slate-300" />
+            No uploaded documents yet.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {documents.map((doc) => {
+              const isFavorited = favoritedIds.includes(doc.id);
+              return (
+                <Card
+                  key={doc.id}
+                  className="shadow-sm border-slate-100 hover:shadow-md transition-all group flex flex-col h-full rounded-[20px] overflow-hidden bg-white"
+                >
+                  <CardContent className="p-3.5 flex-1 flex flex-col">
+                    <div className="relative w-full aspect-[4/3] bg-slate-50 rounded-xl mb-3 -mt-4 border border-slate-200 group-hover:border-[#f26522]/20 transition-colors flex items-center justify-center overflow-hidden">
+                      {/* Simulated Paper Sheet */}
+                      <div className="w-[85%] h-[80%] bg-white rounded-lg shadow-sm border border-slate-100 p-2.5 flex flex-col gap-1 transform rotate-1 group-hover:rotate-0 transition-transform duration-200 select-none overflow-hidden">
+                        {/* Top bar representing header */}
+                        <div className="flex items-center justify-between pb-1 border-b border-slate-100/70">
+                          <span className="text-[9px] font-extrabold text-[#f26522] uppercase tracking-wider">
+                            {doc.fileType || doc.mimeType?.split("/")[1] || "DOC"}
+                          </span>
+                          <FileText className="w-3.5 h-3.5 text-slate-300" />
+                        </div>
+                        
+                        {/* Body showing document content snippet */}
+                        <p className="text-[9.5px] text-slate-400 font-serif leading-relaxed line-clamp-3 text-left whitespace-normal break-words">
+                          {doc.description || doc.title || "No description provided for this document. Open to view full study guide content."}
+                        </p>
+                        
+                        {/* Simulated lines decoration if description is short */}
+                        <div className="mt-auto flex flex-col gap-1 opacity-50">
+                          <div className="w-[90%] h-0.5 bg-slate-100 rounded-full" />
+                          <div className="w-[70%] h-0.5 bg-slate-100 rounded-full" />
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleToggleFavoriteClick(doc);
+                        }}
+                        className={`absolute top-2 right-2 w-8 h-8 rounded-full border shadow-sm backdrop-blur-sm transition-all duration-200 flex items-center justify-center cursor-pointer active:scale-90 hover:scale-105 z-10 ${
+                          isFavorited
+                            ? "bg-red-50 text-red-500 border-red-100"
+                            : "bg-white/90 text-slate-400 hover:text-red-500 hover:bg-white border-slate-100"
+                        }`}
+                      >
+                        <Heart className={`w-4 h-4 ${isFavorited ? "fill-current" : ""}`} />
+                      </button>
+                    </div>
+                    <CardTitle
+                      className="text-[15px] mb-1 font-bold text-slate-800 line-clamp-1"
+                      title={doc.title}
+                    >
+                      {doc.title || "Untitled Document"}
+                    </CardTitle>
+                    <CardDescription className="text-xs text-slate-500 font-medium mb-3 flex items-center gap-1.5">
+                      <BookOpen className="w-3.5 h-3.5" />{" "}
+                      {doc.course?.code || "General"}
+                    </CardDescription>
+                    <div className="text-[11px] text-slate-400 mt-auto flex justify-between items-center">
+                      <span>
+                        {new Date(doc.createdAt).toLocaleDateString("en-GB")}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Download className="w-3.5 h-3.5" /> {doc.downloadCount || 0}
+                      </span>
+                    </div>
+                  </CardContent>
+                  <CardFooter className="-mt-3 px-4 py-3 flex gap-2">
+                    <Button
+                      asChild
+                      variant="secondary"
+                      className="flex-1 bg-slate-100 text-slate-700 hover:bg-slate-200 font-bold text-xs rounded-xl h-9"
+                    >
+                      <Link to={`/documents/${doc.id}`}>
+                        <Eye className="w-3.5 h-3.5 mr-1.5" /> View
+                      </Link>
+                    </Button>
+                    <Button
+                      onClick={() => handleDownload(doc.id, doc.title)}
+                      className="w-9 h-9 rounded-xl bg-[#f26522]/10 text-[#f26522] hover:bg-[#f26522] hover:text-white flex items-center justify-center transition-colors shrink-0 p-0"
+                      title="Download Document"
+                    >
+                      <Download className="w-4 h-4" />
+                    </Button>
+                  </CardFooter>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Confirmation Dialog for Adding to Favorites */}
+      <Dialog open={likeConfirmOpen} onOpenChange={setLikeConfirmOpen}>
+        <DialogContent className="sm:max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-slate-800 flex items-center gap-2">
+              <Heart className="w-5 h-5 text-red-500 fill-red-500" />
+              Add to Favorites
+            </DialogTitle>
+            <DialogDescription className="text-slate-500 pt-2">
+              Are you sure you want to add <strong>"{docToLike?.title}"</strong> to your favorites?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-6 flex gap-3 sm:justify-end">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setLikeConfirmOpen(false);
+                setDocToLike(null);
+              }}
+              className="rounded-xl"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirmLike}
+              className="rounded-xl bg-[#f26522] hover:bg-[#d95316] text-white font-semibold"
+            >
+              Add
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Followers & Following Modal */}
+      {modalType && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-slate-200/50 w-full max-w-md max-h-[85vh] flex flex-col">
+            {/* Modal Header */}
+            <div className="p-5 border-b border-slate-100 flex justify-between items-center">
+              <h3 className="font-extrabold text-slate-800 capitalize text-lg flex items-center gap-2">
+                <Users className="text-[#f26522] h-5 w-5" /> {modalType}
+              </h3>
+              <button
+                onClick={() => setModalType(null)}
+                className="text-slate-400 hover:text-slate-700 cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-5 overflow-y-auto flex-1 space-y-4 min-h-[200px]">
+              {isModalLoading ? (
+                <div className="flex items-center justify-center h-40">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#f26522]" />
+                </div>
+              ) : modalData.length === 0 ? (
+                <div className="text-center py-12 text-slate-400 text-sm font-medium">
+                  No users found.
+                </div>
+              ) : (
+                modalData.map((item, idx) => {
+                  const isItemSelf = currentUserId === item.id;
+                  const itemInitial = item.fullName.charAt(0).toUpperCase();
+
+                  return (
+                    <div
+                      key={item.id}
+                      className="flex items-center justify-between gap-3 p-3 bg-slate-50/50 rounded-2xl border border-slate-100/50 hover:bg-slate-50 transition-colors"
+                    >
+                      <div
+                        onClick={() => {
+                          setModalType(null);
+                          navigate(`/users/${item.id}`);
+                        }}
+                        className="flex items-center gap-3 cursor-pointer group flex-1"
+                      >
+                        {item.avatarUrl ? (
+                          <img
+                            src={item.avatarUrl}
+                            alt={item.fullName}
+                            className="w-10 h-10 rounded-full object-cover shrink-0"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-[#f26522]/10 text-[#f26522] font-bold text-sm flex items-center justify-center shrink-0">
+                            {itemInitial}
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <h4 className="text-sm font-bold text-slate-700 line-clamp-1 group-hover:text-[#f26522] transition-colors">
+                            {item.fullName}
+                          </h4>
+                          <span className="text-[10px] text-slate-400 font-semibold flex items-center gap-1">
+                            <FileText size={10} /> {item.documentCount} documents
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Modal Follow Toggle */}
+                      {!isItemSelf && (
+                        <Button
+                          size="sm"
+                          onClick={() => handleModalFollowToggle(item, idx)}
+                          className={`h-8 px-4 rounded-full text-xs font-bold transition-all cursor-pointer shadow-sm shrink-0 ${
+                            item.isFollowedByCurrentUser
+                              ? "bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200"
+                              : "bg-[#f26522] text-white hover:bg-[#d9581c]"
+                          }`}
+                        >
+                          {item.isFollowedByCurrentUser ? (
+                            <span className="flex items-center gap-1">
+                              <UserCheck size={12} /> Đang theo dõi
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-1">
+                              <UserPlus size={12} /> Theo dõi
+                            </span>
+                          )}
+                        </Button>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Modal Footer - Pagination */}
+            {modalTotalPages > 1 && (
+              <div className="p-4 border-t border-slate-100 flex items-center justify-between text-sm font-semibold text-slate-500 bg-slate-50/50 rounded-b-3xl">
+                <button
+                  disabled={modalPage === 0}
+                  onClick={() => handleModalPageChange(modalPage - 1)}
+                  className="p-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <span>
+                  Page {modalPage + 1} of {modalTotalPages}
+                </span>
+                <button
+                  disabled={modalPage === modalTotalPages - 1}
+                  onClick={() => handleModalPageChange(modalPage + 1)}
+                  className="p-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

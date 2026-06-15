@@ -126,6 +126,7 @@ public class ProfileServiceImpl implements ProfileService {
         long uploads = documentRepository.countByUploadedById(user.getId());
 
         return ProfileResponse.builder()
+                .id(user.getId())
                 .fullName(user.getUsername() != null
                         ? user.getUsername()
                         : user.getEmail().split("@")[0])

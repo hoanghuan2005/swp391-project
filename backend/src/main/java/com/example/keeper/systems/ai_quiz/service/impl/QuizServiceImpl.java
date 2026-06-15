@@ -69,6 +69,9 @@ public class QuizServiceImpl implements QuizService {
         }
 
         quiz.setTitle(request.getTitle().trim());
+        if (request.getSavedToLibrary() != null) {
+            quiz.setSavedToLibrary(request.getSavedToLibrary());
+        }
         quiz.getQuestions().clear();
         for (QuestionUpdateRequest item : request.getQuestions()) {
             validateQuestion(item);
@@ -106,6 +109,7 @@ public class QuizServiceImpl implements QuizService {
 
         return quizRepository.findByOwnerId(user.getId())
                 .stream()
+                .filter(Quiz::isSavedToLibrary)
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
@@ -142,6 +146,7 @@ public class QuizServiceImpl implements QuizService {
         quiz.setCourseId(courseId);
         quiz.setVisibility(visibility != null ? visibility : "PRIVATE");
         quiz.setStatus("PUBLISHED");
+        quiz.setSavedToLibrary(true);
         
         quizRepository.save(quiz);
     }

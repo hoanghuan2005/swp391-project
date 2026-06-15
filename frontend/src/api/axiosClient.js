@@ -45,7 +45,7 @@ axiosClient.interceptors.response.use(
         const refreshToken = localStorage.getItem('refreshToken');
 
         if (!refreshToken) {
-          throw new Error("No refresh token available");
+          throw new Error("Guest user accessing protected resource");
         }
 
         const res = await axios.post(`${backendBaseUrl}/api/auth/refresh-token`, {
@@ -63,7 +63,11 @@ axiosClient.interceptors.response.use(
         }
       } catch (refreshError) {
         console.error("Refresh token expired or invalid:", refreshError);
-        alert("Phiên đăng nhập đã hết hạn hoàn toàn. Vui lòng đăng nhập lại!");
+        if (refreshError.message === "Guest user accessing protected resource") {
+          alert("Vui lòng đăng nhập để sử dụng tính năng này!");
+        } else {
+          alert("Phiên đăng nhập đã hết hạn hoàn toàn. Vui lòng đăng nhập lại!");
+        }
 
         localStorage.removeItem("token");
         localStorage.removeItem("refreshToken");

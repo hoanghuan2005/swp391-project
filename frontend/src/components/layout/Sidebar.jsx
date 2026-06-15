@@ -194,6 +194,18 @@ export default function Sidebar({ isOpen = true }) {
 
   // 🔥 LẤY DỮ LIỆU PROFILE & LẮNG NGHE SỰ KIỆN UPLOAD ĐỂ CẬP NHẬT SỐ LƯỢNG FILE
   useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      setSidebarProfile({
+        fullName: "Guest User",
+        schoolCode: "Guest",
+        followers: 0,
+        uploads: 0,
+        upvotes: 0,
+      });
+      return;
+    }
+
     const fetchSidebarProfile = async () => {
       try {
         const res = await axiosClient.get("/api/profile");
@@ -233,6 +245,12 @@ export default function Sidebar({ isOpen = true }) {
 
   // load danh sách course đã follow
   useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      setFollowedCourses([]);
+      return;
+    }
+
     const fetchFollowedCourses = async () => {
       try {
         const res = await axiosClient.get("/api/courses/followed");
@@ -294,6 +312,11 @@ export default function Sidebar({ isOpen = true }) {
   };
 
   const fetchWorkspaces = async () => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      setWorkspaces([]);
+      return;
+    }
     try {
       const res = await axiosClient.get("/api/projects/my-projects");
       setWorkspaces(res.data || []);
@@ -303,6 +326,11 @@ export default function Sidebar({ isOpen = true }) {
   };
 
   useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      setWorkspaces([]);
+      return;
+    }
     fetchWorkspaces();
 
     window.addEventListener("workspaces:updated", fetchWorkspaces);
@@ -413,108 +441,132 @@ export default function Sidebar({ isOpen = true }) {
         <div
           className={cn("flex justify-center", isOpen ? "w-full" : "w-10 pt-4")}
         >
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              {isOpen ? (
-                <Button className="w-full rounded-full bg-[#f26522] hover:bg-[#fd5101] text-white shadow-sm h-11 text-sm font-bold transition-all flex items-center justify-center gap-2 cursor-pointer hover:scale-[1.02]">
-                  <Plus className="h-5 w-5" strokeWidth={2.5} /> New Create
-                </Button>
-              ) : (
-                <Button className="w-10 h-10 rounded-full p-0 bg-[#f26522] hover:bg-[#fd5101] text-white shadow-sm shrink-0 flex items-center justify-center transition-transform hover:scale-105">
-                  <Plus className="h-5 w-5" strokeWidth={3} />
-                </Button>
-              )}
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              side="right"
-              align="start"
-              className="w-80 p-2 rounded-2xl ml-2 shadow-xl border-gray-100"
-            >
-              <DropdownMenuItem
-                onSelect={handleUploadMenuItemClick}
-                className="p-3 cursor-pointer rounded-xl flex items-start gap-4 hover:bg-slate-50 transition-colors"
+          {!localStorage.getItem("token") ? (
+            isOpen ? (
+              <Button
+                onClick={() => {
+                  alert("Vui lòng đăng nhập để sử dụng tính năng này!");
+                  navigate("/login");
+                }}
+                className="w-full rounded-full bg-[#f26522] hover:bg-[#fd5101] text-white shadow-sm h-11 text-sm font-bold transition-all flex items-center justify-center gap-2 cursor-pointer hover:scale-[1.02]"
               >
-                <div className="bg-blue-100/50 p-2.5 rounded-full text-blue-500 shrink-0">
-                  <UploadCloud className="h-6 w-6" strokeWidth={2} />
-                </div>
-                <div className="flex flex-col">
-                  <span className="font-semibold text-[15px] text-slate-800">
-                    Upload
-                  </span>
-                  <span className="text-[13px] text-slate-500 mt-0.5 leading-snug">
-                    Contribute to the community by sharing your study materials
-                  </span>
-                </div>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator className="my-1 bg-slate-100" />
-              <DropdownMenuItem
-                className="p-3 cursor-pointer rounded-xl flex items-start gap-4 hover:bg-slate-50 transition-colors"
-                onClick={() => navigate("/ask-ai")}
+                <Plus className="h-5 w-5" strokeWidth={2.5} /> New Create
+              </Button>
+            ) : (
+              <Button
+                onClick={() => {
+                  alert("Vui lòng đăng nhập để sử dụng tính năng này!");
+                  navigate("/login");
+                }}
+                className="w-10 h-10 rounded-full p-0 bg-[#f26522] hover:bg-[#fd5101] text-white shadow-sm shrink-0 flex items-center justify-center transition-transform hover:scale-105"
               >
-                <div className="bg-purple-100/50 p-2.5 rounded-full text-purple-400 shrink-0">
-                  <MessageSquare className="h-6 w-6" strokeWidth={2} />
-                </div>
-                <div className="flex flex-col">
-                  <span className="font-semibold text-[15px] text-slate-800">
-                    AI question
-                  </span>
-                  <span className="text-[13px] text-slate-500 mt-0.5 leading-snug">
-                    Ask a study question and get an answer in seconds
-                  </span>
-                </div>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator className="my-1 bg-slate-100" />
-              <DropdownMenuItem
-                className="p-3 cursor-pointer rounded-xl flex items-start gap-4 hover:bg-slate-50 transition-colors"
-                onClick={() => navigate("/ai-tools/ai-quiz")}
+                <Plus className="h-5 w-5" strokeWidth={3} />
+              </Button>
+            )
+          ) : (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                {isOpen ? (
+                  <Button className="w-full rounded-full bg-[#f26522] hover:bg-[#fd5101] text-white shadow-sm h-11 text-sm font-bold transition-all flex items-center justify-center gap-2 cursor-pointer hover:scale-[1.02]">
+                    <Plus className="h-5 w-5" strokeWidth={2.5} /> New Create
+                  </Button>
+                ) : (
+                  <Button className="w-10 h-10 rounded-full p-0 bg-[#f26522] hover:bg-[#fd5101] text-white shadow-sm shrink-0 flex items-center justify-center transition-transform hover:scale-105">
+                    <Plus className="h-5 w-5" strokeWidth={3} />
+                  </Button>
+                )}
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                side="right"
+                align="start"
+                className="w-80 p-2 rounded-2xl ml-2 shadow-xl border-gray-100"
               >
-                <div className="bg-purple-100/50 p-2.5 rounded-full text-purple-500 shrink-0">
-                  <CheckCircle className="h-6 w-6" strokeWidth={2} />
-                </div>
-                <div className="flex flex-col">
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-[15px] text-slate-800">
-                      AI Quiz
-                    </span>
-                    <Badge
-                      variant="secondary"
-                      className="bg-pink-100 text-pink-600 text-[10px] h-5 px-1.5 font-bold border-none"
-                    >
-                      New
-                    </Badge>
+                <DropdownMenuItem
+                  onSelect={handleUploadMenuItemClick}
+                  className="p-3 cursor-pointer rounded-xl flex items-start gap-4 hover:bg-slate-50 transition-colors"
+                >
+                  <div className="bg-blue-100/50 p-2.5 rounded-full text-blue-500 shrink-0">
+                    <UploadCloud className="h-6 w-6" strokeWidth={2} />
                   </div>
-                  <span className="text-[13px] text-slate-500 mt-0.5 leading-snug">
-                    Generate and edit quizzes instantly to test your knowledge
-                  </span>
-                </div>
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                className="p-3 cursor-pointer rounded-xl flex items-start gap-4 hover:bg-slate-50 transition-colors"
-                onClick={() => navigate("/ai-tools/ai-flashcard")}
-              >
-                <div className="bg-purple-100/50 p-2.5 rounded-full text-purple-500 shrink-0">
-                  <CheckCircle className="h-6 w-6" strokeWidth={2} />
-                </div>
-                <div className="flex flex-col">
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-col">
                     <span className="font-semibold text-[15px] text-slate-800">
-                      AI Flashcards
+                      Upload
                     </span>
-                    <Badge
-                      variant="secondary"
-                      className="bg-pink-100 text-pink-600 text-[10px] h-5 px-1.5 font-bold border-none"
-                    >
-                      New
-                    </Badge>
+                    <span className="text-[13px] text-slate-500 mt-0.5 leading-snug">
+                      Contribute to the community by sharing your study materials
+                    </span>
                   </div>
-                  <span className="text-[13px] text-slate-500 mt-0.5 leading-snug">
-                    Generate and edit flashcards instantly to test your
-                    knowledge
-                  </span>
-                </div>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator className="my-1 bg-slate-100" />
+                <DropdownMenuItem
+                  className="p-3 cursor-pointer rounded-xl flex items-start gap-4 hover:bg-slate-50 transition-colors"
+                  onClick={() => navigate("/ask-ai")}
+                >
+                  <div className="bg-purple-100/50 p-2.5 rounded-full text-purple-400 shrink-0">
+                    <MessageSquare className="h-6 w-6" strokeWidth={2} />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="font-semibold text-[15px] text-slate-800">
+                      AI question
+                    </span>
+                    <span className="text-[13px] text-slate-500 mt-0.5 leading-snug">
+                      Ask a study question and get an answer in seconds
+                    </span>
+                  </div>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator className="my-1 bg-slate-100" />
+                <DropdownMenuItem
+                  className="p-3 cursor-pointer rounded-xl flex items-start gap-4 hover:bg-slate-50 transition-colors"
+                  onClick={() => navigate("/ai-tools/ai-quiz")}
+                >
+                  <div className="bg-purple-100/50 p-2.5 rounded-full text-purple-500 shrink-0">
+                    <CheckCircle className="h-6 w-6" strokeWidth={2} />
+                  </div>
+                  <div className="flex flex-col">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-[15px] text-slate-800">
+                        AI Quiz
+                      </span>
+                      <Badge
+                        variant="secondary"
+                        className="bg-pink-100 text-pink-600 text-[10px] h-5 px-1.5 font-bold border-none"
+                      >
+                        New
+                      </Badge>
+                    </div>
+                    <span className="text-[13px] text-slate-500 mt-0.5 leading-snug">
+                      Generate and edit quizzes instantly to test your knowledge
+                    </span>
+                  </div>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="p-3 cursor-pointer rounded-xl flex items-start gap-4 hover:bg-slate-50 transition-colors"
+                  onClick={() => navigate("/ai-tools/ai-flashcard")}
+                >
+                  <div className="bg-purple-100/50 p-2.5 rounded-full text-purple-500 shrink-0">
+                    <CheckCircle className="h-6 w-6" strokeWidth={2} />
+                  </div>
+                  <div className="flex flex-col">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-[15px] text-slate-800">
+                        AI Flashcards
+                      </span>
+                      <Badge
+                        variant="secondary"
+                        className="bg-pink-100 text-pink-600 text-[10px] h-5 px-1.5 font-bold border-none"
+                      >
+                        New
+                      </Badge>
+                    </div>
+                    <span className="text-[13px] text-slate-500 mt-0.5 leading-snug">
+                      Generate and edit flashcards instantly to test your
+                      knowledge
+                    </span>
+                  </div>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
       </div>
 
@@ -576,7 +628,15 @@ export default function Sidebar({ isOpen = true }) {
 
           <Button
             variant="ghost"
-            onClick={() => setCourseLibraryOpen(true)}
+            onClick={() => {
+              const token = localStorage.getItem("token");
+              if (!token) {
+                alert("Vui lòng đăng nhập để thêm môn học!");
+                navigate("/login");
+                return;
+              }
+              setCourseLibraryOpen(true);
+            }}
             className="justify-start rounded-lg text-sm text-slate-600 hover:bg-slate-100 hover:text-[#f26522] cursor-pointer"
           >
             <Plus className="w-4 h-4 mr-2" />
@@ -599,7 +659,15 @@ export default function Sidebar({ isOpen = true }) {
 
           <Button
             variant="ghost"
-            onClick={() => setWorkspaceModalOpen(true)}
+            onClick={() => {
+              const token = localStorage.getItem("token");
+              if (!token) {
+                alert("Vui lòng đăng nhập để thêm Workspace!");
+                navigate("/login");
+                return;
+              }
+              setWorkspaceModalOpen(true);
+            }}
             className="justify-start rounded-lg text-sm text-slate-600 hover:bg-slate-100 hover:text-[#f26522] cursor-pointer"
           >
             <Plus className="w-4 h-4 mr-2" />

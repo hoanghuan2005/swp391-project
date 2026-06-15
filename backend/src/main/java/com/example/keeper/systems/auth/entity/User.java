@@ -72,6 +72,6 @@ public class User extends BaseEntity {
     private Set<com.example.keeper.systems.document.entity.Document> favoriteDocuments = new HashSet<>();
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "subscription_tier",nullable = false)
+    @Column(name = "subscription_tier")
     private SubscriptionTier subscriptionTier = SubscriptionTier.FREE;
 }

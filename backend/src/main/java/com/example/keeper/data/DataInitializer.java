@@ -45,13 +45,16 @@ public class DataInitializer implements CommandLineRunner {
         private final NotificationRepository notificationRepository;
         private final jakarta.persistence.EntityManager entityManager;
         private final com.example.keeper.systems.major.repository.MajorRepository majorRepository;
+        private final com.example.keeper.systems.document.repository.DocumentRepository documentRepository;
 
         @Override
         @jakarta.transaction.Transactional
         public void run(String... args) {
                 // Drop the constraint if it exists
                 try {
-                        entityManager.createNativeQuery("ALTER TABLE courses DROP CONSTRAINT IF EXISTS uk_61og8rbqdd2y28rx2et5fdnxd").executeUpdate();
+                        entityManager.createNativeQuery(
+                                        "ALTER TABLE courses DROP CONSTRAINT IF EXISTS uk_61og8rbqdd2y28rx2et5fdnxd")
+                                        .executeUpdate();
                 } catch (Exception e) {
                         System.err.println("Failed to drop unique constraint: " + e.getMessage());
                 }
@@ -109,6 +112,58 @@ public class DataInitializer implements CommandLineRunner {
                         System.out.println("Seeded default users");
                 }
 
+                Role studentRole = roleRepository
+                                .findByName("STUDENT")
+                                .orElseThrow();
+
+                // Seed additional creators if not already present
+                String[][] mockUsers = {
+                                { "Hoàng Huấn", "hoanghuan@example.com", "hoanghuan123", "FPT", "FPT University",
+                                                "2022", "Software Engineering" },
+                                { "Minh Thư", "minhthu@example.com", "minhthu123", "HCMUS", "University of Science",
+                                                "2023", "Computer Science" },
+                                { "Quốc Bảo", "quocbao@example.com", "quocbao123", "UIT",
+                                                "University of Information Technology", "2021",
+                                                "Information Technology" },
+                                { "Thu Hà", "thuha@example.com", "thuha123", "FPT", "FPT University", "2022",
+                                                "Artificial Intelligence" },
+                                { "Đức Anh", "ducanh@example.com", "ducanh123", "HUST",
+                                                "Hanoi University of Science and Technology", "2020",
+                                                "Computer Engineering" }
+                };
+
+                for (String[] mu : mockUsers) {
+                        String username = mu[0];
+                        String email = mu[1];
+                        String rawPassword = mu[2];
+                        String schoolCode = mu[3];
+                        String schoolName = mu[4];
+                        int startYear = Integer.parseInt(mu[5]);
+                        String major = mu[6];
+
+                        if (userRepository.findByEmail(email).isEmpty()) {
+                                User u = new User();
+                                u.setUsername(username);
+                                u.setEmail(email);
+                                u.setPassword(passwordEncoder.encode(rawPassword));
+                                u.setRole(studentRole);
+                                u.setEmailVerified(true);
+
+                                com.example.keeper.systems.profile.entity.UserProfile up = com.example.keeper.systems.profile.entity.UserProfile
+                                                .builder()
+                                                .user(u)
+                                                .schoolCode(schoolCode)
+                                                .schoolName(schoolName)
+                                                .startYear(startYear)
+                                                .major(major)
+                                                .build();
+                                u.setProfile(up);
+
+                                userRepository.save(u);
+                                System.out.println("Seeded user: " + username);
+                        }
+                }
+
                 /*
                  * =========================
                  * SCHOOL
@@ -153,7 +208,7 @@ public class DataInitializer implements CommandLineRunner {
                                                         .code("UEH")
                                                         .name("University of Economics Ho Chi Minh City")
                                                         .description("Ho Chi Minh City, Vietnam")
-                                                         .build()));
+                                                        .build()));
                 }
 
                 /*
@@ -196,8 +251,7 @@ public class DataInitializer implements CommandLineRunner {
                                                         .name("Information Technology")
                                                         .description("Information Technology major")
                                                         .school(uit)
-                                                        .build()
-                        ));
+                                                        .build()));
                 }
 
                 /*
@@ -211,9 +265,11 @@ public class DataInitializer implements CommandLineRunner {
                         Major se = majorRepository.findBySchoolIdAndCode(fpt.getId(), "SE").orElseThrow();
                         Major ai = majorRepository.findBySchoolIdAndCode(fpt.getId(), "AI").orElseThrow();
 
-                        Course c1 = new Course("SWP391", "Software Architecture and Design", "Core architecture concepts and design patterns");
+                        Course c1 = new Course("SWP391", "Software Architecture and Design",
+                                        "Core architecture concepts and design patterns");
                         c1.setMajor(se);
-                        Course c2 = new Course("PRF192", "Programming Fundamentals", "Introduction to programming using Java");
+                        Course c2 = new Course("PRF192", "Programming Fundamentals",
+                                        "Introduction to programming using Java");
                         c2.setMajor(se);
                         Course c3 = new Course("SSG104", "Understanding Group Dynamics", "Teamwork and communication");
                         c3.setMajor(se);
@@ -221,7 +277,8 @@ public class DataInitializer implements CommandLineRunner {
                         c4.setMajor(se);
                         Course c5 = new Course("WEB301", "Web Application Development", "Building web applications");
                         c5.setMajor(se);
-                        Course c6 = new Course("MAD101", "Mobile Application Development", "Mobile app development fundamentals");
+                        Course c6 = new Course("MAD101", "Mobile Application Development",
+                                        "Mobile app development fundamentals");
                         c6.setMajor(se);
                         Course c7 = new Course("AI101", "Introduction to AI", "Artificial Intelligence basics");
                         c7.setMajor(ai);
@@ -458,6 +515,186 @@ public class DataInitializer implements CommandLineRunner {
                                                         .build()));
 
                         System.out.println("Seeded notifications");
+                }
+
+                /*
+                 * =========================
+                 * DOCUMENTS
+                 * =========================
+                 */
+                if (documentRepository.count() == 0) {
+                        User hoangHuan = userRepository.findByEmail("hoanghuan@example.com").orElse(null);
+                        User minhThu = userRepository.findByEmail("minhthu@example.com").orElse(null);
+                        User quocBao = userRepository.findByEmail("quocbao@example.com").orElse(null);
+                        User thuHa = userRepository.findByEmail("thuha@example.com").orElse(null);
+
+                        Course swp391 = courseRepository.findByCode("SWP391").orElse(null);
+                        Course prf192 = courseRepository.findByCode("PRF192").orElse(null);
+                        Course dbi202 = courseRepository.findByCode("DBI202").orElse(null);
+                        Course web301 = courseRepository.findByCode("WEB301").orElse(null);
+                        Course ai101 = courseRepository.findByCode("AI101").orElse(null);
+
+                        Category slide = categoryRepository.findByCode("SLIDE").orElse(null);
+                        Category finalExam = categoryRepository.findByCode("FINAL_EXAM").orElse(null);
+                        Category assignment = categoryRepository.findByCode("ASSIGNMENT").orElse(null);
+                        Category lab = categoryRepository.findByCode("LAB").orElse(null);
+
+                        if (hoangHuan != null) {
+                                if (swp391 != null && slide != null) {
+                                        com.example.keeper.systems.document.entity.Document d = new com.example.keeper.systems.document.entity.Document();
+                                        d.setTitle("Kiến trúc hệ thống phần mềm nâng cao");
+                                        d.setDescription(
+                                                        "Tài liệu bài giảng về kiến trúc hệ thống phần mềm và các mẫu thiết kế phổ biến.");
+                                        d.setFileUrl("https://res.cloudinary.com/demo/image/upload/sample.pdf");
+                                        d.setMimeType("application/pdf");
+                                        d.setFileSize(2048576L);
+                                        d.setVisibility(com.example.keeper.systems.document.enums.Visibility.PUBLIC);
+                                        d.setAiParseStatus(
+                                                        com.example.keeper.systems.document.enums.AiParseStatus.READY);
+                                        d.setUploadedBy(hoangHuan);
+                                        d.setCourse(swp391);
+                                        d.setCategory(slide);
+                                        d.setViewCount(42);
+                                        d.setDownloadCount(12);
+                                        documentRepository.save(d);
+                                }
+                                if (prf192 != null && finalExam != null) {
+                                        com.example.keeper.systems.document.entity.Document d = new com.example.keeper.systems.document.entity.Document();
+                                        d.setTitle("Tài liệu ôn thi cuối kỳ PRF192");
+                                        d.setDescription(
+                                                        "Tổng hợp kiến thức trọng tâm và các dạng bài tập thực hành thường gặp trong đề thi.");
+                                        d.setFileUrl("https://res.cloudinary.com/demo/image/upload/sample.pdf");
+                                        d.setMimeType("application/pdf");
+                                        d.setFileSize(1548576L);
+                                        d.setVisibility(com.example.keeper.systems.document.enums.Visibility.PUBLIC);
+                                        d.setAiParseStatus(
+                                                        com.example.keeper.systems.document.enums.AiParseStatus.READY);
+                                        d.setUploadedBy(hoangHuan);
+                                        d.setCourse(prf192);
+                                        d.setCategory(finalExam);
+                                        d.setViewCount(85);
+                                        d.setDownloadCount(34);
+                                        documentRepository.save(d);
+                                }
+                        }
+
+                        if (minhThu != null) {
+                                if (prf192 != null && slide != null) {
+                                        com.example.keeper.systems.document.entity.Document d = new com.example.keeper.systems.document.entity.Document();
+                                        d.setTitle("Computer Science Overview Slides");
+                                        d.setDescription(
+                                                        "Introductory slides to computer science principles and programming constructs.");
+                                        d.setFileUrl("https://res.cloudinary.com/demo/image/upload/sample.pdf");
+                                        d.setMimeType("application/pdf");
+                                        d.setFileSize(3145728L);
+                                        d.setVisibility(com.example.keeper.systems.document.enums.Visibility.PUBLIC);
+                                        d.setAiParseStatus(
+                                                        com.example.keeper.systems.document.enums.AiParseStatus.READY);
+                                        d.setUploadedBy(minhThu);
+                                        d.setCourse(prf192);
+                                        d.setCategory(slide);
+                                        d.setViewCount(110);
+                                        d.setDownloadCount(40);
+                                        documentRepository.save(d);
+                                }
+                                if (prf192 != null && lab != null) {
+                                        com.example.keeper.systems.document.entity.Document d = new com.example.keeper.systems.document.entity.Document();
+                                        d.setTitle("Tài liệu thực hành Lab C cơ bản");
+                                        d.setDescription(
+                                                        "Hướng dẫn chi tiết từng bước làm các bài lab lập trình C căn bản.");
+                                        d.setFileUrl("https://res.cloudinary.com/demo/image/upload/sample.pdf");
+                                        d.setMimeType("application/pdf");
+                                        d.setFileSize(850000L);
+                                        d.setVisibility(com.example.keeper.systems.document.enums.Visibility.PUBLIC);
+                                        d.setAiParseStatus(
+                                                        com.example.keeper.systems.document.enums.AiParseStatus.READY);
+                                        d.setUploadedBy(minhThu);
+                                        d.setCourse(prf192);
+                                        d.setCategory(lab);
+                                        d.setViewCount(65);
+                                        d.setDownloadCount(21);
+                                        documentRepository.save(d);
+                                }
+                        }
+
+                        if (quocBao != null) {
+                                if (dbi202 != null && slide != null) {
+                                        com.example.keeper.systems.document.entity.Document d = new com.example.keeper.systems.document.entity.Document();
+                                        d.setTitle("Database Systems Lecture Notes");
+                                        d.setDescription(
+                                                        "Lecture notes covering relational database concepts, normal forms, and transaction control.");
+                                        d.setFileUrl("https://res.cloudinary.com/demo/image/upload/sample.pdf");
+                                        d.setMimeType("application/pdf");
+                                        d.setFileSize(4194304L);
+                                        d.setVisibility(com.example.keeper.systems.document.enums.Visibility.PUBLIC);
+                                        d.setAiParseStatus(
+                                                        com.example.keeper.systems.document.enums.AiParseStatus.READY);
+                                        d.setUploadedBy(quocBao);
+                                        d.setCourse(dbi202);
+                                        d.setCategory(slide);
+                                        d.setViewCount(240);
+                                        d.setDownloadCount(95);
+                                        documentRepository.save(d);
+                                }
+                                if (web301 != null && assignment != null) {
+                                        com.example.keeper.systems.document.entity.Document d = new com.example.keeper.systems.document.entity.Document();
+                                        d.setTitle("Assignment 1 - Web Design Guidelines");
+                                        d.setDescription(
+                                                        "Rubric and research paper about modern web design principles and aesthetics.");
+                                        d.setFileUrl("https://res.cloudinary.com/demo/image/upload/sample.pdf");
+                                        d.setMimeType("application/pdf");
+                                        d.setFileSize(1204857L);
+                                        d.setVisibility(com.example.keeper.systems.document.enums.Visibility.PUBLIC);
+                                        d.setAiParseStatus(
+                                                        com.example.keeper.systems.document.enums.AiParseStatus.READY);
+                                        d.setUploadedBy(quocBao);
+                                        d.setCourse(web301);
+                                        d.setCategory(assignment);
+                                        d.setViewCount(152);
+                                        d.setDownloadCount(48);
+                                        documentRepository.save(d);
+                                }
+                        }
+
+                        if (thuHa != null) {
+                                if (ai101 != null && slide != null) {
+                                        com.example.keeper.systems.document.entity.Document d = new com.example.keeper.systems.document.entity.Document();
+                                        d.setTitle("Artificial Intelligence Introduction Slides");
+                                        d.setDescription(
+                                                        "Slides covering machine learning basics, deep neural networks, and prompt engineering.");
+                                        d.setFileUrl("https://res.cloudinary.com/demo/image/upload/sample.pdf");
+                                        d.setMimeType("application/pdf");
+                                        d.setFileSize(3800000L);
+                                        d.setVisibility(com.example.keeper.systems.document.enums.Visibility.PUBLIC);
+                                        d.setAiParseStatus(
+                                                        com.example.keeper.systems.document.enums.AiParseStatus.READY);
+                                        d.setUploadedBy(thuHa);
+                                        d.setCourse(ai101);
+                                        d.setCategory(slide);
+                                        d.setViewCount(180);
+                                        d.setDownloadCount(73);
+                                        documentRepository.save(d);
+                                }
+                                if (ai101 != null && lab != null) {
+                                        com.example.keeper.systems.document.entity.Document d = new com.example.keeper.systems.document.entity.Document();
+                                        d.setTitle("Lab 3 - Neural Networks Basics");
+                                        d.setDescription(
+                                                        "Practical lab exercise instructions to build your first simple neural network model.");
+                                        d.setFileUrl("https://res.cloudinary.com/demo/image/upload/sample.pdf");
+                                        d.setMimeType("application/pdf");
+                                        d.setFileSize(1450000L);
+                                        d.setVisibility(com.example.keeper.systems.document.enums.Visibility.PUBLIC);
+                                        d.setAiParseStatus(
+                                                        com.example.keeper.systems.document.enums.AiParseStatus.READY);
+                                        d.setUploadedBy(thuHa);
+                                        d.setCourse(ai101);
+                                        d.setCategory(lab);
+                                        d.setViewCount(98);
+                                        d.setDownloadCount(27);
+                                        documentRepository.save(d);
+                                }
+                        }
+                        System.out.println("Seeded public documents");
                 }
 
                 System.out.println("Data initialized successfully");

@@ -1,6 +1,7 @@
 package com.example.keeper.systems.profile.dto.response;
 
 import java.util.List;
+import java.util.UUID;
 
 import lombok.Builder;
 import lombok.Getter;
@@ -8,6 +9,8 @@ import lombok.Getter;
 @Getter
 @Builder
 public class ProfileResponse {
+
+    private UUID id;
 
     private String fullName;
 
@@ -31,3 +34,4 @@ public class ProfileResponse {
 
     private long upvotes;
 }
+

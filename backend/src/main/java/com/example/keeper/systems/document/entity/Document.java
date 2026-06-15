@@ -72,6 +72,9 @@ public class Document extends BaseEntity {
     @Column(name = "download_count")
     private Integer downloadCount = 0;
 
+    @Column(name = "view_count")
+    private Integer viewCount = 0;
+
     @ManyToOne
     @JoinColumn(name = "uploaded_by", nullable = false)
     private User uploadedBy;

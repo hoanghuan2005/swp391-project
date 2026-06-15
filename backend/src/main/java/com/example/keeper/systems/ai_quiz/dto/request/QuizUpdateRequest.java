@@ -8,4 +8,5 @@ import java.util.List;
 public class QuizUpdateRequest {
     private String title;
     private List<QuestionUpdateRequest> questions;
+    private Boolean savedToLibrary;
 }

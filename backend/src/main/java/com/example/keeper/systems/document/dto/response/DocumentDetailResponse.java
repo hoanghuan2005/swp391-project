@@ -25,6 +25,7 @@ public class DocumentDetailResponse {
     private String visibility;
     private String aiParseStatus;
     private Integer downloadCount;
+    private Integer viewCount;
     private LocalDateTime createdAt;
     private CourseInfo course;
     private UserInfo uploadedBy;

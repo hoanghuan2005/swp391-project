@@ -49,6 +49,28 @@ public class Course extends BaseEntity {
         return documents != null ? documents.size() : 0;
     }
 
+    @Transient
+    private int flashcardCount = 0;
+
+    @Transient
+    private int quizCount = 0;
+
+    public int getFlashcardCount() {
+        return flashcardCount;
+    }
+
+    public void setFlashcardCount(int flashcardCount) {
+        this.flashcardCount = flashcardCount;
+    }
+
+    public int getQuizCount() {
+        return quizCount;
+    }
+
+    public void setQuizCount(int quizCount) {
+        this.quizCount = quizCount;
+    }
+
     @ManyToMany(mappedBy = "followedCourses")
     @JsonIgnore
     private List<User> followers = new ArrayList<>();

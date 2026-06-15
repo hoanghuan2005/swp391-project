@@ -50,6 +50,8 @@ public class DocumentServiceImpl implements DocumentService {
     private final DocumentParserService documentParserService;
     private final DocumentChunkRepository documentChunkRepository;
     private final com.example.keeper.systems.major.repository.MajorRepository majorRepository;
+    private final com.example.keeper.systems.follow.repository.UserFollowRepository userFollowRepository;
+    private final com.example.keeper.systems.notification.service.NotificationService notificationService;
 
 
 
@@ -58,7 +60,9 @@ public class DocumentServiceImpl implements DocumentService {
         Document document = buildDocument(request);
         document.setFileUrl(request.getFileUrl());
         document.setAiParseStatus(AiParseStatus.UNSUPPORTED);
-        return documentRepository.save(document);
+        Document savedDoc = documentRepository.save(document);
+        notifyFollowers(savedDoc);
+        return savedDoc;
     }
 
     @Override
@@ -119,6 +123,7 @@ public class DocumentServiceImpl implements DocumentService {
         }
 
         Document savedDocument = documentRepository.save(document);
+        notifyFollowers(savedDocument);
 
         if (savedDocument.getAiParseStatus() == AiParseStatus.PENDING && fileBytes != null) {
             byte[] stableFileBytes = fileBytes;
@@ -352,6 +357,10 @@ public class DocumentServiceImpl implements DocumentService {
                 .orElseThrow(() -> new RuntimeException("User not found"));
         Document document = getById(id);
 
+        int currentViews = document.getViewCount() != null ? document.getViewCount() : 0;
+        document.setViewCount(currentViews + 1);
+        documentRepository.save(document);
+
         Optional<DocumentView> existingView = documentViewRepository.findByUserIdAndDocumentId(user.getId(),
                 document.getId());
         DocumentView view = existingView.orElseGet(() -> new DocumentView(user, document, LocalDateTime.now()));
@@ -438,6 +447,7 @@ public class DocumentServiceImpl implements DocumentService {
                         ? null
                         : document.getAiParseStatus().name())
                 .downloadCount(document.getDownloadCount())
+                .viewCount(document.getViewCount() != null ? document.getViewCount() : 0)
                 .createdAt(document.getCreatedAt())
                 .course(document.getCourse() == null ? null : DocumentDetailResponse.CourseInfo.builder()
                         .id(document.getCourse().getId())
@@ -476,6 +486,7 @@ public class DocumentServiceImpl implements DocumentService {
         return DocumentResponse.builder()
                 .id(document.getId())
                 .title(document.getTitle())
+                .description(document.getDescription())
                 .fileType(resolveFileType(document))
                 .resourceType(resourceType)
                 .previewUrl(previewUrl)
@@ -488,6 +499,7 @@ public class DocumentServiceImpl implements DocumentService {
                         ? null
                         : document.getAiParseStatus().name())
                 .downloadCount(document.getDownloadCount())
+                .viewCount(document.getViewCount() != null ? document.getViewCount() : 0)
                 .createdAt(document.getCreatedAt())
                 .course(document.getCourse() == null ? null : DocumentResponse.CourseInfo.builder()
                         .id(document.getCourse().getId())
@@ -675,5 +687,32 @@ public class DocumentServiceImpl implements DocumentService {
         }
 
         userRepository.save(user);
+    }
+
+    private void notifyFollowers(Document document) {
+        try {
+            if (document.getUploadedBy() == null) return;
+            UUID creatorId = document.getUploadedBy().getId();
+            String creatorName = document.getUploadedBy().getUsername() != null 
+                    ? document.getUploadedBy().getUsername() 
+                    : document.getUploadedBy().getEmail();
+
+            List<com.example.keeper.systems.follow.entity.UserFollow> followers = 
+                    userFollowRepository.findByFollowingId(creatorId);
+
+            for (com.example.keeper.systems.follow.entity.UserFollow follow : followers) {
+                notificationService.createNotification(
+                        follow.getFollower(),
+                        document.getUploadedBy(),
+                        com.example.keeper.systems.notification.enums.NotificationType.NEW_DOCUMENT,
+                        "New Document Uploaded",
+                        creatorName + " uploaded a new document: " + document.getTitle(),
+                        document.getId(),
+                        com.example.keeper.systems.notification.enums.ReferenceType.DOCUMENT
+                );
+            }
+        } catch (Exception e) {
+            log.error("Failed to notify followers for new document upload", e);
+        }
     }
 }

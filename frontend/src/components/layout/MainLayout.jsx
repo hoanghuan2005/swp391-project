@@ -21,8 +21,9 @@ export default function MainLayout() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterData, setFilterData] = useState({
     school: "",
+    major: "",
     course: "",
-    tag: "",
+    category: "",
   });
 
   const location = useLocation();

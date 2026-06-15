@@ -21,5 +21,9 @@ public enum NotificationType {
     GROUP_INVITED,
     GROUP_MEMBER_JOINED,
     GROUP_MEETING_CREATED,
-    GROUP_DOCUMENT_ADDED
+    GROUP_DOCUMENT_ADDED,
+
+    // Follow
+    FOLLOW,
+    NEW_DOCUMENT
 }

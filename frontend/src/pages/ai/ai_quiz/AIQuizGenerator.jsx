@@ -178,6 +178,31 @@ export default function AIQuizGenerator() {
     }
   };
 
+  const handleSaveToLibrary = async () => {
+    if (!selectedQuiz?.id) return;
+
+    setIsSaving(true);
+    try {
+      const updatedQuiz = await updateQuiz(selectedQuiz.id, {
+        title: selectedQuiz.title,
+        questions: selectedQuiz.questions,
+        savedToLibrary: true,
+      });
+      setSelectedQuiz(updatedQuiz);
+      setQuizHistory((current) =>
+        current.map((quiz) =>
+          quiz.id === updatedQuiz.id ? updatedQuiz : quiz,
+        ),
+      );
+      toast.success("Saved to Library successfully!");
+      fetchSidebarData();
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to save to Library.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const waitForDocumentReady = async (documentId) => {
     for (let attempt = 0; attempt < 12; attempt += 1) {
       const response = await axiosClient.get(`/api/documents/${documentId}`);
@@ -472,21 +497,22 @@ export default function AIQuizGenerator() {
                             Start Study
                           </Button>
 
+                          <Button
+                            className="rounded-full bg-indigo-600 hover:bg-indigo-700 h-9 px-4 text-sm text-white cursor-pointer shadow-sm font-semibold"
+                            onClick={handleSaveToLibrary}
+                            disabled={isSaving}
+                          >
+                            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Save to Library
+                          </Button>
+
                           <Button 
-                            className="rounded-full bg-[#f26522] hover:bg-[#d95316] h-9 px-4 text-sm text-white cursor-pointer shadow-sm"
+                            className="rounded-full bg-[#f26522] hover:bg-[#d95316] h-9 px-4 text-sm text-white cursor-pointer shadow-sm font-semibold"
                             onClick={handlePublishQuizClick}
                             disabled={publishing}
                           >
                             {publishing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                             Publish Material
-                          </Button>
-
-                          <Button
-                            variant="outline"
-                            className="rounded-full border-orange-200 hover:bg-orange-50 h-9 px-4 text-sm cursor-pointer"
-                            onClick={() => toast.success("Quiz liked!")}
-                          >
-                            <Heart className="w-4 h-4 mr-1 text-slate-500 hover:text-red-500" /> Like
                           </Button>
                         </div>
                       </div>

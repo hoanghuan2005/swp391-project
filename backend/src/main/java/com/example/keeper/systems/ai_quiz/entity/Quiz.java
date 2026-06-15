@@ -38,6 +38,9 @@ public class Quiz extends BaseEntity {
     @Column(name = "visibility")
     private String visibility = "PRIVATE"; // PRIVATE or PUBLIC
 
+    @Column(name = "saved_to_library", nullable = false, columnDefinition = "boolean default false")
+    private boolean savedToLibrary = false;
+
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "owner_id", nullable = false)

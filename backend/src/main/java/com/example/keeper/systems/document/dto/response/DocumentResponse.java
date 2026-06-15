@@ -13,6 +13,7 @@ public class DocumentResponse {
 
     private UUID id;
     private String title;
+    private String description;
     private String fileType;
     private String resourceType;
     private String previewUrl;
@@ -21,6 +22,7 @@ public class DocumentResponse {
     private String visibility;
     private String aiParseStatus;
     private Integer downloadCount;
+    private Integer viewCount;
     private LocalDateTime createdAt;
     private LocalDateTime lastViewedAt;
     private CourseInfo course;

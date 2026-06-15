@@ -4,5 +4,6 @@ public enum ReferenceType {
     DOCUMENT,
     QUIZ,
     FLASHCARD,
-    GROUP
+    GROUP,
+    USER
 }

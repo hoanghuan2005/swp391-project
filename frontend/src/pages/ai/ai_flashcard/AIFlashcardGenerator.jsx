@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   Loader2,
   ArrowLeft,
@@ -56,6 +57,15 @@ export default function AIFlashcardGenerator({ contextData }) {
   const [activeSetTitle, setActiveSetTitle] = useState(
     "Generate AI Flashcards"
   );
+
+  const [searchParams] = useSearchParams();
+  const setIdParam = searchParams.get("id");
+
+  useEffect(() => {
+    if (setIdParam) {
+      loadFlashcardSet(setIdParam);
+    }
+  }, [setIdParam]);
 
   // State Tracking
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -171,6 +181,40 @@ export default function AIFlashcardGenerator({ contextData }) {
       toast.success("Flashcard draft saved successfully!");
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to save flashcard draft.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSaveToLibrary = async () => {
+    if (!selectedFlashcardSet?.id) return;
+
+    setIsSaving(true);
+    try {
+      const response = await updateFlashcardSet(selectedFlashcardSet.id, {
+        title: activeSetTitle,
+        flashcards,
+        savedToLibrary: true,
+      });
+      const updatedSet = response.data;
+      setFlashcards(updatedSet.flashcards || []);
+      setActiveSetTitle(updatedSet.title);
+      setSelectedFlashcardSet((current) => ({ ...current, ...updatedSet }));
+      setFlashcardHistory((current) =>
+        current.map((set) =>
+          set.id === updatedSet.id
+            ? {
+                ...set,
+                title: updatedSet.title,
+                cards: updatedSet.flashcards?.length || 0,
+              }
+            : set
+        )
+      );
+      toast.success("Saved to Library successfully!");
+      fetchSidebarData();
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to save to Library.");
     } finally {
       setIsSaving(false);
     }
@@ -476,7 +520,18 @@ export default function AIFlashcardGenerator({ contextData }) {
                             </Button>
 
                             <Button
-                              className="rounded-full bg-[#f26522] hover:bg-[#d95316] h-9 px-4 text-sm text-white cursor-pointer shadow-sm"
+                              className="rounded-full bg-indigo-600 hover:bg-indigo-700 h-9 px-4 text-sm text-white cursor-pointer shadow-sm font-semibold"
+                              onClick={handleSaveToLibrary}
+                              disabled={isSaving || !selectedFlashcardSet?.id}
+                            >
+                              {isSaving && (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              )}
+                              Save to Library
+                            </Button>
+
+                            <Button
+                              className="rounded-full bg-[#f26522] hover:bg-[#d95316] h-9 px-4 text-sm text-white cursor-pointer shadow-sm font-semibold"
                               onClick={handlePublishClick}
                               disabled={publishing}
                             >
@@ -484,25 +539,6 @@ export default function AIFlashcardGenerator({ contextData }) {
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                               ) : null}
                               Publish Material
-                            </Button>
-
-                            <Button
-                              variant="outline"
-                              className={`rounded-full h-9 px-4 text-sm cursor-pointer transition-colors ${
-                                isLiked
-                                  ? "border-red-200 bg-red-50 hover:bg-red-100 text-red-600"
-                                  : "border-orange-200 hover:bg-orange-50 text-slate-700"
-                              }`}
-                              onClick={handleLikeFlashcard}
-                            >
-                              <Heart
-                                className={`w-4 h-4 mr-1 transition-all ${
-                                  isLiked
-                                    ? "fill-red-500 text-red-500"
-                                    : "text-slate-500"
-                                }`}
-                              />{" "}
-                              {isLiked ? "Liked" : "Like"}
                             </Button>
                           </div>
                         </div>

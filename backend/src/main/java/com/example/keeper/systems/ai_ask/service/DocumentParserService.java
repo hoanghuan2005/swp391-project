@@ -26,6 +26,7 @@ public class DocumentParserService {
 
     private final DocumentChunkRepository documentChunkRepository;
     private final EmbeddingService embeddingService;
+    private final com.example.keeper.systems.document.repository.DocumentRepository documentRepository;
 
     private static final int CHUNK_SIZE = 1500; // max characters per chunk
 
@@ -50,7 +51,7 @@ public class DocumentParserService {
             boolean isPdf = filename.endsWith(".pdf");
 
             if (isPdf) {
-                fullText = extractPdfText(inputStream);
+                fullText = extractPdfText(fileBytes);
             } else if (filename.endsWith(".docx")) {
                 fullText = extractDocxText(inputStream);
             } else if (filename.endsWith(".pptx")) {
@@ -85,9 +86,8 @@ public class DocumentParserService {
         }
     }
 
-    private String extractPdfText(InputStream inputStream) throws Exception {
-        try (PDDocument document = org.apache.pdfbox.Loader.loadPDF(
-                new org.apache.pdfbox.io.RandomAccessReadBuffer(inputStream))) {
+    private String extractPdfText(byte[] fileBytes) throws Exception {
+        try (PDDocument document = org.apache.pdfbox.Loader.loadPDF(fileBytes)) {
             PDFTextStripper pdfStripper = new PDFTextStripper();
             return pdfStripper.getText(document);
         }
@@ -144,5 +144,69 @@ public class DocumentParserService {
         }
 
         log.info("Saved {} chunks for document {}", chunks.size(), documentId);
+    }
+
+    public void ensureChunksExist(UUID documentId) {
+        List<DocumentChunk> existing = documentChunkRepository.findByDocumentId(documentId);
+        if (!existing.isEmpty()) {
+            return;
+        }
+
+        log.info("Document {} has 0 chunks. Attempting to parse and chunk on the fly.", documentId);
+
+        com.example.keeper.systems.document.entity.Document document = documentRepository.findById(documentId).orElse(null);
+        if (document == null) {
+            log.warn("Document {} not found in database", documentId);
+            return;
+        }
+
+        String fileUrl = document.getFileUrl();
+        if (fileUrl == null || fileUrl.isBlank()) {
+            log.warn("Document {} has no file URL", documentId);
+            return;
+        }
+
+        try {
+            org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
+            byte[] fileBytes = restTemplate.getForObject(fileUrl, byte[].class);
+            if (fileBytes != null && fileBytes.length > 0) {
+                String filename = document.getOriginalFileName();
+                if (filename == null || filename.isBlank()) {
+                    filename = document.getTitle();
+                }
+                if (filename == null || filename.isBlank()) {
+                    filename = "document.pdf";
+                }
+                
+                // Guess extension if missing
+                if (!filename.contains(".")) {
+                    if ("application/pdf".equalsIgnoreCase(document.getMimeType())) {
+                        filename += ".pdf";
+                    } else if ("application/vnd.openxmlformats-officedocument.wordprocessingml.document".equalsIgnoreCase(document.getMimeType())) {
+                        filename += ".docx";
+                    } else if ("application/vnd.openxmlformats-officedocument.presentationml.presentation".equalsIgnoreCase(document.getMimeType())) {
+                        filename += ".pptx";
+                    }
+                }
+                
+                boolean success = parseAndChunkDocument(
+                        fileBytes,
+                        filename,
+                        document.getMimeType(),
+                        document.getId()
+                );
+                
+                if (success) {
+                    document.setAiParseStatus(com.example.keeper.systems.document.enums.AiParseStatus.READY);
+                    documentRepository.save(document);
+                } else {
+                    document.setAiParseStatus(com.example.keeper.systems.document.enums.AiParseStatus.FAILED);
+                    documentRepository.save(document);
+                }
+                log.info("On-the-fly parsing result for document {}: {}", documentId, success);
+            }
+        } catch (Exception e) {
+            log.error("Failed to parse document on the fly for document: {}, URL: {}", documentId, fileUrl, e);
+        }
     }
 }

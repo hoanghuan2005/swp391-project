@@ -31,7 +31,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AiAskServiceImpl implements AiAskService {
@@ -436,16 +440,25 @@ public class AiAskServiceImpl implements AiAskService {
         float[] queryEmbedding = embeddingService.embed(request.getMessage());
         List<DocumentChunk> chunks = documentChunkRepository.findSimilarChunksByDocumentId(docId, java.util.Arrays.toString(queryEmbedding), 15);
 
-        if (chunks.isEmpty()) {
-            return;
+        String contextContent = "";
+        if (!chunks.isEmpty()) {
+            contextContent = chunks.stream()
+                    .map(DocumentChunk::getContent)
+                    .collect(Collectors.joining("\n"));
+        } else {
+            String desc = document.getDescription();
+            if (desc != null && !desc.trim().isEmpty()) {
+                contextContent = "Document Title: " + document.getTitle() + "\nDocument Description: " + desc;
+            } else {
+                contextContent = "Document Title: " + document.getTitle();
+            }
+            log.info("Using document metadata fallback context for AI conversation on document: {}", docId);
         }
 
         prompt.append("Use the following document context to answer the user's questions. ")
                 .append("Prioritize document content:\n");
         prompt.append("--- BEGIN DOCUMENT CONTEXT ---\n");
-        for (DocumentChunk chunk : chunks) {
-            prompt.append(chunk.getContent()).append("\n");
-        }
+        prompt.append(contextContent).append("\n");
         prompt.append("--- END DOCUMENT CONTEXT ---\n\n");
         addSource(sources, document);
     }
@@ -483,7 +496,7 @@ public class AiAskServiceImpl implements AiAskService {
             throw new RuntimeException("Document is still being processed for AI. Please try again shortly.");
         }
         if (status == AiParseStatus.FAILED || status == AiParseStatus.UNSUPPORTED) {
-            throw new RuntimeException("Document is not available for AI context.");
+            log.warn("Document {} parsing status is {}, using metadata fallback for AI context.", document.getId(), status);
         }
     }
 }

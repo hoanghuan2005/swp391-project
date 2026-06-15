@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import axiosClient from "@/api/axiosClient";
 
@@ -9,12 +9,15 @@ import { forceDownload } from "@/lib/downloadHelper";
 import { CardTitle } from "@/components/ui/card";
 import { CardDescription } from "@/components/ui/card";
 import { CardFooter } from "@/components/ui/card";
+import { toast } from "react-hot-toast";
 
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 
 import {
@@ -41,21 +44,75 @@ export default function CourseDetailPage() {
   const [shareOpen, setShareOpen] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
 
+  const [favoritedIds, setFavoritedIds] = useState([]);
+  const [favoritedFlashcardIds, setFavoritedFlashcardIds] = useState([]);
+  const [likeConfirmOpen, setLikeConfirmOpen] = useState(false);
+  const [docToLike, setDocToLike] = useState(null);
+  const [likeFlashcardConfirmOpen, setLikeFlashcardConfirmOpen] = useState(false);
+  const [flashcardToLike, setFlashcardToLike] = useState(null);
+
+  const fetchUserFavorites = useCallback(async () => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+    try {
+      const res = await axiosClient.get("/api/documents/favorites");
+      if (Array.isArray(res.data)) {
+        setFavoritedIds(res.data.map((doc) => doc.id));
+      }
+    } catch (e) {
+      if (e.response?.status !== 401) {
+        console.error("Failed to fetch initial favorites status:", e);
+      }
+    }
+  }, []);
+
+  const fetchUserFavoriteFlashcards = useCallback(async () => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+    try {
+      const res = await axiosClient.get("/api/ai_flashcard/favorites");
+      if (Array.isArray(res.data)) {
+        setFavoritedFlashcardIds(res.data.map((fc) => fc.id));
+      }
+    } catch (e) {
+      if (e.response?.status !== 401) {
+        console.error("Failed to fetch initial favorite flashcards status:", e);
+      }
+    }
+  }, []);
+
   useEffect(() => {
     fetchCourse();
-  }, [id]);
+    fetchUserFavorites();
+    fetchUserFavoriteFlashcards();
+  }, [id, fetchUserFavorites, fetchUserFavoriteFlashcards]);
 
   const fetchCourse = async () => {
+    // Validate UUID format to prevent backend 500 error for invalid ID like 'undefined'
+    const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+    if (!id || !uuidRegex.test(id)) {
+      setCourse(null);
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
+      const token = localStorage.getItem("token");
 
       const [courseRes, docsRes, followStatusRes, quizzesRes, flashcardsRes] =
         await Promise.all([
           axiosClient.get(`/api/courses/${id}`),
           axiosClient.get(`/api/courses/${id}/documents`),
-          axiosClient.get(`/api/courses/${id}/follow-status`),
-          axiosClient.get(`/api/quizzes/course/${id}`),
-          axiosClient.get(`/api/ai_flashcard/course/${id}`),
+          token
+            ? axiosClient.get(`/api/courses/${id}/follow-status`)
+            : Promise.resolve({ data: false }),
+          token
+            ? axiosClient.get(`/api/quizzes/course/${id}`)
+            : Promise.resolve({ data: [] }),
+          token
+            ? axiosClient.get(`/api/ai_flashcard/course/${id}`)
+            : Promise.resolve({ data: { data: [] } }),
         ]);
 
       setCourse(courseRes.data);
@@ -95,7 +152,111 @@ export default function CourseDetailPage() {
     }
   };
 
+  // --- Favorite Documents Handlers ---
+  const handleToggleFavoriteClick = (doc) => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      toast.error("Please log in to save documents!");
+      return;
+    }
+
+    const isCurrentlyFavorited = favoritedIds.includes(doc.id);
+    if (isCurrentlyFavorited) {
+      performToggleFavorite(doc.id, true);
+    } else {
+      setDocToLike(doc);
+      setLikeConfirmOpen(true);
+    }
+  };
+
+  const handleConfirmLike = async () => {
+    if (!docToLike) return;
+    setLikeConfirmOpen(false);
+    await performToggleFavorite(docToLike.id, false);
+    setDocToLike(null);
+  };
+
+  const performToggleFavorite = async (docId, isRemoving) => {
+    if (isRemoving) {
+      setFavoritedIds((prev) => prev.filter((fid) => fid !== docId));
+      toast.success("Removed from Library");
+    } else {
+      setFavoritedIds((prev) => [...prev, docId]);
+      toast.success("Added to favorites successfully!");
+    }
+
+    try {
+      await axiosClient.post(`/api/documents/${docId}/favorite`);
+    } catch (error) {
+      if (isRemoving) {
+        setFavoritedIds((prev) => [...prev, docId]);
+      } else {
+        setFavoritedIds((prev) => prev.filter((fid) => fid !== docId));
+      }
+      if (error.response?.status === 401) {
+        toast.error("Session expired, please log in again!");
+      } else {
+        toast.error("System error, failed to save document");
+      }
+    }
+  };
+
+  // --- Favorite Flashcards Handlers ---
+  const handleToggleFavoriteFlashcardClick = (fc) => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      toast.error("Please log in to save flashcards!");
+      return;
+    }
+
+    const isCurrentlyFavorited = favoritedFlashcardIds.includes(fc.id);
+    if (isCurrentlyFavorited) {
+      performToggleFavoriteFlashcard(fc.id, true);
+    } else {
+      setFlashcardToLike(fc);
+      setLikeFlashcardConfirmOpen(true);
+    }
+  };
+
+  const handleConfirmLikeFlashcard = async () => {
+    if (!flashcardToLike) return;
+    setLikeFlashcardConfirmOpen(false);
+    await performToggleFavoriteFlashcard(flashcardToLike.id, false);
+    setFlashcardToLike(null);
+  };
+
+  const performToggleFavoriteFlashcard = async (fcId, isRemoving) => {
+    if (isRemoving) {
+      setFavoritedFlashcardIds((prev) => prev.filter((fid) => fid !== fcId));
+      toast.success("Removed flashcard from favorites");
+    } else {
+      setFavoritedFlashcardIds((prev) => [...prev, fcId]);
+      toast.success("Added flashcard to favorites successfully!");
+    }
+
+    try {
+      await axiosClient.post(`/api/ai_flashcard/${fcId}/favorite`);
+    } catch (error) {
+      if (isRemoving) {
+        setFavoritedFlashcardIds((prev) => [...prev, fcId]);
+      } else {
+        setFavoritedFlashcardIds((prev) => prev.filter((fid) => fid !== fcId));
+      }
+      if (error.response?.status === 401) {
+        toast.error("Session expired, please log in again!");
+      } else {
+        toast.error("System error, failed to save flashcard");
+      }
+    }
+  };
+
   const handleFollowToggle = async () => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      alert("Vui lòng đăng nhập để theo dõi môn học!");
+      return;
+    }
+
     try {
       if (isFollowing) {
         await axiosClient.delete(`/api/courses/${id}/follow`);
@@ -114,6 +275,14 @@ export default function CourseDetailPage() {
 
   if (loading) {
     return <div className="text-center py-20 text-slate-500">Loading...</div>;
+  }
+
+  if (!course) {
+    return (
+      <div className="text-center py-20 text-slate-500 font-medium">
+        Không tìm thấy thông tin môn học.
+      </div>
+    );
   }
 
   return (
@@ -245,10 +414,46 @@ export default function CourseDetailPage() {
               key={doc.id}
               className="shadow-sm border-slate-100 hover:shadow-md transition-all group flex flex-col h-full rounded-[20px] overflow-hidden bg-white"
             >
-              <CardContent className="p-4 flex-1 flex flex-col">
+              <CardContent className="p-3.5 flex-1 flex flex-col">
                 {/* Thumbnail ảo mờ mờ cho đẹp */}
-                <div className="w-full aspect-[4/3] bg-slate-50 rounded-xl mb-3 -mt-4 border border-slate-200 group-hover:border-[#f26522]/20 transition-colors flex items-center justify-center text-slate-300">
-                  <FileText className="w-12 h-12" />
+                <div className="relative w-full aspect-[4/3] bg-slate-50 rounded-xl mb-3 -mt-4 border border-slate-200 group-hover:border-[#f26522]/20 transition-colors flex items-center justify-center overflow-hidden">
+                  {/* Simulated Paper Sheet */}
+                  <div className="w-[85%] h-[80%] bg-white rounded-lg shadow-sm border border-slate-100 p-2.5 flex flex-col gap-1 transform rotate-1 group-hover:rotate-0 transition-transform duration-200 select-none overflow-hidden">
+                    {/* Top bar representing header */}
+                    <div className="flex items-center justify-between pb-1 border-b border-slate-100/70">
+                      <span className="text-[9px] font-extrabold text-[#f26522] uppercase tracking-wider">
+                        {doc.fileType || doc.mimeType?.split("/")[1] || "DOC"}
+                      </span>
+                      <FileText className="w-3.5 h-3.5 text-slate-300" />
+                    </div>
+                    
+                    {/* Body showing document content snippet */}
+                    <p className="text-[9.5px] text-slate-400 font-serif leading-relaxed line-clamp-3 text-left whitespace-normal break-words">
+                      {doc.description || doc.title || "No description provided for this document. Open to view full study guide content."}
+                    </p>
+                    
+                    {/* Simulated lines decoration if description is short */}
+                    <div className="mt-auto flex flex-col gap-1 opacity-50">
+                      <div className="w-[90%] h-0.5 bg-slate-100 rounded-full" />
+                      <div className="w-[70%] h-0.5 bg-slate-100 rounded-full" />
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleToggleFavoriteClick(doc);
+                    }}
+                    className={`absolute top-2 right-2 w-8 h-8 rounded-full border shadow-sm backdrop-blur-sm transition-all duration-200 flex items-center justify-center cursor-pointer active:scale-90 hover:scale-105 z-10 ${
+                      favoritedIds.includes(doc.id)
+                        ? "bg-red-50 text-red-500 border-red-100"
+                        : "bg-white/90 text-slate-400 hover:text-red-500 hover:bg-white border-slate-100"
+                    }`}
+                  >
+                    <Heart className={`w-4 h-4 ${favoritedIds.includes(doc.id) ? "fill-current" : ""}`} />
+                  </button>
                 </div>
 
                 <CardTitle
@@ -267,24 +472,18 @@ export default function CourseDetailPage() {
                   <span>
                     {new Date(doc.createdAt).toLocaleDateString("en-GB")}
                   </span>
-                  <span>{doc.downloadCount || 0} downloads</span>
+                  <span className="flex items-center gap-1">
+                    <Download className="w-3.5 h-3.5" /> {doc.downloadCount || 0}
+                  </span>
                 </div>
               </CardContent>
 
               {/* Khu vực nút bấm */}
               <CardFooter className="-mt-3 px-4 py-3 flex gap-2">
                 <Button
-                  variant="outline"
-                  onClick={() => alert("Added to favorites")}
-                  className="flex-none px-2.5 rounded-xl border-slate-200 text-slate-500 hover:text-[#f22222] hover:bg-[#f22222]/10 transition-colors cursor-pointer h-9"
-                >
-                  <Heart className="w-4 h-4" />
-                </Button>
-
-                <Button
                   asChild
                   variant="secondary"
-                  className="flex-1 bg-slate-100 text-slate-700 hover:bg-slate-200 font-semibold text-xs rounded-xl h-9 cursor-pointer"
+                  className="flex-1 bg-slate-100 text-slate-700 hover:bg-slate-200 font-bold text-xs rounded-xl h-9 cursor-pointer"
                 >
                   <Link to={`/documents/${doc.id}`}>
                     <Eye className="w-3.5 h-3.5 mr-1.5" /> View
@@ -293,9 +492,10 @@ export default function CourseDetailPage() {
 
                 <Button
                   onClick={() => handleDownload(doc.id, doc.title)}
-                  className="flex-1 bg-[#f26522]/10 text-[#f26522] hover:bg-[#f26522] hover:text-white font-semibold text-xs rounded-xl h-9 transition-colors cursor-pointer"
+                  className="w-9 h-9 rounded-xl bg-[#f26522]/10 text-[#f26522] hover:bg-[#f26522] hover:text-white flex items-center justify-center transition-colors shrink-0 p-0 cursor-pointer"
+                  title="Download Document"
                 >
-                  <Download className="w-3.5 h-3.5 mr-1.5" /> Download
+                  <Download className="w-4 h-4" />
                 </Button>
               </CardFooter>
             </Card>
@@ -337,7 +537,7 @@ export default function CourseDetailPage() {
                 <CardFooter className="-mt-3 px-4 py-3 flex gap-2">
                   <Button
                     variant="outline"
-                    onClick={() => alert("Liked!")}
+                    onClick={() => toast.success("Quiz added to library!")}
                     className="flex-none px-2.5 rounded-xl border-slate-200 text-slate-500 hover:text-[#f22222] hover:bg-[#f22222]/10 transition-colors cursor-pointer h-9"
                   >
                     <Heart className="w-4 h-4" />
@@ -389,10 +589,14 @@ export default function CourseDetailPage() {
                 <CardFooter className="-mt-3 px-4 py-3 flex gap-2">
                   <Button
                     variant="outline"
-                    onClick={() => alert("Liked!")}
-                    className="flex-none px-2.5 rounded-xl border-slate-200 text-slate-500 hover:text-[#f22222] hover:bg-[#f22222]/10 transition-colors cursor-pointer h-9"
+                    onClick={() => handleToggleFavoriteFlashcardClick(fc)}
+                    className={`flex-none px-2.5 rounded-xl border-slate-200 h-9 transition-colors ${
+                      favoritedFlashcardIds.includes(fc.id)
+                        ? "text-red-500 bg-red-50 hover:bg-red-100 border-red-100"
+                        : "text-slate-500 hover:text-red-500 hover:bg-red-50"
+                    }`}
                   >
-                    <Heart className="w-4 h-4" />
+                    <Heart className={`w-4 h-4 ${favoritedFlashcardIds.includes(fc.id) ? "fill-current" : ""}`} />
                   </Button>
                   <Button
                     asChild
@@ -443,6 +647,72 @@ export default function CourseDetailPage() {
               </div>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirmation Dialog for Adding Document to Favorites */}
+      <Dialog open={likeConfirmOpen} onOpenChange={setLikeConfirmOpen}>
+        <DialogContent className="sm:max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-slate-800 flex items-center gap-2">
+              <Heart className="w-5 h-5 text-red-500 fill-red-500" />
+              Add to Favorites
+            </DialogTitle>
+            <DialogDescription className="text-slate-500 pt-2">
+              Are you sure you want to add <strong>"{docToLike?.title}"</strong> to your favorites?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-6 flex gap-3 sm:justify-end">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setLikeConfirmOpen(false);
+                setDocToLike(null);
+              }}
+              className="rounded-xl"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirmLike}
+              className="rounded-xl bg-[#f26522] hover:bg-[#d95316] text-white font-semibold"
+            >
+              Add
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirmation Dialog for Adding Flashcard to Favorites */}
+      <Dialog open={likeFlashcardConfirmOpen} onOpenChange={setLikeFlashcardConfirmOpen}>
+        <DialogContent className="sm:max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-slate-800 flex items-center gap-2">
+              <Heart className="w-5 h-5 text-red-500 fill-red-500" />
+              Add Flashcard to Favorites
+            </DialogTitle>
+            <DialogDescription className="text-slate-500 pt-2">
+              Are you sure you want to add <strong>"{flashcardToLike?.title}"</strong> to your favorite flashcards?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-6 flex gap-3 sm:justify-end">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setLikeFlashcardConfirmOpen(false);
+                setFlashcardToLike(null);
+              }}
+              className="rounded-xl"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirmLikeFlashcard}
+              className="rounded-xl bg-[#f26522] hover:bg-[#d95316] text-white font-semibold"
+            >
+              Add
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

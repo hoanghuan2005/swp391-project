@@ -36,6 +36,7 @@ import AIQuizGenerator from "./pages/ai/ai_quiz/AIQuizGenerator";
 import AIMindMapPage from "./pages/ai/ai_mindmap/AIMindMapPage";
 import NotificationPage from "./pages/Notification";
 import PricingPage from "./pages/PricingPage";
+import UserPage from "./pages/UserPage";
 import { updateTitle } from "./lib/pageTitle";
 import { useLocation } from "react-router-dom";
 import { useEffect } from "react";
@@ -75,21 +76,15 @@ function App() {
         <Route path="/change-password" element={<ChangePasswordPage />} />
         <Route path="/survey" element={<Survey />} />
         <Route path="/oauth2/callback" element={<OAuth2Callback />} />
-        <Route
-          path="/workspace/shared/:token"
-          element={<WorkspaceOverviewPage />}
-        />
-        <Route
-          path="/workspace/shared/:token/ai"
-          element={<ProjectWorkspacePage />}
-        />
 
         {/* MainLayout Routes */}
         <Route element={<MainLayout />}>
           <Route path="/home" element={<Homepage />} />
           <Route path="/documents/:id" element={<DocumentDetailPage />} />
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/users/:userId" element={<UserPage />} />
           <Route path="/my-library" element={<MyLibrary />} />
+                    <Route path="/users" element={<UserPage />} />
           <Route
             path="/ai-notes"
             element={<ComingSoon pageName="AI Notes" />}
@@ -116,6 +111,14 @@ function App() {
           />
           <Route
             path="/workspace/:projectId/ai"
+            element={<ProjectWorkspacePage />}
+          />
+          <Route
+            path="/workspace/shared/:token"
+            element={<WorkspaceOverviewPage />}
+          />
+          <Route
+            path="/workspace/shared/:token/ai"
             element={<ProjectWorkspacePage />}
           />
           <Route path="/notifications" element={<NotificationPage />} />
