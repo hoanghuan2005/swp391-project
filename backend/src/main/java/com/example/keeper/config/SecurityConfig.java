@@ -98,6 +98,7 @@ public class SecurityConfig {
                                                                 "/webjars/**")
                                                 .permitAll()
                                                 .requestMatchers(HttpMethod.GET,
+                                                                "/api/payments/vnpay/ipn",
                                                                 "/api/courses",
                                                                 "/api/courses/**",
                                                                 "/api/documents",

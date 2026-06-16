@@ -185,7 +185,7 @@ public class DocumentServiceImpl implements DocumentService {
 
         String courseCode = safeTrim(request.getCourseCode());
         if (courseCode == null) {
-            throw new IllegalArgumentException("Course code is required");
+            return null;
         }
 
         return courseRepository.findByCode(courseCode)

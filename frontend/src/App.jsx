@@ -34,6 +34,7 @@ import AIQuizGenerator from "./pages/ai/ai_quiz/AIQuizGenerator";
 import AIMindMapPage from "./pages/ai/ai_mindmap/AIMindMapPage";
 import NotificationPage from "./pages/Notification";
 import PricingPage from "./pages/PricingPage";
+import PaymentVnpayReturnPage from "./pages/PaymentVnpayReturnPage";
 import { updateTitle } from "./lib/pageTitle";
 import { useLocation } from "react-router-dom";
 import { useEffect } from "react";
@@ -118,6 +119,10 @@ function App() {
           />
           <Route path="/notifications" element={<NotificationPage />} />
           <Route path="/pricing" element={<PricingPage />} />
+          <Route
+            path="/payment/vnpay-return"
+            element={<PaymentVnpayReturnPage />}
+          />
         </Route>
 
         {/* AdminLayout routes */}

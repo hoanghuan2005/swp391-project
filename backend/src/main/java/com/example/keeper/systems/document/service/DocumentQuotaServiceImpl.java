@@ -28,6 +28,10 @@ public class DocumentQuotaServiceImpl implements DocumentQuotaService {
     @Override
     public void validateUpload(String email, long fileSize) {
         User user = findUser(email);
+        if (isAdmin(user)) {
+            return;
+        }
+
         long maxFileSize = getMaxFileSize(user);
 
         if (fileSize > maxFileSize) {
@@ -45,13 +49,17 @@ public class DocumentQuotaServiceImpl implements DocumentQuotaService {
 
     @Override
     public void validateDocumentCreation(String email) {
-        validateDocumentCount(findUser(email));
+        User user = findUser(email);
+        if (isAdmin(user)) {
+            return;
+        }
+        validateDocumentCount(user);
     }
 
     @Override
     public DocumentQuotaResponse getQuota(String email) {
         User user = findUser(email);
-        boolean pro = user.getSubscriptionTier() == SubscriptionTier.PRO;
+        boolean pro = isAdmin(user) || user.getSubscriptionTier() == SubscriptionTier.PRO;
 
         return DocumentQuotaResponse.builder()
                 .subscriptionTier(user.getSubscriptionTier().name())
@@ -82,7 +90,7 @@ public class DocumentQuotaServiceImpl implements DocumentQuotaService {
     }
 
     private long getMaxFileSize(User user) {
-        return user.getSubscriptionTier() == SubscriptionTier.PRO
+        return (isAdmin(user) || user.getSubscriptionTier() == SubscriptionTier.PRO)
                 ? PRO_MAX_FILE_SIZE
                 : FREE_MAX_FILE_SIZE;
     }
@@ -94,5 +102,9 @@ public class DocumentQuotaServiceImpl implements DocumentQuotaService {
     private User findUser(String email) {
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
+    }
+
+    private boolean isAdmin(User user) {
+        return user.getRole() != null && "ADMIN".equals(user.getRole().getName());
     }
 }

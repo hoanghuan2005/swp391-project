@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { jwtDecode } from "jwt-decode";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -13,9 +13,13 @@ import {
   Book,
   X,
   ChevronDown,
+  Sparkles,
+  Loader2,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import axiosClient from "@/api/axiosClient";
+import { createVnpayPayment } from "@/api/paymentApi";
+import useAiUsage from "@/hooks/useAiUsage";
 
 // ==========================================
 // COMPONENT TẠO DROPDOWN CÓ TÌM KIẾM (GIỐNG ẢNH)
@@ -141,8 +145,6 @@ export default function Navbar({
   onSearch,
 }) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [userName, setUserName] = useState(null);
-  const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -158,9 +160,13 @@ export default function Navbar({
   const filterPanelRef = useRef(null);
   const notificationButtonRef = useRef(null);
   const notificationPanelRef = useRef(null);
-  const [userInitial, setUserInitial] = useState("H");
+  const [userInitial] = useState(() => getTokenInitial());
+  const [userRole] = useState(() => getTokenRole());
+  const [isStartingUpgrade, setIsStartingUpgrade] = useState(false);
   const dropdownRef = useRef(null);
   const profileButtonRef = useRef(null);
+  const { subscriptionTier } = useAiUsage();
+  const canUpgrade = userRole !== "ADMIN" && subscriptionTier === "FREE";
 
   // DỮ LIỆU TỪ HÌNH ẢNH CỦA ÔNG
   const schools = [
@@ -210,28 +216,38 @@ export default function Navbar({
     };
   }, []);
 
-  useEffect(() => {
-    fetchUnreadCount();
-    try {
-      const token = localStorage.getItem("token");
-      if (token) {
-        const decoded = jwtDecode(token);
-        const name = decoded?.name || decoded?.sub || null;
-        if (name) {
-          setUserName(name);
-          setUserInitial(name.charAt(0).toUpperCase());
-        }
-      }
-    } catch (e) {
-      console.error("Token decode error", e);
-    }
-  }, []);
-
-  const fetchUnreadCount = async () => {
+  const fetchUnreadCount = useCallback(async () => {
     try {
       const res = await axiosClient.get("/api/notifications/unread-count");
       setUnreadCount(res.data.count);
-    } catch (error) {}
+    } catch (error) {
+      console.warn("Failed to fetch unread notifications:", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    queueMicrotask(() => {
+      fetchUnreadCount();
+    });
+  }, [fetchUnreadCount]);
+
+  const handleUpgradeToPro = async () => {
+    if (isStartingUpgrade) return;
+
+    try {
+      setIsStartingUpgrade(true);
+      const payment = await createVnpayPayment();
+      if (payment?.paymentUrl) {
+        window.location.href = payment.paymentUrl;
+        return;
+      }
+      alert("Could not start payment. Please try again.");
+    } catch (error) {
+      console.error("Failed to create VNPAY payment:", error);
+      alert("Could not start payment. Please try again.");
+    } finally {
+      setIsStartingUpgrade(false);
+    }
   };
 
   useEffect(() => {
@@ -450,6 +466,20 @@ export default function Navbar({
               >
                 <Book size={15} /> My Library
               </Link>
+              {canUpgrade && (
+                <button
+                  onClick={handleUpgradeToPro}
+                  disabled={isStartingUpgrade}
+                  className="border-t w-full px-4 py-3 text-left text-xs font-bold text-[#f26522] hover:bg-orange-50 flex items-center gap-2 disabled:opacity-60"
+                >
+                  {isStartingUpgrade ? (
+                    <Loader2 size={15} className="animate-spin" />
+                  ) : (
+                    <Sparkles size={15} />
+                  )}
+                  Upgrade to Pro
+                </button>
+              )}
 
               <button
                 onClick={onLogoutClick}
@@ -463,4 +493,28 @@ export default function Navbar({
       </div>
     </div>
   );
+}
+
+function getTokenRole() {
+  try {
+    const token = localStorage.getItem("token");
+    return token ? jwtDecode(token)?.role : null;
+  } catch (error) {
+    console.error("Invalid token:", error);
+    return null;
+  }
+}
+
+function getTokenInitial() {
+  try {
+    const token = localStorage.getItem("token");
+    if (!token) return "H";
+
+    const decoded = jwtDecode(token);
+    const name = decoded?.name || decoded?.sub || null;
+    return name ? name.charAt(0).toUpperCase() : "H";
+  } catch (error) {
+    console.error("Invalid token:", error);
+    return "H";
+  }
 }
