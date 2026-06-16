@@ -4,6 +4,7 @@ import com.example.keeper.config.VnpayConfig;
 import com.example.keeper.systems.auth.entity.User;
 import com.example.keeper.systems.auth.enums.SubscriptionTier;
 import com.example.keeper.systems.auth.repository.UserRepository;
+import com.example.keeper.systems.payment.dto.response.ConfirmVnpayReturnResponse;
 import com.example.keeper.systems.payment.dto.response.CreateVnpayPaymentResponse;
 import com.example.keeper.systems.payment.entity.PaymentTransaction;
 import com.example.keeper.systems.payment.enums.PaymentStatus;
@@ -11,6 +12,7 @@ import com.example.keeper.systems.payment.repository.PaymentTransactionRepositor
 import com.example.keeper.systems.payment.service.VnpayPaymentService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -137,6 +139,61 @@ public class VnpayPaymentServiceImpl implements VnpayPaymentService {
         return ipnResponse("00", "Confirm Success");
     }
 
+    @Override
+    @Transactional
+    public ConfirmVnpayReturnResponse confirmReturn(String userEmail, Map<String, String> params) {
+        User currentUser = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (!isValidSecureHash(params)) {
+            throw new IllegalArgumentException("Invalid VNPAY signature");
+        }
+
+        String txnRef = params.get("vnp_TxnRef");
+        if (txnRef == null || txnRef.isBlank()) {
+            throw new IllegalArgumentException("Transaction reference is required");
+        }
+
+        PaymentTransaction transaction = paymentTransactionRepository.findByTxnRefForUpdate(txnRef)
+                .orElseThrow(() -> new IllegalArgumentException("Transaction not found"));
+
+        User transactionUser = transaction.getUser();
+        if (!isAdmin(currentUser) && !transactionUser.getEmail().equalsIgnoreCase(userEmail)) {
+            throw new AccessDeniedException("Transaction does not belong to current user");
+        }
+
+        if (!isAmountValid(params.get("vnp_Amount"), transaction.getAmountVnd())) {
+            throw new IllegalArgumentException("Invalid VNPAY amount");
+        }
+
+        applyVnpayFields(transaction, params);
+
+        if (transaction.getStatus() == PaymentStatus.SUCCESS) {
+            paymentTransactionRepository.save(transaction);
+            return toConfirmReturnResponse(transaction);
+        }
+
+        if (transaction.getStatus() != PaymentStatus.PENDING) {
+            paymentTransactionRepository.save(transaction);
+            return toConfirmReturnResponse(transaction);
+        }
+
+        boolean successful = "00".equals(params.get("vnp_ResponseCode"))
+                && "00".equals(params.get("vnp_TransactionStatus"));
+
+        transaction.setProcessedAt(LocalDateTime.now());
+        if (successful) {
+            transaction.setStatus(PaymentStatus.SUCCESS);
+            transactionUser.setSubscriptionTier(SubscriptionTier.PRO);
+            userRepository.save(transactionUser);
+        } else {
+            transaction.setStatus(PaymentStatus.FAILED);
+        }
+
+        paymentTransactionRepository.save(transaction);
+        return toConfirmReturnResponse(transaction);
+    }
+
     private void applyVnpayFields(PaymentTransaction transaction, Map<String, String> params) {
         transaction.setVnpTransactionNo(params.get("vnp_TransactionNo"));
         transaction.setVnpResponseCode(params.get("vnp_ResponseCode"));
@@ -259,5 +316,17 @@ public class VnpayPaymentServiceImpl implements VnpayPaymentService {
         response.put("RspCode", code);
         response.put("Message", message);
         return response;
+    }
+
+    private boolean isAdmin(User user) {
+        return user.getRole() != null && "ADMIN".equalsIgnoreCase(user.getRole().getName());
+    }
+
+    private ConfirmVnpayReturnResponse toConfirmReturnResponse(PaymentTransaction transaction) {
+        return ConfirmVnpayReturnResponse.builder()
+                .txnRef(transaction.getTxnRef())
+                .status(transaction.getStatus().name())
+                .subscriptionTier(transaction.getUser().getSubscriptionTier().name())
+                .build();
     }
 }
