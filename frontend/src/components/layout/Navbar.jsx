@@ -323,8 +323,8 @@ export default function Navbar({
                 {(filterData.school ||
                   filterData.course ||
                   filterData.category) && (
-                  <span className="absolute top-2 right-2 h-2 w-2 bg-[#f26522] rounded-full" />
-                )}
+                    <span className="absolute top-2 right-2 h-2 w-2 bg-[#f26522] rounded-full" />
+                  )}
               </Button>
 
               {/* BẢNG LỌC NÂNG CAO */}
@@ -409,7 +409,7 @@ export default function Navbar({
                       className="flex-[2] bg-[#f26522] text-white rounded-xl hover:bg-[#d9581c]"
                       onClick={handleApplyFilter}
                     >
-                      Áp dụng Bộ Lọc
+                      Apply Filter
                     </Button>
                   </div>
                 </div>
