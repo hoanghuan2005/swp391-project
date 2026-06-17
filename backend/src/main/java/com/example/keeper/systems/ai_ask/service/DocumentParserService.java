@@ -29,6 +29,8 @@ public class DocumentParserService {
     private final com.example.keeper.systems.document.repository.DocumentRepository documentRepository;
 
     private static final int CHUNK_SIZE = 1500; // max characters per chunk
+    private static final int MAX_EXTRACTED_CHARACTERS = 150_000;
+    private static final int MAX_CHUNKS = 100;
 
     public boolean parseAndChunkDocument(byte[] fileBytes, String originalFilename, String contentType, UUID documentId) {
         if (fileBytes == null || fileBytes.length == 0) {
@@ -62,6 +64,13 @@ public class DocumentParserService {
             }
 
             if (fullText != null && !fullText.isBlank()) {
+                if (fullText.length() > MAX_EXTRACTED_CHARACTERS) {
+                    log.warn("Truncating extracted text for document {} from {} to {} characters",
+                            documentId,
+                            fullText.length(),
+                            MAX_EXTRACTED_CHARACTERS);
+                    fullText = fullText.substring(0, MAX_EXTRACTED_CHARACTERS);
+                }
                 chunkAndSaveText(fullText, documentId);
                 return true;
             } else {
@@ -125,6 +134,11 @@ public class DocumentParserService {
         
         if (currentChunk.length() > 0) {
             chunks.add(currentChunk.toString());
+        }
+
+        if (chunks.size() > MAX_CHUNKS) {
+            log.warn("Limiting document {} from {} to {} chunks", documentId, chunks.size(), MAX_CHUNKS);
+            chunks = new ArrayList<>(chunks.subList(0, MAX_CHUNKS));
         }
 
         int chunkIndex = 0;

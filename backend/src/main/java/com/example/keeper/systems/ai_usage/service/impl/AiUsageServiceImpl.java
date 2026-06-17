@@ -28,7 +28,7 @@ public class AiUsageServiceImpl implements AiUsageService {
     public void checkQuota(String email) {
         User user = findUser(email);
 
-        if (user.getSubscriptionTier() == SubscriptionTier.PRO) {
+        if (isAdmin(user) || user.getSubscriptionTier() == SubscriptionTier.PRO) {
             return;
         }
 
@@ -45,6 +45,10 @@ public class AiUsageServiceImpl implements AiUsageService {
     public void recordUsage(String email, AiUsageFeature feature) {
         User user = findUser(email);
 
+        if (isAdmin(user)) {
+            return;
+        }
+
         AiUsage aiUsage = new AiUsage();
         aiUsage.setUser(user);
         aiUsage.setFeature(feature);
@@ -56,7 +60,7 @@ public class AiUsageServiceImpl implements AiUsageService {
     public long getRemainingUsage(String email) {
         User user = findUser(email);
 
-        if (user.getSubscriptionTier() == SubscriptionTier.PRO) {
+        if (isAdmin(user) || user.getSubscriptionTier() == SubscriptionTier.PRO) {
             return -1;
         }
 
@@ -76,5 +80,9 @@ public class AiUsageServiceImpl implements AiUsageService {
         LocalDateTime end = today.plusDays(1).atStartOfDay();
 
         return aiUsageRepository.countByUserIdAndCreatedAtBetween(user.getId(), start, end);
+    }
+
+    private boolean isAdmin(User user) {
+        return user.getRole() != null && "ADMIN".equals(user.getRole().getName());
     }
 }

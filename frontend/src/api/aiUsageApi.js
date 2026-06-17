@@ -6,5 +6,5 @@ export const getMyAiUsage = async () => {
 };
 
 export const isAiQuotaExceeded = (error) =>
-  error.response?.status === 429 ||
+  error.response?.status === 429 &&
   error.response?.data?.code === "AI_QUOTA_EXCEEDED";

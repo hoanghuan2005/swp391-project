@@ -21,6 +21,9 @@ import {
   FileText,
 } from "lucide-react";
 import axiosClient from "@/api/axiosClient";
+import { isDocumentQuotaExceeded } from "@/api/documentQuotaApi";
+import QuotaExceededDialog from "@/components/quota/QuotaExceededDialog";
+import useDocumentQuota from "@/hooks/useDocumentQuota";
 import { toast } from "sonner";
 
 export default function UploadDocumentDialog({
@@ -42,6 +45,24 @@ export default function UploadDocumentDialog({
   const [selectedFile, setSelectedFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
+  const [quotaDialog, setQuotaDialog] = useState({
+    open: false,
+    type: "DOCUMENT",
+    message: "",
+  });
+  const {
+    subscriptionTier,
+    uploadsToday,
+    dailyUploadLimit,
+    totalDocuments,
+    totalDocumentLimit,
+    maxFileSizeBytes,
+    loading: quotaLoading,
+    refreshDocumentQuota,
+  } = useDocumentQuota();
+  const maxFileSizeMb = maxFileSizeBytes
+    ? Math.round(maxFileSizeBytes / 1024 / 1024)
+    : null;
 
   const [schoolOptions, setSchoolOptions] = useState([]);
   const [majorOptions, setMajorOptions] = useState([]);
@@ -222,6 +243,15 @@ export default function UploadDocumentDialog({
       return;
     }
 
+    if (maxFileSizeBytes && selectedFile.size > maxFileSizeBytes) {
+      setQuotaDialog({
+        open: true,
+        type: "FILE_SIZE",
+        message: `Maximum file size for your plan is ${maxFileSizeMb}MB.`,
+      });
+      return;
+    }
+
     const courseCode = subjectQuery.split("-")[0]?.trim();
 
     if (!selectedSubject && !subjectNameOpen) {
@@ -242,6 +272,7 @@ export default function UploadDocumentDialog({
 
     setUploading(true);
     setUploadError("");
+    const toastId = toast.loading("Uploading document...");
 
     try {
       const uploadPromise = async () => {
@@ -306,15 +337,9 @@ export default function UploadDocumentDialog({
         return uploadResponse;
       };
 
-      const uploadPromiseInstance = uploadPromise();
-
-      toast.promise(uploadPromiseInstance, {
-        loading: "Uploading document...",
-        success: "Document uploaded successfully!",
-        error: "Upload failed",
-      });
-
-      const uploadedDoc = await uploadPromiseInstance;
+      const uploadedDoc = await uploadPromise();
+      toast.success("Document uploaded successfully!", { id: toastId });
+      await refreshDocumentQuota();
 
       const normalizedDoc = {
         visibility: "PUBLIC",
@@ -332,6 +357,22 @@ export default function UploadDocumentDialog({
       onOpenChange(false);
     } catch (error) {
       console.error("Upload failed", error);
+
+      if (isDocumentQuotaExceeded(error)) {
+        toast.dismiss(toastId);
+        const message = error.response?.data?.message;
+        setQuotaDialog({
+          open: true,
+          type: message?.toLowerCase().includes("file size")
+            ? "FILE_SIZE"
+            : "DOCUMENT",
+          message,
+        });
+        await refreshDocumentQuota();
+        return;
+      }
+
+      toast.error("Upload failed", { id: toastId });
       setUploadError("Upload failed. Please try again.");
     } finally {
       setUploading(false);
@@ -339,201 +380,223 @@ export default function UploadDocumentDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-xl rounded-2xl p-6">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-bold">
-            Upload Document
-          </DialogTitle>
-          <DialogDescription>
-            Share your knowledge. Fill out the specific areas so others can
-            easily find it.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="grid gap-5 py-4">
-          {/* File Input */}
-          <div
-            className="space-y-2 border-2 border-dashed border-gray-200 rounded-xl p-6 text-center hover:bg-gray-50 transition-colors cursor-pointer"
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <div className="flex justify-center">
-              <div className="p-3 bg-[#f26522]/10 rounded-full text-[#f26522]">
-                <UploadCloud size={32} />
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-xl rounded-2xl p-6">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold">
+              Upload Document
+            </DialogTitle>
+            <DialogDescription>
+              Share your knowledge. Fill out the specific areas so others can
+              easily find it.
+            </DialogDescription>
+            <p className="pt-2 text-xs font-medium text-slate-500">
+              {quotaLoading || !maxFileSizeMb
+                ? "Loading document limits..."
+                : subscriptionTier === "PRO"
+                  ? `PRO: Unlimited documents, max ${maxFileSizeMb}MB`
+                  : `Documents: ${uploadsToday}/${dailyUploadLimit} uploads today, ${totalDocuments}/${totalDocumentLimit} stored, max ${maxFileSizeMb}MB`}
+            </p>
+          </DialogHeader>
+          <div className="grid gap-5 py-4">
+            {/* File Input */}
+            <div
+              className="space-y-2 border-2 border-dashed border-gray-200 rounded-xl p-6 text-center hover:bg-gray-50 transition-colors cursor-pointer"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <div className="flex justify-center">
+                <div className="p-3 bg-[#f26522]/10 rounded-full text-[#f26522]">
+                  <UploadCloud size={32} />
+                </div>
               </div>
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-slate-800">
-                Click to upload or drag and drop
-              </p>
-              <p className="text-xs text-slate-500 mt-1">
-                PDF, DOCX, PPTX (max. 10MB)
-              </p>
-              {selectedFile && (
-                <p className="text-xs text-slate-700 mt-2 font-medium text-[#f26522]">
-                  Selected: {selectedFile.name}
+              <div>
+                <p className="text-sm font-semibold text-slate-800">
+                  Click to upload or drag and drop
                 </p>
-              )}
-            </div>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".pdf,.doc,.docx,.ppt,.pptx"
-              className="hidden"
-              onChange={handleFileSelect}
-            />
-          </div>
-
-          {/* school Input */}
-          <SearchSelect
-            label="School"
-            icon={<GraduationCap size={16} className="text-[#f26522]" />}
-            placeholder="Enter school code or name"
-            options={schoolOptions}
-            value={schoolQuery}
-            setValue={setSchoolQuery}
-            onSelect={handleSchoolSelect}
-            displayValue={(school) => `${school.code} - ${school.name}`}
-            searchKeys={["code", "name"]}
-            renderLeft={(school) => (
-              <span className="font-semibold text-slate-700">
-                {school.code}
-              </span>
-            )}
-            renderRight={(school) => (
-              <span className="text-slate-500 text-[11px]">{school.name}</span>
-            )}
-          />
-
-          {/* major Input */}
-          <SearchSelect
-            label="Major"
-            icon={<Layers size={16} className="text-[#f26522]" />}
-            placeholder={
-              selectedSchool
-                ? "Enter major code or name"
-                : "Please select a school first"
-            }
-            disabled={!selectedSchool}
-            options={majorOptions}
-            value={majorQuery}
-            setValue={setMajorQuery}
-            onSelect={handleMajorSelect}
-            displayValue={(major) => `${major.code} - ${major.name}`}
-            searchKeys={["code", "name"]}
-            renderLeft={(major) => (
-              <span className="font-semibold text-slate-700">{major.code}</span>
-            )}
-            renderRight={(major) => (
-              <span className="text-slate-500 text-[11px]">{major.name}</span>
-            )}
-          />
-
-          <div className="grid grid-cols-2 gap-4">
-            {/* subject Input */}
-            <SearchSelect
-              label="Course"
-              icon={<BookOpen size={16} className="text-[#f26522]" />}
-              placeholder={
-                selectedMajor
-                  ? "Enter course code or name"
-                  : "Please select a major first"
-              }
-              disabled={!selectedMajor}
-              options={subjectOptions}
-              value={subjectQuery}
-              setValue={setSubjectQuery}
-              onSelect={(course) => {
-                setSelectedSubject(course);
-                setSubjectNameOpen(false);
-              }}
-              onInputChange={(value) => {
-                const trimmed = value.trim().toLowerCase();
-
-                const hasMatch = subjectOptions.some(
-                  (option) => option.code.toLowerCase() === trimmed,
-                );
-
-                setSubjectNameOpen(Boolean(trimmed) && !hasMatch);
-              }}
-              displayValue={(course) => `${course.code} - ${course.name}`}
-              searchKeys={["code", "name"]}
-              renderLeft={(course) => (
-                <span className="font-semibold text-slate-700">
-                  {course.code}
-                </span>
-              )}
-              renderRight={(course) => (
-                <span className="text-slate-500 text-[11px]">
-                  {course.name}
-                </span>
-              )}
-            />
-            {subjectNameOpen && (
-              <div className="space-y-1">
-                <Label className="flex items-center gap-2 text-slate-700 font-semibold">
-                  <FileText size={16} className="text-[#f26522]" /> Course Name
-                </Label>
-                <Input
-                  placeholder="New subject! Enter full name here:"
-                  className="rounded-lg border-gray-300 focus-visible:ring-[#f26522] focus-visible:border-[#f26522]"
-                  value={subjectName}
-                  onChange={(e) => setSubjectName(e.target.value)}
-                />
+                <p className="text-xs text-slate-500 mt-1">
+                  PDF, DOCX, PPTX (max. {maxFileSizeMb || 10}MB)
+                </p>
+                {selectedFile && (
+                  <p className="text-xs text-slate-700 mt-2 font-medium text-[#f26522]">
+                    Selected: {selectedFile.name}
+                  </p>
+                )}
               </div>
-            )}
-            {/* category Input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.doc,.docx,.ppt,.pptx"
+                className="hidden"
+                onChange={handleFileSelect}
+              />
+            </div>
+
+            {/* school Input */}
             <SearchSelect
-              label="Category"
-              icon={<FileText size={16} className="text-[#f26522]" />}
-              placeholder="Select category"
-              options={categoryOptions}
-              value={categoryQuery}
-              setValue={setCategoryQuery}
-              onSelect={setSelectedCategory}
-              displayValue={(c) => `${c.code} - ${c.name}`}
+              label="School"
+              icon={<GraduationCap size={16} className="text-[#f26522]" />}
+              placeholder="Enter school code or name"
+              options={schoolOptions}
+              value={schoolQuery}
+              setValue={setSchoolQuery}
+              onSelect={handleSchoolSelect}
+              displayValue={(school) => `${school.code} - ${school.name}`}
               searchKeys={["code", "name"]}
-              renderLeft={(c) => (
-                <div className="flex items-center gap-2">
-                  <div
-                    className="w-2 h-2 rounded-full"
-                    style={{
-                      backgroundColor: c.color || "#f26522",
-                    }}
+              renderLeft={(school) => (
+                <span className="font-semibold text-slate-700">
+                  {school.code}
+                </span>
+              )}
+              renderRight={(school) => (
+                <span className="text-slate-500 text-[11px]">
+                  {school.name}
+                </span>
+              )}
+            />
+
+            {/* major Input */}
+            <SearchSelect
+              label="Major"
+              icon={<Layers size={16} className="text-[#f26522]" />}
+              placeholder={
+                selectedSchool
+                  ? "Enter major code or name"
+                  : "Please select a school first"
+              }
+              disabled={!selectedSchool}
+              options={majorOptions}
+              value={majorQuery}
+              setValue={setMajorQuery}
+              onSelect={handleMajorSelect}
+              displayValue={(major) => `${major.code} - ${major.name}`}
+              searchKeys={["code", "name"]}
+              renderLeft={(major) => (
+                <span className="font-semibold text-slate-700">
+                  {major.code}
+                </span>
+              )}
+              renderRight={(major) => (
+                <span className="text-slate-500 text-[11px]">{major.name}</span>
+              )}
+            />
+
+            <div className="grid grid-cols-2 gap-4">
+              {/* subject Input */}
+              <SearchSelect
+                label="Course"
+                icon={<BookOpen size={16} className="text-[#f26522]" />}
+                placeholder={
+                  selectedMajor
+                    ? "Enter course code or name"
+                    : "Please select a major first"
+                }
+                disabled={!selectedMajor}
+                options={subjectOptions}
+                value={subjectQuery}
+                setValue={setSubjectQuery}
+                onSelect={(course) => {
+                  setSelectedSubject(course);
+                  setSubjectNameOpen(false);
+                }}
+                onInputChange={(value) => {
+                  const trimmed = value.trim().toLowerCase();
+
+                  const hasMatch = subjectOptions.some(
+                    (option) => option.code.toLowerCase() === trimmed,
+                  );
+
+                  setSubjectNameOpen(Boolean(trimmed) && !hasMatch);
+                }}
+                displayValue={(course) => `${course.code} - ${course.name}`}
+                searchKeys={["code", "name"]}
+                renderLeft={(course) => (
+                  <span className="font-semibold text-slate-700">
+                    {course.code}
+                  </span>
+                )}
+                renderRight={(course) => (
+                  <span className="text-slate-500 text-[11px]">
+                    {course.name}
+                  </span>
+                )}
+              />
+              {subjectNameOpen && (
+                <div className="space-y-1">
+                  <Label className="flex items-center gap-2 text-slate-700 font-semibold">
+                    <FileText size={16} className="text-[#f26522]" /> Course
+                    Name
+                  </Label>
+                  <Input
+                    placeholder="New subject! Enter full name here:"
+                    className="rounded-lg border-gray-300 focus-visible:ring-[#f26522] focus-visible:border-[#f26522]"
+                    value={subjectName}
+                    onChange={(e) => setSubjectName(e.target.value)}
                   />
-                  <span className="font-semibold">{c.code}</span>
                 </div>
               )}
-              renderRight={(c) => (
-                <span className="text-slate-500 text-[11px]">{c.name}</span>
-              )}
+              {/* category Input */}
+              <SearchSelect
+                label="Category"
+                icon={<FileText size={16} className="text-[#f26522]" />}
+                placeholder="Select category"
+                options={categoryOptions}
+                value={categoryQuery}
+                setValue={setCategoryQuery}
+                onSelect={setSelectedCategory}
+                displayValue={(c) => `${c.code} - ${c.name}`}
+                searchKeys={["code", "name"]}
+                renderLeft={(c) => (
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="w-2 h-2 rounded-full"
+                      style={{
+                        backgroundColor: c.color || "#f26522",
+                      }}
+                    />
+                    <span className="font-semibold">{c.code}</span>
+                  </div>
+                )}
+                renderRight={(c) => (
+                  <span className="text-slate-500 text-[11px]">{c.name}</span>
+                )}
+              />
+            </div>
+
+            {/* tags Input */}
+            <MultiSearchSelect
+              label="Tags"
+              icon={<Tags size={16} className="text-[#f26522]" />}
+              options={tagOptions}
+              selected={selectedTags}
+              setSelected={setSelectedTags}
+              placeholder="Type to search tags"
             />
           </div>
-
-          {/* tags Input */}
-          <MultiSearchSelect
-            label="Tags"
-            icon={<Tags size={16} className="text-[#f26522]" />}
-            options={tagOptions}
-            selected={selectedTags}
-            setSelected={setSelectedTags}
-            placeholder="Type to search tags"
-          />
-        </div>
-        <DialogFooter>
-          {uploadError && (
-            <p className="text-xs text-red-500 w-full text-left mb-2 font-medium">
-              {uploadError}
-            </p>
-          )}
-          <Button
-            className="w-full h-10 bg-[#f26522] hover:bg-[#f44d00] text-white font-bold rounded-xl cursor-pointer hover:scale-[1.01] active:scale-[0.99] transition-all duration-200"
-            onClick={handleUploadDocument}
-            disabled={uploading}
-          >
-            {uploading ? "Uploading..." : "Upload"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          <DialogFooter>
+            {uploadError && (
+              <p className="text-xs text-red-500 w-full text-left mb-2 font-medium">
+                {uploadError}
+              </p>
+            )}
+            <Button
+              className="w-full h-10 bg-[#f26522] hover:bg-[#f44d00] text-white font-bold rounded-xl cursor-pointer hover:scale-[1.01] active:scale-[0.99] transition-all duration-200"
+              onClick={handleUploadDocument}
+              disabled={uploading}
+            >
+              {uploading ? "Uploading..." : "Upload"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <QuotaExceededDialog
+        open={quotaDialog.open}
+        onOpenChange={(quotaOpen) =>
+          setQuotaDialog((current) => ({ ...current, open: quotaOpen }))
+        }
+        type={quotaDialog.type}
+        message={quotaDialog.message}
+      />
+    </>
   );
 }

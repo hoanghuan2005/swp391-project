@@ -1,4 +1,9 @@
+import { useState } from "react";
+import { jwtDecode } from "jwt-decode";
+import { Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { createVnpayPayment } from "@/api/paymentApi";
+import useAiUsage from "@/hooks/useAiUsage";
 
 const plans = [
   {
@@ -11,11 +16,35 @@ const plans = [
     name: "Pro",
     description: "For frequent study sessions.",
     features: ["Unlimited AI requests", "Ask AI", "Quiz and flashcard generation"],
-    action: "Upgrade coming soon",
+    action: "Upgrade to Pro",
   },
 ];
 
 export default function PricingPage() {
+  const [isStartingUpgrade, setIsStartingUpgrade] = useState(false);
+  const { subscriptionTier, loading } = useAiUsage();
+  const role = getTokenRole();
+  const canUpgrade = role !== "ADMIN" && subscriptionTier === "FREE";
+
+  const handleUpgrade = async () => {
+    if (isStartingUpgrade || !canUpgrade) return;
+
+    try {
+      setIsStartingUpgrade(true);
+      const payment = await createVnpayPayment();
+      if (payment?.paymentUrl) {
+        window.location.href = payment.paymentUrl;
+        return;
+      }
+      alert("Could not start payment. Please try again.");
+    } catch (error) {
+      console.error("Failed to create VNPAY payment:", error);
+      alert("Could not start payment. Please try again.");
+    } finally {
+      setIsStartingUpgrade(false);
+    }
+  };
+
   return (
     <div className="mx-auto w-full max-w-4xl px-6 py-10">
       <div className="mb-8 text-center">
@@ -38,12 +67,41 @@ export default function PricingPage() {
                 <li key={feature}>- {feature}</li>
               ))}
             </ul>
-            <Button className="w-full" disabled>
-              {plan.action}
-            </Button>
+            {plan.name === "Pro" ? (
+              <Button
+                className="w-full rounded-xl bg-[#f26522] hover:bg-[#d95316]"
+                disabled={!canUpgrade || isStartingUpgrade || loading}
+                onClick={handleUpgrade}
+              >
+                {isStartingUpgrade ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="mr-2 h-4 w-4" />
+                )}
+                {subscriptionTier === "PRO" || role === "ADMIN"
+                  ? "Current plan"
+                  : plan.action}
+              </Button>
+            ) : (
+              <Button className="w-full rounded-xl" disabled>
+                {subscriptionTier === "FREE" && role !== "ADMIN"
+                  ? "Current plan"
+                  : plan.action}
+              </Button>
+            )}
           </div>
         ))}
       </div>
     </div>
   );
+}
+
+function getTokenRole() {
+  try {
+    const token = localStorage.getItem("token");
+    return token ? jwtDecode(token)?.role : null;
+  } catch (error) {
+    console.error("Invalid token:", error);
+    return null;
+  }
 }

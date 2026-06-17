@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -19,6 +20,11 @@ public interface DocumentRepository extends JpaRepository<Document, UUID> {
     List<Document> findByUploadedById(UUID uploadedById);
 
     long countByUploadedById(UUID uploadedById);
+
+    long countByUploadedByIdAndCloudinaryPublicIdIsNotNullAndCreatedAtBetween(
+            UUID uploadedById,
+            LocalDateTime start,
+            LocalDateTime end);
 
     @Query("select d from Document d order by d.downloadCount desc")
     List<Document> findTopByDownloadCount(Pageable pageable);

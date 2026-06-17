@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { jwtDecode } from "jwt-decode";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -16,9 +16,13 @@ import {
   GraduationCap,
   Layers,
   Tag,
+  Loader2,
+  Sparkles,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import axiosClient from "@/api/axiosClient";
+import { createVnpayPayment } from "@/api/paymentApi";
+import useAiUsage from "@/hooks/useAiUsage";
 
 // ==========================================
 // COMPONENT TẠO DROPDOWN CÓ TÌM KIẾM (GIỐNG ẢNH)
@@ -157,9 +161,9 @@ export default function Navbar({
 }) {
   const navigate = useNavigate();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [userName, setUserName] = useState(null);
-  const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [notifications, setNotifications] = useState([]);
+  const [userName, setUserName] = useState("");
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -175,9 +179,13 @@ export default function Navbar({
   const filterPanelRef = useRef(null);
   const notificationButtonRef = useRef(null);
   const notificationPanelRef = useRef(null);
-  const [userInitial, setUserInitial] = useState("H");
+  const [userInitial, setUserInitial] = useState(() => getTokenInitial());
+  const [userRole] = useState(() => getTokenRole());
+  const [isStartingUpgrade, setIsStartingUpgrade] = useState(false);
   const dropdownRef = useRef(null);
   const profileButtonRef = useRef(null);
+  const { subscriptionTier } = useAiUsage();
+  const canUpgrade = userRole !== "ADMIN" && subscriptionTier === "FREE";
 
   // Dynamic filter state lists loaded from backend APIs
   const [schools, setSchools] = useState([]);
@@ -286,7 +294,7 @@ export default function Navbar({
     };
   }, []);
 
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     const token = localStorage.getItem("token");
     if (!token) return;
     try {
@@ -295,7 +303,18 @@ export default function Navbar({
     } catch (error) {
       console.error("Failed to fetch notifications:", error);
     }
-  };
+  }, []);
+
+  const fetchUnreadCount = useCallback(async () => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+    try {
+      const res = await axiosClient.get("/api/notifications/unread-count");
+      setUnreadCount(res.data.count);
+    } catch (error) {
+      console.warn("Failed to fetch unread notifications:", error);
+    }
+  }, []);
 
   useEffect(() => {
     fetchUnreadCount();
@@ -313,15 +332,31 @@ export default function Navbar({
     } catch (e) {
       console.error("Token decode error", e);
     }
-  }, []);
+  }, [fetchUnreadCount, fetchNotifications]);
 
-  const fetchUnreadCount = async () => {
-    const token = localStorage.getItem("token");
-    if (!token) return;
+  useEffect(() => {
+    queueMicrotask(() => {
+      fetchUnreadCount();
+    });
+  }, [fetchUnreadCount]);
+
+  const handleUpgradeToPro = async () => {
+    if (isStartingUpgrade) return;
+
     try {
-      const res = await axiosClient.get("/api/notifications/unread-count");
-      setUnreadCount(res.data.count);
-    } catch (error) {}
+      setIsStartingUpgrade(true);
+      const payment = await createVnpayPayment();
+      if (payment?.paymentUrl) {
+        window.location.href = payment.paymentUrl;
+        return;
+      }
+      alert("Could not start payment. Please try again.");
+    } catch (error) {
+      console.error("Failed to create VNPAY payment:", error);
+      alert("Could not start payment. Please try again.");
+    } finally {
+      setIsStartingUpgrade(false);
+    }
   };
 
   useEffect(() => {
@@ -584,13 +619,17 @@ ${
                   className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-xl border border-slate-100 z-50 overflow-hidden"
                 >
                   <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-                    <span className="font-extrabold text-sm text-slate-800">Thông báo</span>
+                    <span className="font-extrabold text-sm text-slate-800">
+                      Thông báo
+                    </span>
                     <button
                       onClick={async () => {
                         try {
                           await axiosClient.put("/api/notifications/read-all");
                           setUnreadCount(0);
-                          setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+                          setNotifications((prev) =>
+                            prev.map((n) => ({ ...n, isRead: true })),
+                          );
                         } catch (err) {
                           console.error(err);
                         }
@@ -602,7 +641,9 @@ ${
                   </div>
                   <div className="max-h-64 overflow-y-auto divide-y divide-slate-100">
                     {notifications.length === 0 ? (
-                      <div className="p-6 text-center text-xs text-slate-400">Không có thông báo nào</div>
+                      <div className="p-6 text-center text-xs text-slate-400">
+                        Không có thông báo nào
+                      </div>
                     ) : (
                       notifications.map((item) => (
                         <div
@@ -611,16 +652,27 @@ ${
                             setIsNotificationOpen(false);
                             try {
                               if (!item.isRead) {
-                                  await axiosClient.put(`/api/notifications/${item.id}/read`);
+                                await axiosClient.put(
+                                  `/api/notifications/${item.id}/read`,
+                                );
                               }
                             } catch (err) {
                               console.error(err);
                             }
-                            if (item.referenceType === "DOCUMENT" && item.referenceId) {
+                            if (
+                              item.referenceType === "DOCUMENT" &&
+                              item.referenceId
+                            ) {
                               navigate(`/documents/${item.referenceId}`);
-                            } else if (item.referenceType === "USER" && item.referenceId) {
+                            } else if (
+                              item.referenceType === "USER" &&
+                              item.referenceId
+                            ) {
                               navigate(`/users/${item.referenceId}`);
-                            } else if (item.referenceType === "WORKSPACE" && item.referenceId) {
+                            } else if (
+                              item.referenceType === "WORKSPACE" &&
+                              item.referenceId
+                            ) {
                               navigate(`/workspace/${item.referenceId}`);
                             }
                           }}
@@ -630,9 +682,15 @@ ${
                             <Bell className="h-4 w-4" />
                           </div>
                           <div className="min-w-0 flex-1">
-                            <p className="font-bold text-xs text-slate-700 truncate">{item.title}</p>
-                            <p className="text-[11px] text-slate-500 line-clamp-2 mt-0.5">{item.message}</p>
-                            <p className="text-[10px] text-slate-400 mt-1">{new Date(item.createdAt).toLocaleString()}</p>
+                            <p className="font-bold text-xs text-slate-700 truncate">
+                              {item.title}
+                            </p>
+                            <p className="text-[11px] text-slate-500 line-clamp-2 mt-0.5">
+                              {item.message}
+                            </p>
+                            <p className="text-[10px] text-slate-400 mt-1">
+                              {new Date(item.createdAt).toLocaleString()}
+                            </p>
                           </div>
                           {!item.isRead && (
                             <div className="w-1.5 h-1.5 rounded-full bg-orange-500 mt-2 shrink-0" />
@@ -652,46 +710,62 @@ ${
               )}
             </div>
 
-            <button
-              ref={profileButtonRef}
-              onClick={() => setIsDropdownOpen((prev) => !prev)}
-              className="h-10 w-10 rounded-full bg-[#f26522] text-white font-bold shadow-sm"
-            >
-              {userInitial}
-            </button>
-
-            {isDropdownOpen && (
-              <div
-                ref={dropdownRef}
-                className="absolute right-4 top-14 w-48 bg-white rounded-xl shadow-xl border border-slate-100 pt-2 z-50"
+            <div className="relative">
+              <button
+                ref={profileButtonRef}
+                onClick={() => setIsDropdownOpen((prev) => !prev)}
+                className="h-10 w-10 rounded-full bg-[#f26522] text-white font-bold shadow-sm"
               >
-                <Link
-                  to="/profile"
-                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 flex items-center gap-2"
-                >
-                  <User size={15} /> My Profile
-                </Link>
-                <Link
-                  to="/notifications"
-                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 flex items-center gap-2"
-                >
-                  <Bell size={15} /> Notifications
-                </Link>
-                <Link
-                  to="/my-library"
-                  className="px-4 py-2 pb-3 text-xs font-semibold text-slate-600 hover:bg-slate-50 flex items-center gap-2"
-                >
-                  <Book size={15} /> My Library
-                </Link>
+                {userInitial}
+              </button>
 
-                <button
-                  onClick={onLogoutClick}
-                  className="border-t w-full px-4 py-3 text-left text-xs font-bold text-red-500 hover:bg-red-50 hover:rounded-b-xl flex items-center gap-2"
+              {isDropdownOpen && (
+                <div
+                  ref={dropdownRef}
+                  className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-100 pt-2 z-50"
                 >
-                  <LogOut size={15} /> Log Out
-                </button>
-              </div>
-            )}
+                  <Link
+                    to="/profile"
+                    className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 flex items-center gap-2"
+                  >
+                    <User size={15} /> My Profile
+                  </Link>
+                  <Link
+                    to="/notifications"
+                    className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 flex items-center gap-2"
+                  >
+                    <Bell size={15} /> Notifications
+                  </Link>
+                  <Link
+                    to="/my-library"
+                    className="px-4 py-2 pb-3 text-xs font-semibold text-slate-600 hover:bg-slate-50 flex items-center gap-2"
+                  >
+                    <Book size={15} /> My Library
+                  </Link>
+                  {canUpgrade && (
+                    <button
+                      onClick={handleUpgradeToPro}
+                      disabled={isStartingUpgrade}
+                      className="border-t w-full px-4 py-3 text-left text-xs font-bold text-[#f26522] hover:bg-orange-50 flex items-center gap-2 disabled:opacity-60"
+                    >
+                      {isStartingUpgrade ? (
+                        <Loader2 size={15} className="animate-spin" />
+                      ) : (
+                        <Sparkles size={15} />
+                      )}
+                      Upgrade to Pro
+                    </button>
+                  )}
+
+                  <button
+                    onClick={onLogoutClick}
+                    className="border-t w-full px-4 py-3 text-left text-xs font-bold text-red-500 hover:bg-red-50 hover:rounded-b-xl flex items-center gap-2"
+                  >
+                    <LogOut size={15} /> Log Out
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         ) : (
           <div className="flex items-center gap-3">
@@ -711,4 +785,28 @@ ${
       </div>
     </div>
   );
+}
+
+function getTokenRole() {
+  try {
+    const token = localStorage.getItem("token");
+    return token ? jwtDecode(token)?.role : null;
+  } catch (error) {
+    console.error("Invalid token:", error);
+    return null;
+  }
+}
+
+function getTokenInitial() {
+  try {
+    const token = localStorage.getItem("token");
+    if (!token) return "H";
+
+    const decoded = jwtDecode(token);
+    const name = decoded?.name || decoded?.sub || null;
+    return name ? name.charAt(0).toUpperCase() : "H";
+  } catch (error) {
+    console.error("Invalid token:", error);
+    return "H";
+  }
 }

@@ -13,6 +13,9 @@ import com.example.keeper.systems.document.repository.DocumentRepository;
 import com.example.keeper.systems.document.repository.DocumentViewRepository;
 import com.example.keeper.systems.document.service.storage.FileStorageService;
 import com.example.keeper.systems.document.service.storage.FileUploadResult;
+import com.example.keeper.systems.follow.repository.UserFollowRepository;
+import com.example.keeper.systems.major.repository.MajorRepository;
+import com.example.keeper.systems.notification.service.NotificationService;
 import com.example.keeper.systems.ai_ask.service.DocumentParserService;
 import com.example.keeper.systems.course.entity.Course;
 import com.example.keeper.systems.course.repository.CourseRepository;
@@ -49,14 +52,16 @@ public class DocumentServiceImpl implements DocumentService {
     private final FileStorageService fileStorageService;
     private final DocumentParserService documentParserService;
     private final DocumentChunkRepository documentChunkRepository;
-    private final com.example.keeper.systems.major.repository.MajorRepository majorRepository;
-    private final com.example.keeper.systems.follow.repository.UserFollowRepository userFollowRepository;
-    private final com.example.keeper.systems.notification.service.NotificationService notificationService;
+    private final MajorRepository majorRepository;
+    private final UserFollowRepository userFollowRepository;
+    private final NotificationService notificationService;
+    private final DocumentQuotaService documentQuotaService;
 
 
 
     @Override
     public Document create(CreateDocumentRequest request) {
+        documentQuotaService.validateDocumentCreation(getCurrentUserEmail());
         Document document = buildDocument(request);
         document.setFileUrl(request.getFileUrl());
         document.setAiParseStatus(AiParseStatus.UNSUPPORTED);
@@ -67,6 +72,8 @@ public class DocumentServiceImpl implements DocumentService {
 
     @Override
     public Document uploadAndCreate(MultipartFile file, CreateDocumentRequest request) {
+        documentQuotaService.validateUpload(getCurrentUserEmail(), file.getSize());
+
         FileUploadResult uploadResult = fileStorageService.uploadFile(file, "documents");
         String fileUrl = uploadResult.getSecureUrl();
         String publicId = uploadResult.getPublicId();
@@ -145,8 +152,7 @@ public class DocumentServiceImpl implements DocumentService {
     }
 
     private Document buildDocument(CreateDocumentRequest request) {
-        String currentUserEmail = org.springframework.security.core.context.SecurityContextHolder
-                .getContext().getAuthentication().getName();
+        String currentUserEmail = getCurrentUserEmail();
 
         User user = userRepository.findByEmail(currentUserEmail)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy user đăng nhập!"));
@@ -175,6 +181,11 @@ public class DocumentServiceImpl implements DocumentService {
         return document;
     }
 
+    private String getCurrentUserEmail() {
+        return org.springframework.security.core.context.SecurityContextHolder
+                .getContext().getAuthentication().getName();
+    }
+
     private Course resolveCourse(CreateDocumentRequest request) {
         if (request.getCourseId() != null) {
             return courseRepository.findById(request.getCourseId())
@@ -183,7 +194,7 @@ public class DocumentServiceImpl implements DocumentService {
 
         String courseCode = safeTrim(request.getCourseCode());
         if (courseCode == null) {
-            throw new IllegalArgumentException("Course code is required");
+            return null;
         }
 
         if (request.getMajorId() != null) {
