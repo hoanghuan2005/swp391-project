@@ -36,4 +36,17 @@ public class EmailService {
                 "This invitation will expire in 24 hours.");
         mailSender.send(message);
     }
+
+    public void sendSubscriptionSuccessEmail(String to, String fullName) {
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setTo(to);
+        message.setSubject("Upgrade to PRO Successful - MinDoCu App");
+        message.setText("Dear " + (fullName != null ? fullName : "User") + ",\n\n" +
+                "Congratulations! Your account has been successfully upgraded to the PRO plan.\n" +
+                "You now have access to unlimited AI requests, custom quizzes, flashcards and mindmaps, and other advanced features on MinDoCu App.\n\n" +
+                "Thank you for choosing MinDoCu to elevate your learning!\n\n" +
+                "Best regards,\n" +
+                "The MinDoCu Team");
+        mailSender.send(message);
+    }
 }

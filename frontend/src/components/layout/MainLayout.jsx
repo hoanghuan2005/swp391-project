@@ -7,13 +7,16 @@ import LogoutModal from "@/components/ui/LogoutModal";
 import axiosClient from "@/api/axiosClient";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
+import PricingModal from "../modals/PricingModal";
 
 export default function MainLayout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [showSurvey, setShowSurvey] = useState(false);
   const [showSurveyReminder, setShowSurveyReminder] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+  const [showPricingModal, setShowPricingModal] = useState(false);
+  const navigate = useNavigate();
 
   // ==========================================
   // THÊM: STATE CHO SEARCH VÀ FILTER Ở ĐÂY
@@ -94,6 +97,18 @@ export default function MainLayout() {
     checkSurveyState();
   }, [isAiAskPage, isWorkspacePage, isAdminPage, isAuthPage, isAiToolsPage, isCourseDetailPage]);
 
+  useEffect(() => {
+    const handleOpenPricing = () => setShowPricingModal(true);
+    window.addEventListener("open-pricing-modal", handleOpenPricing);
+    return () => {
+      window.removeEventListener("open-pricing-modal", handleOpenPricing);
+    };
+  }, []);
+
+  const handleClosePricingModal = () => {
+    setShowPricingModal(false);
+  };
+
   return (
     <div className="h-screen bg-white text-slate-900 font-sans flex flex-col overflow-hidden">
       {/* THÊM: Truyền onSearch và onFilter xuống Navbar */}
@@ -151,6 +166,12 @@ export default function MainLayout() {
       <LogoutModal
         isOpen={isLogoutModalOpen}
         onClose={() => setIsLogoutModalOpen(false)}
+      />
+
+      {/* Pricing Modal */}
+      <PricingModal
+        isOpen={showPricingModal}
+        onClose={handleClosePricingModal}
       />
     </div>
   );

@@ -3,8 +3,9 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { verifyInvitationToken, acceptInvitation, rejectInvitation } from "@/api/projectApi";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Loader2, UserPlus, Check, X, Shield, Lock, Users } from "lucide-react";
+import { Loader2, UserPlus, Check, X, Shield, Lock, Users, AlertTriangle } from "lucide-react";
 import { toast } from "react-hot-toast";
+import { jwtDecode } from "jwt-decode";
 
 export default function AcceptInvitationPage() {
   const [searchParams] = useSearchParams();
@@ -17,6 +18,21 @@ export default function AcceptInvitationPage() {
   const [submitting, setSubmitting] = useState(false);
 
   const isLoggedIn = !!localStorage.getItem("token");
+  const [currentUserEmail, setCurrentUserEmail] = useState(null);
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      try {
+        const decoded = jwtDecode(token);
+        setCurrentUserEmail(decoded?.sub || null);
+      } catch (e) {
+        console.error("Failed to decode token:", e);
+      }
+    }
+  }, [isLoggedIn]);
+
+  const isEmailMismatch = isLoggedIn && invitation && currentUserEmail && invitation.email.toLowerCase() !== currentUserEmail.toLowerCase();
 
   useEffect(() => {
     if (!token) {
@@ -113,8 +129,8 @@ export default function AcceptInvitationPage() {
 
   return (
     <div className="min-h-[80vh] flex items-center justify-center p-4">
-      <Card className="max-w-lg w-full rounded-[32px] border border-orange-100 bg-gradient-to-br from-orange-50/20 to-white shadow-2xl overflow-hidden relative">
-        <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-orange-400 to-[#f66810]" />
+      <Card className="max-w-xl w-full rounded-[32px] border border-orange-100 bg-gradient-to-br from-orange-50/20 to-white shadow-2xl overflow-hidden relative">
+        <div className="absolute top-0 left-0 w-full h-2" />
         
         <CardContent className="p-10 text-center flex flex-col items-center gap-6">
           <div className="w-20 h-20 rounded-[24px] bg-[#f66810] flex items-center justify-center text-white shadow-lg shadow-orange-500/20 animate-bounce">
@@ -183,6 +199,46 @@ export default function AcceptInvitationPage() {
               >
                 Log In or Sign Up
               </Button>
+            </div>
+          ) : isEmailMismatch ? (
+            <div className="w-full space-y-4">
+              <div className="flex items-start gap-2.5 text-left text-sm font-medium text-red-650 bg-red-50 border border-red-100 rounded-xl p-4">
+                <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5 text-red-650" />
+                <div className="space-y-1">
+                  <p className="font-bold text-red-800">Email Mismatch</p>
+                  <p className="text-xs text-red-700 leading-normal">
+                    You are logged in as <span className="font-semibold">{currentUserEmail}</span>, but this invitation was sent to <span className="font-semibold">{invitation?.email}</span>.
+                  </p>
+                  <p className="text-xs text-red-700 leading-normal font-medium mt-1">
+                    Please switch to the correct account to join this workspace.
+                  </p>
+                </div>
+              </div>
+
+              <div className="w-full flex flex-col sm:flex-row gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => navigate("/home")}
+                  className="flex-1 h-12 rounded-xl border-slate-200 hover:bg-slate-50 font-semibold text-slate-700 shadow-sm transition-all"
+                >
+                  Go to Homepage
+                </Button>
+
+                <Button
+                  type="button"
+                  onClick={() => {
+                    localStorage.removeItem("token");
+                    localStorage.removeItem("refreshToken");
+                    localStorage.removeItem("userId");
+                    const currentUrl = window.location.pathname + window.location.search;
+                    navigate(`/login?redirect=${encodeURIComponent(currentUrl)}`);
+                  }}
+                  className="flex-1 h-12 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold transition-all shadow-md shadow-red-500/15 flex items-center justify-center cursor-pointer border-0"
+                >
+                  Switch Account
+                </Button>
+              </div>
             </div>
           ) : (
             <div className="w-full flex flex-col sm:flex-row gap-3 mt-4">

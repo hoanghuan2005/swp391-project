@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import backgroundImage from "../../assets/picture-study.png";
 import { Lock } from "lucide-react";
 import axiosClient from "../../api/axiosClient"; // Đảm bảo bạn đã import axiosClient
@@ -10,6 +10,8 @@ const VerifyOTPPage = () => {
   const [isResending, setIsResending] = useState(false); // THÊM DÒNG NÀY
   const inputRefs = useRef([]);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const redirectUrl = searchParams.get("redirect");
 
   const location = useLocation();
   const email = location.state?.email || "your email";
@@ -85,7 +87,7 @@ const VerifyOTPPage = () => {
       if (response.status === 200) {
         if (mode === "signup") {
           alert("Account verified successfully! Please sign in.");
-          navigate("/login");
+          navigate(redirectUrl ? `/login?redirect=${encodeURIComponent(redirectUrl)}` : "/login");
         } else {
           // ĐÚNG MÃ -> Mới cho sang trang đổi mật khẩu
           navigate("/change-password", { state: { email, otp: code } });

@@ -4,6 +4,9 @@ import com.example.keeper.config.VnpayConfig;
 import com.example.keeper.systems.auth.entity.User;
 import com.example.keeper.systems.auth.enums.SubscriptionTier;
 import com.example.keeper.systems.auth.repository.UserRepository;
+import com.example.keeper.systems.auth.service.EmailService;
+import com.example.keeper.systems.notification.service.NotificationService;
+import com.example.keeper.systems.notification.enums.NotificationType;
 import com.example.keeper.systems.payment.dto.response.ConfirmVnpayReturnResponse;
 import com.example.keeper.systems.payment.dto.response.CreateVnpayPaymentResponse;
 import com.example.keeper.systems.payment.entity.PaymentTransaction;
@@ -43,6 +46,8 @@ public class VnpayPaymentServiceImpl implements VnpayPaymentService {
     private final VnpayConfig vnpayConfig;
     private final UserRepository userRepository;
     private final PaymentTransactionRepository paymentTransactionRepository;
+    private final EmailService emailService;
+    private final NotificationService notificationService;
 
     @Override
     @Transactional
@@ -129,6 +134,26 @@ public class VnpayPaymentServiceImpl implements VnpayPaymentService {
             userRepository.save(user);
             paymentTransactionRepository.save(transaction);
 
+            try {
+                emailService.sendSubscriptionSuccessEmail(user.getEmail(), user.getUsername());
+            } catch (Exception e) {
+                System.err.println("Failed to send subscription success email: " + e.getMessage());
+            }
+
+            try {
+                notificationService.createNotification(
+                        user,
+                        null,
+                        NotificationType.PRO_UPGRADE_SUCCESS,
+                        "Upgrade to PRO Successful",
+                        "Congratulations! Your account has been successfully upgraded to the PRO plan. You now have access to unlimited AI requests and advanced features.",
+                        null,
+                        null
+                );
+            } catch (Exception e) {
+                System.err.println("Failed to create subscription success notification: " + e.getMessage());
+            }
+
             return ipnResponse("00", "Confirm Success");
         }
 
@@ -186,6 +211,26 @@ public class VnpayPaymentServiceImpl implements VnpayPaymentService {
             transaction.setStatus(PaymentStatus.SUCCESS);
             transactionUser.setSubscriptionTier(SubscriptionTier.PRO);
             userRepository.save(transactionUser);
+
+            try {
+                emailService.sendSubscriptionSuccessEmail(transactionUser.getEmail(), transactionUser.getUsername());
+            } catch (Exception e) {
+                System.err.println("Failed to send subscription success email: " + e.getMessage());
+            }
+
+            try {
+                notificationService.createNotification(
+                        transactionUser,
+                        null,
+                        NotificationType.PRO_UPGRADE_SUCCESS,
+                        "Upgrade to PRO Successful",
+                        "Congratulations! Your account has been successfully upgraded to the PRO plan. You now have access to unlimited AI requests and advanced features.",
+                        null,
+                        null
+                );
+            } catch (Exception e) {
+                System.err.println("Failed to create subscription success notification: " + e.getMessage());
+            }
         } else {
             transaction.setStatus(PaymentStatus.FAILED);
         }

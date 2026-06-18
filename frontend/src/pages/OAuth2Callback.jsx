@@ -16,7 +16,13 @@ export default function OAuth2Callback() {
         localStorage.setItem("refreshToken", refreshToken);
       }
 
-      navigate("/home");
+      const redirectUrl = localStorage.getItem("oauth2_redirect");
+      if (redirectUrl) {
+        localStorage.removeItem("oauth2_redirect");
+        navigate(decodeURIComponent(redirectUrl));
+      } else {
+        navigate("/home");
+      }
     } else {
       navigate("/login");
     }

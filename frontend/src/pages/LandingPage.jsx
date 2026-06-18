@@ -1,14 +1,47 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
-import { ArrowRight, BookOpen, BrainCircuit, Users, CheckCircle2, Sparkles, BookMarked, ShieldCheck } from "lucide-react";
+import { ArrowRight, BookOpen, BrainCircuit, Users, CheckCircle2, Sparkles, BookMarked, ShieldCheck, Loader2, Check } from "lucide-react";
 import studyImage from '../assets/picture-study.png';
+import useAiUsage from "@/hooks/useAiUsage";
+import { jwtDecode } from "jwt-decode";
+import { createVnpayPayment } from "@/api/paymentApi";
 
 export default function LandingPage() {
   const isLoggedIn = !!localStorage.getItem("token");
+  const navigate = useNavigate();
+  const [isStartingUpgrade, setIsStartingUpgrade] = useState(false);
+  const { subscriptionTier, loading } = useAiUsage();
+  const role = getTokenRole();
+  const canUpgrade = role !== "ADMIN" && subscriptionTier === "FREE";
+
+  const handleUpgrade = async () => {
+    if (!isLoggedIn) {
+      alert("Vui lòng đăng nhập để nâng cấp lên Pro!");
+      navigate("/login");
+      return;
+    }
+
+    if (isStartingUpgrade || !canUpgrade) return;
+
+    try {
+      setIsStartingUpgrade(true);
+      const payment = await createVnpayPayment();
+      if (payment?.paymentUrl) {
+        window.location.href = payment.paymentUrl;
+        return;
+      }
+      alert("Could not start payment. Please try again.");
+    } catch (error) {
+      console.error("Failed to create VNPAY payment:", error);
+      alert("Could not start payment. Please try again.");
+    } finally {
+      setIsStartingUpgrade(false);
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-slate-50/50 text-slate-800 relative overflow-hidden font-sans">
+    <div className="min-h-screen flex flex-col bg-slate-50/50 text-slate-800 relative overflow-hidden font-sans">
       {/* Background Glows */}
       <div className="absolute top-[-20%] left-[-10%] w-[500px] h-[500px] rounded-full bg-orange-200/30 blur-3xl -z-10" />
       <div className="absolute top-[30%] right-[-10%] w-[600px] h-[600px] rounded-full bg-purple-200/20 blur-3xl -z-10" />
@@ -25,7 +58,7 @@ export default function LandingPage() {
           <nav className="hidden md:flex items-center gap-8 text-sm font-semibold text-slate-600">
             <a href="#features" className="hover:text-slate-900 transition-colors">Features</a>
             <a href="#how-it-works" className="hover:text-slate-900 transition-colors">How It Works</a>
-            <Link to="/pricing" className="hover:text-slate-900 transition-colors">Pricing</Link>
+            <a href="#pricing" className="hover:text-slate-900 transition-colors">Pricing</a>
           </nav>
 
           <div className="flex items-center gap-4">
@@ -51,7 +84,8 @@ export default function LandingPage() {
         </div>
       </header>
 
-      {/* Hero Section */}
+      <div className="flex-grow flex flex-col">
+        {/* Hero Section */}
       <section className="pt-32 pb-24 px-4 max-w-7xl mx-auto min-h-[90vh] flex items-center">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center w-full">
           {/* Hero Left */}
@@ -200,6 +234,110 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Pricing Section */}
+      <section id="pricing" className="py-22 bg-white border-t border-slate-100 relative">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="text-center max-w-3xl mx-auto mb-12 space-y-3">
+            <h2 className="text-xs font-black uppercase text-[#f26522] tracking-widest">Pricing Plans</h2>
+            <p className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">Simple, transparent pricing</p>
+            <p className="text-slate-500 text-sm sm:text-base">Choose the AI usage level that fits your study routine.</p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+            {/* Free Plan */}
+            <div className="bg-slate-50/50 p-8 rounded-xl border border-slate-200/80 shadow-sm flex flex-col justify-between hover:bg-white hover:shadow-md transition-all duration-300">
+              <div>
+                <h3 className="text-2xl font-black text-slate-800">Free</h3>
+                <p className="mt-2 text-sm text-slate-400">For trying Study Hub AI features.</p>
+                <div className="mt-6 flex items-baseline">
+                  <span className="text-4xl font-black text-slate-800">0đ</span>
+                  <span className="text-slate-400 text-xs ml-1">/ forever</span>
+                </div>
+                <ul className="my-8 space-y-3.5">
+                  <li className="flex items-start gap-2.5 text-sm text-slate-600 font-semibold">
+                    <Check className="h-5 w-5 text-green-500 shrink-0" strokeWidth={3} />
+                    <span>Daily AI request limit</span>
+                  </li>
+                  <li className="flex items-start gap-2.5 text-sm text-slate-600 font-semibold">
+                    <Check className="h-5 w-5 text-green-500 shrink-0" strokeWidth={3} />
+                    <span>Ask AI</span>
+                  </li>
+                  <li className="flex items-start gap-2.5 text-sm text-slate-600 font-semibold">
+                    <Check className="h-5 w-5 text-green-500 shrink-0" strokeWidth={3} />
+                    <span>Quiz and flashcard generation</span>
+                  </li>
+                </ul>
+              </div>
+              <Button
+                className="w-full rounded-xl py-6 bg-slate-105 text-slate-500 border border-slate-200 shadow-none font-bold text-sm cursor-not-allowed"
+                disabled
+              >
+                {isLoggedIn && subscriptionTier === "FREE" && role !== "ADMIN" ? "Current plan" : "Free Forever"}
+              </Button>
+            </div>
+
+            {/* Pro Plan */}
+            <div className="bg-white p-8 rounded-xl border-2 border-orange-500 shadow-md flex flex-col justify-between transition-all duration-300 relative scale-[1.01] md:scale-105">
+              <span className="absolute -top-3.5 right-8 bg-gradient-to-r from-orange-500 to-amber-500 text-white text-[11px] font-extrabold px-3 py-1.5 rounded-full shadow-sm tracking-wider uppercase">
+                Popular
+              </span>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-2xl font-black text-slate-800">Pro</h3>
+                  <Sparkles className="h-5 w-5 text-amber-500 fill-amber-500 animate-pulse" />
+                </div>
+                <p className="mt-2 text-sm text-slate-400">For frequent study sessions.</p>
+                <div className="mt-6 flex items-baseline">
+                  <span className="text-4xl font-black text-slate-800">99.000đ</span>
+                  <span className="text-slate-400 text-xs ml-1">/ month</span>
+                </div>
+                <ul className="my-8 space-y-3.5">
+                  <li className="flex items-start gap-2.5 text-sm text-slate-600 font-semibold">
+                    <Check className="h-5 w-5 text-green-500 shrink-0" strokeWidth={3} />
+                    <span>Unlimited AI requests</span>
+                  </li>
+                  <li className="flex items-start gap-2.5 text-sm text-slate-600 font-semibold">
+                    <Check className="h-5 w-5 text-green-500 shrink-0" strokeWidth={3} />
+                    <span>Ask AI</span>
+                  </li>
+                  <li className="flex items-start gap-2.5 text-sm text-slate-600 font-semibold">
+                    <Check className="h-5 w-5 text-green-500 shrink-0" strokeWidth={3} />
+                    <span>Quiz and flashcard generation</span>
+                  </li>
+                  <li className="flex items-start gap-2.5 text-sm text-slate-600 font-semibold">
+                    <Check className="h-5 w-5 text-green-500 shrink-0" strokeWidth={3} />
+                    <span>Priority support</span>
+                  </li>
+                  <li className="flex items-start gap-2.5 text-sm text-slate-600 font-semibold">
+                    <Check className="h-5 w-5 text-green-500 shrink-0" strokeWidth={3} />
+                    <span>Exclusive updates</span>
+                  </li>
+                </ul>
+              </div>
+              <Button
+                className={`w-full rounded-xl py-6 font-bold text-sm shadow-md transition-all duration-300 ${
+                  isLoggedIn && (subscriptionTier === "PRO" || role === "ADMIN")
+                    ? "bg-slate-100 hover:bg-slate-100 text-slate-500 cursor-not-allowed border border-slate-200 shadow-none"
+                    : "bg-[#f26522] hover:bg-[#d95316] text-white hover:shadow-orange-500/20 hover:scale-[1.02] cursor-pointer"
+                }`}
+                disabled={(isLoggedIn && !canUpgrade) || isStartingUpgrade || loading}
+                onClick={handleUpgrade}
+              >
+                {isStartingUpgrade ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="mr-2 h-4 w-4 fill-white" />
+                )}
+                {isLoggedIn && (subscriptionTier === "PRO" || role === "ADMIN")
+                  ? "Current plan"
+                  : "Upgrade to Pro"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </section>
+      </div>
+
       {/* Footer */}
       <footer className="bg-white border-t border-slate-100 py-12 text-slate-400 text-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row justify-between items-center gap-6">
@@ -214,4 +352,16 @@ export default function LandingPage() {
       </footer>
     </div>
   );
+}
+
+function getTokenRole() {
+  try {
+    const token = localStorage.getItem("token");
+    if (!token) return null;
+    const decoded = jwtDecode(token);
+    return decoded?.role || null;
+  } catch (error) {
+    console.error("Invalid token:", error);
+    return null;
+  }
 }

@@ -78,6 +78,7 @@ function App() {
         <Route path="/change-password" element={<ChangePasswordPage />} />
         <Route path="/survey" element={<Survey />} />
         <Route path="/oauth2/callback" element={<OAuth2Callback />} />
+        <Route path="/workspace/invite/accept" element={<AcceptInvitationPage />} />
 
         {/* MainLayout Routes */}
         <Route element={<MainLayout />}>
@@ -123,10 +124,7 @@ function App() {
             path="/workspace/shared/:token/ai"
             element={<ProjectWorkspacePage />}
           />
-          <Route
-            path="/workspace/invite/accept"
-            element={<AcceptInvitationPage />}
-          />
+
           <Route path="/notifications" element={<NotificationPage />} />
           <Route path="/pricing" element={<PricingPage />} />
           <Route

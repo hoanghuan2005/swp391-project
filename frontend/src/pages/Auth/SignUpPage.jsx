@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Mail, Lock, Eye, EyeOff, User, ShieldCheck } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import confetti from "canvas-confetti";
 
 import axiosClient, { backendBaseUrl } from "../../api/axiosClient";
@@ -27,6 +27,8 @@ const SignUpPage = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const redirectUrl = searchParams.get("redirect");
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -58,7 +60,7 @@ const SignUpPage = () => {
         alert("Sign up successful! Please verify the OTP sent to your email.");
         setTimeout(
           () =>
-            navigate("/verify-account", {
+            navigate(redirectUrl ? `/verify-account?redirect=${encodeURIComponent(redirectUrl)}` : "/verify-account", {
               state: { email: formData.email, mode: "signup" },
             }),
           600,
@@ -78,6 +80,11 @@ const SignUpPage = () => {
   };
 
   const signupWithGoogle = () => {
+    if (redirectUrl) {
+      localStorage.setItem("oauth2_redirect", redirectUrl);
+    } else {
+      localStorage.removeItem("oauth2_redirect");
+    }
     window.location.href = `${backendBaseUrl}/oauth2/authorization/google`;
   };
 
@@ -253,7 +260,7 @@ const SignUpPage = () => {
           Already have an account?{" "}
           <button
             type="button"
-            onClick={() => navigate("/login")}
+            onClick={() => navigate(redirectUrl ? `/login?redirect=${encodeURIComponent(redirectUrl)}` : "/login")}
             className="text-[#f26522] font-bold hover:underline"
           >
             Sign in

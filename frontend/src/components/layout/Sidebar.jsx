@@ -39,6 +39,7 @@ import {
   Layout,
 } from "lucide-react";
 import UploadDocumentDialog from "@/components/documents/UploadDocumentDialog";
+import useAiUsage from "@/hooks/useAiUsage";
 
 function NavItem({ to, icon: Icon, label, isOpen, pathname }) {
   const isActive = pathname === to || (to === "/" && pathname === "/");
@@ -161,6 +162,18 @@ function SidebarDropdown({
 
 export default function Sidebar({ isOpen = true }) {
   const location = useLocation();
+  const { subscriptionTier, refreshAiUsage } = useAiUsage();
+
+  useEffect(() => {
+    const handleSubscriptionSuccess = () => {
+      refreshAiUsage();
+    };
+    window.addEventListener("subscription-success", handleSubscriptionSuccess);
+    return () => {
+      window.removeEventListener("subscription-success", handleSubscriptionSuccess);
+    };
+  }, [refreshAiUsage]);
+
   const [uploadOpen, setUploadOpen] = useState(false);
   const [courseLibraryOpen, setCourseLibraryOpen] = useState(false);
   const [courseSearch, setCourseSearch] = useState("");
@@ -383,7 +396,10 @@ export default function Sidebar({ isOpen = true }) {
             isOpen ? "justify-start gap-4 mb-5" : "justify-center",
           )}
         >
-          <div className="h-[42px] w-[42px] shrink-0 rounded-full bg-[#f26522] text-white flex items-center justify-center font-bold text-lg shadow-sm uppercase">
+          <div className={cn(
+            "h-[42px] w-[42px] shrink-0 rounded-full bg-[#f26522] text-white flex items-center justify-center font-bold text-lg shadow-sm uppercase transition-all",
+            subscriptionTier === "PRO" && "ring-2 ring-yellow-400 ring-offset-2 shadow-[0_0_8px_rgba(250,204,21,0.6)]"
+          )}>
             {sidebarProfile.fullName.charAt(0)}
           </div>
           <div

@@ -19,7 +19,7 @@ import java.time.LocalDateTime;
 public class AiUsageServiceImpl implements AiUsageService {
 
 
-    private static final long FREE_DAILY_LIMIT = 20;
+    private static final long FREE_DAILY_LIMIT = 5;
 
     private final UserRepository userRepository;
     private final AiUsageRepository aiUsageRepository;

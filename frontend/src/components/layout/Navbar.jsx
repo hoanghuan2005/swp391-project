@@ -184,7 +184,7 @@ export default function Navbar({
   const [isStartingUpgrade, setIsStartingUpgrade] = useState(false);
   const dropdownRef = useRef(null);
   const profileButtonRef = useRef(null);
-  const { subscriptionTier } = useAiUsage();
+  const { subscriptionTier, refreshAiUsage } = useAiUsage();
   const canUpgrade = userRole !== "ADMIN" && subscriptionTier === "FREE";
 
   // Dynamic filter state lists loaded from backend APIs
@@ -340,23 +340,20 @@ export default function Navbar({
     });
   }, [fetchUnreadCount]);
 
-  const handleUpgradeToPro = async () => {
-    if (isStartingUpgrade) return;
+  useEffect(() => {
+    const handleSubscriptionSuccess = () => {
+      refreshAiUsage();
+      fetchNotifications();
+      fetchUnreadCount();
+    };
+    window.addEventListener("subscription-success", handleSubscriptionSuccess);
+    return () => {
+      window.removeEventListener("subscription-success", handleSubscriptionSuccess);
+    };
+  }, [refreshAiUsage, fetchNotifications, fetchUnreadCount]);
 
-    try {
-      setIsStartingUpgrade(true);
-      const payment = await createVnpayPayment();
-      if (payment?.paymentUrl) {
-        window.location.href = payment.paymentUrl;
-        return;
-      }
-      alert("Could not start payment. Please try again.");
-    } catch (error) {
-      console.error("Failed to create VNPAY payment:", error);
-      alert("Could not start payment. Please try again.");
-    } finally {
-      setIsStartingUpgrade(false);
-    }
+  const handleUpgradeToPro = () => {
+    window.dispatchEvent(new CustomEvent("open-pricing-modal"));
   };
 
   useEffect(() => {
@@ -714,7 +711,11 @@ ${
               <button
                 ref={profileButtonRef}
                 onClick={() => setIsDropdownOpen((prev) => !prev)}
-                className="h-10 w-10 rounded-full bg-[#f26522] text-white font-bold shadow-sm"
+                className={`h-10 w-10 rounded-full bg-[#f26522] text-white font-bold shadow-sm flex items-center justify-center transition-all ${
+                  subscriptionTier === "PRO"
+                    ? "ring-2 ring-yellow-400 ring-offset-1 shadow-[0_0_8px_rgba(250,204,21,0.6)] border-2 border-yellow-400"
+                    : ""
+                }`}
               >
                 {userInitial}
               </button>
@@ -745,14 +746,9 @@ ${
                   {canUpgrade && (
                     <button
                       onClick={handleUpgradeToPro}
-                      disabled={isStartingUpgrade}
-                      className="border-t w-full px-4 py-3 text-left text-xs font-bold text-[#f26522] hover:bg-orange-50 flex items-center gap-2 disabled:opacity-60"
+                      className="border-t w-full px-4 py-3 text-left text-xs font-bold text-[#f26522] hover:bg-orange-50 flex items-center gap-2 cursor-pointer"
                     >
-                      {isStartingUpgrade ? (
-                        <Loader2 size={15} className="animate-spin" />
-                      ) : (
-                        <Sparkles size={15} />
-                      )}
+                      <Sparkles size={15} />
                       Upgrade to Pro
                     </button>
                   )}

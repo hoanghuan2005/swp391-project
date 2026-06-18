@@ -376,7 +376,7 @@ public class ProjectServiceImpl implements ProjectService {
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         if (!invitation.getEmail().equalsIgnoreCase(user.getEmail())) {
-            throw new RuntimeException("This invitation was sent to a different email address");
+            throw new IllegalArgumentException("This invitation was sent to a different email address");
         }
 
         // Check if already a member
@@ -433,7 +433,7 @@ public class ProjectServiceImpl implements ProjectService {
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         if (!invitation.getEmail().equalsIgnoreCase(user.getEmail())) {
-            throw new RuntimeException("This invitation was sent to a different email address");
+            throw new IllegalArgumentException("This invitation was sent to a different email address");
         }
 
         invitation.setStatus("REJECTED");
@@ -493,16 +493,16 @@ public class ProjectServiceImpl implements ProjectService {
     @Transactional
     public ProjectInvitation verifyInvitationToken(String token) {
         ProjectInvitation invitation = projectInvitationRepository.findByToken(token)
-                .orElseThrow(() -> new RuntimeException("Invalid invitation link"));
+                .orElseThrow(() -> new IllegalArgumentException("Invalid invitation link"));
 
         if (!"PENDING".equals(invitation.getStatus())) {
-            throw new RuntimeException("This invitation has already been " + invitation.getStatus().toLowerCase());
+            throw new IllegalArgumentException("This invitation has already been " + invitation.getStatus().toLowerCase());
         }
 
         if (invitation.getExpiresAt().isBefore(LocalDateTime.now())) {
             invitation.setStatus("EXPIRED");
             projectInvitationRepository.save(invitation);
-            throw new RuntimeException("This invitation has expired");
+            throw new IllegalArgumentException("This invitation has expired");
         }
 
         return invitation;

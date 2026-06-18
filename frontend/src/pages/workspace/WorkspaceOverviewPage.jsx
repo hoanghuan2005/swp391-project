@@ -376,7 +376,7 @@ export default function WorkspaceOverviewPage() {
                       </button>
                     )}
                   </div>
-                  <p className="text-sm text-slate-500 mt-1.5 leading-relaxed max-w-2xl line-clamp-2">
+                  <p className="text-sm text-slate-500 mt-1.5 leading-relaxed max-w-[360px] line-clamp-1 break-all break-words">
                     {project?.description || "No description provided for this workspace."}
                   </p>
 

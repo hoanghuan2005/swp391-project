@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Mail, Lock, Eye, EyeOff } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import confetti from "canvas-confetti";
 import { jwtDecode } from "jwt-decode";
 
@@ -23,6 +23,8 @@ const LoginPage = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const redirectUrl = searchParams.get("redirect");
 
   // HÀM XỬ LÝ ĐĂNG NHẬP THƯỜNG (CẬP NHẬT REFRESH TOKEN)
   const handleLogin = async (e) => {
@@ -57,7 +59,7 @@ const LoginPage = () => {
               if (role === "ADMIN") {
                 navigate("/admin/dashboard");
               } else {
-                navigate("/home");
+                navigate(redirectUrl ? decodeURIComponent(redirectUrl) : "/home");
               }
             }, 1500);
           } catch (e) {
@@ -89,6 +91,11 @@ const LoginPage = () => {
   };
 
   const handleGoogleLogin = () => {
+    if (redirectUrl) {
+      localStorage.setItem("oauth2_redirect", redirectUrl);
+    } else {
+      localStorage.removeItem("oauth2_redirect");
+    }
     window.location.href = `${backendBaseUrl}/oauth2/authorization/google`;
   };
 
@@ -214,7 +221,7 @@ const LoginPage = () => {
           Don't have an account?{" "}
           <button
             type="button"
-            onClick={() => navigate("/signup")}
+            onClick={() => navigate(redirectUrl ? `/signup?redirect=${encodeURIComponent(redirectUrl)}` : "/signup")}
             className="text-[#f26522] font-bold hover:underline ml-1"
           >
             Sign up

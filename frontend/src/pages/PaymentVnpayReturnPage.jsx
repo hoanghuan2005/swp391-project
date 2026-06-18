@@ -107,6 +107,9 @@ export default function PaymentVnpayReturnPage() {
       .then((result) => {
         if (active) {
           setConfirmation(result);
+          if (result && result.status === "SUCCESS") {
+            window.dispatchEvent(new CustomEvent("subscription-success"));
+          }
         }
       })
       .catch(() => {
