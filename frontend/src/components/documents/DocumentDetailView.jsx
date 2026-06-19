@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import axiosClient from "@/api/axiosClient";
+import DocumentReviews from "./DocumentReviews"; // Import component đánh giá
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "react-hot-toast";
@@ -26,10 +27,6 @@ import {
   Calendar,
   Download,
   FileText,
-  Globe,
-  Image as ImageIcon,
-  Music,
-  Video,
   Heart,
   FolderPlus,
 } from "lucide-react";
@@ -283,10 +280,15 @@ export default function DocumentDetailView({
         </Card>
       </div>
 
-      <AddToProjectModal 
-        open={addToProjectOpen} 
-        onOpenChange={setAddToProjectOpen} 
-        documentId={documentId} 
+      {/* KHU VỰC HIỂN THỊ ĐÁNH GIÁ (REVIEWS) */}
+      {!loading && documentId && (
+        <DocumentReviews documentId={documentId} />
+      )}
+
+      <AddToProjectModal
+        open={addToProjectOpen}
+        onOpenChange={setAddToProjectOpen}
+        documentId={documentId}
       />
 
       <Dialog open={likeConfirmOpen} onOpenChange={setLikeConfirmOpen}>

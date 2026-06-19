@@ -430,8 +430,8 @@ export default function Navbar({
                   filterData.major ||
                   filterData.course ||
                   filterData.category) && (
-                  <span className="absolute top-2 right-2 h-2 w-2 bg-[#f26522] rounded-full" />
-                )}
+                    <span className="absolute top-2 right-2 h-2 w-2 bg-[#f26522] rounded-full" />
+                  )}
               </Button>
 
               {/* BẢNG LỌC NÂNG CAO */}
