@@ -53,12 +53,47 @@ export default function DocumentReviews({ documentId }) {
         }
     };
 
+    const totalReviews = reviews.length;
+    const averageRating = totalReviews > 0
+        ? (reviews.reduce((acc, rev) => acc + rev.rating, 0) / totalReviews).toFixed(1)
+        : "0.0";
+
     return (
         <div className="mt-8 pt-8 border-t border-slate-200">
             <h3 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
                 <MessageSquare className="w-5 h-5 text-[#f26522]" />
                 Document Reviews
             </h3>
+
+            {/* RATING SUMMARY BLOCK */}
+            {totalReviews > 0 && (
+                <div className="flex items-center gap-5 bg-white p-5 rounded-2xl border border-slate-100 shadow-sm mb-8">
+                    <div className="text-center bg-[#f26522]/5 px-5 py-4 rounded-xl min-w-[100px]">
+                        <div className="text-4xl font-extrabold text-[#f26522]">{averageRating}</div>
+                        <div className="text-[10px] font-bold text-[#f26522]/85 uppercase tracking-wider mt-1">Rating</div>
+                    </div>
+                    <div className="flex-1">
+                        <div className="flex items-center gap-1 mb-1.5">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                                <Star
+                                    key={star}
+                                    className={`w-5 h-5 ${
+                                        star <= Math.round(Number(averageRating))
+                                            ? "fill-yellow-400 text-yellow-400"
+                                            : "text-slate-200"
+                                    }`}
+                                />
+                            ))}
+                            <span className="text-sm font-semibold text-slate-700 ml-2">
+                                Average Rating
+                            </span>
+                        </div>
+                        <p className="text-xs text-slate-500">
+                            Based on <span className="font-bold text-slate-700">{totalReviews}</span> global {totalReviews === 1 ? "review" : "reviews"}
+                        </p>
+                    </div>
+                </div>
+            )}
 
             {/* FORM GỬI ĐÁNH GIÁ */}
             <form onSubmit={handleSubmit} className="bg-slate-50 p-6 rounded-2xl mb-8 border border-slate-100">
