@@ -27,6 +27,7 @@ public class CourseServiceImpl implements CourseService {
     private final com.example.keeper.systems.major.repository.MajorRepository majorRepository;
     private final com.example.keeper.systems.ai_flashcard.repository.FlashcardSetRepository flashcardSetRepository;
     private final com.example.keeper.systems.ai_quiz.repository.QuizRepository quizRepository;
+    private final com.example.keeper.systems.document.repository.DocumentReviewRepository documentReviewRepository;
 
     private void populateCounts(Course course) {
         if (course == null) return;
@@ -36,6 +37,12 @@ public class CourseServiceImpl implements CourseService {
 
         long qCount = quizRepository.findByCourseIdAndStatus(course.getId(), "PUBLISHED").size();
         course.setQuizCount((int) qCount);
+
+        Double avgRating = documentReviewRepository.getAverageRatingByCourseId(course.getId());
+        course.setAverageRating(avgRating != null ? avgRating : 0.0);
+
+        Long revCount = documentReviewRepository.getReviewCountByCourseId(course.getId());
+        course.setReviewCount(revCount != null ? revCount.intValue() : 0);
     }
 
     @Override

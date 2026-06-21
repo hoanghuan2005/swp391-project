@@ -83,6 +83,7 @@ public class SecurityConfig {
                         .hasRole("ADMIN")
 
                                                 .requestMatchers(
+                                                                "/chat-ws/**",
                                                                 "/api/auth/**",
                                                                 "/oauth2/**",
                                                                 "/login/oauth2/**",

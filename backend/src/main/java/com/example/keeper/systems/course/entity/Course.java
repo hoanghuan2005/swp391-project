@@ -53,6 +53,12 @@ public class Course extends BaseEntity {
     private int flashcardCount = 0;
 
     @Transient
+    private Double averageRating = 0.0;
+
+    @Transient
+    private int reviewCount = 0;
+
+    @Transient
     private int quizCount = 0;
 
     public int getFlashcardCount() {

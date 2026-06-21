@@ -1,6 +1,6 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
-import axiosClient from "@/api/axiosClient";
+import axiosClient, { backendBaseUrl } from "@/api/axiosClient";
 
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,9 @@ import { getFileExtension } from "@/lib/utils";
 import { CardTitle } from "@/components/ui/card";
 import { CardDescription } from "@/components/ui/card";
 import { CardFooter } from "@/components/ui/card";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import {
   Dialog,
@@ -34,7 +36,18 @@ import {
   ChevronLeft,
   ListChecks,
   Layers,
+  Send,
+  MessageSquare,
 } from "lucide-react";
+
+const REACTION_EMOJIS = {
+  LIKE: "👍",
+  LOVE: "❤️",
+  HAHA: "😆",
+  WOW: "😮",
+  SAD: "😢",
+  ANGRY: "😡",
+};
 
 export default function CourseDetailPage() {
   const { id } = useParams();
@@ -47,6 +60,358 @@ export default function CourseDetailPage() {
   const [shareOpen, setShareOpen] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+
+  const [activeTab, setActiveTab] = useState("materials");
+  const [messages, setMessages] = useState([]);
+  const [chatMessage, setChatMessage] = useState("");
+  const [currentUser, setCurrentUser] = useState(null);
+  const [isChatConnected, setIsChatConnected] = useState(false);
+  const [socket, setSocket] = useState(null);
+  const messagesEndRef = useRef(null);
+
+  // Threading and reaction state
+  const [replyMessages, setReplyMessages] = useState({});
+  const [activeReactionPicker, setActiveReactionPicker] = useState(null);
+  const [expandedReplyComments, setExpandedReplyComments] = useState({});
+  const replyInputRefs = useRef({});
+  const hideTimeoutRef = useRef(null);
+
+  // Fetch user profile for chat sender match
+  useEffect(() => {
+    const fetchProfile = async () => {
+      const token = localStorage.getItem("token");
+      if (token) {
+        try {
+          const res = await axiosClient.get("/api/profile");
+          setCurrentUser(res.data);
+        } catch (e) {
+          console.error("Failed to fetch profile for chat", e);
+        }
+      }
+    };
+    fetchProfile();
+  }, []);
+
+  // Handle WebSocket Connection and Chat History
+  useEffect(() => {
+    if (activeTab !== "chat" || !id) {
+      if (socket) {
+        socket.close();
+        setSocket(null);
+        setIsChatConnected(false);
+      }
+      return;
+    }
+
+    const fetchChatHistory = async () => {
+      try {
+        const res = await axiosClient.get(`/api/courses/${id}/messages`);
+        setMessages(res.data || []);
+      } catch (e) {
+        console.error("Failed to load chat history", e);
+      }
+    };
+
+    fetchChatHistory();
+
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    const wsBaseUrl = backendBaseUrl
+      .replace("http://", "ws://")
+      .replace("https://", "wss://");
+
+    const wsUrl = `${wsBaseUrl}/chat-ws/${id}?token=${token}`;
+    const ws = new WebSocket(wsUrl);
+
+    ws.onopen = () => {
+      setIsChatConnected(true);
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const parsed = JSON.parse(event.data);
+        if (parsed.event === "NEW_COMMENT") {
+          setMessages((prev) => [...prev, parsed.data]);
+        } else if (parsed.event === "REACTION_UPDATE") {
+          setMessages((prev) =>
+            prev.map((msg) => (msg.id === parsed.data.id ? parsed.data : msg))
+          );
+        }
+      } catch (err) {
+        console.error("Failed to parse message", err);
+      }
+    };
+
+    ws.onclose = () => {
+      setIsChatConnected(false);
+    };
+
+    ws.onerror = (err) => {
+      console.error("WebSocket error", err);
+    };
+
+    setSocket(ws);
+
+    return () => {
+      ws.close();
+      setIsChatConnected(false);
+    };
+  }, [activeTab, id]);
+
+  // Auto-scroll to bottom of chat
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages]);
+
+  const handleSendMessage = (content, parentId = null) => {
+    if (!content.trim() || !socket || socket.readyState !== WebSocket.OPEN) return;
+
+    const payload = JSON.stringify({
+      type: "COMMENT",
+      content: content.trim(),
+      parentId: parentId,
+    });
+
+    socket.send(payload);
+  };
+
+  const handleSendRootMessage = (e) => {
+    e.preventDefault();
+    if (!chatMessage.trim()) return;
+    handleSendMessage(chatMessage, null);
+    setChatMessage("");
+  };
+
+  const handleSendReplyMessage = (e, parentId) => {
+    e.preventDefault();
+    const content = replyMessages[parentId];
+    if (!content || !content.trim()) return;
+    handleSendMessage(content, parentId);
+    setReplyMessages((prev) => ({ ...prev, [parentId]: "" }));
+  };
+
+  const handleToggleReaction = (messageId, reactionType) => {
+    if (!socket || socket.readyState !== WebSocket.OPEN) return;
+
+    const payload = JSON.stringify({
+      type: "REACTION",
+      messageId: messageId,
+      reactionType: reactionType,
+    });
+
+    socket.send(payload);
+  };
+
+  const formatMessageTime = (dateStr) => {
+    if (!dateStr) return "";
+    const d = new Date(dateStr);
+    const now = new Date();
+    const isToday = d.toDateString() === now.toDateString();
+    if (isToday) {
+      return d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+    }
+    return d.toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit" }) + " " + d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+  };
+
+  const handleReplyClick = (commentId) => {
+    setExpandedReplyComments((prev) => ({ ...prev, [commentId]: true }));
+    setTimeout(() => {
+      if (replyInputRefs.current[commentId]) {
+        replyInputRefs.current[commentId].focus();
+      }
+    }, 50);
+  };
+
+  const getReactionSummary = (reactions = []) => {
+    if (!reactions || reactions.length === 0) return null;
+    const counts = {};
+    reactions.forEach((r) => {
+      counts[r.reactionType] = (counts[r.reactionType] || 0) + 1;
+    });
+    const sortedTypes = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
+    const totalCount = reactions.length;
+    return {
+      types: sortedTypes.slice(0, 3),
+      totalCount,
+      counts,
+    };
+  };
+
+  const getUserReaction = (reactions = []) => {
+    if (!currentUser || !reactions) return null;
+    const found = reactions.find((r) => r.userId === currentUser.id);
+    return found ? found.reactionType : null;
+  };
+
+  const renderMessageBubble = (msg, isReply = false) => {
+    const userReactionType = getUserReaction(msg.reactions);
+    const reactionSummary = getReactionSummary(msg.reactions);
+    const senderInitial = msg.sender?.fullName?.charAt(0).toUpperCase() || msg.sender?.username?.charAt(0).toUpperCase() || "U";
+    const senderName = msg.sender?.fullName || msg.sender?.username || msg.sender?.email || "User";
+
+    return (
+      <div key={msg.id} className={`flex gap-3 items-start ${isReply ? "mt-3 pl-3 border-l-2 border-slate-200/60 ml-2" : ""}`}>
+        {/* Avatar */}
+        <Avatar className={`${isReply ? "w-7 h-7" : "w-9 h-9"} rounded-full border shadow-sm shrink-0 mt-0.5`}>
+          <AvatarImage src={msg.sender?.avatarUrl} alt={senderName} className="object-cover" />
+          <AvatarFallback className="bg-[#f66810] text-white text-xs font-bold uppercase">
+            {senderInitial}
+          </AvatarFallback>
+        </Avatar>
+
+        <div className="flex-1 min-w-0">
+          {/* Bubble wrapper */}
+          <div className="relative inline-block max-w-[90%] bg-white border border-slate-100 rounded-2xl px-4 py-2.5 shadow-sm">
+            <span className="block text-xs font-bold text-slate-800 mb-0.5">
+              {senderName}
+            </span>
+            <p className="text-slate-700 text-[13px] leading-relaxed whitespace-pre-wrap break-words">
+              {msg.content}
+            </p>
+
+            {/* Reaction badge inside the bubble bottom right */}
+            {reactionSummary && (
+              <div className="absolute -bottom-2.5 right-3 bg-white border border-slate-100 shadow-sm rounded-full px-2 py-0.5 flex items-center gap-1 text-[11px] select-none z-10">
+                <div className="flex -space-x-1">
+                  {reactionSummary.types.map((type) => (
+                    <span key={type} className="text-xs" title={type}>
+                      {REACTION_EMOJIS[type]}
+                    </span>
+                  ))}
+                </div>
+                <span className="text-[10px] font-extrabold text-slate-500 ml-0.5">
+                  {reactionSummary.totalCount}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Action Row */}
+          <div className="flex items-center gap-2.5 mt-1 ml-2 text-[10px] text-slate-400 select-none">
+            <span className="font-semibold">{formatMessageTime(msg.createdAt)}</span>
+            <span>•</span>
+
+            {/* Like with hover emoji picker */}
+            <div
+              className="relative inline-block"
+              onMouseEnter={() => {
+                if (hideTimeoutRef.current) {
+                  clearTimeout(hideTimeoutRef.current);
+                  hideTimeoutRef.current = null;
+                }
+                setActiveReactionPicker(msg.id);
+              }}
+              onMouseLeave={() => {
+                hideTimeoutRef.current = setTimeout(() => {
+                  setActiveReactionPicker(null);
+                }, 300);
+              }}
+            >
+              <button
+                onClick={() => {
+                  if (userReactionType) {
+                    handleToggleReaction(msg.id, userReactionType);
+                  } else {
+                    handleToggleReaction(msg.id, "LIKE");
+                  }
+                }}
+                className={`font-bold transition-colors cursor-pointer hover:underline ${
+                  userReactionType ? "text-[#f66810]" : "text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                {userReactionType ? `${REACTION_EMOJIS[userReactionType]} ${userReactionType.toLowerCase()}` : "Thích"}
+              </button>
+
+              {activeReactionPicker === msg.id && (
+                <div className="absolute bottom-full left-0 mb-1.5 bg-white border border-slate-200/80 rounded-full shadow-lg px-2 py-1 flex gap-2.5 z-50 animate-in fade-in slide-in-from-bottom-2 duration-150">
+                  {Object.entries(REACTION_EMOJIS).map(([type, emoji]) => (
+                    <button
+                      key={type}
+                      onClick={() => {
+                        handleToggleReaction(msg.id, type);
+                        setActiveReactionPicker(null);
+                        if (hideTimeoutRef.current) {
+                          clearTimeout(hideTimeoutRef.current);
+                          hideTimeoutRef.current = null;
+                        }
+                      }}
+                      className="text-lg hover:scale-130 transition-transform cursor-pointer p-0.5"
+                      title={type}
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Reply action (only on root comments) */}
+            {!isReply && (
+              <>
+                <span>•</span>
+                <button
+                  onClick={() => handleReplyClick(msg.id)}
+                  className="font-bold text-slate-500 hover:text-slate-800 transition-colors hover:underline cursor-pointer"
+                >
+                  Phản hồi
+                </button>
+              </>
+            )}
+          </div>
+
+          {/* If it's a root comment, render replies list and reply box */}
+          {!isReply && (
+            <div className="mt-3 space-y-3">
+              {/* Replies list */}
+              {messages.filter((m) => m.parentId === msg.id).map((reply) =>
+                renderMessageBubble(reply, true)
+              )}
+
+              {/* Reply Input Box */}
+              {(expandedReplyComments[msg.id] || messages.filter((m) => m.parentId === msg.id).length > 0) && (
+                <form
+                  onSubmit={(e) => handleSendReplyMessage(e, msg.id)}
+                  className="flex items-center gap-2 mt-2.5 pl-3"
+                >
+                  <Avatar className="w-6.5 h-6.5 rounded-full border shadow-xs shrink-0">
+                    <AvatarImage src={currentUser?.avatarUrl} alt={currentUser?.fullName || "User"} className="object-cover" />
+                    <AvatarFallback className="bg-orange-500 text-white text-[10px] font-bold uppercase">
+                      {(currentUser?.fullName || currentUser?.username || "U").charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 flex gap-1.5 items-center">
+                    <Input
+                      ref={(el) => (replyInputRefs.current[msg.id] = el)}
+                      placeholder="Viết câu trả lời..."
+                      value={replyMessages[msg.id] || ""}
+                      onChange={(e) =>
+                        setReplyMessages((prev) => ({
+                          ...prev,
+                          [msg.id]: e.target.value,
+                        }))
+                      }
+                      disabled={!isChatConnected}
+                      className="flex-1 rounded-full h-8 border-slate-200/80 focus-visible:ring-[#f66810] text-[11px] px-3.5 bg-slate-50/30"
+                    />
+                    <Button
+                      type="submit"
+                      disabled={!(replyMessages[msg.id] || "").trim() || !isChatConnected}
+                      className="rounded-full bg-[#f66810] hover:bg-[#de5b0b] text-white h-8 w-8 p-0 shrink-0 shadow-xs cursor-pointer flex items-center justify-center"
+                    >
+                      <Send className="w-3 h-3" />
+                    </Button>
+                  </div>
+                </form>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   const [favoritedIds, setFavoritedIds] = useState([]);
   const [favoritedFlashcardIds, setFavoritedFlashcardIds] = useState([]);
@@ -356,14 +721,16 @@ export default function CourseDetailPage() {
                   </div>
 
                   <div className="flex items-center gap-2 bg-white border border-orange-100/90 rounded-full px-3.5 py-1 text-xs font-medium text-slate-650 shadow-sm">
-                    <Star className="w-4 h-4 text-[#f66810]" />
-                    <span>4.8 ratings</span>
+                    <Star className="w-4 h-4 text-[#f66810] fill-[#f66810]" />
+                    <span>
+                      {course.averageRating ? course.averageRating.toFixed(1) : "0.0"}{" "}
+                      ({course.reviewCount || 0})
+                    </span>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* RIGHT COLUMN: ACTIONS & SEARCH (Gộp chung thành hàng ngang cân đối) */}
             <div className="flex flex-col items-center gap-3 w-full xl:w-auto justify-start xl:justify-end shrink-0 pt-2 xl:pt-0">
               <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto justify-start xl:justify-end shrink-0 pt-2 xl:pt-0">
                 <Button
@@ -391,7 +758,7 @@ export default function CourseDetailPage() {
               </div>
 
               {/* SEARCH INPUT (Chiều cao h-11 đồng bộ) */}
-              <div className="relative w-full sm:w-[260px] md:w-[422px] pt-1">
+              <div className="relative w-full sm:w-[260px] md:w-[428px] pt-1">
                 <Search className="absolute left-4.5 top-1/2 transform -translate-y-1/2 w-4.5 h-4.5 text-slate-400" />
                 <Input
                   placeholder={`Search in ${course.code}...`}
@@ -406,8 +773,28 @@ export default function CourseDetailPage() {
         </div>
       </div>
 
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="bg-slate-100/80 px-1 py-4 rounded-2xl flex w-max gap-1 mb-5 border border-slate-200/50">
+          <TabsTrigger
+            value="materials"
+            className="rounded-xl px-4 py-3 text-xs font-bold transition-all data-[state=active]:bg-white data-[state=active]:text-[#f66810] data-[state=active]:shadow-sm text-slate-500 hover:text-slate-800 cursor-pointer"
+          >
+            <BookOpen className="w-4 h-4 mr-1" />
+            Study Materials
+          </TabsTrigger>
+          <TabsTrigger
+            value="chat"
+            className="rounded-xl px-4 py-3 text-xs font-bold transition-all data-[state=active]:bg-white data-[state=active]:text-[#f66810] data-[state=active]:shadow-sm text-slate-500 hover:text-slate-800 cursor-pointer"
+          >
+            <MessageSquare className="w-4 h-4 mr-1" />
+            Q&A Chat Room
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="materials" className="space-y-6 mt-0">
+
       {/* TRENDING */}
-      <section className="mt-10">
+      <section className="">
         <div className="flex items-center justify-between mb-5">
           <div className="flex flex-col mb-0.5">
             <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2.5">
@@ -653,6 +1040,71 @@ export default function CourseDetailPage() {
           </div>
         </section>
       )}
+      </TabsContent>
+
+      <TabsContent value="chat" className="mt-0">
+        <Card className="rounded-[28px] border-orange-100 shadow-sm bg-white overflow-hidden flex flex-col h-[650px]">
+          {/* Chat Header */}
+          <div className="px-6 py-4 -mt-4 border-b border-orange-50 bg-gradient-to-r from-orange-500/10 to-transparent flex items-center justify-between">
+            <div className="">
+              <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
+                <MessageSquare className="w-5 h-5 text-[#f66810]" />
+                Phòng thảo luận - {course.code}
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Hỏi đáp, trao đổi bài tập và tài liệu học tập cùng bạn bè cùng lớp.
+              </p>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className={`w-2.5 h-2.5 rounded-full ${isChatConnected ? "bg-green-500 animate-pulse" : "bg-slate-300"}`} />
+              <span className="text-xs font-bold text-slate-500">
+                {isChatConnected ? "Online" : "Connecting..."}
+              </span>
+            </div>
+          </div>
+
+          {/* Chat Body */}
+          <div className="flex-1 p-6 overflow-y-auto bg-slate-50/30 space-y-5">
+            {messages.filter((m) => !m.parentId).length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-center p-8">
+                <MessageSquare className="w-12 h-12 text-slate-300 mb-2" />
+                <p className="text-sm font-semibold text-slate-700">Chưa có cuộc hội thoại nào</p>
+                <p className="text-xs text-slate-400 mt-1">Gửi tin nhắn đầu tiên để bắt đầu thảo luận!</p>
+              </div>
+            ) : (
+              messages.filter((m) => !m.parentId).map((msg) => renderMessageBubble(msg, false))
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+
+          {/* Chat Input */}
+          <div className="p-5 -mb-4 border-t border-slate-100 bg-white">
+            {localStorage.getItem("token") ? (
+              <form onSubmit={handleSendRootMessage} className="flex gap-2">
+                <Input
+                  placeholder="Đặt câu hỏi hoặc bắt đầu chủ đề thảo luận mới..."
+                  value={chatMessage}
+                  onChange={(e) => setChatMessage(e.target.value)}
+                  disabled={!isChatConnected}
+                  className="flex-1 rounded-full h-11 border-slate-200/80 focus-visible:ring-[#f66810] text-sm px-5 bg-slate-50/50"
+                />
+                <Button
+                  type="submit"
+                  disabled={!chatMessage.trim() || !isChatConnected}
+                  className="rounded-full bg-[#f66810] hover:bg-[#de5b0b] text-white h-11 w-11 p-0 shrink-0 shadow-md shadow-orange-500/15 cursor-pointer"
+                >
+                  <Send className="w-4.5 h-4.5" />
+                </Button>
+              </form>
+            ) : (
+              <div className="text-center py-2 text-sm font-semibold text-slate-500">
+                Vui lòng <Link to="/login" className="text-[#f66810] underline">đăng nhập</Link> để tham gia thảo luận.
+              </div>
+            )}
+          </div>
+        </Card>
+      </TabsContent>
+      </Tabs>
 
       <Dialog open={shareOpen} onOpenChange={setShareOpen}>
         <DialogContent className="sm:max-w-xl rounded-[28px] border-0 p-0 overflow-hidden">

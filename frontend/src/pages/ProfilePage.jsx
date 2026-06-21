@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import axiosClient from "@/api/axiosClient";
 import Survey from "@/pages/Survey";
 import useAiUsage from "@/hooks/useAiUsage";
+import { toast } from "sonner";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,14 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 import {
   Select,
@@ -157,7 +166,7 @@ export default function ProfilePage() {
     if (result?.completed) {
       await loadProfileAndOptions();
 
-      alert("Đã đồng bộ dữ liệu khảo sát vào hồ sơ 🎉");
+      toast.success("Đã đồng bộ dữ liệu khảo sát vào hồ sơ 🎉");
     }
   };
 
@@ -191,9 +200,19 @@ export default function ProfilePage() {
     fileInputRef.current?.click();
   };
 
-  const handleSaveProfile = async (e) => {
-    e.preventDefault();
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    setConfirmOpen(true);
+  };
+
+  const handleConfirmSave = async () => {
+    setConfirmOpen(false);
+    await performSaveProfile();
+  };
+
+  const performSaveProfile = async () => {
     try {
       setIsLoading(true);
 
@@ -234,11 +253,11 @@ export default function ProfilePage() {
 
       setSelectedFile(null);
 
-      alert("Cập nhật hồ sơ thành công 🎉");
+      toast.success("Cập nhật hồ sơ thành công 🎉");
     } catch (error) {
       console.error(error);
 
-      alert("Không thể cập nhật hồ sơ!");
+      toast.error("Không thể cập nhật hồ sơ!");
     } finally {
       setIsLoading(false);
     }
@@ -369,7 +388,7 @@ export default function ProfilePage() {
             </CardHeader>
 
             <CardContent className="px-6 -mt-[3px]">
-              <form onSubmit={handleSaveProfile} className="space-y-4">
+              <form onSubmit={handleSubmit} className="space-y-4">
                 {/* FULL NAME */}
                 <div className="space-y-2">
                   <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
@@ -578,6 +597,35 @@ export default function ProfilePage() {
       </div>
 
       {showSurvey && <Survey onClose={handleSurveyClose} />}
+
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent className="sm:max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-slate-800 flex items-center gap-2">
+              <User className="w-5 h-5 text-[#f26522]" />
+              Xác nhận cập nhật
+            </DialogTitle>
+            <DialogDescription className="text-slate-500 pt-2">
+              Bạn có chắc chắn muốn lưu các thay đổi đối với hồ sơ cá nhân của mình không?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-6 flex gap-3 sm:justify-end">
+            <Button
+              variant="outline"
+              onClick={() => setConfirmOpen(false)}
+              className="rounded-xl"
+            >
+              Hủy
+            </Button>
+            <Button
+              onClick={handleConfirmSave}
+              className="rounded-xl bg-[#f26522] hover:bg-[#d95316] text-white font-semibold"
+            >
+              Cập nhật
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
