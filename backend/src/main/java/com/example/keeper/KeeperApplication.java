@@ -17,8 +17,11 @@ public class KeeperApplication {
 
 	private static void loadEnv() {
 		try {
-			if (Files.exists(Paths.get(".env"))) {
-				List<String> lines = Files.readAllLines(Paths.get(".env"));
+			java.nio.file.Path envPath = Paths.get(".env").toAbsolutePath();
+			System.out.println("[ENV LOAD] Checking .env at: " + envPath);
+			if (Files.exists(envPath)) {
+				System.out.println("[ENV LOAD] Found .env file, reading lines...");
+				List<String> lines = Files.readAllLines(envPath);
 				for (String line : lines) {
 					line = line.trim();
 					if (line.isEmpty() || line.startsWith("#")) {
@@ -36,13 +39,16 @@ public class KeeperApplication {
 						}
 						if (System.getProperty(key) == null && System.getenv(key) == null) {
 							System.setProperty(key, value);
+							System.out.println("[ENV LOAD] Loaded property: " + key);
 						}
 					}
 				}
+			} else {
+				System.out.println("[ENV LOAD] WARNING: .env file does not exist at " + envPath);
 			}
 		} catch (IOException e) {
-			// Ignore or log
+			System.err.println("[ENV LOAD] ERROR reading .env file: " + e.getMessage());
+			e.printStackTrace();
 		}
 	}
-
 }

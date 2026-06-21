@@ -439,6 +439,17 @@ public class DocumentServiceImpl implements DocumentService {
         String resourceType = resolveResourceType(document);
         String mimeType = document.getMimeType();
 
+        Double avgRating = 0.0;
+        Integer revCount = 0;
+        if (document.getReviews() != null && !document.getReviews().isEmpty()) {
+            double sum = 0;
+            for (com.example.keeper.systems.document.entity.DocumentReview r : document.getReviews()) {
+                sum += r.getRating();
+            }
+            avgRating = sum / document.getReviews().size();
+            revCount = document.getReviews().size();
+        }
+
         return DocumentDetailResponse.builder()
                 .id(document.getId())
                 .title(document.getTitle())
@@ -486,6 +497,8 @@ public class DocumentServiceImpl implements DocumentService {
                                 .map(Tag::getName)
                                 .sorted(String::compareToIgnoreCase)
                                 .toList())
+                .averageRating(avgRating)
+                .reviewCount(revCount)
                 .build();
     }
 
@@ -493,6 +506,17 @@ public class DocumentServiceImpl implements DocumentService {
         String previewUrl = resolvePreviewUrl(document);
         String downloadUrl = resolveDownloadUrl(document);
         String resourceType = resolveResourceType(document);
+
+        Double avgRating = 0.0;
+        Integer revCount = 0;
+        if (document.getReviews() != null && !document.getReviews().isEmpty()) {
+            double sum = 0;
+            for (com.example.keeper.systems.document.entity.DocumentReview r : document.getReviews()) {
+                sum += r.getRating();
+            }
+            avgRating = sum / document.getReviews().size();
+            revCount = document.getReviews().size();
+        }
 
         return DocumentResponse.builder()
                 .id(document.getId())
@@ -533,6 +557,8 @@ public class DocumentServiceImpl implements DocumentService {
                                 .map(Tag::getName)
                                 .sorted(String::compareToIgnoreCase)
                                 .toList())
+                .averageRating(avgRating)
+                .reviewCount(revCount)
                 .build();
     }
 

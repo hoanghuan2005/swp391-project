@@ -30,6 +30,8 @@ public class DocumentDetailResponse {
     private CourseInfo course;
     private UserInfo uploadedBy;
     private List<String> tags;
+    private Double averageRating;
+    private Integer reviewCount;
 
     @Data
     @Builder

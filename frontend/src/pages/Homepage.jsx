@@ -22,6 +22,7 @@ import {
   UserCheck,
   GraduationCap,
   Users,
+  Star,
 } from "lucide-react";
 import axiosClient from "@/api/axiosClient";
 import { askAi, createAiConversation } from "@/api/aiApi";
@@ -479,10 +480,33 @@ export default function Homepage() {
                       >
                         {doc.title || "Untitled Document"}
                       </CardTitle>
-                      <CardDescription className="text-xs text-slate-500 font-medium mb-3 flex items-center gap-1.5">
-                        <BookOpen className="w-3.5 h-3.5" />{" "}
-                        {doc.course?.code || "General"}
-                      </CardDescription>
+                      <div className="flex items-center justify-between mb-3">
+                        <CardDescription className="text-xs text-slate-500 font-medium flex items-center gap-1.5 m-0">
+                          <BookOpen className="w-3.5 h-3.5" />{" "}
+                          {doc.course?.code || "General"}
+                        </CardDescription>
+
+                        {/* Rating Stars */}
+                        <div className="flex items-center gap-1">
+                          <div className="flex gap-0.5">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <Star
+                                key={star}
+                                className={`w-3.5 h-3.5 ${
+                                  star <= Math.round(doc.averageRating || 0)
+                                    ? "fill-yellow-400 text-yellow-400"
+                                    : "text-slate-200"
+                                }`}
+                              />
+                            ))}
+                          </div>
+                          {doc.reviewCount > 0 && (
+                            <span className="text-[11px] text-slate-400 font-medium">
+                              ({doc.reviewCount})
+                            </span>
+                          )}
+                        </div>
+                      </div>
                       <div className="text-[11px] text-slate-400 mt-auto flex justify-between items-center">
                         <span>
                           {new Date(doc.createdAt).toLocaleDateString("en-GB")}
