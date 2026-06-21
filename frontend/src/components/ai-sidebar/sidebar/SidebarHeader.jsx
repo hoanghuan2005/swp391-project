@@ -8,7 +8,7 @@ const SidebarHeader = ({ config }) => {
   return (
     <div className="px-5 py-4 border-b border-slate-100 shrink-0">
       <div className="flex items-center gap-2">
-        {(config.type === "flashcard" || config.type === "quiz") && (
+        {(config.type === "flashcard" || config.type === "quiz" || config.type === "mindmap") && (
           <button
             onClick={() => navigate("/ai-tools")}
             className="flex items-center justify-center -ml-2"

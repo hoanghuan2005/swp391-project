@@ -9,6 +9,8 @@ import com.example.keeper.systems.ai_mindmap.dto.response.MindMapResponse;
 import com.example.keeper.systems.ai_mindmap.entity.MindMap;
 import com.example.keeper.systems.ai_mindmap.enums.MindMapStatus;
 import com.example.keeper.systems.ai_mindmap.repository.MindMapRepository;
+import com.example.keeper.systems.document.entity.Document;
+import com.example.keeper.systems.document.repository.DocumentRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -26,6 +28,7 @@ public class MindMapServiceImpl implements MindMapService {
     private final GroqService groqService;
     private final ObjectMapper objectMapper;
     private final AiUsageService aiUsageService;
+    private final DocumentRepository documentRepository;
 
     @Override
     public MindMapResponse generate(UUID documentId) {
@@ -58,9 +61,18 @@ public class MindMapServiceImpl implements MindMapService {
         validateJson(aiResponse);
         aiUsageService.recordUsage(email, AiUsageFeature.MINDMAP_GENERATION);
 
+        String title = "Generated MindMap";
+        try {
+            title = documentRepository.findById(documentId)
+                    .map(Document::getTitle)
+                    .orElse("Generated MindMap");
+        } catch (Exception e) {
+            // ignore
+        }
+
         MindMap mindMap = MindMap.builder()
                 .documentId(documentId)
-                .title("Generated MindMap")
+                .title(title)
                 .content(aiResponse)
                 .status(MindMapStatus.COMPLETED)
                 .build();
@@ -134,6 +146,19 @@ public class MindMapServiceImpl implements MindMapService {
                     "AI returned invalid JSON"
             );
         }
+    }
+
+    @Override
+    public List<MindMapResponse> getUserMindMaps() {
+        String email = SecurityContextHolder.getContext()
+                .getAuthentication()
+                .getName();
+
+        List<MindMap> mindMaps = mindMapRepository.findAllByUserEmailOrderByCreatedAtDesc(email);
+
+        return mindMaps.stream()
+                .map(this::mapToResponse)
+                .collect(java.util.stream.Collectors.toList());
     }
 
     private MindMapResponse mapToResponse(

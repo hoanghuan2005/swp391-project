@@ -16,7 +16,8 @@ export default function ChatInterface({
   showUploadButton = false,
   isUploading = false,
   onUploadClick,
-  contextBadgeComponent
+  contextBadgeComponent,
+  rightElement
 }) {
   const [input, setInput] = useState("");
   const messagesEndRef = useRef(null);
@@ -34,16 +35,21 @@ export default function ChatInterface({
   return (
     <div className="flex-1 flex flex-col relative bg-slate-50 h-full">
       {/* HEADER */}
-      <div className="h-[73px] px-6 border-b border-slate-200 bg-white flex items-center justify-between shrink-0 sticky top-0 z-10">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-[#f26522]/10 rounded-lg">
+      <div className="h-[73px] px-6 border-b border-slate-200 bg-white flex items-center justify-between shrink-0 sticky top-0 z-10 gap-4">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="p-2 bg-[#f26522]/10 rounded-lg shrink-0">
             <Sparkles className="w-5 h-5 text-[#f26522]" />
           </div>
-          <div>
-            <h1 className="text-[16px] font-bold text-slate-800">{title}</h1>
-            <p className="text-xs text-slate-400">{subtitle}</p>
+          <div className="min-w-0">
+            <h1 className="text-[16px] font-bold text-slate-800 truncate">{title}</h1>
+            <p className="text-xs text-slate-400 truncate">{subtitle}</p>
           </div>
         </div>
+        {rightElement && (
+          <div className="shrink-0">
+            {rightElement}
+          </div>
+        )}
       </div>
 
       {/* CHAT BODY */}

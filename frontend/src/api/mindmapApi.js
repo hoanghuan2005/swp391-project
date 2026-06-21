@@ -18,3 +18,8 @@ export const deleteMindMap = async (mindMapId) => {
   const response = await axiosClient.delete(`/api/v1/mindmaps/${mindMapId}`);
   return response.data;
 };
+
+export const getUserMindMaps = async () => {
+  const response = await axiosClient.get("/api/v1/mindmaps");
+  return response.data;
+};

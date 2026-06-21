@@ -392,7 +392,7 @@ export default function AIQuizGenerator() {
   const activeDocument = file || libraryDoc;
 
   return (
-    <div className="h-[calc(100vh-68px)] overflow-hidden bg-white shadow-sm -mx-8 -my-6 flex">
+    <div className="h-[calc(100vh-80px)] overflow-hidden bg-white shadow-sm -mx-8 -my-6 flex">
       {/* SIDEBAR */}
       <AISidebar
         type="quiz"
@@ -431,6 +431,13 @@ export default function AIQuizGenerator() {
             icon={ListChecks}
             title="AI Quiz Generator"
             description="Create quizzes instantly from any topic or document. Perfect for study sessions and self-assessment."
+            rightElement={
+              <AiUsageBadge
+                subscriptionTier={subscriptionTier}
+                remainingUsage={remainingUsage}
+                loading={aiUsageLoading}
+              />
+            }
           />
 
           {viewMode === VIEW_MODE.GENERATE && (
@@ -459,12 +466,6 @@ export default function AIQuizGenerator() {
                   <span className="text-xs text-slate-500 ml-2">
                     {questionCount} Questions • {difficulty}
                   </span>
-
-                  <AiUsageBadge
-                    subscriptionTier={subscriptionTier}
-                    remainingUsage={remainingUsage}
-                    loading={aiUsageLoading}
-                  />
                 </>
               }
             />

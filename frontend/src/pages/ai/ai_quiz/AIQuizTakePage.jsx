@@ -167,7 +167,7 @@ export default function AIQuizTakePage() {
     totalQuestions === 0 ? 0 : (answeredCount / totalQuestions) * 100;
 
   return (
-    <div className="h-[calc(100vh-68px)] overflow-hidden bg-white shadow-sm -mx-8 -my-6 flex">
+    <div className="h-[calc(100vh-80px)] overflow-hidden bg-white shadow-sm -mx-8 -my-6 flex">
       {/* SIDEBAR */}
       <AISidebar
         type="quiz"

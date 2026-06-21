@@ -34,10 +34,11 @@ import AIToolHeader from "@/components/ai-sidebar/AIToolHeader";
 import AIGeneratorInput from "@/components/ai-sidebar/AIGeneratorInput";
 import useDocuments from "@/hooks/useDocuments";
 import axiosClient, { backendBaseUrl } from "@/api/axiosClient";
-import { generateMindMap, getMindMapByDocument } from "@/api/mindmapApi";
+import { generateMindMap, getMindMapByDocument, getUserMindMaps } from "@/api/mindmapApi";
 import { toast } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import useAiUsage from "@/hooks/useAiUsage";
+import AiUsageBadge from "@/components/ai-usage/AiUsageBadge";
 import { isAiQuotaExceeded } from "@/api/aiUsageApi";
 import useDocumentQuota from "@/hooks/useDocumentQuota";
 import { isDocumentQuotaExceeded } from "@/api/documentQuotaApi";
@@ -399,7 +400,12 @@ function AIMindMapPageInner() {
     loading: documentsLoading,
     refreshDocuments,
   } = useDocuments();
-  const { refreshAiUsage } = useAiUsage();
+  const {
+    subscriptionTier,
+    remainingUsage,
+    loading: aiUsageLoading,
+    refreshAiUsage,
+  } = useAiUsage();
   const { refreshDocumentQuota } = useDocumentQuota();
   const [searchDocQuery, setSearchDocQuery] = useState("");
 
@@ -409,6 +415,18 @@ function AIMindMapPageInner() {
 
   const VIEW_MODE = { GENERATE: "GENERATE", VIEW: "VIEW" };
   const [viewMode, setViewMode] = useState(VIEW_MODE.GENERATE);
+
+  useEffect(() => {
+    const fetchHistory = async () => {
+      try {
+        const history = await getUserMindMaps();
+        setMindMapHistory(history || []);
+      } catch (error) {
+        console.error("Failed to fetch mind map history:", error);
+      }
+    };
+    fetchHistory();
+  }, []);
 
   // React Flow state
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
@@ -659,6 +677,7 @@ function AIMindMapPageInner() {
       toast.success("Mind map generated successfully!");
 
       setSelectedMindMap(result);
+      setMindMapHistory((prev) => [result, ...prev]);
       renderMindMap(result.content);
       setViewMode(VIEW_MODE.VIEW);
 
@@ -698,18 +717,14 @@ function AIMindMapPageInner() {
   };
 
   /* ── Select from history ─────────────── */
-  const handleSelectMindMap = async (item) => {
+  const handleSelectMindMap = (item) => {
     try {
-      setIsGenerating(true);
-      const result = await getMindMapByDocument(item.documentId);
-      setSelectedMindMap(result);
-      renderMindMap(result.content);
+      setSelectedMindMap(item);
+      renderMindMap(item.content);
       setViewMode(VIEW_MODE.VIEW);
     } catch (error) {
       console.error("Failed to load mind map:", error);
       toast.error("Failed to load mind map");
-    } finally {
-      setIsGenerating(false);
     }
   };
 
@@ -743,12 +758,13 @@ function AIMindMapPageInner() {
   );
 
   return (
-    <div className="h-[calc(100vh-68px)] overflow-hidden bg-white shadow-sm -mx-8 -my-6 flex">
+    <div className="h-[calc(100vh-80px)] overflow-hidden bg-white shadow-sm -mx-8 -my-6 flex">
       {/* SIDEBAR */}
       <AISidebar
         type="mindmap"
         histories={mindMapHistory}
         documents={uploadedDocuments}
+        selectedItem={selectedMindMap}
         onSelectItem={handleSelectMindMap}
         onDeleteItem={handleDeleteMindMap}
         onCreate={() => {
@@ -791,8 +807,21 @@ function AIMindMapPageInner() {
         <div className="px-6 pt-6 pb-0 shrink-0">
           <AIToolHeader
             icon={Brain}
-            title="AI Mind Map Generator"
-            description="Transform your documents into interactive mind maps. Visualize and explore knowledge structures."
+            title={viewMode === VIEW_MODE.VIEW && selectedMindMap ? `Mind Map: ${selectedMindMap.title}` : "AI Mind Map Generator"}
+            description={viewMode === VIEW_MODE.VIEW && selectedMindMap ? "Visualized from document context." : "Transform your documents into interactive mind maps. Visualize and explore knowledge structures."}
+            onBack={viewMode === VIEW_MODE.VIEW ? () => {
+              setViewMode(VIEW_MODE.GENERATE);
+              setSelectedMindMap(null);
+              setNodes([]);
+              setEdges([]);
+            } : null}
+            rightElement={
+              <AiUsageBadge
+                subscriptionTier={subscriptionTier}
+                remainingUsage={remainingUsage}
+                loading={aiUsageLoading}
+              />
+            }
           />
         </div>
 
@@ -810,6 +839,17 @@ function AIMindMapPageInner() {
               onGenerate={handleGenerate}
               isGenerating={isGenerating}
               disabled={!file && !libraryDoc}
+              hideTextTab={true}
+              footerLeft={
+                <button
+                  type="button"
+                  onClick={() => importInputRef.current?.click()}
+                  className="flex h-10 items-center gap-1.5 rounded-full border border-slate-200 bg-white hover:bg-slate-50 px-4 text-xs font-bold text-slate-600 transition shadow-sm cursor-pointer"
+                >
+                  <Upload className="w-3.5 h-3.5 text-slate-500" />
+                  <span>Import JSON</span>
+                </button>
+              }
             />
           </div>
         )}
@@ -824,103 +864,105 @@ function AIMindMapPageInner() {
         />
 
         {/* ReactFlow Canvas or Empty State */}
-        <div className="flex-1 relative">
-          {viewMode === VIEW_MODE.VIEW && nodes.length > 0 ? (
-            <>
-              {/* Toolbar */}
-              <div className="absolute top-3 left-3 right-3 z-10 flex items-center justify-between">
-                {/* Left side */}
-                <div className="flex items-center gap-2">
-                  {selectedMindMap && (
-                    <div className="rounded-xl bg-white/90 border border-slate-200 px-3 py-2 text-sm text-slate-600 shadow-sm backdrop-blur-sm">
-                      <span className="font-medium">{selectedMindMap.title}</span>
-                      <span className="ml-2 text-xs text-slate-400">
-                        {nodes.length} nodes
-                      </span>
-                    </div>
-                  )}
+        {viewMode === VIEW_MODE.VIEW && (
+          <div className="flex-1 relative">
+            {nodes.length > 0 ? (
+              <>
+                {/* Toolbar */}
+                <div className="absolute top-3 left-3 right-3 z-10 flex items-center justify-between">
+                  {/* Left side */}
+                  <div className="flex items-center gap-2">
+                    {selectedMindMap && (
+                      <div className="rounded-xl bg-white/90 border border-slate-200 px-3 py-2 text-sm text-slate-600 shadow-sm backdrop-blur-sm">
+                        <span className="font-medium">{selectedMindMap.title}</span>
+                        <span className="ml-2 text-xs text-slate-400">
+                          {nodes.length} nodes
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Right side: Export / Import */}
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => importInputRef.current?.click()}
+                      className="flex items-center gap-1.5 rounded-xl bg-white/90 border border-slate-200 px-3.5 py-2 text-sm font-medium text-slate-600 shadow-sm backdrop-blur-sm hover:bg-white transition"
+                    >
+                      <Upload className="h-4 w-4" />
+                      Import JSON
+                    </button>
+                    <ExportDropdown
+                      onExportPNG={handleExportPNG}
+                      onExportPDF={handleExportPDF}
+                      onExportJSON={handleExportJSON}
+                      isExporting={isExporting}
+                    />
+                  </div>
                 </div>
 
-                {/* Right side: Export / Import */}
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => importInputRef.current?.click()}
-                    className="flex items-center gap-1.5 rounded-xl bg-white/90 border border-slate-200 px-3.5 py-2 text-sm font-medium text-slate-600 shadow-sm backdrop-blur-sm hover:bg-white transition"
-                  >
-                    <Upload className="h-4 w-4" />
-                    Import JSON
-                  </button>
-                  <ExportDropdown
-                    onExportPNG={handleExportPNG}
-                    onExportPDF={handleExportPDF}
-                    onExportJSON={handleExportJSON}
-                    isExporting={isExporting}
+                <ReactFlow
+                  nodes={nodes}
+                  edges={edges}
+                  onNodesChange={onNodesChange}
+                  onEdgesChange={onEdgesChange}
+                  nodeTypes={nodeTypes}
+                  defaultEdgeOptions={defaultEdgeOptions}
+                  fitView
+                  fitViewOptions={{ padding: 0.3, maxZoom: 1.2 }}
+                  minZoom={0.2}
+                  maxZoom={2}
+                  attributionPosition="bottom-left"
+                  proOptions={{ hideAttribution: true }}
+                  style={{ background: "#fafbfc" }}
+                >
+                  <Controls
+                    position="bottom-right"
+                    style={{
+                      display: "flex",
+                      flexDirection: "row",
+                      gap: 4,
+                      background: "white",
+                      borderRadius: 12,
+                      border: "1px solid #e2e8f0",
+                      padding: 4,
+                      boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+                    }}
                   />
-                </div>
-              </div>
-
-              <ReactFlow
-                nodes={nodes}
-                edges={edges}
-                onNodesChange={onNodesChange}
-                onEdgesChange={onEdgesChange}
-                nodeTypes={nodeTypes}
-                defaultEdgeOptions={defaultEdgeOptions}
-                fitView
-                fitViewOptions={{ padding: 0.3, maxZoom: 1.2 }}
-                minZoom={0.2}
-                maxZoom={2}
-                attributionPosition="bottom-left"
-                proOptions={{ hideAttribution: true }}
-                style={{ background: "#fafbfc" }}
-              >
-                <Controls
-                  position="bottom-right"
-                  style={{
-                    display: "flex",
-                    flexDirection: "row",
-                    gap: 4,
-                    background: "white",
-                    borderRadius: 12,
-                    border: "1px solid #e2e8f0",
-                    padding: 4,
-                    boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
-                  }}
-                />
-                <MiniMap
-                  position="bottom-left"
-                  style={{
-                    background: "#f8fafc",
-                    border: "1px solid #e2e8f0",
-                    borderRadius: 12,
-                  }}
-                  nodeColor={(node) => {
-                    const depth = node.data?.depth || 0;
-                    const colors = [
-                      "#f26522",
-                      "#6366f1",
-                      "#0ea5e9",
-                      "#10b981",
-                      "#94a3b8",
-                    ];
-                    return colors[Math.min(depth, colors.length - 1)];
-                  }}
-                  maskColor="rgba(0,0,0,0.08)"
-                />
-                <Background
-                  color="#e2e8f0"
-                  gap={20}
-                  size={1}
-                  variant="dots"
-                />
-              </ReactFlow>
-            </>
-          ) : (
-            !isGenerating && viewMode !== VIEW_MODE.VIEW && (
-              <EmptyState onImport={() => importInputRef.current?.click()} />
-            )
-          )}
-        </div>
+                  <MiniMap
+                    position="bottom-left"
+                    style={{
+                      background: "#f8fafc",
+                      border: "1px solid #e2e8f0",
+                      borderRadius: 12,
+                    }}
+                    nodeColor={(node) => {
+                      const depth = node.data?.depth || 0;
+                      const colors = [
+                        "#f26522",
+                        "#6366f1",
+                        "#0ea5e9",
+                        "#10b981",
+                        "#94a3b8",
+                      ];
+                      return colors[Math.min(depth, colors.length - 1)];
+                    }}
+                    maskColor="rgba(0,0,0,0.08)"
+                  />
+                  <Background
+                    color="#e2e8f0"
+                    gap={20}
+                    size={1}
+                    variant="dots"
+                  />
+                </ReactFlow>
+              </>
+            ) : (
+              !isGenerating && (
+                <EmptyState onImport={() => importInputRef.current?.click()} />
+              )
+            )}
+          </div>
+        )}
       </div>
       <QuotaExceededDialog
         open={quotaDialog.open}

@@ -348,7 +348,7 @@ export default function AskAIPage() {
   });
 
   return (
-    <div className="h-[calc(102vh-80px)] flex overflow-hidden bg-[#fafafa] rounded-xl -mx-8 -my-6">
+    <div className="h-[calc(100vh-80px)] flex overflow-hidden bg-[#fafafa] rounded-xl -mx-8 -my-6">
       {/* SIDEBAR */}
       <AISidebar
         type="ask-ai"
@@ -399,14 +399,16 @@ export default function AskAIPage() {
             </p>
           </div>
         }
+        rightElement={
+          <AiUsageBadge
+            subscriptionTier={subscriptionTier}
+            remainingUsage={remainingUsage}
+            loading={aiUsageLoading}
+          />
+        }
         contextBadgeComponent={
-          <div className="mt-1.5 flex flex-wrap items-center gap-2">
-            <AiUsageBadge
-              subscriptionTier={subscriptionTier}
-              remainingUsage={remainingUsage}
-              loading={aiUsageLoading}
-            />
-            {selectedDoc && (
+          selectedDoc && (
+            <div className="mt-1.5 flex flex-wrap items-center gap-2">
               <div className="flex items-center gap-1.5 px-3 py-1 bg-orange-50 border border-orange-100 rounded-md text-[10px] text-slate-600 font-semibold w-fit">
                 <FileText className="w-3.5 h-3.5 text-[#f26522]" />
                 Focused on document content.
@@ -417,8 +419,8 @@ export default function AskAIPage() {
                   Clear
                 </button>
               </div>
-            )}
-          </div>
+            </div>
+          )
         }
       />
       <QuotaExceededDialog

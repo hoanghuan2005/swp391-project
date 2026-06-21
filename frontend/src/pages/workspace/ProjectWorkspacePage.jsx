@@ -242,7 +242,7 @@ export default function ProjectWorkspacePage() {
 
   return (
     <div
-      className={`flex overflow-hidden bg-[#fafafa] ${isSharedView ? "h-screen w-full absolute inset-0 z-50" : "h-[calc(102vh-80px)] rounded-xl -mx-8 -my-6"}`}
+      className={`flex overflow-hidden bg-[#fafafa] ${isSharedView ? "h-screen w-full absolute inset-0 z-50" : "h-[calc(100vh-80px)] rounded-xl -mx-8 -my-6"}`}
     >
       <AISidebar
         type="project-workspace"

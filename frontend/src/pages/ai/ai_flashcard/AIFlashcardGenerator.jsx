@@ -401,7 +401,7 @@ export default function AIFlashcardGenerator({ contextData }) {
   }, [currentIndex, isCompleted, flashcards.length]);
 
   return (
-    <div className="h-[calc(100vh-68px)] overflow-hidden bg-white shadow-sm -mx-8 -my-6">
+    <div className="h-[calc(100vh-80px)] overflow-hidden bg-white shadow-sm -mx-8 -my-6">
       <div className="flex h-full">
         <AISidebar
           type="flashcard"
@@ -434,6 +434,13 @@ export default function AIFlashcardGenerator({ contextData }) {
               icon={Layers}
               title="AI Flashcards Generator"
               description="Create flashcards to enhance your learning and retention."
+              rightElement={
+                <AiUsageBadge
+                  subscriptionTier={subscriptionTier}
+                  remainingUsage={remainingUsage}
+                  loading={aiUsageLoading}
+                />
+              }
             />
 
             {/* Generate View */}
@@ -452,13 +459,6 @@ export default function AIFlashcardGenerator({ contextData }) {
                 onGenerate={handleGenerate}
                 isGenerating={isGenerating}
                 disabled={!inputText && !file && !selectedDoc}
-                footerLeft={
-                  <AiUsageBadge
-                    subscriptionTier={subscriptionTier}
-                    remainingUsage={remainingUsage}
-                    loading={aiUsageLoading}
-                  />
-                }
               />
             )}
 

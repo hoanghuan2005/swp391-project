@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -15,6 +16,13 @@ import java.util.UUID;
 public class MindMapController {
 
     private final MindMapService mindMapService;
+
+    @GetMapping
+    public ResponseEntity<List<MindMapResponse>> getUserMindMaps() {
+        return ResponseEntity.ok(
+                mindMapService.getUserMindMaps()
+        );
+    }
 
     @PostMapping("/generate")
     public ResponseEntity<MindMapResponse> generate(
