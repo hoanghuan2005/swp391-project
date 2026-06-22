@@ -25,6 +25,8 @@ public class DocumentResponse {
     private LocalDateTime lastViewedAt;
     private CourseInfo course;
     private List<String> tags;
+    private Double averageRating;
+    private Integer reviewCount;
 
     @Data
     @Builder

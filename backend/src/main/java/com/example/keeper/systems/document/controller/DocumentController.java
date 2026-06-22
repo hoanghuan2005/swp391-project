@@ -1,10 +1,15 @@
 package com.example.keeper.systems.document.controller;
 
 import com.example.keeper.systems.document.dto.request.CreateDocumentRequest;
+import com.example.keeper.systems.document.dto.request.DocumentReviewRequest;
 import com.example.keeper.systems.document.dto.response.DocumentDetailResponse;
 import com.example.keeper.systems.document.dto.response.DocumentResponse;
+import com.example.keeper.systems.document.dto.response.DocumentReviewResponse;
 import com.example.keeper.systems.document.entity.Document;
+import com.example.keeper.systems.document.entity.DocumentReview;
 import com.example.keeper.systems.document.enums.Visibility;
+import com.example.keeper.systems.document.repository.DocumentRepository;
+import com.example.keeper.systems.document.repository.DocumentReviewRepository;
 import com.example.keeper.systems.document.service.DocumentService;
 import com.example.keeper.systems.auth.entity.User;
 import com.example.keeper.systems.auth.repository.UserRepository;
@@ -32,6 +37,8 @@ public class DocumentController {
 
     private final DocumentService documentService;
     private final UserRepository userRepository;
+    private final DocumentReviewRepository documentReviewRepository;
+    private final DocumentRepository documentRepository;
 
     @PostMapping
     public DocumentDetailResponse create(
@@ -211,5 +218,47 @@ public class DocumentController {
         return ResponseEntity.ok(
                 Map.of("downloadUrl", fileUrl)
         );
+    }
+
+    @GetMapping("/{id}/reviews")
+    public ResponseEntity<?> getReviews(@PathVariable UUID id) {
+        List<DocumentReviewResponse> list = documentReviewRepository.findByDocumentIdOrderByCreatedAtDesc(id)
+                .stream()
+                .map(r -> DocumentReviewResponse.builder()
+                        .id(r.getId())
+                        .documentId(r.getDocument().getId())
+                        .userId(r.getUser().getId())
+                        .userName(r.getUser().getUsername() != null ? r.getUser().getUsername() : r.getUser().getEmail())
+                        .rating(r.getRating())
+                        .comment(r.getComment())
+                        .createdAt(r.getCreatedAt())
+                        .build())
+                .toList();
+        return ResponseEntity.ok(Map.of("data", list));
+    }
+
+    @PostMapping("/{id}/reviews")
+    public ResponseEntity<?> submitReview(
+            @PathVariable UUID id,
+            @RequestBody DocumentReviewRequest request) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        Document document = documentRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Document not found"));
+
+        DocumentReview review = documentReviewRepository.findByDocumentIdAndUserId(id, user.getId())
+                .orElseGet(() -> {
+                    DocumentReview r = new DocumentReview();
+                    r.setDocument(document);
+                    r.setUser(user);
+                    return r;
+                });
+
+        review.setRating(request.getRating());
+        review.setComment(request.getComment());
+        documentReviewRepository.save(review);
+
+        return ResponseEntity.ok(Map.of("message", "Review submitted successfully"));
     }
 }
