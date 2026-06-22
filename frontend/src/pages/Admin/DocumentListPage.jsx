@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import axiosClient from "@/api/axiosClient";
 import {
@@ -18,10 +18,14 @@ import UploadDocumentDialog from "@/components/documents/UploadDocumentDialog";
 import { useModal } from "@/components/share/useModal";
 import { toast } from "sonner";
 
+const ALL_FILTER = "ALL";
+
 export default function DocumentListPage() {
   const [documents, setDocuments] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [visibilityFilter, setVisibilityFilter] = useState(ALL_FILTER);
+  const [parseStatusFilter, setParseStatusFilter] = useState(ALL_FILTER);
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const { confirm } = useModal();
 
@@ -38,7 +42,23 @@ export default function DocumentListPage() {
   };
 
   useEffect(() => {
-    fetchDocuments();
+    let isMounted = true;
+
+    axiosClient
+      .get("/api/admin/documents")
+      .then((response) => {
+        if (isMounted) setDocuments(response.data);
+      })
+      .catch((error) => {
+        console.error("Error fetching documents:", error);
+      })
+      .finally(() => {
+        if (isMounted) setIsLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // Xử lý xóa tài liệu
@@ -60,12 +80,41 @@ export default function DocumentListPage() {
     }
   };
 
-  // Tính năng tìm kiếm trên Frontend (Lọc theo tên hoặc mã môn)
-  const filteredDocuments = documents.filter(
-    (doc) =>
-      doc.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      doc.course?.code?.toLowerCase().includes(searchQuery.toLowerCase()),
+  const visibilityOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(documents.map((doc) => doc.visibility).filter(Boolean)),
+      ).sort(),
+    [documents],
   );
+
+  const parseStatusOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(documents.map((doc) => doc.aiParseStatus).filter(Boolean)),
+      ).sort(),
+    [documents],
+  );
+
+  // Tính năng tìm kiếm trên Frontend (Lọc theo tên hoặc mã môn)
+  const filteredDocuments = useMemo(() => {
+    const keyword = searchQuery.trim().toLowerCase();
+
+    return documents.filter((doc) => {
+      const matchesSearch =
+        !keyword ||
+        doc.title?.toLowerCase().includes(keyword) ||
+        doc.course?.code?.toLowerCase().includes(keyword) ||
+        doc.course?.name?.toLowerCase().includes(keyword);
+      const matchesVisibility =
+        visibilityFilter === ALL_FILTER || doc.visibility === visibilityFilter;
+      const matchesParseStatus =
+        parseStatusFilter === ALL_FILTER ||
+        doc.aiParseStatus === parseStatusFilter;
+
+      return matchesSearch && matchesVisibility && matchesParseStatus;
+    });
+  }, [documents, parseStatusFilter, searchQuery, visibilityFilter]);
 
   return (
     <div className="p-6 space-y-6">
@@ -84,7 +133,7 @@ export default function DocumentListPage() {
             All Documents
           </CardTitle>
 
-          <div className="flex items-center gap-3 w-full sm:w-auto">
+          <div className="flex flex-col gap-3 w-full lg:w-auto">
             {/* Ô tìm kiếm */}
             <div className="relative w-full sm:w-80">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -96,14 +145,41 @@ export default function DocumentListPage() {
               />
             </div>
 
-            {/* Nút Thêm mới */}
-            <Button 
-              className="bg-[#f26522] hover:bg-[#d9541a] text-white rounded-xl flex items-center gap-2 shadow-md shadow-[#f26522]/20 transition-all cursor-pointer"
-              onClick={() => setIsUploadDialogOpen(true)}
-            >
-              <Plus className="w-4 h-4" />
-              Add New
-            </Button>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <select
+                value={visibilityFilter}
+                onChange={(event) => setVisibilityFilter(event.target.value)}
+                className="h-9 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-600 outline-none focus:border-[#f26522] focus:ring-2 focus:ring-[#f26522]/20"
+              >
+                <option value={ALL_FILTER}>All visibility</option>
+                {visibilityOptions.map((visibility) => (
+                  <option key={visibility} value={visibility}>
+                    {visibility}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={parseStatusFilter}
+                onChange={(event) => setParseStatusFilter(event.target.value)}
+                className="h-9 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-600 outline-none focus:border-[#f26522] focus:ring-2 focus:ring-[#f26522]/20"
+              >
+                <option value={ALL_FILTER}>All AI status</option>
+                {parseStatusOptions.map((status) => (
+                  <option key={status} value={status}>
+                    {status}
+                  </option>
+                ))}
+              </select>
+
+              {/* Nút Thêm mới */}
+              <Button
+                className="bg-[#f26522] hover:bg-[#d9541a] text-white rounded-xl flex items-center gap-2 shadow-md shadow-[#f26522]/20 transition-all cursor-pointer"
+                onClick={() => setIsUploadDialogOpen(true)}
+              >
+                <Plus className="w-4 h-4" />
+                Add New
+              </Button>
+            </div>
           </div>
         </CardHeader>
 
@@ -120,14 +196,20 @@ export default function DocumentListPage() {
                     <TableHead className="w-[50px] text-center font-bold">
                       No.
                     </TableHead>
-                    <TableHead className="w-[30%] font-bold">Title</TableHead>
+                    <TableHead className="w-[25%] font-bold">Title</TableHead>
                     <TableHead className="w-[15%] text-center font-bold">
                       Course Code
                     </TableHead>
                     <TableHead className="w-[15%] text-center font-bold">
                       Visibility
                     </TableHead>
-                    <TableHead className="w-[15%] text-center font-bold">
+                    <TableHead className="w-[14%] text-center font-bold">
+                      AI Status
+                    </TableHead>
+                    <TableHead className="w-[10%] text-center font-bold">
+                      Downloads
+                    </TableHead>
+                    <TableHead className="w-[12%] text-center font-bold">
                       Date
                     </TableHead>
                     <TableHead className="text-right font-bold pr-4">
@@ -139,7 +221,7 @@ export default function DocumentListPage() {
                   {filteredDocuments.length === 0 ? (
                     <TableRow>
                       <TableCell
-                        colSpan={6}
+                        colSpan={8}
                         className="text-center py-8 text-slate-500"
                       >
                         No documents found.
@@ -184,6 +266,27 @@ export default function DocumentListPage() {
                               Private
                             </Badge>
                           )}
+                        </TableCell>
+
+                        <TableCell className="text-center">
+                          <Badge
+                            variant="outline"
+                            className={
+                              doc.aiParseStatus === "READY"
+                                ? "bg-green-50 text-green-700 border-green-200"
+                                : doc.aiParseStatus === "FAILED"
+                                  ? "bg-red-50 text-red-700 border-red-200"
+                                  : doc.aiParseStatus === "PENDING"
+                                    ? "bg-amber-50 text-amber-700 border-amber-200"
+                                    : "bg-slate-50 text-slate-600 border-slate-200"
+                            }
+                          >
+                            {doc.aiParseStatus || "N/A"}
+                          </Badge>
+                        </TableCell>
+
+                        <TableCell className="text-center text-sm font-semibold text-slate-600">
+                          {doc.downloadCount ?? 0}
                         </TableCell>
 
                         <TableCell className="text-center text-sm text-slate-500">

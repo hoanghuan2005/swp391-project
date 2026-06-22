@@ -1,6 +1,7 @@
 package com.example.keeper.systems.document.repository;
 
 import com.example.keeper.systems.document.entity.Document;
+import com.example.keeper.systems.document.enums.AiParseStatus;
 import com.example.keeper.systems.document.enums.Visibility;
 
 import org.springframework.data.domain.Page;
@@ -20,6 +21,10 @@ public interface DocumentRepository extends JpaRepository<Document, UUID> {
     List<Document> findByUploadedById(UUID uploadedById);
 
     long countByUploadedById(UUID uploadedById);
+
+    long countByVisibility(Visibility visibility);
+
+    long countByAiParseStatus(AiParseStatus aiParseStatus);
 
     long countByUploadedByIdAndCloudinaryPublicIdIsNotNullAndCreatedAtBetween(
             UUID uploadedById,
