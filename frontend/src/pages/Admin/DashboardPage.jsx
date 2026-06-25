@@ -3,14 +3,21 @@ import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  BadgeCheck,
   BookOpen,
+  Brain,
+  CheckCircle2,
   FileText,
   GraduationCap,
   Globe,
   LayoutDashboard,
-  Layers,
+  Lock,
+  ShieldAlert,
   Tags,
+  UserCheck,
+  UserX,
   Users,
+  XCircle,
 } from "lucide-react";
 import axiosClient from "@/api/axiosClient";
 
@@ -18,70 +25,167 @@ const numberFormatter = new Intl.NumberFormat("en-US");
 
 const defaultStats = {
   totalUsers: 0,
+  activeUsers: 0,
+  bannedUsers: 0,
+  freeUsers: 0,
+  proUsers: 0,
   totalCourses: 0,
   totalMajors: 0,
   totalDocuments: 0,
+  publicDocuments: 0,
+  privateDocuments: 0,
+  documentsPendingParse: 0,
+  documentsReadyForAi: 0,
+  documentsFailedParse: 0,
+  documentsUnsupportedForAi: 0,
   totalSchools: 0,
   totalTags: 0,
   totalLanguages: 0,
 };
 
-const statCards = [
+const statGroups = [
   {
-    key: "totalUsers",
-    title: "Total Users",
-    caption: "Registered accounts",
-    href: "/admin/users",
-    icon: Users,
-    iconClassName: "bg-blue-50 text-blue-600",
+    title: "Accounts",
+    cards: [
+      {
+        key: "totalUsers",
+        title: "Total Users",
+        caption: "Registered accounts",
+        href: "/admin/users",
+        icon: Users,
+        iconClassName: "bg-blue-50 text-blue-600",
+      },
+      {
+        key: "activeUsers",
+        title: "Active Users",
+        caption: "Non-banned accounts",
+        href: "/admin/users",
+        icon: UserCheck,
+        iconClassName: "bg-green-50 text-green-600",
+      },
+      {
+        key: "bannedUsers",
+        title: "Banned Users",
+        caption: "Restricted accounts",
+        href: "/admin/users",
+        icon: UserX,
+        iconClassName: "bg-red-50 text-red-600",
+      },
+      {
+        key: "freeUsers",
+        title: "Free Users",
+        caption: "Free subscription tier",
+        href: "/admin/users",
+        icon: ShieldAlert,
+        iconClassName: "bg-slate-100 text-slate-600",
+      },
+      {
+        key: "proUsers",
+        title: "Pro Users",
+        caption: "Paid subscription tier",
+        href: "/admin/users",
+        icon: BadgeCheck,
+        iconClassName: "bg-orange-50 text-[#f26522]",
+      },
+    ],
   },
   {
-    key: "totalCourses",
-    title: "Total Courses",
-    caption: "Active courses",
-    href: "/admin/courses",
-    icon: BookOpen,
-    iconClassName: "bg-purple-50 text-purple-600",
+    title: "Documents",
+    cards: [
+      {
+        key: "totalDocuments",
+        title: "Total Documents",
+        caption: "Uploaded materials",
+        href: "/admin/documents",
+        icon: FileText,
+        iconClassName: "bg-orange-50 text-[#f26522]",
+      },
+      {
+        key: "publicDocuments",
+        title: "Public Documents",
+        caption: "Visible in discovery",
+        href: "/admin/documents",
+        icon: Globe,
+        iconClassName: "bg-green-50 text-green-600",
+      },
+      {
+        key: "privateDocuments",
+        title: "Private Documents",
+        caption: "Owner-only materials",
+        href: "/admin/documents",
+        icon: Lock,
+        iconClassName: "bg-slate-100 text-slate-600",
+      },
+      {
+        key: "documentsReadyForAi",
+        title: "AI Ready",
+        caption: "Parsed for AI features",
+        href: "/admin/documents",
+        icon: Brain,
+        iconClassName: "bg-emerald-50 text-emerald-600",
+      },
+      {
+        key: "documentsPendingParse",
+        title: "AI Pending",
+        caption: "Waiting for parsing",
+        href: "/admin/documents",
+        icon: CheckCircle2,
+        iconClassName: "bg-amber-50 text-amber-600",
+      },
+      {
+        key: "documentsFailedParse",
+        title: "AI Failed",
+        caption: "Parsing failed",
+        href: "/admin/documents",
+        icon: XCircle,
+        iconClassName: "bg-red-50 text-red-600",
+      },
+      {
+        key: "documentsUnsupportedForAi",
+        title: "AI Unsupported",
+        caption: "Unsupported file type",
+        href: "/admin/documents",
+        icon: FileText,
+        iconClassName: "bg-slate-100 text-slate-600",
+      },
+    ],
   },
   {
-    key: "totalDocuments",
-    title: "Total Documents",
-    caption: "Uploaded materials",
-    href: "/admin/documents",
-    icon: FileText,
-    iconClassName: "bg-orange-50 text-[#f26522]",
-  },
-  {
-    key: "totalSchools",
-    title: "Total Schools",
-    caption: "Partner universities",
-    href: "/admin/catalog/schools",
-    icon: GraduationCap,
-    iconClassName: "bg-emerald-50 text-emerald-600",
-  },
-  {
-    key: "totalMajors",
-    title: "Total Majors",
-    caption: "Academic majors",
-    href: "/admin/catalog/majors",
-    icon: Layers,
-    iconClassName: "bg-cyan-50 text-cyan-600",
-  },
-  {
-    key: "totalTags",
-    title: "Total Tags",
-    caption: "Search labels",
-    href: "/admin/catalog/tags",
-    icon: Tags,
-    iconClassName: "bg-slate-100 text-slate-600",
-  },
-  {
-    key: "totalLanguages",
-    title: "Total Languages",
-    caption: "Survey options",
-    href: "/admin/catalog/languages",
-    icon: Globe,
-    iconClassName: "bg-indigo-50 text-indigo-600",
+    title: "Catalog",
+    cards: [
+      {
+        key: "totalCourses",
+        title: "Total Courses",
+        caption: "Active courses",
+        href: "/admin/courses",
+        icon: BookOpen,
+        iconClassName: "bg-purple-50 text-purple-600",
+      },
+      {
+        key: "totalSchools",
+        title: "Total Schools",
+        caption: "Partner universities",
+        href: "/admin/catalog/schools",
+        icon: GraduationCap,
+        iconClassName: "bg-emerald-50 text-emerald-600",
+      },
+      {
+        key: "totalTags",
+        title: "Total Tags",
+        caption: "Search labels",
+        href: "/admin/catalog/tags",
+        icon: Tags,
+        iconClassName: "bg-slate-100 text-slate-600",
+      },
+      {
+        key: "totalLanguages",
+        title: "Total Languages",
+        caption: "Survey options",
+        href: "/admin/catalog/languages",
+        icon: Globe,
+        iconClassName: "bg-indigo-50 text-indigo-600",
+      },
+    ],
   },
 ];
 
@@ -161,16 +265,21 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-        {statCards.map((stat) => (
-          <StatCard
-            key={stat.key}
-            stat={stat}
-            value={stats[stat.key]}
-            isLoading={isLoading}
-          />
-        ))}
-      </div>
+      {statGroups.map((group) => (
+        <section key={group.title} className="space-y-3">
+          <h2 className="text-lg font-bold text-slate-700">{group.title}</h2>
+          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+            {group.cards.map((stat) => (
+              <StatCard
+                key={stat.key}
+                stat={stat}
+                value={stats[stat.key]}
+                isLoading={isLoading}
+              />
+            ))}
+          </div>
+        </section>
+      ))}
     </div>
   );
 }
