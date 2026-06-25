@@ -245,7 +245,7 @@ export default function DashboardPage() {
     };
 
     fetchStats();
-  }, []);
+  }, []); 
 
   return (
     <div className="space-y-6">
