@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect, useCallback } from "react";
+import { Link } from "react-router-dom";
 import axiosClient from "@/api/axiosClient";
 import {
   Table,
@@ -23,6 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import {
   AlertCircle,
+  ArrowRight,
   Ban,
   Calendar,
   CheckCircle2,
@@ -628,7 +630,7 @@ export default function UserListPage() {
             </div>
           ) : (
             <div className="overflow-x-auto rounded-xl border border-slate-100">
-              <Table className="min-w-[980px]">
+              <Table className="min-w-[1080px]">
                 <TableHeader className="bg-slate-50/50">
                   <TableRow>
                     <TableHead className="w-[56px] text-center font-bold">
@@ -712,7 +714,7 @@ export default function UserListPage() {
                         Created
                       </SortableHead>
                     )}
-                    <TableHead className="w-[190px] text-right font-bold pr-4">
+                    <TableHead className="w-[280px] text-right font-bold pr-4">
                       Actions
                     </TableHead>
                   </TableRow>
@@ -842,7 +844,18 @@ export default function UserListPage() {
                               className="rounded-lg border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-[#f26522]"
                             >
                               <Eye className="h-4 w-4" aria-hidden="true" />
-                              View
+                              Quick View
+                            </Button>
+                            <Button
+                              asChild
+                              size="sm"
+                              variant="outline"
+                              className="rounded-lg border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-[#f26522]"
+                            >
+                              <Link to={`/admin/users/${user.id}`}>
+                                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                                Details
+                              </Link>
                             </Button>
                             {getRoleName(user) !== "ADMIN" && (
                               <Button

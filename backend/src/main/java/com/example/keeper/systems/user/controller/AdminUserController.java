@@ -2,6 +2,7 @@ package com.example.keeper.systems.user.controller;
 
 import com.example.keeper.systems.auth.entity.User;
 import com.example.keeper.systems.auth.repository.UserRepository;
+import com.example.keeper.systems.user.dto.AdminUserDetailResponse;
 import com.example.keeper.systems.user.dto.AdminUserListItemResponse;
 import com.example.keeper.systems.user.service.AdminUserService;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +28,11 @@ public class AdminUserController {
     @GetMapping
     public ResponseEntity<List<AdminUserListItemResponse>> getAllUsers() {
         return ResponseEntity.ok(adminUserService.getAllUsers());
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<AdminUserDetailResponse> getUserDetail(@PathVariable UUID id) {
+        return ResponseEntity.ok(adminUserService.getUserDetail(id));
     }
 
     @PutMapping("/{id}/ban")

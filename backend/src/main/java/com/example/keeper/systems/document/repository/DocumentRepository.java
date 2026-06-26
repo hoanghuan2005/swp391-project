@@ -20,6 +20,8 @@ public interface DocumentRepository extends JpaRepository<Document, UUID> {
 
     List<Document> findByUploadedById(UUID uploadedById);
 
+    List<Document> findByUploadedByIdOrderByCreatedAtDesc(UUID uploadedById, Pageable pageable);
+
     long countByUploadedById(UUID uploadedById);
 
     long countByUploadedByIdAndVisibility(UUID uploadedById, Visibility visibility);
