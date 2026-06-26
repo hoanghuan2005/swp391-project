@@ -2,6 +2,8 @@ package com.example.keeper.systems.user.controller;
 
 import com.example.keeper.systems.auth.entity.User;
 import com.example.keeper.systems.auth.repository.UserRepository;
+import com.example.keeper.systems.user.dto.AdminUserListItemResponse;
+import com.example.keeper.systems.user.service.AdminUserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -20,11 +22,11 @@ import java.util.UUID;
 public class AdminUserController {
 
     private final UserRepository userRepository;
+    private final AdminUserService adminUserService;
 
     @GetMapping
-    public ResponseEntity<List<User>> getAllUsers() {
-        List<User> users = userRepository.findAll();
-        return ResponseEntity.ok(users);
+    public ResponseEntity<List<AdminUserListItemResponse>> getAllUsers() {
+        return ResponseEntity.ok(adminUserService.getAllUsers());
     }
 
     @PutMapping("/{id}/ban")

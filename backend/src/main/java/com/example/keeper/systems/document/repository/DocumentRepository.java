@@ -22,6 +22,11 @@ public interface DocumentRepository extends JpaRepository<Document, UUID> {
 
     long countByUploadedById(UUID uploadedById);
 
+    long countByUploadedByIdAndVisibility(UUID uploadedById, Visibility visibility);
+
+    @Query("select coalesce(sum(d.fileSize), 0) from Document d where d.uploadedBy.id = :uploadedById")
+    Long sumFileSizeByUploadedById(@Param("uploadedById") UUID uploadedById);
+
     long countByVisibility(Visibility visibility);
 
     long countByAiParseStatus(AiParseStatus aiParseStatus);

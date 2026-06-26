@@ -57,6 +57,8 @@ const SORTABLE_COLUMNS = new Set([
   "tier",
   "verified",
   "status",
+  "documents",
+  "aiUsage",
   "createdAt",
 ]);
 
@@ -106,7 +108,7 @@ const statConfig = [
 ];
 
 function getRoleName(user) {
-  return user.role?.name || "N/A";
+  return user.roleName || user.role?.name || "N/A";
 }
 
 function getTier(user) {
@@ -134,11 +136,38 @@ function getSortValue(user, key) {
       return user.emailVerified ? 1 : 0;
     case "status":
       return user.banned ? 1 : 0;
+    case "documents":
+      return user.totalDocuments ?? 0;
+    case "aiUsage":
+      return user.aiUsageToday ?? 0;
     case "createdAt":
       return user.createdAt ? new Date(user.createdAt).getTime() : 0;
     default:
       return "";
   }
+}
+
+function hasValue(value) {
+  return value !== null && value !== undefined;
+}
+
+function formatBytes(bytes) {
+  if (!hasValue(bytes)) return "N/A";
+  if (bytes === 0) return "0 B";
+  const units = ["B", "KB", "MB", "GB"];
+  const index = Math.min(
+    Math.floor(Math.log(bytes) / Math.log(1024)),
+    units.length - 1,
+  );
+  const value = bytes / 1024 ** index;
+  return `${value.toFixed(value >= 10 || index === 0 ? 0 : 1)} ${units[index]}`;
+}
+
+function formatAiUsage(user) {
+  if (!hasValue(user.aiUsageToday)) return "N/A";
+  if (user.aiDailyLimit === -1) return `${user.aiUsageToday} / Unlimited`;
+  if (!hasValue(user.aiDailyLimit)) return String(user.aiUsageToday);
+  return `${user.aiUsageToday} / ${user.aiDailyLimit}`;
 }
 
 function SortableHead({ sortKey, sortConfig, onSort, className, children }) {
@@ -322,7 +351,7 @@ export default function UserListPage() {
   const roleOptions = useMemo(
     () =>
       Array.from(
-        new Set(users.map((user) => user.role?.name).filter(Boolean)),
+        new Set(users.map((user) => getRoleName(user)).filter(Boolean)),
       ).sort(),
     [users],
   );
@@ -350,6 +379,16 @@ export default function UserListPage() {
 
   const hasCreatedAt = useMemo(
     () => users.some((user) => Boolean(user.createdAt)),
+    [users],
+  );
+
+  const hasDocumentSummary = useMemo(
+    () => users.some((user) => hasValue(user.totalDocuments)),
+    [users],
+  );
+
+  const hasAiSummary = useMemo(
+    () => users.some((user) => hasValue(user.aiUsageToday)),
     [users],
   );
 
@@ -412,7 +451,11 @@ export default function UserListPage() {
     tierFilter !== ALL_FILTER ||
     emailFilter !== ALL_FILTER;
 
-  const tableColumnCount = hasCreatedAt ? 10 : 9;
+  const tableColumnCount =
+    8 +
+    (hasDocumentSummary ? 1 : 0) +
+    (hasAiSummary ? 1 : 0) +
+    (hasCreatedAt ? 1 : 0);
 
   return (
     <div className="p-6 space-y-6">
@@ -639,6 +682,26 @@ export default function UserListPage() {
                     >
                       Status
                     </SortableHead>
+                    {hasDocumentSummary && (
+                      <SortableHead
+                        sortKey="documents"
+                        sortConfig={sortConfig}
+                        onSort={handleSort}
+                        className="w-[120px] text-center font-bold"
+                      >
+                        Docs
+                      </SortableHead>
+                    )}
+                    {hasAiSummary && (
+                      <SortableHead
+                        sortKey="aiUsage"
+                        sortConfig={sortConfig}
+                        onSort={handleSort}
+                        className="w-[130px] text-center font-bold"
+                      >
+                        AI Today
+                      </SortableHead>
+                    )}
                     {hasCreatedAt && (
                       <SortableHead
                         sortKey="createdAt"
@@ -679,6 +742,16 @@ export default function UserListPage() {
                         <TableCell className="text-center">
                           <Skeleton className="mx-auto h-6 w-20 rounded-full" />
                         </TableCell>
+                        {hasDocumentSummary && (
+                          <TableCell className="text-center">
+                            <Skeleton className="mx-auto h-5 w-12 rounded-md" />
+                          </TableCell>
+                        )}
+                        {hasAiSummary && (
+                          <TableCell className="text-center">
+                            <Skeleton className="mx-auto h-5 w-20 rounded-md" />
+                          </TableCell>
+                        )}
                         {hasCreatedAt && (
                           <TableCell className="text-center">
                             <Skeleton className="mx-auto h-5 w-24 rounded-md" />
@@ -743,6 +816,18 @@ export default function UserListPage() {
                         <TableCell className="text-center">
                           <StatusBadge banned={user.banned} />
                         </TableCell>
+                        {hasDocumentSummary && (
+                          <TableCell className="text-center text-sm font-semibold tabular-nums text-slate-600">
+                            {hasValue(user.totalDocuments)
+                              ? numberFormatter.format(user.totalDocuments)
+                              : "N/A"}
+                          </TableCell>
+                        )}
+                        {hasAiSummary && (
+                          <TableCell className="text-center text-sm font-semibold tabular-nums text-slate-600">
+                            {formatAiUsage(user)}
+                          </TableCell>
+                        )}
                         {hasCreatedAt && (
                           <TableCell className="text-center text-sm text-slate-500">
                             {formatDate(user.createdAt)}
@@ -759,7 +844,7 @@ export default function UserListPage() {
                               <Eye className="h-4 w-4" aria-hidden="true" />
                               View
                             </Button>
-                            {user.role?.name !== "ADMIN" && (
+                            {getRoleName(user) !== "ADMIN" && (
                               <Button
                                 size="sm"
                                 variant={user.banned ? "outline" : "destructive"}
@@ -901,6 +986,73 @@ export default function UserListPage() {
                           </span>
                         </div>
                       )}
+                    </div>
+                  </div>
+                )}
+
+                {(hasValue(selectedUser.totalDocuments) ||
+                  hasValue(selectedUser.storageUsedBytes)) && (
+                  <div className="rounded-2xl border border-slate-100 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                      Documents
+                    </p>
+                    <div className="mt-3 grid gap-2 text-sm text-slate-600">
+                      <div className="flex justify-between gap-4">
+                        <span className="text-slate-400">Total</span>
+                        <span className="text-right font-semibold text-slate-700">
+                          {hasValue(selectedUser.totalDocuments)
+                            ? numberFormatter.format(selectedUser.totalDocuments)
+                            : "N/A"}
+                        </span>
+                      </div>
+                      <div className="flex justify-between gap-4">
+                        <span className="text-slate-400">Public</span>
+                        <span className="text-right font-semibold text-slate-700">
+                          {hasValue(selectedUser.publicDocuments)
+                            ? numberFormatter.format(selectedUser.publicDocuments)
+                            : "N/A"}
+                        </span>
+                      </div>
+                      <div className="flex justify-between gap-4">
+                        <span className="text-slate-400">Private</span>
+                        <span className="text-right font-semibold text-slate-700">
+                          {hasValue(selectedUser.privateDocuments)
+                            ? numberFormatter.format(selectedUser.privateDocuments)
+                            : "N/A"}
+                        </span>
+                      </div>
+                      <div className="flex justify-between gap-4">
+                        <span className="text-slate-400">Storage Used</span>
+                        <span className="text-right font-semibold text-slate-700">
+                          {formatBytes(selectedUser.storageUsedBytes)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {hasValue(selectedUser.aiUsageToday) && (
+                  <div className="rounded-2xl border border-slate-100 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                      AI Usage
+                    </p>
+                    <div className="mt-3 grid gap-2 text-sm text-slate-600">
+                      <div className="flex justify-between gap-4">
+                        <span className="text-slate-400">Today</span>
+                        <span className="text-right font-semibold text-slate-700">
+                          {formatAiUsage(selectedUser)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between gap-4">
+                        <span className="text-slate-400">Remaining</span>
+                        <span className="text-right font-semibold text-slate-700">
+                          {selectedUser.aiRemainingToday === -1
+                            ? "Unlimited"
+                            : hasValue(selectedUser.aiRemainingToday)
+                              ? numberFormatter.format(selectedUser.aiRemainingToday)
+                              : "N/A"}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 )}
