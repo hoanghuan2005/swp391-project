@@ -11,6 +11,8 @@ public interface FlashcardSetRepository extends JpaRepository<FlashcardSet, UUID
 
     List<FlashcardSet> findByUserIdOrderByCreatedAtDesc(UUID userId);
 
+    long countByUserId(UUID userId);
+
     List<FlashcardSet> findByCourseIdAndStatus(UUID courseId, String status);
 
     // ==========================================

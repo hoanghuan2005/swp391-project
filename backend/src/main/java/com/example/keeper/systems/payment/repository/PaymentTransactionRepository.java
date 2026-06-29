@@ -14,6 +14,8 @@ public interface PaymentTransactionRepository extends JpaRepository<PaymentTrans
 
     Optional<PaymentTransaction> findByTxnRef(String txnRef);
 
+    Optional<PaymentTransaction> findTopByUserIdOrderByCreatedAtDesc(UUID userId);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select paymentTransaction from PaymentTransaction paymentTransaction where paymentTransaction.txnRef = :txnRef")
     Optional<PaymentTransaction> findByTxnRefForUpdate(@Param("txnRef") String txnRef);
