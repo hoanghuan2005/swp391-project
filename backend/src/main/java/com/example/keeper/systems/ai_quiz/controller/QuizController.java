@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.UUID;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/quizzes")
@@ -28,10 +29,23 @@ public class QuizController {
         return ResponseEntity.ok(quizGeneratorService.generateQuiz(request, email));
     }
 
-    @GetMapping("/my-quizzes")
-    public ResponseEntity<List<QuizResponse>> getUserQuizzes() {
+    @PostMapping(value = "/generate-from-file", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<QuizResponse> generateQuizFromFile(
+            @RequestParam(value = "file", required = false) MultipartFile file,
+            @RequestParam(value = "text", required = false) String text,
+            @RequestParam("title") String title,
+            @RequestParam(value = "questionCount", required = false) Integer questionCount,
+            @RequestParam(value = "difficulty", required = false) String difficulty
+    ) {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
-        return ResponseEntity.ok(quizService.getUserQuizzes(email));
+        return ResponseEntity.ok(quizGeneratorService.generateQuizFromFile(file, text, title, questionCount, difficulty, email));
+    }
+
+    @GetMapping("/my-quizzes")
+    public ResponseEntity<List<QuizResponse>> getUserQuizzes(
+            @RequestParam(value = "savedToLibrary", required = false) Boolean savedToLibrary) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        return ResponseEntity.ok(quizService.getUserQuizzes(email, savedToLibrary));
     }
 
     @GetMapping("/{id}")
@@ -46,6 +60,19 @@ public class QuizController {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         try {
             return ResponseEntity.ok(quizService.updateQuiz(id, request, email));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(java.util.Map.of("message", e.getMessage()));
+        }
+    }
+
+    @PutMapping("/{id}/rename")
+    public ResponseEntity<?> renameQuiz(
+            @PathVariable UUID id,
+            @RequestBody java.util.Map<String, String> request) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        try {
+            String title = request.get("title");
+            return ResponseEntity.ok(quizService.renameQuiz(id, title, email));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(java.util.Map.of("message", e.getMessage()));
         }

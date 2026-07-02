@@ -20,6 +20,7 @@ const AISidebar = ({
 
   onSelectItem,
   onDeleteItem,
+  onEditItem,
   onSelectDocument,
   onDeleteDocument,
 
@@ -56,6 +57,7 @@ const AISidebar = ({
         selectedItem={selectedItem}
         onSelectItem={onSelectItem}
         onDeleteItem={onDeleteItem}
+        onEditItem={onEditItem}
       />
 
       {/* DOCUMENTS */}

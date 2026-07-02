@@ -56,7 +56,7 @@ public class VnpayPaymentServiceImpl implements VnpayPaymentService {
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         String txnRef = generateTxnRef();
-        String orderInfo = "Upgrade StudyMate AI account to PRO";
+        String orderInfo = "Upgrade_StudyMate_AI_account_to_PRO";
 
         PaymentTransaction transaction = new PaymentTransaction();
         transaction.setUser(user);
@@ -170,16 +170,13 @@ public class VnpayPaymentServiceImpl implements VnpayPaymentService {
         User currentUser = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        if (!isValidSecureHash(params)) {
-            throw new IllegalArgumentException("Invalid VNPAY signature");
-        }
-
         String txnRef = params.get("vnp_TxnRef");
         if (txnRef == null || txnRef.isBlank()) {
             throw new IllegalArgumentException("Transaction reference is required");
         }
 
-        PaymentTransaction transaction = paymentTransactionRepository.findByTxnRefForUpdate(txnRef)
+        // Use regular read (no pessimistic lock) to avoid deadlock with IPN handler
+        PaymentTransaction transaction = paymentTransactionRepository.findByTxnRef(txnRef)
                 .orElseThrow(() -> new IllegalArgumentException("Transaction not found"));
 
         User transactionUser = transaction.getUser();
@@ -187,21 +184,24 @@ public class VnpayPaymentServiceImpl implements VnpayPaymentService {
             throw new AccessDeniedException("Transaction does not belong to current user");
         }
 
+        // If IPN already processed, return immediately
+        if (transaction.getStatus() == PaymentStatus.SUCCESS) {
+            return toConfirmReturnResponse(transaction);
+        }
+        if (transaction.getStatus() == PaymentStatus.FAILED) {
+            return toConfirmReturnResponse(transaction);
+        }
+
+        // Transaction is still PENDING — try to process it from URL params
+        if (!isValidSecureHash(params)) {
+            throw new IllegalArgumentException("Invalid VNPAY signature");
+        }
+
         if (!isAmountValid(params.get("vnp_Amount"), transaction.getAmountVnd())) {
             throw new IllegalArgumentException("Invalid VNPAY amount");
         }
 
         applyVnpayFields(transaction, params);
-
-        if (transaction.getStatus() == PaymentStatus.SUCCESS) {
-            paymentTransactionRepository.save(transaction);
-            return toConfirmReturnResponse(transaction);
-        }
-
-        if (transaction.getStatus() != PaymentStatus.PENDING) {
-            paymentTransactionRepository.save(transaction);
-            return toConfirmReturnResponse(transaction);
-        }
 
         boolean successful = "00".equals(params.get("vnp_ResponseCode"))
                 && "00".equals(params.get("vnp_TransactionStatus"));
@@ -251,6 +251,7 @@ public class VnpayPaymentServiceImpl implements VnpayPaymentService {
     private boolean isValidSecureHash(Map<String, String> params) {
         String receivedHash = params.get("vnp_SecureHash");
         if (receivedHash == null || receivedHash.isBlank()) {
+            System.out.println("[VNPAY DEBUG] vnp_SecureHash is missing or blank");
             return false;
         }
 
@@ -264,11 +265,22 @@ public class VnpayPaymentServiceImpl implements VnpayPaymentService {
             if ("vnp_SecureHash".equals(key) || "vnp_SecureHashType".equals(key)) {
                 continue;
             }
-            signedParams.put(key, value);
+            // VNPAY 2.1.0 only hashes parameters starting with vnp_
+            if (key.startsWith("vnp_")) {
+                signedParams.put(key, value);
+            }
         }
 
-        String expectedHash = hmacSha512(vnpayConfig.getHashSecret(), buildHashData(signedParams));
-        return expectedHash.equalsIgnoreCase(receivedHash);
+        String hashData = buildHashData(signedParams);
+        String expectedHash = hmacSha512(vnpayConfig.getHashSecret(), hashData);
+        System.out.println("[VNPAY DEBUG] Received params: " + params);
+        System.out.println("[VNPAY DEBUG] Signed params: " + signedParams);
+        System.out.println("[VNPAY DEBUG] Hash data string: " + hashData);
+        System.out.println("[VNPAY DEBUG] Expected hash: " + expectedHash);
+        System.out.println("[VNPAY DEBUG] Received hash: " + receivedHash);
+        boolean matches = expectedHash.equalsIgnoreCase(receivedHash);
+        System.out.println("[VNPAY DEBUG] Hash matches: " + matches);
+        return matches;
     }
 
     private boolean isAmountValid(String vnpAmount, Long amountVnd) {
@@ -353,7 +365,10 @@ public class VnpayPaymentServiceImpl implements VnpayPaymentService {
     }
 
     private String urlEncode(String value) {
-        return URLEncoder.encode(value, StandardCharsets.UTF_8);
+        if (value == null) {
+            return "";
+        }
+        return URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20");
     }
 
     private Map<String, String> ipnResponse(String code, String message) {

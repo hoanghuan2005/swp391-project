@@ -31,6 +31,8 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   getProjectDetail,
@@ -44,7 +46,7 @@ import {
 } from "@/api/projectApi";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
@@ -97,6 +99,11 @@ export default function WorkspaceOverviewPage() {
   // Share visibility state
   const [updatingVisibility, setUpdatingVisibility] = useState(false);
 
+  // Custom Confirmation Dialog State
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [confirmTarget, setConfirmTarget] = useState(null); // { type: "REMOVE_DOCUMENT" | "REMOVE_MEMBER", id, name }
+  const [isConfirming, setIsConfirming] = useState(false);
+
   const fetchProject = useCallback(async () => {
     try {
       setLoading(true);
@@ -122,21 +129,10 @@ export default function WorkspaceOverviewPage() {
   const canEditInfo = currentUserRole === "OWNER" || currentUserRole === "EDITOR";
   const canModifyDocs = currentUserRole === "OWNER" || currentUserRole === "EDITOR";
 
-  const handleRemoveDocument = async (documentId, title) => {
+  const handleRemoveDocument = (documentId, title) => {
     if (isSharedView) return;
-
-    if (!window.confirm(`Are you sure you want to remove "${title}" from this workspace?`)) {
-      return;
-    }
-
-    try {
-      await removeDocumentFromProject(projectId, documentId);
-      toast.success("Document removed from workspace");
-      fetchProject();
-    } catch (error) {
-      console.error("Failed to remove document", error);
-      toast.error("Failed to remove document");
-    }
+    setConfirmTarget({ type: "REMOVE_DOCUMENT", id: documentId, name: title });
+    setConfirmDialogOpen(true);
   };
 
   const handleDownload = async (id, title) => {
@@ -239,17 +235,31 @@ export default function WorkspaceOverviewPage() {
     }
   };
 
-  const handleRemoveMember = async (userId, memberName) => {
-    if (!window.confirm(`Are you sure you want to remove ${memberName} from this workspace?`)) {
-      return;
-    }
+  const handleRemoveMember = (userId, memberName) => {
+    setConfirmTarget({ type: "REMOVE_MEMBER", id: userId, name: memberName });
+    setConfirmDialogOpen(true);
+  };
+
+  const handleConfirmAction = async () => {
+    if (!confirmTarget) return;
+    setIsConfirming(true);
     try {
-      await removeMember(project.id, userId);
-      toast.success("Member removed from workspace");
-      fetchProject();
+      if (confirmTarget.type === "REMOVE_DOCUMENT") {
+        await removeDocumentFromProject(projectId, confirmTarget.id);
+        toast.success("Document removed from workspace");
+        fetchProject();
+      } else if (confirmTarget.type === "REMOVE_MEMBER") {
+        await removeMember(project.id, confirmTarget.id);
+        toast.success("Member removed from workspace");
+        fetchProject();
+      }
     } catch (error) {
-      console.error(error);
-      toast.error(error.response?.data?.message || "Failed to remove member");
+      console.error(`Failed to perform action ${confirmTarget.type}:`, error);
+      toast.error(error.response?.data?.message || "Action failed");
+    } finally {
+      setIsConfirming(false);
+      setConfirmDialogOpen(false);
+      setConfirmTarget(null);
     }
   };
 
@@ -991,6 +1001,48 @@ export default function WorkspaceOverviewPage() {
           </Dialog>
         </>
       )}
+
+      <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
+        <DialogContent className="sm:max-w-[425px] rounded-3xl bg-white border border-slate-100 shadow-xl p-6">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-extrabold text-slate-800 flex items-center gap-2">
+              <span className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center text-red-500">
+                <Trash2 className="w-5 h-5" />
+              </span>
+              Xác nhận gỡ bỏ
+            </DialogTitle>
+            <DialogDescription className="text-sm text-slate-500 mt-2">
+              {confirmTarget?.type === "REMOVE_DOCUMENT"
+                ? `Bạn có chắc chắn muốn gỡ bỏ tài liệu "${confirmTarget?.name}" khỏi workspace này?`
+                : `Bạn có chắc chắn muốn gỡ bỏ thành viên "${confirmTarget?.name}" khỏi workspace này?`}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-6 flex flex-col sm:flex-row gap-2 justify-end">
+            <Button
+              variant="outline"
+              disabled={isConfirming}
+              onClick={() => setConfirmDialogOpen(false)}
+              className="rounded-xl border-slate-200 font-semibold cursor-pointer"
+            >
+              Hủy
+            </Button>
+            <Button
+              disabled={isConfirming}
+              onClick={handleConfirmAction}
+              className="bg-red-500 hover:bg-red-600 text-white font-semibold rounded-xl flex items-center gap-2 cursor-pointer border-none"
+            >
+              {isConfirming ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Đang gỡ...
+                </>
+              ) : (
+                "Xác nhận"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

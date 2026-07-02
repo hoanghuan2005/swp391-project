@@ -15,6 +15,7 @@ import {
   Download,
   Eye,
   UserCheck2,
+  Loader2,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -25,6 +26,14 @@ import {
   CardDescription,
   CardFooter,
 } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import useDocuments from "@/hooks/useDocuments";
 import axiosClient from "@/api/axiosClient";
@@ -32,7 +41,7 @@ import { getMyProjects, deleteProject } from "@/api/projectApi";
 import CreateProjectModal from "@/components/projects/CreateProjectModal";
 import { forceDownload } from "@/lib/downloadHelper";
 import { getFileExtension } from "@/lib/utils";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 
 export default function MyLibrary() {
   const { documents, loading: isLoading, refreshDocuments } = useDocuments();
@@ -53,6 +62,10 @@ export default function MyLibrary() {
   const [isQuizzesLoading, setIsQuizzesLoading] = useState(false);
 
   const navigate = useNavigate();
+
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null); // { id, type, name, description }
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const fetchProjects = useCallback(async () => {
     try {
@@ -113,7 +126,7 @@ export default function MyLibrary() {
   const fetchMyFlashcards = useCallback(async () => {
     try {
       setIsFlashcardsLoading(true);
-      const res = await axiosClient.get("/api/ai_flashcard/sets");
+      const res = await axiosClient.get("/api/ai_flashcard/sets?savedToLibrary=true");
       setMyFlashcardSets(res.data?.data || []);
     } catch (error) {
       console.error("Error fetching my flashcards:", error);
@@ -125,7 +138,7 @@ export default function MyLibrary() {
   const fetchMyQuizzes = useCallback(async () => {
     try {
       setIsQuizzesLoading(true);
-      const res = await axiosClient.get("/api/quizzes/my-quizzes");
+      const res = await axiosClient.get("/api/quizzes/my-quizzes?savedToLibrary=true");
       setMyQuizzes(res.data || []);
     } catch (error) {
       console.error("Error fetching my quizzes:", error);
@@ -143,40 +156,26 @@ export default function MyLibrary() {
     fetchMyQuizzes();
   }, [fetchProjects, fetchFavoriteDocuments, fetchFavoriteFlashcards, fetchFollowedUsers, fetchMyFlashcards, fetchMyQuizzes]);
 
-  const handleUnfollowUser = async (userId, fullName) => {
-    if (!window.confirm(`Bạn có chắc chắn muốn bỏ theo dõi ${fullName}?`)) {
-      return;
-    }
-    try {
-      await axiosClient.delete(`/api/follows/${userId}`);
-      toast.success(`Đã bỏ theo dõi ${fullName}`);
-      setFollowedUsers((prev) => prev.filter((user) => user.id !== userId));
-    } catch (error) {
-      console.error("Failed to unfollow user:", error);
-      toast.error("Không thể bỏ theo dõi");
-    }
+  const handleUnfollowUser = (userId, fullName) => {
+    setDeleteTarget({
+      id: userId,
+      type: "UNFOLLOW",
+      name: fullName,
+      description: `Bạn có chắc chắn muốn bỏ theo dõi ${fullName}?`
+    });
+    setDeleteDialogOpen(true);
   };
 
-  const handleDeleteWorkspace = async (e, id, name) => {
+  const handleDeleteWorkspace = (e, id, name) => {
     e.preventDefault();
     e.stopPropagation();
-
-    if (
-      !window.confirm(
-        `Are you sure you want to delete the workspace "${name}"? All associated AI data will be removed.`
-      )
-    ) {
-      return;
-    }
-
-    try {
-      await deleteProject(id);
-      toast.success("Workspace deleted successfully");
-      fetchProjects();
-    } catch (error) {
-      console.error("Failed to delete workspace:", error);
-      toast.error("Failed to delete workspace");
-    }
+    setDeleteTarget({
+      id,
+      type: "WORKSPACE",
+      name,
+      description: `Are you sure you want to delete the workspace "${name}"? All associated AI data will be removed.`
+    });
+    setDeleteDialogOpen(true);
   };
 
   const handleRemoveFavorite = async (id) => {
@@ -199,6 +198,47 @@ export default function MyLibrary() {
     } catch (error) {
       console.error("Failed to remove favorite flashcard:", error);
       toast.error("Something went wrong");
+    }
+  };
+
+  const handleDeleteClick = (id, type, name, description = null) => {
+    setDeleteTarget({ id, type, name, description });
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
+    try {
+      if (deleteTarget.type === "DOCUMENT") {
+        await axiosClient.delete(`/api/documents/${deleteTarget.id}`);
+        toast.success("Document deleted successfully");
+        await refreshDocuments();
+        await fetchFavoriteDocuments();
+      } else if (deleteTarget.type === "FLASHCARD") {
+        await axiosClient.delete(`/api/ai_flashcard/sets/${deleteTarget.id}`);
+        toast.success("Flashcard set deleted successfully");
+        await fetchMyFlashcards();
+      } else if (deleteTarget.type === "QUIZ") {
+        await axiosClient.delete(`/api/quizzes/${deleteTarget.id}`);
+        toast.success("Quiz deleted successfully");
+        await fetchMyQuizzes();
+      } else if (deleteTarget.type === "WORKSPACE") {
+        await deleteProject(deleteTarget.id);
+        toast.success("Workspace deleted successfully");
+        await fetchProjects();
+      } else if (deleteTarget.type === "UNFOLLOW") {
+        await axiosClient.delete(`/api/follows/${deleteTarget.id}`);
+        toast.success(`Đã bỏ theo dõi ${deleteTarget.name}`);
+        setFollowedUsers((prev) => prev.filter((user) => user.id !== deleteTarget.id));
+      }
+    } catch (error) {
+      console.error("Failed to delete target:", error);
+      toast.error(`Failed to delete ${deleteTarget.type.toLowerCase()}`);
+    } finally {
+      setIsDeleting(false);
+      setDeleteDialogOpen(false);
+      setDeleteTarget(null);
     }
   };
 
@@ -408,16 +448,9 @@ export default function MyLibrary() {
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={async (e) => {
+                          onClick={(e) => {
                             e.stopPropagation();
-                            if (!window.confirm("Delete this document?")) return;
-                            try {
-                              await axiosClient.delete(`/api/documents/${doc.id}`);
-                              toast.success("Document deleted");
-                              await refreshDocuments();
-                            } catch (err) {
-                              toast.error("Failed to delete document");
-                            }
+                            handleDeleteClick(doc.id, "DOCUMENT", doc.title);
                           }}
                           className="opacity-0 group-hover:opacity-100 p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all cursor-pointer"
                         >
@@ -669,16 +702,9 @@ export default function MyLibrary() {
                       </div>
                       <div className="flex items-center gap-2">
                         <button
-                          onClick={async (e) => {
+                          onClick={(e) => {
                             e.stopPropagation();
-                            if (!window.confirm("Delete this flashcard set?")) return;
-                            try {
-                              await axiosClient.delete(`/api/ai_flashcard/sets/${set.id}`);
-                              toast.success("Flashcard set deleted");
-                              fetchMyFlashcards();
-                            } catch (err) {
-                              toast.error("Failed to delete flashcard set");
-                            }
+                            handleDeleteClick(set.id, "FLASHCARD", set.title);
                           }}
                           className="opacity-0 group-hover:opacity-100 p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all cursor-pointer"
                         >
@@ -751,16 +777,9 @@ export default function MyLibrary() {
                       </div>
                       <div className="flex items-center gap-2">
                         <button
-                          onClick={async (e) => {
+                          onClick={(e) => {
                             e.stopPropagation();
-                            if (!window.confirm("Delete this quiz?")) return;
-                            try {
-                              await axiosClient.delete(`/api/quizzes/${quiz.id}`);
-                              toast.success("Quiz deleted");
-                              fetchMyQuizzes();
-                            } catch (err) {
-                              toast.error("Failed to delete quiz");
-                            }
+                            handleDeleteClick(quiz.id, "QUIZ", quiz.title);
                           }}
                           className="opacity-0 group-hover:opacity-100 p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all cursor-pointer"
                         >
@@ -870,6 +889,46 @@ export default function MyLibrary() {
         onOpenChange={setCreateModalOpen}
         onSuccess={fetchProjects}
       />
+
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent className="sm:max-w-[425px] rounded-3xl bg-white border border-slate-100 shadow-xl p-6">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-extrabold text-slate-800 flex items-center gap-2">
+              <span className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center text-red-500">
+                <Trash2 className="w-5 h-5" />
+              </span>
+              Xác nhận xóa
+            </DialogTitle>
+            <DialogDescription className="text-sm text-slate-500 mt-2">
+              {deleteTarget?.description || `Bạn có chắc chắn muốn xóa ${deleteTarget?.type?.toLowerCase() === "document" ? "tài liệu" : deleteTarget?.type?.toLowerCase() === "flashcard" ? "bộ flashcard" : "bài quiz"} "${deleteTarget?.name || deleteTarget?.title || ""}"? Hành động này không thể hoàn tác.`}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-6 flex flex-col sm:flex-row gap-2 justify-end">
+            <Button
+              variant="outline"
+              disabled={isDeleting}
+              onClick={() => setDeleteDialogOpen(false)}
+              className="rounded-xl border-slate-200 font-semibold cursor-pointer"
+            >
+              Hủy
+            </Button>
+            <Button
+              disabled={isDeleting}
+              onClick={handleConfirmDelete}
+              className="bg-red-500 hover:bg-red-600 text-white font-semibold rounded-xl flex items-center gap-2 cursor-pointer border-none"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Đang xóa...
+                </>
+              ) : (
+                "Xóa"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

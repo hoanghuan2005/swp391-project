@@ -1,5 +1,6 @@
 package com.example.keeper.systems.ai_mindmap.entity;
 
+import com.example.keeper.systems.auth.entity.User;
 import com.example.keeper.systems.ai_mindmap.enums.MindMapStatus;
 import com.example.keeper.systems.base.BaseEntity;
 import jakarta.persistence.*;
@@ -27,4 +28,8 @@ public class MindMap extends BaseEntity {
 
     @Enumerated(EnumType.STRING)
     private MindMapStatus status;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User user;
 }

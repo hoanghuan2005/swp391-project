@@ -292,8 +292,20 @@ public class AiAskServiceImpl implements AiAskService {
             }
 
             if (!validDocIds.isEmpty()) {
-                float[] queryEmbedding = embeddingService.embed(request.getMessage());
-                List<DocumentChunk> chunks = documentChunkRepository.findSimilarChunksByDocumentIds(validDocIds, java.util.Arrays.toString(queryEmbedding), 15);
+                List<DocumentChunk> chunks;
+                try {
+                    float[] queryEmbedding = embeddingService.embed(request.getMessage());
+                    chunks = documentChunkRepository.findSimilarChunksByDocumentIds(validDocIds, java.util.Arrays.toString(queryEmbedding), 15);
+                } catch (Exception e) {
+                    log.warn("Jina embedding failed for project context, falling back to sequential chunks. Error: {}", e.getMessage());
+                    chunks = new java.util.ArrayList<>();
+                    for (UUID docId : validDocIds) {
+                        chunks.addAll(documentChunkRepository.findByDocumentId(docId));
+                    }
+                    if (chunks.size() > 15) {
+                        chunks = chunks.subList(0, 15);
+                    }
+                }
 
                 if (!chunks.isEmpty()) {
                     for (DocumentChunk chunk : chunks) {
@@ -437,8 +449,17 @@ public class AiAskServiceImpl implements AiAskService {
                 .orElseThrow(() -> new RuntimeException("Document not found"));
         ensureReadyForAi(document);
 
-        float[] queryEmbedding = embeddingService.embed(request.getMessage());
-        List<DocumentChunk> chunks = documentChunkRepository.findSimilarChunksByDocumentId(docId, java.util.Arrays.toString(queryEmbedding), 15);
+        List<DocumentChunk> chunks;
+        try {
+            float[] queryEmbedding = embeddingService.embed(request.getMessage());
+            chunks = documentChunkRepository.findSimilarChunksByDocumentId(docId, java.util.Arrays.toString(queryEmbedding), 15);
+        } catch (Exception e) {
+            log.warn("Jina embedding failed for document context, falling back to sequential chunks. Error: {}", e.getMessage());
+            chunks = documentChunkRepository.findByDocumentId(docId);
+            if (chunks.size() > 15) {
+                chunks = chunks.subList(0, 15);
+            }
+        }
 
         String contextContent = "";
         if (!chunks.isEmpty()) {

@@ -102,26 +102,45 @@ export default function PaymentVnpayReturnPage() {
     }
 
     const params = Object.fromEntries(searchParams.entries());
+    const MAX_RETRIES = 3;
+    const RETRY_DELAY_MS = 2000;
 
-    confirmVnpayReturn(params)
-      .then((result) => {
-        if (active) {
+    const attempt = (retryCount) => {
+      confirmVnpayReturn(params)
+        .then((result) => {
+          if (!active) return;
+
+          // If still PENDING and we have retries left, wait and try again
+          if (result?.status === "PENDING" && retryCount < MAX_RETRIES) {
+            setTimeout(() => {
+              if (active) attempt(retryCount + 1);
+            }, RETRY_DELAY_MS);
+            return;
+          }
+
           setConfirmation(result);
+          setConfirming(false);
           if (result && result.status === "SUCCESS") {
             window.dispatchEvent(new CustomEvent("subscription-success"));
           }
-        }
-      })
-      .catch(() => {
-        if (active) {
+        })
+        .catch(() => {
+          if (!active) return;
+
+          // On error, retry after delay if we have retries left
+          if (retryCount < MAX_RETRIES) {
+            setTimeout(() => {
+              if (active) attempt(retryCount + 1);
+            }, RETRY_DELAY_MS);
+            return;
+          }
+
           setConfirmError("Unable to confirm payment");
-        }
-      })
-      .finally(() => {
-        if (active) {
           setConfirming(false);
-        }
-      });
+        });
+    };
+
+    attempt(0);
 
     return () => {
       active = false;

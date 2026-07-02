@@ -204,10 +204,11 @@ public class DocumentController {
     }
 
     @DeleteMapping("/{id}")
-    public Document delete(
+    public ResponseEntity<Void> delete(
             @PathVariable UUID id) {
 
-        return documentService.delete(id);
+        documentService.delete(id);
+        return ResponseEntity.noContent().build();
     }
 
     // API tải tài liệu

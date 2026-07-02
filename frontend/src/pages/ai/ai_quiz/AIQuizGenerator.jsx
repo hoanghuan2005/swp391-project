@@ -5,6 +5,9 @@ import {
   Settings2,
   ArrowLeft,
   Heart,
+  CheckCircle2,
+  XCircle,
+  RotateCcw,
 } from "lucide-react";
 import {
   Dialog,
@@ -26,7 +29,7 @@ import AISidebar from "@/components/ai-sidebar/sidebar/AISidebar";
 import axiosClient, { backendBaseUrl } from "@/api/axiosClient";
 import useDocuments from "@/hooks/useDocuments";
 import { toast } from "react-hot-toast";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import AIGeneratorInput from "@/components/ai-sidebar/AIGeneratorInput";
 import AIToolHeader from "@/components/ai-sidebar/AIToolHeader";
 import useMaterialPublish from "@/hooks/useMaterialPublish";
@@ -38,6 +41,8 @@ import {
   getQuizById,
   getUserQuizzes,
   updateQuiz,
+  renameQuiz,
+  generateQuizFromFile,
 } from "@/api/quizApi";
 import AiUsageBadge from "@/components/ai-usage/AiUsageBadge";
 import useAiUsage from "@/hooks/useAiUsage";
@@ -76,9 +81,18 @@ export default function AIQuizGenerator() {
     message: "",
   });
 
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [quizToDelete, setQuizToDelete] = useState(null);
+
+  const [renameDialogOpen, setRenameDialogOpen] = useState(false);
+  const [quizToRename, setQuizToRename] = useState(null);
+  const [newTitle, setNewTitle] = useState("");
+  const [isRenaming, setIsRenaming] = useState(false);
+
   const VIEW_MODE = {
     GENERATE: "GENERATE",
     PREVIEW: "PREVIEW",
+    STUDY: "STUDY",
   };
   const [viewMode, setViewMode] = useState(VIEW_MODE.GENERATE);
   const [selectedQuiz, setSelectedQuiz] = useState(null);
@@ -86,8 +100,71 @@ export default function AIQuizGenerator() {
   const [courses, setCourses] = useState([]);
   const [publishCourseId, setPublishCourseId] = useState("");
 
+  // Quiz study mode state
+  const [answers, setAnswers] = useState({});
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [score, setScore] = useState(0);
+
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const quizIdParam = searchParams.get("id");
+  const modeParam = searchParams.get("mode");
+
+  const loadQuiz = async (quizId) => {
+    try {
+      setIsGenerating(true);
+      const quizDetails = await getQuizById(quizId);
+      setSelectedQuiz(quizDetails);
+      if (modeParam === "study") {
+        setViewMode(VIEW_MODE.STUDY);
+      } else {
+        setViewMode(VIEW_MODE.PREVIEW);
+      }
+      setAnswers({});
+      setIsSubmitted(false);
+      setScore(0);
+    } catch (error) {
+      console.error("Failed to load quiz details:", error);
+      toast.error("Failed to load quiz details");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleSelectOption = (questionId, option) => {
+    if (isSubmitted) return;
+    setAnswers((prev) => ({ ...prev, [questionId]: option }));
+  };
+
+  const handleRetake = () => {
+    setAnswers({});
+    setIsSubmitted(false);
+    setScore(0);
+    toast.success("Quiz reset. Good luck!");
+  };
+
+  const handleSubmit = () => {
+    const totalQuestions = selectedQuiz?.questions?.length || 0;
+    if (Object.keys(answers).length < totalQuestions) {
+      toast.error("Please answer all questions before submitting.");
+      return;
+    }
+    let calculatedScore = 0;
+    selectedQuiz.questions.forEach((q) => {
+      if (answers[q.id] === q.correctAnswer) {
+        calculatedScore++;
+      }
+    });
+    setScore(calculatedScore);
+    setIsSubmitted(true);
+  };
+
+  useEffect(() => {
+    if (quizIdParam) {
+      loadQuiz(quizIdParam);
+    }
+  }, [quizIdParam]);
   const { publish, loading: publishing } = useMaterialPublish();
 
   // Fetch sidebar data
@@ -147,20 +224,58 @@ export default function AIQuizGenerator() {
     }
   };
 
-  // === ĐÃ VÁ LỖI: Thêm hàm xử lý xóa bài Quiz để tránh crash ứng dụng ===
-  const handleDeleteQuiz = async (e, quizId) => {
+  const handleDeleteQuiz = (e, quizId) => {
     e.stopPropagation();
-    if (!window.confirm("Are you sure you want to delete this quiz session?")) {
-      return;
-    }
+    setQuizToDelete(quizId);
+    setDeleteConfirmOpen(true);
+  };
 
+  const confirmDeleteQuiz = async () => {
+    if (!quizToDelete) return;
     try {
-      await deleteQuiz(quizId);
+      await deleteQuiz(quizToDelete);
       toast.success("Quiz deleted successfully");
-      setQuizHistory((prev) => prev.filter((q) => q.id !== quizId));
+      setQuizHistory((prev) => prev.filter((q) => q.id !== quizToDelete));
+      if (selectedQuiz?.id === quizToDelete) {
+        setSelectedQuiz(null);
+        setViewMode(VIEW_MODE.GENERATE);
+      }
     } catch (error) {
       console.error("Failed to delete quiz:", error);
       toast.error("Failed to delete quiz session");
+    } finally {
+      setDeleteConfirmOpen(false);
+      setQuizToDelete(null);
+    }
+  };
+
+  const handleEditQuizClick = (e, quiz) => {
+    e.stopPropagation();
+    setQuizToRename(quiz);
+    setNewTitle(quiz.title);
+    setRenameDialogOpen(true);
+  };
+
+  const handleRenameQuiz = async () => {
+    if (!quizToRename || !newTitle.trim()) return;
+    setIsRenaming(true);
+    try {
+      const updatedQuiz = await renameQuiz(quizToRename.id, newTitle.trim());
+      toast.success("Quiz renamed successfully!");
+      setQuizHistory((current) =>
+        current.map((q) =>
+          q.id === quizToRename.id ? { ...q, title: newTitle.trim() } : q
+        )
+      );
+      if (selectedQuiz?.id === quizToRename.id) {
+        setSelectedQuiz((prev) => ({ ...prev, title: newTitle.trim() }));
+      }
+      setRenameDialogOpen(false);
+    } catch (error) {
+      console.error("Failed to rename quiz:", error);
+      toast.error(error.response?.data?.message || "Failed to rename quiz.");
+    } finally {
+      setIsRenaming(false);
     }
   };
 
@@ -243,82 +358,54 @@ export default function AIQuizGenerator() {
     setIsGenerating(true);
 
     try {
-      let finalDocumentId = libraryDoc ? libraryDoc.id : null;
-      let documentTitle = libraryDoc
-        ? libraryDoc.title || libraryDoc.name
-        : null;
-
-      if (libraryDoc?.aiParseStatus === "PENDING") {
-        throw new Error(
-          "Document is still being prepared for AI. Please try again shortly.",
-        );
-      }
-      if (["FAILED", "UNSUPPORTED"].includes(libraryDoc?.aiParseStatus)) {
-        throw new Error(
-          "This document is not available for AI quiz generation.",
-        );
-      }
-
-      if (file && !finalDocumentId) {
-        const formData = new FormData();
-        formData.append("file", file);
-        formData.append("title", file.name);
-        formData.append("visibility", "PRIVATE");
-        formData.append("courseCode", "QUIZ");
-
-        const token = localStorage.getItem("token");
-
-        const uploadResponse = await fetch(
-          `${backendBaseUrl}/api/documents/upload`,
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-            body: formData,
-          },
-        );
-
-        if (!uploadResponse.ok) {
-          const errorData = await uploadResponse.json().catch(() => null);
-          const uploadError = new Error(
-            errorData?.message ||
-              "Upload failed with status: " + uploadResponse.status,
+      let generatedQuiz;
+      if (libraryDoc) {
+        if (libraryDoc.aiParseStatus === "PENDING") {
+          throw new Error(
+            "Document is still being prepared for AI. Please try again shortly.",
           );
-          uploadError.response = {
-            status: uploadResponse.status,
-            data: errorData,
-          };
-          throw uploadError;
+        }
+        if (["FAILED", "UNSUPPORTED"].includes(libraryDoc?.aiParseStatus)) {
+          throw new Error(
+            "This document is not available for AI quiz generation.",
+          );
         }
 
-        const data = await uploadResponse.json();
-        finalDocumentId = data.id;
-        documentTitle = file.name;
+        let title = `Quiz: ${libraryDoc.title || libraryDoc.name}`;
+        const payload = {
+          title: title,
+          documentId: libraryDoc.id,
+          projectId: null,
+          questionCount: questionCount,
+          difficulty: difficulty,
+          topic: inputText.trim() || null,
+        };
+        generatedQuiz = await generateQuiz(payload);
+      } else if (file) {
+        const formData = new FormData();
+        formData.append("file", file);
+        if (inputText.trim()) {
+          formData.append("text", inputText.trim());
+        }
+        formData.append("title", `Quiz: ${file.name}`);
+        formData.append("questionCount", questionCount);
+        formData.append("difficulty", difficulty);
 
-        await refreshDocumentQuota();
-        await waitForDocumentReady(finalDocumentId);
-        window.dispatchEvent(new CustomEvent("documents:uploaded"));
-      }
-
-      let title = "Custom Topic Quiz";
-      if (documentTitle) {
-        title = `Quiz: ${documentTitle}`;
-      } else if (inputText) {
+        generatedQuiz = await generateQuizFromFile(formData);
+      } else {
         const shortened = inputText.trim().slice(0, 30);
-        title = `Quiz: ${shortened}${inputText.length > 30 ? "..." : ""}`;
+        let title = `Quiz: ${shortened}${inputText.length > 30 ? "..." : ""}`;
+        const payload = {
+          title: title,
+          documentId: null,
+          projectId: null,
+          questionCount: questionCount,
+          difficulty: difficulty,
+          topic: inputText.trim(),
+        };
+        generatedQuiz = await generateQuiz(payload);
       }
 
-      const payload = {
-        title: title,
-        documentId: finalDocumentId,
-        projectId: null,
-        questionCount: questionCount,
-        difficulty: difficulty,
-        topic: inputText.trim() || null,
-      };
-
-      const generatedQuiz = await generateQuiz(payload);
       await refreshAiUsage();
       toast.success("Quiz generated successfully!");
       clearDocument();
@@ -329,6 +416,7 @@ export default function AIQuizGenerator() {
       }
       setSelectedQuiz(generatedQuiz);
       setViewMode(VIEW_MODE.PREVIEW);
+      fetchSidebarData();
     } catch (error) {
       console.error("Failed to generate quiz:", error);
       if (isDocumentQuotaExceeded(error)) {
@@ -392,7 +480,7 @@ export default function AIQuizGenerator() {
   const activeDocument = file || libraryDoc;
 
   return (
-    <div className="h-[calc(100vh-80px)] overflow-hidden bg-white shadow-sm -mx-8 -my-6 flex">
+    <div className="h-[calc(100vh-68px)] overflow-hidden bg-white shadow-sm -mx-8 -my-6 flex">
       {/* SIDEBAR */}
       <AISidebar
         type="quiz"
@@ -400,6 +488,7 @@ export default function AIQuizGenerator() {
         documents={uploadedDocuments}
         onSelectItem={handleSelectQuiz}
         onDeleteItem={handleDeleteQuiz}
+        onEditItem={handleEditQuizClick}
         onCreate={() => {
           setInputText("");
           clearDocument();
@@ -524,7 +613,7 @@ export default function AIQuizGenerator() {
                           <Button
                             variant="outline"
                             className="rounded-full border-orange-200 hover:bg-orange-50 h-9 px-4 text-sm cursor-pointer"
-                            onClick={() => navigate(`/quiz/${selectedQuiz.id}`)}
+                            onClick={() => setViewMode(VIEW_MODE.STUDY)}
                           >
                             Start Study
                           </Button>
@@ -565,6 +654,152 @@ export default function AIQuizGenerator() {
                   }))
                 }
               />
+            </div>
+          )}
+
+          {viewMode === VIEW_MODE.STUDY && selectedQuiz && (
+            <div className="space-y-5 animate-in slide-in-from-bottom-4 duration-500">
+              <div className="rounded-[28px] border border-orange-100 bg-gradient-to-br from-[#fffaf7] to-[#fff3eb] overflow-hidden mb-5">
+                <div className="p-5">
+                  <div className="flex items-center justify-between mb-4">
+                    <Button
+                      variant="outline"
+                      onClick={() => setViewMode(VIEW_MODE.PREVIEW)}
+                      className="rounded-xl"
+                    >
+                      <ArrowLeft className="w-4 h-4 mr-2" /> Back to Edit
+                    </Button>
+                    {isSubmitted && (
+                      <div className="text-center px-6 py-2 bg-white/80 rounded-xl border border-orange-200 shadow-sm shrink-0">
+                        <span className="text-xs font-bold text-[#f26522] uppercase tracking-widest mr-2">Score:</span>
+                        <span className="text-lg font-black text-[#f26522]">{score} / {selectedQuiz.questions?.length || 0}</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-start gap-4">
+                    <div className="w-14 h-14 rounded-2xl bg-[#f66810] flex items-center justify-center text-white shadow-sm shrink-0">
+                      <ListChecks className="w-7 h-7" />
+                    </div>
+                    <div>
+                      <h1 className="text-2xl font-bold text-slate-800 tracking-tight leading-tight">
+                        {selectedQuiz.title}
+                      </h1>
+                      <p className="text-sm text-slate-505 mt-1">
+                        {selectedQuiz.questions?.length || 0} Questions • Practice Mode
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Questions List */}
+              <div className="space-y-6">
+                {selectedQuiz.questions?.map((q, index) => {
+                  const selectedAnswer = answers[q.id];
+                  const isCorrect = selectedAnswer === q.correctAnswer;
+
+                  return (
+                    <div
+                      key={q.id}
+                      className="bg-white rounded-[24px] p-6 shadow-xs border border-slate-200"
+                    >
+                      <h3 className="text-lg font-bold text-slate-800 mb-5 leading-relaxed">
+                        <span className="text-[#f26522] mr-3 text-xl font-black opacity-20">
+                          {index + 1}
+                        </span>
+                        {q.content}
+                      </h3>
+
+                      <div className="space-y-3">
+                        {q.options?.map((option, optIdx) => {
+                          const isSelected = selectedAnswer === option;
+                          const isActuallyCorrect =
+                            isSubmitted && option === q.correctAnswer;
+                          const isWrongSelection =
+                            isSubmitted && isSelected && !isCorrect;
+
+                          let boxStyles =
+                            "border-slate-200 bg-white hover:border-[#f26522]/30 hover:bg-orange-50/20";
+                          if (isSelected && !isSubmitted)
+                            boxStyles =
+                              "border-[#f26522] bg-orange-50/50 ring-1 ring-[#f26522] shadow-sm";
+                          if (isActuallyCorrect)
+                            boxStyles =
+                              "border-green-500 bg-green-50 text-green-800 ring-1 ring-green-500 shadow-sm";
+                          if (isWrongSelection)
+                            boxStyles =
+                              "border-red-500 bg-red-50 text-red-800 ring-1 ring-red-500 shadow-sm";
+
+                          return (
+                            <div
+                              key={optIdx}
+                              onClick={() => handleSelectOption(q.id, option)}
+                              className={`p-4.5 rounded-xl border-2 transition-all cursor-pointer flex items-center justify-between ${boxStyles} ${isSubmitted ? "cursor-default" : ""}`}
+                            >
+                              <span className="font-semibold text-[15px]">
+                                {option}
+                              </span>
+
+                              {isActuallyCorrect && (
+                                <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0" />
+                              )}
+                              {isWrongSelection && (
+                                <XCircle className="w-5 h-5 text-red-500 shrink-0" />
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {isSubmitted && q.explanation && (
+                        <div className="mt-6 p-5 rounded-2xl bg-blue-50/50 border border-blue-100/50 text-blue-900 animate-in slide-in-from-top-2 duration-300">
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                            <p className="text-xs font-bold uppercase tracking-widest text-blue-600">
+                              Explanation
+                            </p>
+                          </div>
+                          <p className="text-[15px] leading-relaxed font-medium">
+                            {q.explanation}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="mt-8 mb-12 flex justify-end gap-4">
+                {!isSubmitted ? (
+                  <Button
+                    size="lg"
+                    onClick={handleSubmit}
+                    className="rounded-xl bg-[#f26522] hover:bg-[#de5b0b] text-white font-bold px-6 h-12 text-md shadow-sm cursor-pointer hover:scale-[1.02] active:scale-95 transition-all"
+                  >
+                    Submit Quiz
+                  </Button>
+                ) : (
+                  <>
+                    <Button
+                      size="lg"
+                      variant="outline"
+                      onClick={() => setViewMode(VIEW_MODE.PREVIEW)}
+                      className="rounded-xl border-slate-205 bg-white text-slate-700 h-12 px-6 font-bold hover:bg-slate-50 shadow-sm transition-all cursor-pointer"
+                    >
+                      Back to Edit
+                    </Button>
+                    <Button
+                      size="lg"
+                      onClick={handleRetake}
+                      className="rounded-xl bg-[#f26522] hover:bg-[#de5b0b] text-white h-12 px-6 font-bold shadow-lg shadow-[#f26522]/20 hover:scale-[1.02] active:scale-95 transition-all cursor-pointer"
+                    >
+                      <RotateCcw className="w-5 h-5 mr-2" />
+                      Retake Quiz
+                    </Button>
+                  </>
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -686,6 +921,54 @@ export default function AIQuizGenerator() {
         type={quotaDialog.type}
         message={quotaDialog.message}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <DialogContent className="rounded-3xl max-w-sm bg-white border border-slate-100">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold text-slate-800">Delete Quiz Session?</DialogTitle>
+            <DialogDescription className="text-slate-500 text-sm">
+              Are you sure you want to delete this quiz session? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 justify-end mt-4">
+            <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)} className="rounded-xl cursor-pointer">
+              Cancel
+            </Button>
+            <Button onClick={confirmDeleteQuiz} className="bg-red-500 hover:bg-red-600 text-white rounded-xl cursor-pointer">
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Rename Dialog */}
+      <Dialog open={renameDialogOpen} onOpenChange={setRenameDialogOpen}>
+        <DialogContent className="rounded-3xl max-w-sm bg-white border border-slate-100">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold text-slate-800">Rename Quiz</DialogTitle>
+            <DialogDescription className="text-slate-500 text-sm">
+              Enter a new name for this quiz.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-2">
+            <Input
+              value={newTitle}
+              onChange={(e) => setNewTitle(e.target.value)}
+              placeholder="Quiz Title"
+              className="rounded-xl border-slate-200"
+            />
+          </div>
+          <DialogFooter className="flex gap-2 justify-end mt-4">
+            <Button variant="outline" onClick={() => setRenameDialogOpen(false)} className="rounded-xl cursor-pointer">
+              Cancel
+            </Button>
+            <Button onClick={handleRenameQuiz} disabled={isRenaming} className="bg-[#f26522] hover:bg-[#d95316] text-white rounded-xl cursor-pointer">
+              {isRenaming ? "Saving..." : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

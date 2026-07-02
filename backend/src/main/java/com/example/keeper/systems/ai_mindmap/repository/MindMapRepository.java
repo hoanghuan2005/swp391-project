@@ -16,7 +16,7 @@ public interface MindMapRepository
 
     Optional<MindMap> findByDocumentId(UUID documentId);
 
-    @Query("SELECT m FROM MindMap m WHERE m.documentId IN (SELECT d.id FROM Document d WHERE d.uploadedBy.email = :email) ORDER BY m.createdAt DESC")
+    @Query("SELECT m FROM MindMap m WHERE m.user.email = :email OR (m.user IS NULL AND m.documentId IN (SELECT d.id FROM Document d WHERE d.uploadedBy.email = :email)) ORDER BY m.createdAt DESC")
     List<MindMap> findAllByUserEmailOrderByCreatedAtDesc(@Param("email") String email);
 
 }

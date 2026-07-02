@@ -11,6 +11,8 @@ import com.example.keeper.systems.ai_mindmap.enums.MindMapStatus;
 import com.example.keeper.systems.ai_mindmap.repository.MindMapRepository;
 import com.example.keeper.systems.document.entity.Document;
 import com.example.keeper.systems.document.repository.DocumentRepository;
+import com.example.keeper.systems.auth.entity.User;
+import com.example.keeper.systems.auth.repository.UserRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -18,6 +20,8 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.UUID;
+import org.springframework.web.multipart.MultipartFile;
+import com.example.keeper.systems.ai_ask.service.DocumentParserService;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +33,8 @@ public class MindMapServiceImpl implements MindMapService {
     private final ObjectMapper objectMapper;
     private final AiUsageService aiUsageService;
     private final DocumentRepository documentRepository;
+    private final UserRepository userRepository;
+    private final DocumentParserService documentParserService;
 
     @Override
     public MindMapResponse generate(UUID documentId) {
@@ -61,20 +67,86 @@ public class MindMapServiceImpl implements MindMapService {
         validateJson(aiResponse);
         aiUsageService.recordUsage(email, AiUsageFeature.MINDMAP_GENERATION);
 
-        String title = "Generated MindMap";
+        String title = "Mindmap: Generated MindMap";
         try {
-            title = documentRepository.findById(documentId)
+            String docTitle = documentRepository.findById(documentId)
                     .map(Document::getTitle)
                     .orElse("Generated MindMap");
+            if (docTitle.startsWith("Mindmap: ")) {
+                title = docTitle;
+            } else {
+                title = "Mindmap: " + docTitle;
+            }
         } catch (Exception e) {
             // ignore
         }
+
+        User user = userRepository.findByEmail(email).orElse(null);
 
         MindMap mindMap = MindMap.builder()
                 .documentId(documentId)
                 .title(title)
                 .content(aiResponse)
                 .status(MindMapStatus.COMPLETED)
+                .user(user)
+                .build();
+
+        mindMapRepository.save(mindMap);
+
+        return mapToResponse(mindMap);
+    }
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional
+    public MindMapResponse generateFromFile(MultipartFile file, String text, String title) {
+        String content = "";
+        if (file != null && !file.isEmpty()) {
+            content = documentParserService.parseTextOnly(file);
+        } else if (text != null && !text.trim().isEmpty()) {
+            content = text;
+        }
+
+        if (content.trim().isEmpty()) {
+            throw new RuntimeException("Content not found");
+        }
+
+        if (content.length() > 30000) {
+            content = content.substring(0, 30000);
+        }
+
+        String prompt = buildMindMapPrompt(content);
+
+        String email = SecurityContextHolder.getContext()
+                .getAuthentication()
+                .getName();
+
+        aiUsageService.checkQuota(email);
+
+        String aiResponse =
+                groqService.generateContent(prompt);
+
+        // Strip markdown code blocks if AI wraps JSON in ```json...```
+        aiResponse = aiResponse.replaceAll("```json\\s*", "").replaceAll("```\\s*", "").trim();
+
+        validateJson(aiResponse);
+        aiUsageService.recordUsage(email, AiUsageFeature.MINDMAP_GENERATION);
+
+        User user = userRepository.findByEmail(email).orElse(null);
+
+        String formattedTitle = title;
+        if (formattedTitle == null || formattedTitle.trim().isEmpty()) {
+            formattedTitle = "Generated MindMap";
+        }
+        if (!formattedTitle.startsWith("Mindmap: ")) {
+            formattedTitle = "Mindmap: " + formattedTitle;
+        }
+
+        MindMap mindMap = MindMap.builder()
+                .documentId(UUID.randomUUID())
+                .title(formattedTitle)
+                .content(aiResponse)
+                .status(MindMapStatus.COMPLETED)
+                .user(user)
                 .build();
 
         mindMapRepository.save(mindMap);
@@ -159,6 +231,35 @@ public class MindMapServiceImpl implements MindMapService {
         return mindMaps.stream()
                 .map(this::mapToResponse)
                 .collect(java.util.stream.Collectors.toList());
+    }
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional
+    public MindMapResponse renameMindMap(UUID id, String newTitle, String userEmail) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        MindMap mindMap = mindMapRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("MindMap not found"));
+
+        if (mindMap.getUser() != null) {
+            if (!mindMap.getUser().getId().equals(user.getId())) {
+                throw new RuntimeException("You do not have permission to rename this mindmap");
+            }
+        } else {
+            Document doc = documentRepository.findById(mindMap.getDocumentId()).orElse(null);
+            if (doc != null && !doc.getUploadedBy().getId().equals(user.getId())) {
+                throw new RuntimeException("You do not have permission to rename this mindmap");
+            }
+        }
+
+        if (newTitle == null || newTitle.isBlank()) {
+            throw new RuntimeException("Title is required");
+        }
+
+        mindMap.setTitle(newTitle.trim());
+        mindMapRepository.save(mindMap);
+        return mapToResponse(mindMap);
     }
 
     private MindMapResponse mapToResponse(

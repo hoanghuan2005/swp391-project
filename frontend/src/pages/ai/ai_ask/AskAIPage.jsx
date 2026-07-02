@@ -8,7 +8,16 @@ import {
   MessageSquare,
   Trash2,
 } from "lucide-react";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import axiosClient from "@/api/axiosClient";
 import {
   askAi,
@@ -45,6 +54,12 @@ export default function AskAIPage() {
     type: "AI",
     message: "",
   });
+
+  // Custom Confirmation Dialog State
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [confirmTarget, setConfirmTarget] = useState(null); // { id, name }
+  const [isConfirming, setIsConfirming] = useState(false);
+
   const documentsRef = useRef([]);
   const userSelectedDocumentRef = useRef(false);
 
@@ -142,16 +157,24 @@ export default function AskAIPage() {
     }
   };
 
-  const handleDeleteConversation = async (e, convId) => {
+  const handleDeleteConversation = (e, convId) => {
     e.stopPropagation();
-    if (!window.confirm("Are you sure you want to delete this chat session?"))
-      return;
+    const conv = conversations.find((c) => c.id === convId);
+    setConfirmTarget({
+      id: convId,
+      name: conv?.title || "phiên trò chuyện",
+    });
+    setConfirmDialogOpen(true);
+  };
 
+  const handleConfirmDeleteConversation = async () => {
+    if (!confirmTarget) return;
+    setIsConfirming(true);
     try {
-      await deleteAiConversation(convId);
-      setConversations((prev) => prev.filter((c) => c.id !== convId));
+      await deleteAiConversation(confirmTarget.id);
+      setConversations((prev) => prev.filter((c) => c.id !== confirmTarget.id));
 
-      if (activeConversation?.id === convId) {
+      if (activeConversation?.id === confirmTarget.id) {
         setActiveConversation(null);
         setMessages([]);
         setSelectedDoc(null);
@@ -161,6 +184,10 @@ export default function AskAIPage() {
     } catch (error) {
       console.error("Error deleting conversation:", error);
       toast.error("Failed to delete chat");
+    } finally {
+      setIsConfirming(false);
+      setConfirmDialogOpen(false);
+      setConfirmTarget(null);
     }
   };
 
@@ -348,7 +375,7 @@ export default function AskAIPage() {
   });
 
   return (
-    <div className="h-[calc(100vh-80px)] flex overflow-hidden bg-[#fafafa] rounded-xl -mx-8 -my-6">
+    <div className="h-[calc(100vh-68px)] flex overflow-hidden bg-[#fafafa] rounded-xl -mx-8 -my-6">
       {/* SIDEBAR */}
       <AISidebar
         type="ask-ai"
@@ -431,6 +458,46 @@ export default function AskAIPage() {
         type={quotaDialog.type}
         message={quotaDialog.message}
       />
+
+      <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
+        <DialogContent className="sm:max-w-[425px] rounded-3xl bg-white border border-slate-100 shadow-xl p-6">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-extrabold text-slate-800 flex items-center gap-2">
+              <span className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center text-red-500">
+                <Trash2 className="w-5 h-5" />
+              </span>
+              Xác nhận xóa
+            </DialogTitle>
+            <DialogDescription className="text-sm text-slate-500 mt-2">
+              Bạn có chắc chắn muốn xóa phiên trò chuyện "{confirmTarget?.name}"? Hành động này không thể hoàn tác.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-6 flex flex-col sm:flex-row gap-2 justify-end">
+            <Button
+              variant="outline"
+              disabled={isConfirming}
+              onClick={() => setConfirmDialogOpen(false)}
+              className="rounded-xl border-slate-200 font-semibold cursor-pointer"
+            >
+              Hủy
+            </Button>
+            <Button
+              disabled={isConfirming}
+              onClick={handleConfirmDeleteConversation}
+              className="bg-red-50 hover:bg-red-600 text-white font-semibold rounded-xl flex items-center gap-2 cursor-pointer border-none"
+            >
+              {isConfirming ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Đang xóa...
+                </>
+              ) : (
+                "Xóa"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

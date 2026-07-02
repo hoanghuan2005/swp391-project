@@ -6,6 +6,7 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Setter;
 
 @Getter
@@ -17,6 +18,7 @@ import lombok.Setter;
        uniqueConstraints = {@UniqueConstraint(columnNames = {"document_id", "user_id"})})
 public class DocumentReview extends BaseEntity {
 
+    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "document_id", nullable = false)
     private Document document;

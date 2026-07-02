@@ -1,7 +1,16 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useParams } from "react-router-dom";
-import { Loader2, Sparkles, CheckSquare } from "lucide-react";
-import { toast } from "react-hot-toast";
+import { Loader2, Sparkles, CheckSquare, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 import {
   getProjectDetail,
@@ -36,6 +45,11 @@ export default function ProjectWorkspacePage() {
 
   const [searchDocQuery, setSearchDocQuery] = useState("");
   const fileInputRef = useRef(null);
+
+  // Custom Confirmation Dialog State
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [confirmTarget, setConfirmTarget] = useState(null); // { id, name }
+  const [isConfirming, setIsConfirming] = useState(false);
 
   // --- MULTI-SELECT NOTEBOOKLM LOGIC ---
   const [selectedDocs, setSelectedDocs] = useState([]); // Array instead of a single object!
@@ -204,29 +218,35 @@ export default function ProjectWorkspacePage() {
     setSelectedDocs([]);
   };
 
-  const handleDeleteDocument = async (documentId) => {
+  const handleDeleteDocument = (documentId) => {
     if (isSharedView) return;
+    const doc = project.documents?.find((d) => d.id === documentId);
+    setConfirmTarget({
+      id: documentId,
+      name: doc?.title || doc?.name || "tài liệu này",
+    });
+    setConfirmDialogOpen(true);
+  };
 
-    if (
-      !window.confirm(
-        "Are you sure you want to remove this document from the workspace?",
-      )
-    ) {
-      return;
-    }
-
+  const handleConfirmDelete = async () => {
+    if (!confirmTarget) return;
+    setIsConfirming(true);
     try {
-      await removeDocumentFromProject(projectId, documentId);
+      await removeDocumentFromProject(projectId, confirmTarget.id);
       toast.success("Document removed");
 
       // Clear from selectedDocs if it was there
-      setSelectedDocs((prev) => prev.filter((d) => d.id !== documentId));
+      setSelectedDocs((prev) => prev.filter((d) => d.id !== confirmTarget.id));
 
       // Refresh project to update sidebar
       fetchProject();
     } catch (error) {
       console.error("Delete document failed:", error);
       toast.error("Failed to remove document");
+    } finally {
+      setIsConfirming(false);
+      setConfirmDialogOpen(false);
+      setConfirmTarget(null);
     }
   };
 
@@ -242,7 +262,7 @@ export default function ProjectWorkspacePage() {
 
   return (
     <div
-      className={`flex overflow-hidden bg-[#fafafa] ${isSharedView ? "h-screen w-full absolute inset-0 z-50" : "h-[calc(100vh-80px)] rounded-xl -mx-8 -my-6"}`}
+      className={`flex overflow-hidden bg-[#fafafa] ${isSharedView ? "h-screen w-full absolute inset-0 z-50" : "h-[calc(100vh-68px)] rounded-xl -mx-8 -my-6"}`}
     >
       <AISidebar
         type="project-workspace"
@@ -304,6 +324,46 @@ export default function ProjectWorkspacePage() {
           }
         />
       </div>
+
+      <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
+        <DialogContent className="sm:max-w-[425px] rounded-3xl bg-white border border-slate-100 shadow-xl p-6">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-extrabold text-slate-800 flex items-center gap-2">
+              <span className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center text-red-500">
+                <Trash2 className="w-5 h-5" />
+              </span>
+              Xác nhận gỡ bỏ
+            </DialogTitle>
+            <DialogDescription className="text-sm text-slate-500 mt-2">
+              Bạn có chắc chắn muốn gỡ bỏ tài liệu "{confirmTarget?.name}" khỏi workspace này? Hành động này không thể hoàn tác.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-6 flex flex-col sm:flex-row gap-2 justify-end">
+            <Button
+              variant="outline"
+              disabled={isConfirming}
+              onClick={() => setConfirmDialogOpen(false)}
+              className="rounded-xl border-slate-200 font-semibold cursor-pointer"
+            >
+              Hủy
+            </Button>
+            <Button
+              disabled={isConfirming}
+              onClick={handleConfirmDelete}
+              className="bg-red-500 hover:bg-red-600 text-white font-semibold rounded-xl flex items-center gap-2 cursor-pointer border-none"
+            >
+              {isConfirming ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Đang gỡ...
+                </>
+              ) : (
+                "Xác nhận"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

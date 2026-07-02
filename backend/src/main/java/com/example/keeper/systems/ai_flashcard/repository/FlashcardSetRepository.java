@@ -17,4 +17,8 @@ public interface FlashcardSetRepository extends JpaRepository<FlashcardSet, UUID
     // THÊM DÒNG NÀY ĐỂ TÌM FLASHCARD ĐÃ YÊU THÍCH
     // ==========================================
     List<FlashcardSet> findByFavoritedByUsersContains(User user);
+
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.data.jpa.repository.Query("UPDATE FlashcardSet f SET f.document = null WHERE f.document.id = :documentId")
+    void clearDocumentReference(@org.springframework.data.repository.query.Param("documentId") UUID documentId);
 }

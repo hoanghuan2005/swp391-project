@@ -975,7 +975,7 @@ export default function CourseDetailPage() {
                     asChild
                     className="flex-1 bg-[#f26522] hover:bg-[#de5b0b] text-white font-semibold text-xs rounded-xl h-9 cursor-pointer"
                   >
-                    <Link to={`/quiz/${quiz.id}`}>Take Quiz</Link>
+                    <Link to={quiz.ownerId === currentUser?.id ? `/ai-tools/ai-quiz?id=${quiz.id}&mode=study` : `/quiz/${quiz.id}`}>Take Quiz</Link>
                   </Button>
                 </CardFooter>
               </Card>
@@ -1032,7 +1032,7 @@ export default function CourseDetailPage() {
                     asChild
                     className="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-semibold text-xs rounded-xl h-9 cursor-pointer"
                   >
-                    <Link to={`/flashcard?id=${fc.id}`}>Study Now</Link>
+                    <Link to={fc.ownerId === currentUser?.id ? `/ai-tools/ai-flashcard?id=${fc.id}&mode=study` : `/flashcard/${fc.id}`}>Study Now</Link>
                   </Button>
                 </CardFooter>
               </Card>

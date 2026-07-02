@@ -29,12 +29,15 @@ import {
   ChevronDown,
   Sparkles,
 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import AISidebar from "@/components/ai-sidebar/sidebar/AISidebar";
 import AIToolHeader from "@/components/ai-sidebar/AIToolHeader";
 import AIGeneratorInput from "@/components/ai-sidebar/AIGeneratorInput";
 import useDocuments from "@/hooks/useDocuments";
 import axiosClient, { backendBaseUrl } from "@/api/axiosClient";
-import { generateMindMap, getMindMapByDocument, getUserMindMaps } from "@/api/mindmapApi";
+import { generateMindMap, getMindMapByDocument, getUserMindMaps, renameMindMap, generateMindMapFromFile } from "@/api/mindmapApi";
 import { toast } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import useAiUsage from "@/hooks/useAiUsage";
@@ -395,6 +398,14 @@ function AIMindMapPageInner() {
     message: "",
   });
 
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [mindMapToDelete, setMindMapToDelete] = useState(null);
+
+  const [renameDialogOpen, setRenameDialogOpen] = useState(false);
+  const [mindMapToRename, setMindMapToRename] = useState(null);
+  const [newTitle, setNewTitle] = useState("");
+  const [isRenaming, setIsRenaming] = useState(false);
+
   const {
     documents: uploadedDocuments,
     loading: documentsLoading,
@@ -416,17 +427,18 @@ function AIMindMapPageInner() {
   const VIEW_MODE = { GENERATE: "GENERATE", VIEW: "VIEW" };
   const [viewMode, setViewMode] = useState(VIEW_MODE.GENERATE);
 
-  useEffect(() => {
-    const fetchHistory = async () => {
-      try {
-        const history = await getUserMindMaps();
-        setMindMapHistory(history || []);
-      } catch (error) {
-        console.error("Failed to fetch mind map history:", error);
-      }
-    };
-    fetchHistory();
+  const fetchHistory = useCallback(async () => {
+    try {
+      const history = await getUserMindMaps();
+      setMindMapHistory(history || []);
+    } catch (error) {
+      console.error("Failed to fetch mind map history:", error);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchHistory();
+  }, [fetchHistory]);
 
   // React Flow state
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
@@ -629,49 +641,33 @@ function AIMindMapPageInner() {
     setIsGenerating(true);
 
     try {
-      let finalDocumentId = libraryDoc ? libraryDoc.id : null;
-
-      // If a file was uploaded but no document ID, upload it first
-      if (file && !finalDocumentId) {
+      let result;
+      if (libraryDoc) {
+        if (libraryDoc.aiParseStatus === "PENDING") {
+          throw new Error(
+            "Document is still being prepared for AI. Please try again shortly.",
+          );
+        }
+        result = await generateMindMap(libraryDoc.id);
+      } else if (file) {
         const formData = new FormData();
         formData.append("file", file);
-        formData.append("title", file.name);
-        formData.append("visibility", "PRIVATE");
-        formData.append("courseCode", "MINDMAP");
-
-        const token = localStorage.getItem("token");
-        const uploadResponse = await fetch(
-          `${backendBaseUrl}/api/documents/upload`,
-          {
-            method: "POST",
-            headers: { Authorization: `Bearer ${token}` },
-            body: formData,
-          }
-        );
-        if (!uploadResponse.ok) {
-          const errorData = await uploadResponse.json().catch(() => null);
-          const uploadError = new Error(errorData?.message || "Upload failed");
-          uploadError.response = {
-            status: uploadResponse.status,
-            data: errorData,
-          };
-          throw uploadError;
+        if (inputText.trim()) {
+          formData.append("text", inputText.trim());
         }
+        formData.append("title", file.name);
 
-        const data = await uploadResponse.json();
-        finalDocumentId = data.id;
+        result = await generateMindMapFromFile(formData);
+      } else {
+        const formData = new FormData();
+        if (inputText.trim()) {
+          formData.append("text", inputText.trim());
+        }
+        formData.append("title", "Custom Mindmap");
 
-        await refreshDocumentQuota();
-        await waitForDocumentReady(finalDocumentId);
-        window.dispatchEvent(new CustomEvent("documents:uploaded"));
+        result = await generateMindMapFromFile(formData);
       }
 
-      if (!finalDocumentId) {
-        toast.error("Please select a document or upload a file to generate a mind map.");
-        return;
-      }
-
-      const result = await generateMindMap(finalDocumentId);
       await refreshAiUsage();
 
       toast.success("Mind map generated successfully!");
@@ -680,6 +676,7 @@ function AIMindMapPageInner() {
       setMindMapHistory((prev) => [result, ...prev]);
       renderMindMap(result.content);
       setViewMode(VIEW_MODE.VIEW);
+      fetchHistory();
 
       clearDocument();
       try { await refreshDocuments(); } catch { /* ignore */ }
@@ -728,21 +725,60 @@ function AIMindMapPageInner() {
     }
   };
 
-  const handleDeleteMindMap = async (e, id) => {
+  const handleDeleteMindMap = (e, id) => {
     e.stopPropagation();
-    if (!window.confirm("Are you sure you want to delete this mind map?")) return;
+    setMindMapToDelete(id);
+    setDeleteConfirmOpen(true);
+  };
+
+  const confirmDeleteMindMap = async () => {
+    if (!mindMapToDelete) return;
     try {
-      await axiosClient.delete(`/api/v1/mindmaps/${id}`);
+      await axiosClient.delete(`/api/v1/mindmaps/${mindMapToDelete}`);
       toast.success("Mind map deleted");
-      setMindMapHistory((prev) => prev.filter((m) => m.id !== id));
-      if (selectedMindMap?.id === id) {
+      setMindMapHistory((prev) => prev.filter((m) => m.id !== mindMapToDelete));
+      if (selectedMindMap?.id === mindMapToDelete) {
         setSelectedMindMap(null);
         setNodes([]);
         setEdges([]);
         setViewMode(VIEW_MODE.GENERATE);
       }
     } catch (error) {
+      console.error("Failed to delete mind map:", error);
       toast.error("Failed to delete mind map");
+    } finally {
+      setDeleteConfirmOpen(false);
+      setMindMapToDelete(null);
+    }
+  };
+
+  const handleEditMindMapClick = (e, mindMap) => {
+    e.stopPropagation();
+    setMindMapToRename(mindMap);
+    setNewTitle(mindMap.title);
+    setRenameDialogOpen(true);
+  };
+
+  const handleRenameMindMap = async () => {
+    if (!mindMapToRename || !newTitle.trim()) return;
+    setIsRenaming(true);
+    try {
+      const updatedMindMap = await renameMindMap(mindMapToRename.id, newTitle.trim());
+      toast.success("Mind map renamed successfully!");
+      setMindMapHistory((current) =>
+        current.map((m) =>
+          m.id === mindMapToRename.id ? { ...m, title: newTitle.trim() } : m
+        )
+      );
+      if (selectedMindMap?.id === mindMapToRename.id) {
+        setSelectedMindMap((prev) => ({ ...prev, title: newTitle.trim() }));
+      }
+      setRenameDialogOpen(false);
+    } catch (error) {
+      console.error("Failed to rename mind map:", error);
+      toast.error(error.response?.data?.message || "Failed to rename mind map.");
+    } finally {
+      setIsRenaming(false);
     }
   };
 
@@ -758,7 +794,7 @@ function AIMindMapPageInner() {
   );
 
   return (
-    <div className="h-[calc(100vh-80px)] overflow-hidden bg-white shadow-sm -mx-8 -my-6 flex">
+    <div className="h-[calc(100vh-68px)] overflow-hidden bg-white shadow-sm -mx-8 -my-6 flex">
       {/* SIDEBAR */}
       <AISidebar
         type="mindmap"
@@ -767,6 +803,7 @@ function AIMindMapPageInner() {
         selectedItem={selectedMindMap}
         onSelectItem={handleSelectMindMap}
         onDeleteItem={handleDeleteMindMap}
+        onEditItem={handleEditMindMapClick}
         onCreate={() => {
           setInputText("");
           clearDocument();
@@ -972,6 +1009,54 @@ function AIMindMapPageInner() {
         type={quotaDialog.type}
         message={quotaDialog.message}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <DialogContent className="rounded-3xl max-w-sm bg-white border border-slate-100">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold text-slate-800">Delete Mind Map?</DialogTitle>
+            <DialogDescription className="text-slate-500 text-sm">
+              Are you sure you want to delete this mind map session? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 justify-end mt-4">
+            <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)} className="rounded-xl cursor-pointer">
+              Cancel
+            </Button>
+            <Button onClick={confirmDeleteMindMap} className="bg-red-500 hover:bg-red-600 text-white rounded-xl cursor-pointer">
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Rename Dialog */}
+      <Dialog open={renameDialogOpen} onOpenChange={setRenameDialogOpen}>
+        <DialogContent className="rounded-3xl max-w-sm bg-white border border-slate-100">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold text-slate-800">Rename Mind Map</DialogTitle>
+            <DialogDescription className="text-slate-500 text-sm">
+              Enter a new name for this mind map.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-2">
+            <Input
+              value={newTitle}
+              onChange={(e) => setNewTitle(e.target.value)}
+              placeholder="Mind Map Title"
+              className="rounded-xl border-slate-200"
+            />
+          </div>
+          <DialogFooter className="flex gap-2 justify-end mt-4">
+            <Button variant="outline" onClick={() => setRenameDialogOpen(false)} className="rounded-xl cursor-pointer">
+              Cancel
+            </Button>
+            <Button onClick={handleRenameMindMap} disabled={isRenaming} className="bg-[#f26522] hover:bg-[#d95316] text-white rounded-xl cursor-pointer">
+              {isRenaming ? "Saving..." : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

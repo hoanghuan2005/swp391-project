@@ -35,3 +35,16 @@ export const getCourseFlashcardSets = async (courseId) => {
   const response = await axiosClient.get(`/api/ai_flashcard/course/${courseId}`);
   return response.data;
 };
+
+export const deleteFlashcardSet = async (setId) => {
+  const response = await axiosClient.delete(`/api/ai_flashcard/sets/${setId}`);
+  return response.data;
+};
+
+export const renameFlashcardSet = async (setId, title) => {
+  const response = await axiosClient.put(
+    `/api/ai_flashcard/sets/${setId}/rename`,
+    { title }
+  );
+  return response.data;
+};

@@ -103,13 +103,18 @@ public class QuizServiceImpl implements QuizService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<QuizResponse> getUserQuizzes(String userEmail) {
+    public List<QuizResponse> getUserQuizzes(String userEmail, Boolean savedToLibrary) {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        return quizRepository.findByOwnerId(user.getId())
-                .stream()
-                .filter(Quiz::isSavedToLibrary)
+        List<Quiz> quizzes = quizRepository.findByOwnerId(user.getId());
+        if (savedToLibrary != null) {
+            quizzes = quizzes.stream()
+                    .filter(q -> q.isSavedToLibrary() == savedToLibrary)
+                    .collect(Collectors.toList());
+        }
+
+        return quizzes.stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
@@ -128,6 +133,26 @@ public class QuizServiceImpl implements QuizService {
         }
 
         quizRepository.delete(quiz);
+    }
+
+    @Override
+    @Transactional
+    public QuizResponse renameQuiz(UUID id, String newTitle, String userEmail) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        Quiz quiz = quizRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Quiz not found"));
+
+        if (!quiz.getOwner().getId().equals(user.getId())) {
+            throw new IllegalArgumentException("You do not have permission to rename this quiz");
+        }
+        if (newTitle == null || newTitle.isBlank()) {
+            throw new IllegalArgumentException("Title is required");
+        }
+
+        quiz.setTitle(newTitle.trim());
+        return mapToResponse(quizRepository.save(quiz));
     }
 
     @Override
@@ -177,6 +202,7 @@ public class QuizServiceImpl implements QuizService {
                 .documentId(quiz.getDocumentId())
                 .projectId(quiz.getProjectId())
                 .ownerId(quiz.getOwner().getId())
+                .courseId(quiz.getCourseId())
                 .createdAt(quiz.getCreatedAt())
                 .questions(questionDTOs)
                 .build();

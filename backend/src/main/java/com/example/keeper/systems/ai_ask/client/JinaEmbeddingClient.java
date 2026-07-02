@@ -20,21 +20,15 @@ public class JinaEmbeddingClient {
             "https://api.jina.ai/v1/embeddings";
 
     public float[] embed(String text) throws IOException {
+        ObjectMapper mapper = new ObjectMapper();
+        java.util.Map<String, Object> requestBodyMap = java.util.Map.of(
+            "model", "jina-embeddings-v5-text-small",
+            "task", "retrieval.query",
+            "normalized", true,
+            "input", java.util.List.of(text)
+        );
 
-        String escapedText =
-                text.replace("\\", "\\\\")
-                        .replace("\"", "\\\"");
-
-        String json = """
-        {
-          "model":"jina-embeddings-v5-text-small",
-          "task":"retrieval.query",
-          "normalized":true,
-          "input":[
-            "%s"
-          ]
-        }
-        """.formatted(escapedText);
+        String json = mapper.writeValueAsString(requestBodyMap);
 
         System.out.println("===== JINA REQUEST =====");
         System.out.println(json);
@@ -74,9 +68,6 @@ public class JinaEmbeddingClient {
                         "Jina Error: " + body
                 );
             }
-
-            ObjectMapper mapper =
-                    new ObjectMapper();
 
             JsonNode root =
                     mapper.readTree(body);

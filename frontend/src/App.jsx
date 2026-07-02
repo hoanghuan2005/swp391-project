@@ -27,6 +27,7 @@ import CatalogCoursesPage from "./pages/Admin/CatalogCoursesPage";
 import AskAIPage from "./pages/ai/ai_ask/AskAIPage";
 import ProjectWorkspacePage from "./pages/workspace/ProjectWorkspacePage";
 import AIFlashcard from "./pages/ai/ai_flashcard/AIFlashcard";
+import AIFlashcardStudyPage from "./pages/ai/ai_flashcard/AIFlashcardStudyPage";
 import AIQuizPage from "./pages/ai/AIToolsPage";
 import AIQuizTakePage from "./pages/ai/ai_quiz/AIQuizTakePage";
 import WorkspaceOverviewPage from "./pages/workspace/WorkspaceOverviewPage";
@@ -108,6 +109,7 @@ function App() {
           <Route path="/courses/:id" element={<CourseDetailPage />} />
           <Route path="/quiz/:id" element={<AIQuizTakePage />} />
           <Route path="/flashcard" element={<AIFlashcard />} />
+          <Route path="/flashcard/:id" element={<AIFlashcardStudyPage />} />
           <Route
             path="/workspace/:projectId"
             element={<WorkspaceOverviewPage />}

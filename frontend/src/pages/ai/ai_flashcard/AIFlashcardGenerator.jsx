@@ -41,6 +41,8 @@ import {
   getFlashcardSet,
   getFlashcardSets,
   updateFlashcardSet,
+  deleteFlashcardSet,
+  renameFlashcardSet,
 } from "@/api/flashcardApi";
 import AiUsageBadge from "@/components/ai-usage/AiUsageBadge";
 import useAiUsage from "@/hooks/useAiUsage";
@@ -61,6 +63,7 @@ export default function AIFlashcardGenerator({ contextData }) {
 
   const [searchParams] = useSearchParams();
   const setIdParam = searchParams.get("id");
+  const modeParam = searchParams.get("mode");
 
   useEffect(() => {
     if (setIdParam) {
@@ -75,6 +78,14 @@ export default function AIFlashcardGenerator({ contextData }) {
   
   // State Like Flashcard
   const [isLiked, setIsLiked] = useState(false);
+
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [setToDelete, setSetToDelete] = useState(null);
+
+  const [renameDialogOpen, setRenameDialogOpen] = useState(false);
+  const [setToRename, setSetToRename] = useState(null);
+  const [newTitle, setNewTitle] = useState("");
+  const [isRenaming, setIsRenaming] = useState(false);
 
   const fileInputRef = useRef(null);
 
@@ -136,7 +147,11 @@ export default function AIFlashcardGenerator({ contextData }) {
       setActiveSetTitle(data.title);
       setFlashcards(data.flashcards || []);
       setSelectedFlashcardSet(data);
-      setViewMode(VIEW_MODE.PREVIEW);
+      if (modeParam === "study") {
+        setViewMode(VIEW_MODE.STUDY);
+      } else {
+        setViewMode(VIEW_MODE.PREVIEW);
+      }
       resetProgress();
     } catch (error) {
       console.error("Load set error:", error);
@@ -152,7 +167,60 @@ export default function AIFlashcardGenerator({ contextData }) {
 
   const handleDeleteFlashcardSet = (e, id) => {
     e.stopPropagation();
-    console.log("Delete flashcard set:", id);
+    setSetToDelete(id);
+    setDeleteConfirmOpen(true);
+  };
+
+  const confirmDeleteFlashcardSet = async () => {
+    if (!setToDelete) return;
+    try {
+      await deleteFlashcardSet(setToDelete);
+      toast.success("Flashcard set deleted successfully");
+      setFlashcardHistory((prev) => prev.filter((s) => s.id !== setToDelete));
+      if (selectedFlashcardSet?.id === setToDelete) {
+        setSelectedFlashcardSet(null);
+        setFlashcards([]);
+        setViewMode(VIEW_MODE.GENERATE);
+      }
+    } catch (error) {
+      console.error("Failed to delete flashcard set:", error);
+      toast.error("Failed to delete flashcard set");
+    } finally {
+      setDeleteConfirmOpen(false);
+      setSetToDelete(null);
+    }
+  };
+
+  const handleEditFlashcardSetClick = (e, set) => {
+    e.stopPropagation();
+    setSetToRename(set);
+    setNewTitle(set.title);
+    setRenameDialogOpen(true);
+  };
+
+  const handleRenameFlashcardSet = async () => {
+    if (!setToRename || !newTitle.trim()) return;
+    setIsRenaming(true);
+    try {
+      const response = await renameFlashcardSet(setToRename.id, newTitle.trim());
+      const updatedSet = response.data || response;
+      toast.success("Flashcard set renamed successfully!");
+      setFlashcardHistory((current) =>
+        current.map((s) =>
+          s.id === setToRename.id ? { ...s, title: newTitle.trim() } : s
+        )
+      );
+      if (selectedFlashcardSet?.id === setToRename.id) {
+        setActiveSetTitle(newTitle.trim());
+        setSelectedFlashcardSet((prev) => ({ ...prev, title: newTitle.trim() }));
+      }
+      setRenameDialogOpen(false);
+    } catch (error) {
+      console.error("Failed to rename flashcard set:", error);
+      toast.error(error.response?.data?.message || "Failed to rename flashcard set.");
+    } finally {
+      setIsRenaming(false);
+    }
   };
 
   const handleSaveDraft = async () => {
@@ -308,22 +376,24 @@ export default function AIFlashcardGenerator({ contextData }) {
         setFlashcards(result.flashcards || result);
         if (result.id) {
           setSelectedFlashcardSet(result);
+          const rawTitle = selectedDoc?.title || file?.name || "New Generated Set";
+          const formattedTitle = rawTitle.startsWith("Flashcard: ") ? rawTitle : `Flashcard: ${rawTitle}`;
           setFlashcardHistory((prev) => [
             {
               id: result.id,
-              title: selectedDoc?.title || file?.name || "New Generated Set",
+              title: formattedTitle,
               cards: result.flashcards?.length || result.length || 0,
             },
             ...prev,
           ]);
         }
 
-        setActiveSetTitle(
-          selectedDoc?.title || file?.name || "New Generated Set"
-        );
+        const rawTitle = selectedDoc?.title || file?.name || "New Generated Set";
+        setActiveSetTitle(rawTitle.startsWith("Flashcard: ") ? rawTitle : `Flashcard: ${rawTitle}`);
 
         resetProgress();
         setViewMode(VIEW_MODE.PREVIEW);
+        fetchSidebarData();
         try {
           await refreshDocuments();
         } catch {
@@ -401,7 +471,7 @@ export default function AIFlashcardGenerator({ contextData }) {
   }, [currentIndex, isCompleted, flashcards.length]);
 
   return (
-    <div className="h-[calc(100vh-80px)] overflow-hidden bg-white shadow-sm -mx-8 -my-6">
+    <div className="h-[calc(100vh-68px)] overflow-hidden bg-white shadow-sm -mx-8 -my-6">
       <div className="flex h-full">
         <AISidebar
           type="flashcard"
@@ -411,6 +481,7 @@ export default function AIFlashcardGenerator({ contextData }) {
           selectedDoc={selectedDoc}
           onSelectItem={handleSelectFlashcardSet}
           onDeleteItem={handleDeleteFlashcardSet}
+          onEditItem={handleEditFlashcardSetClick}
           onCreate={handleCreateFlashcardSet}
           onSelectDocument={handleSelectDocument}
           searchDocQuery={searchQuery}
@@ -721,6 +792,54 @@ export default function AIFlashcardGenerator({ contextData }) {
             >
               {publishing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Publish
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <DialogContent className="rounded-3xl max-w-sm bg-white border border-slate-100">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold text-slate-800">Delete Flashcard Set?</DialogTitle>
+            <DialogDescription className="text-slate-500 text-sm">
+              Are you sure you want to delete this flashcard set? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 justify-end mt-4">
+            <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)} className="rounded-xl cursor-pointer">
+              Cancel
+            </Button>
+            <Button onClick={confirmDeleteFlashcardSet} className="bg-red-500 hover:bg-red-600 text-white rounded-xl cursor-pointer">
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Rename Dialog */}
+      <Dialog open={renameDialogOpen} onOpenChange={setRenameDialogOpen}>
+        <DialogContent className="rounded-3xl max-w-sm bg-white border border-slate-100">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold text-slate-800">Rename Flashcard Set</DialogTitle>
+            <DialogDescription className="text-slate-500 text-sm">
+              Enter a new name for this flashcard set.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-2">
+            <Input
+              value={newTitle}
+              onChange={(e) => setNewTitle(e.target.value)}
+              placeholder="Flashcard Set Title"
+              className="rounded-xl border-slate-200"
+            />
+          </div>
+          <DialogFooter className="flex gap-2 justify-end mt-4">
+            <Button variant="outline" onClick={() => setRenameDialogOpen(false)} className="rounded-xl cursor-pointer">
+              Cancel
+            </Button>
+            <Button onClick={handleRenameFlashcardSet} disabled={isRenaming} className="bg-[#f26522] hover:bg-[#d95316] text-white rounded-xl cursor-pointer">
+              {isRenaming ? "Saving..." : "Save"}
             </Button>
           </DialogFooter>
         </DialogContent>

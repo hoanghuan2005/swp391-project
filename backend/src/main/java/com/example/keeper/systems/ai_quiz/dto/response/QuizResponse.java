@@ -15,6 +15,7 @@ public class QuizResponse {
     private UUID documentId;
     private UUID projectId;
     private UUID ownerId;
+    private UUID courseId;
     private LocalDateTime createdAt;
     private List<QuestionDTO> questions;
 }

@@ -68,12 +68,17 @@ public class AiFlashcardService {
                 .orElseThrow(() -> new RuntimeException("User not found"));
     }
 
-    public List<Map<String, Object>> getAllSetsByUser() {
+    public List<Map<String, Object>> getAllSetsByUser(Boolean savedToLibrary) {
         User user = getAuthenticatedUser();
         List<FlashcardSet> sets = flashcardSetRepository.findByUserIdOrderByCreatedAtDesc(user.getId());
 
+        if (savedToLibrary != null) {
+            sets = sets.stream()
+                    .filter(s -> s.isSavedToLibrary() == savedToLibrary)
+                    .collect(Collectors.toList());
+        }
+
         return sets.stream()
-                .filter(FlashcardSet::isSavedToLibrary)
                 .map(set -> {
             long cardCount = flashcardRepository.findAll().stream()
                     .filter(c -> c.getFlashcardSet() != null && c.getFlashcardSet().getId().equals(set.getId()))
@@ -107,14 +112,17 @@ public class AiFlashcardService {
                 .filter(c -> c.getFlashcardSet() != null && c.getFlashcardSet().getId().equals(setId))
                 .collect(Collectors.toList());
 
-        return Map.of(
-                "id", set.getId(),
-                "title", set.getTitle(),
-                "flashcards", cards.stream().map(card -> Map.of(
-                        "term", card.getTerm(),
-                        "definition", card.getDefinition()
-                )).collect(Collectors.toList())
-        );
+        java.util.Map<String, Object> response = new java.util.HashMap<>();
+        response.put("id", set.getId());
+        response.put("title", set.getTitle());
+        response.put("ownerId", set.getUser() != null ? set.getUser().getId() : null);
+        response.put("courseId", set.getCourseId());
+        response.put("flashcards", cards.stream().map(card -> Map.of(
+                "term", card.getTerm(),
+                "definition", card.getDefinition()
+        )).collect(Collectors.toList()));
+
+        return response;
     }
 
     @Transactional
@@ -185,11 +193,12 @@ public class AiFlashcardService {
                     .filter(c -> c.getFlashcardSet() != null && c.getFlashcardSet().getId().equals(set.getId()))
                     .count();
 
-            return Map.<String, Object>of(
-                    "id", set.getId(),
-                    "title", set.getTitle() != null ? set.getTitle() : "Untitled",
-                    "cards", cardCount
-            );
+            java.util.Map<String, Object> map = new java.util.HashMap<>();
+            map.put("id", set.getId());
+            map.put("title", set.getTitle() != null ? set.getTitle() : "Untitled");
+            map.put("cards", cardCount);
+            map.put("ownerId", set.getUser() != null ? set.getUser().getId() : null);
+            return map;
         }).collect(Collectors.toList());
     }
 
@@ -229,7 +238,21 @@ public class AiFlashcardService {
             throw new RuntimeException("Lỗi: Không tìm thấy chữ nào trong file này (File trống hoặc toàn hình ảnh).");
         }
 
-        String title = linkedDocument != null ? linkedDocument.getTitle() : (file != null ? file.getOriginalFilename() : "AI Flashcard Set");
+        String titleName;
+        if (linkedDocument != null) {
+            titleName = linkedDocument.getTitle();
+        } else if (file != null && !file.isEmpty()) {
+            titleName = file.getOriginalFilename();
+        } else if (text != null && !text.trim().isEmpty()) {
+            String cleanText = text.trim();
+            titleName = cleanText.substring(0, Math.min(cleanText.length(), 30));
+            if (cleanText.length() > 30) {
+                titleName += "...";
+            }
+        } else {
+            titleName = "AI Flashcard Set";
+        }
+        String title = titleName.startsWith("Flashcard: ") ? titleName : "Flashcard: " + titleName;
         return generateFlashcardsFromContent(content, title, linkedDocument);
     }
 
@@ -246,8 +269,17 @@ public class AiFlashcardService {
             log.warn("Document {} parsing status is {}, using metadata fallback for flashcard generation.", documentId, document.getAiParseStatus());
         }
 
-        float[] queryEmbedding = embeddingService.embed("key concepts, terms, and important definitions");
-        List<DocumentChunk> chunks = documentChunkRepository.findSimilarChunksByDocumentId(documentId, java.util.Arrays.toString(queryEmbedding), 20);
+        List<DocumentChunk> chunks;
+        try {
+            float[] queryEmbedding = embeddingService.embed("key concepts, terms, and important definitions");
+            chunks = documentChunkRepository.findSimilarChunksByDocumentId(documentId, java.util.Arrays.toString(queryEmbedding), 20);
+        } catch (Exception e) {
+            log.warn("Jina embedding failed for document {}, falling back to sequential chunks. Error: {}", documentId, e.getMessage());
+            chunks = documentChunkRepository.findByDocumentId(documentId);
+            if (chunks.size() > 20) {
+                chunks = chunks.subList(0, 20);
+            }
+        }
 
         String content = chunks.stream()
                 .map(DocumentChunk::getContent)
@@ -267,7 +299,9 @@ public class AiFlashcardService {
             content = content.substring(0, 30000);
         }
 
-        return generateFlashcardsFromContent(content, document.getTitle(), document);
+        String docTitle = document.getTitle() != null ? document.getTitle() : "AI Flashcard Set";
+        String title = docTitle.startsWith("Flashcard: ") ? docTitle : "Flashcard: " + docTitle;
+        return generateFlashcardsFromContent(content, title, document);
     }
 
     private Map<String, Object> generateFlashcardsFromContent(String content, String title, Document linkedDocument) throws Exception {
@@ -376,5 +410,51 @@ public class AiFlashcardService {
                     "cards", cardCount
             );
         }).collect(Collectors.toList());
+    }
+
+    @Transactional
+    public void deleteFlashcardSet(UUID id, String userEmail) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        FlashcardSet set = flashcardSetRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Flashcard set not found"));
+
+        if (!set.getUser().getId().equals(user.getId())) {
+            throw new RuntimeException("You do not have permission to delete this flashcard set");
+        }
+
+        // Delete all child flashcards to avoid foreign key constraint violations
+        var dependentCards = flashcardRepository.findByFlashcardSetId(id);
+        if (dependentCards != null && !dependentCards.isEmpty()) {
+            flashcardRepository.deleteAll(dependentCards);
+        }
+
+        // Clear join table associations for favorites
+        if (set.getFavoritedByUsers() != null) {
+            set.getFavoritedByUsers().clear();
+        }
+
+        flashcardSetRepository.delete(set);
+    }
+
+    @Transactional
+    public Map<String, Object> renameFlashcardSet(UUID setId, String newTitle, String userEmail) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        FlashcardSet set = flashcardSetRepository.findById(setId)
+                .orElseThrow(() -> new IllegalArgumentException("Flashcard set not found"));
+
+        if (!set.getUser().getId().equals(user.getId())) {
+            throw new IllegalArgumentException("You do not have permission to rename this flashcard set");
+        }
+        if (newTitle == null || newTitle.isBlank()) {
+            throw new IllegalArgumentException("Title is required");
+        }
+
+        set.setTitle(newTitle.trim());
+        flashcardSetRepository.save(set);
+        return getSetDetailsById(setId);
     }
 }

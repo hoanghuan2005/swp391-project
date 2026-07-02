@@ -2,6 +2,8 @@ package com.example.keeper.systems.ai_ask.service;
 
 import com.example.keeper.systems.ai_ask.entity.DocumentChunk;
 import com.example.keeper.systems.ai_ask.repository.DocumentChunkRepository;
+import com.example.keeper.systems.document.repository.DocumentRepository;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pdfbox.pdmodel.PDDocument;
@@ -18,15 +20,42 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
+import org.springframework.web.multipart.MultipartFile;
+import java.nio.charset.StandardCharsets;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class DocumentParserService {
 
+    public String parseTextOnly(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            return "";
+        }
+        String filename = file.getOriginalFilename();
+        if (filename == null || filename.isBlank()) {
+            return "";
+        }
+        filename = filename.toLowerCase(Locale.ROOT);
+        try (InputStream inputStream = file.getInputStream()) {
+            if (filename.endsWith(".pdf")) {
+                return extractPdfText(file.getBytes());
+            } else if (filename.endsWith(".docx")) {
+                return extractDocxText(inputStream);
+            } else if (filename.endsWith(".pptx")) {
+                return extractPptxText(inputStream);
+            } else {
+                return new String(file.getBytes(), StandardCharsets.UTF_8);
+            }
+        } catch (Exception e) {
+            log.error("Failed to parse file text on-the-fly: {}", e.getMessage(), e);
+            return "";
+        }
+    }
+
     private final DocumentChunkRepository documentChunkRepository;
     private final EmbeddingService embeddingService;
-    private final com.example.keeper.systems.document.repository.DocumentRepository documentRepository;
+    private final DocumentRepository documentRepository;
 
     private static final int CHUNK_SIZE = 1500; // max characters per chunk
     private static final int MAX_EXTRACTED_CHARACTERS = 150_000;

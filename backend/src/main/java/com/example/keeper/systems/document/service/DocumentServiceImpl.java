@@ -56,6 +56,7 @@ public class DocumentServiceImpl implements DocumentService {
     private final UserFollowRepository userFollowRepository;
     private final NotificationService notificationService;
     private final DocumentQuotaService documentQuotaService;
+    private final com.example.keeper.systems.ai_flashcard.repository.FlashcardSetRepository flashcardSetRepository;
 
 
 
@@ -202,7 +203,7 @@ public class DocumentServiceImpl implements DocumentService {
                     .orElseGet(() -> {
                         String courseName = safeTrim(request.getCourseName());
                         if (courseName == null) {
-                            throw new IllegalArgumentException("Course name is required for new course code");
+                            courseName = courseCode;
                         }
 
                         com.example.keeper.systems.major.entity.Major major = majorRepository.findById(request.getMajorId())
@@ -221,7 +222,7 @@ public class DocumentServiceImpl implements DocumentService {
                 .orElseGet(() -> {
                     String courseName = safeTrim(request.getCourseName());
                     if (courseName == null) {
-                        throw new IllegalArgumentException("Course name is required for new course code");
+                        courseName = courseCode;
                     }
 
                     Course course = new Course();
@@ -427,6 +428,8 @@ public class DocumentServiceImpl implements DocumentService {
         documentViewRepository.deleteByDocumentId(document.getId());
 
         documentChunkRepository.deleteByDocumentId(document.getId());
+
+        flashcardSetRepository.clearDocumentReference(document.getId());
 
         documentRepository.delete(document);
 

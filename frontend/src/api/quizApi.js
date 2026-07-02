@@ -5,6 +5,15 @@ export const generateQuiz = async (request) => {
   return response.data;
 };
 
+export const generateQuizFromFile = async (formData) => {
+  const response = await axiosClient.post("/api/quizzes/generate-from-file", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+  return response.data;
+};
+
 export const getQuizById = async (id) => {
   const response = await axiosClient.get(`/api/quizzes/${id}`);
   return response.data;
@@ -22,6 +31,11 @@ export const updateQuiz = async (id, request) => {
 
 export const deleteQuiz = async (id) => {
   await axiosClient.delete(`/api/quizzes/${id}`);
+};
+
+export const renameQuiz = async (id, title) => {
+  const response = await axiosClient.put(`/api/quizzes/${id}/rename`, { title });
+  return response.data;
 };
 
 export const getCourseQuizzes = async (courseId) => {

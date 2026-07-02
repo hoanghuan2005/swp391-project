@@ -84,13 +84,10 @@ public class AiFlashcardController {
 
 
     @GetMapping("/sets")
-
-    public ResponseEntity<?> getMyFlashcardSets() {
-
-        var sets = aiFlashcardService.getAllSetsByUser(); // Không cần truyền UUID nữa
-
+    public ResponseEntity<?> getMyFlashcardSets(
+            @RequestParam(value = "savedToLibrary", required = false) Boolean savedToLibrary) {
+        var sets = aiFlashcardService.getAllSetsByUser(savedToLibrary);
         return ResponseEntity.ok(Map.of("data", sets));
-
     }
 
 
@@ -113,6 +110,33 @@ public class AiFlashcardController {
             return ResponseEntity.ok(Map.of(
                     "success", true,
                     "data", aiFlashcardService.updateFlashcardSet(id, request)
+            ));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", e.getMessage()));
+        }
+    }
+
+    @DeleteMapping("/sets/{id}")
+    public ResponseEntity<?> deleteFlashcardSet(@PathVariable UUID id) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        try {
+            aiFlashcardService.deleteFlashcardSet(id, email);
+            return ResponseEntity.ok(Map.of("success", true));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", e.getMessage()));
+        }
+    }
+
+    @PutMapping("/sets/{id}/rename")
+    public ResponseEntity<?> renameFlashcardSet(
+            @PathVariable UUID id,
+            @RequestBody java.util.Map<String, String> request) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        try {
+            String title = request.get("title");
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "data", aiFlashcardService.renameFlashcardSet(id, title, email)
             ));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("success", false, "message", e.getMessage()));

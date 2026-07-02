@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.UUID;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/v1/mindmaps")
@@ -34,6 +35,17 @@ public class MindMapController {
         );
     }
 
+    @PostMapping(value = "/generate-from-file", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<MindMapResponse> generateFromFile(
+            @RequestParam(value = "file", required = false) MultipartFile file,
+            @RequestParam(value = "text", required = false) String text,
+            @RequestParam("title") String title
+    ) {
+        return ResponseEntity.ok(
+                mindMapService.generateFromFile(file, text, title)
+        );
+    }
+
     @GetMapping("/document/{documentId}")
     public ResponseEntity<MindMapResponse> getByDocument(
             @PathVariable UUID documentId
@@ -52,5 +64,18 @@ public class MindMapController {
         mindMapService.delete(mindMapId);
 
         return ResponseEntity.ok().build();
+    }
+
+    @PutMapping("/{id}/rename")
+    public ResponseEntity<MindMapResponse> rename(
+            @PathVariable UUID id,
+            @RequestBody java.util.Map<String, String> request
+    ) {
+        String email = org.springframework.security.core.context.SecurityContextHolder.getContext()
+                .getAuthentication()
+                .getName();
+        return ResponseEntity.ok(
+                mindMapService.renameMindMap(id, request.get("title"), email)
+        );
     }
 }

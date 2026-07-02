@@ -1,6 +1,6 @@
 // SidebarHistory.jsx
 
-import { MessageSquare, Trash2 } from "lucide-react";
+import { MessageSquare, Trash2, Edit2 } from "lucide-react";
 
 const SidebarHistory = ({
   title,
@@ -9,6 +9,7 @@ const SidebarHistory = ({
   selectedItem,
   onSelectItem,
   onDeleteItem,
+  onEditItem,
 }) => {
   return (
     <div className="flex-[3] flex flex-col min-h-0 border-b border-slate-100">
@@ -40,12 +41,22 @@ const SidebarHistory = ({
                 </span>
               </div>
 
-              <button
-                onClick={(e) => onDeleteItem(e, item.id)}
-                className="opacity-0 group-hover:opacity-100 p-1 hover:bg-slate-200 rounded text-slate-400 hover:text-red-500 transition-all"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
+              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100">
+                {onEditItem && (
+                  <button
+                    onClick={(e) => onEditItem(e, item)}
+                    className="p-1 hover:bg-slate-200 rounded text-slate-400 hover:text-[#f26522] transition-all cursor-pointer"
+                  >
+                    <Edit2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
+                <button
+                  onClick={(e) => onDeleteItem(e, item.id)}
+                  className="p-1 hover:bg-slate-200 rounded text-slate-400 hover:text-red-500 transition-all cursor-pointer"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
           ))
         )}

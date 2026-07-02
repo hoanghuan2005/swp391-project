@@ -31,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.springframework.web.multipart.MultipartFile;
 
 @Slf4j
 @Service
@@ -157,13 +158,20 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
     }
 
     private String fetchContext(QuizRequest request) {
-        List<DocumentChunk> chunks;
+        List<DocumentChunk> chunks = null;
         
         String query = request.getTopic() != null && !request.getTopic().trim().isEmpty() 
             ? request.getTopic() 
             : request.getTitle();
             
-        float[] queryEmbedding = embeddingService.embed(query);
+        float[] queryEmbedding = null;
+        boolean embeddingFailed = false;
+        try {
+            queryEmbedding = embeddingService.embed(query);
+        } catch (Exception e) {
+            log.warn("Jina embedding failed in QuizGenerator, falling back to sequential chunks. Error: {}", e.getMessage());
+            embeddingFailed = true;
+        }
 
         if (request.getProjectId() != null) {
             Project project = projectRepository.findById(request.getProjectId())
@@ -179,13 +187,32 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
                     .collect(Collectors.toList());
                     
             if (docIds.isEmpty()) return "";
-            chunks = documentChunkRepository.findSimilarChunksByDocumentIds(docIds, java.util.Arrays.toString(queryEmbedding), 20);
+            
+            if (embeddingFailed) {
+                chunks = new java.util.ArrayList<>();
+                for (UUID docId : docIds) {
+                    chunks.addAll(documentChunkRepository.findByDocumentId(docId));
+                }
+                if (chunks.size() > 20) {
+                    chunks = chunks.subList(0, 20);
+                }
+            } else {
+                chunks = documentChunkRepository.findSimilarChunksByDocumentIds(docIds, java.util.Arrays.toString(queryEmbedding), 20);
+            }
         } else {
             documentParserService.ensureChunksExist(request.getDocumentId());
             Document document = documentRepository.findById(request.getDocumentId())
                     .orElseThrow(() -> new RuntimeException("Document not found"));
             ensureReadyForAi(document);
-            chunks = documentChunkRepository.findSimilarChunksByDocumentId(request.getDocumentId(), java.util.Arrays.toString(queryEmbedding), 20);
+            
+            if (embeddingFailed) {
+                chunks = documentChunkRepository.findByDocumentId(request.getDocumentId());
+                if (chunks.size() > 20) {
+                    chunks = chunks.subList(0, 20);
+                }
+            } else {
+                chunks = documentChunkRepository.findSimilarChunksByDocumentId(request.getDocumentId(), java.util.Arrays.toString(queryEmbedding), 20);
+            }
         }
 
         String combined = chunks.stream()
@@ -264,6 +291,68 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
         );
     }
 
+    @Override
+    @Transactional
+    public QuizResponse generateQuizFromFile(MultipartFile file, String text, String title, Integer questionCount, String difficulty, String userEmail) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        String context = "";
+        if (file != null && !file.isEmpty()) {
+            context = documentParserService.parseTextOnly(file);
+        } else if (text != null && !text.trim().isEmpty()) {
+            context = text;
+        }
+
+        if (context.length() > 20000) {
+            context = context.substring(0, 20000);
+        }
+
+        String prompt = buildPrompt(
+                context,
+                null,
+                questionCount,
+                difficulty
+        );
+
+        aiUsageService.checkQuota(userEmail);
+        String aiResponse = groqService.generateContent(prompt);
+        aiUsageService.recordUsage(userEmail, AiUsageFeature.QUIZ_GENERATION);
+        log.info("Raw AI response for quiz from file: {}", aiResponse);
+
+        try {
+            String jsonContent = extractJsonArray(aiResponse);
+            List<ParsedQuestion> parsedQuestions =
+                    objectMapper.readValue(jsonContent, new TypeReference<List<ParsedQuestion>>() {});
+            validateQuestions(parsedQuestions, questionCount);
+
+            Quiz quiz = new Quiz();
+            quiz.setTitle(title);
+            quiz.setDocumentId(null);
+            quiz.setProjectId(null);
+            quiz.setOwner(user);
+
+            List<Question> questions = parsedQuestions.stream().map(pq -> {
+                Question q = new Question();
+                q.setQuiz(quiz);
+                q.setContent(pq.getContent());
+                q.setOptions(pq.getOptions());
+                q.setCorrectAnswer(pq.getCorrectAnswer());
+                q.setExplanation(pq.getExplanation());
+                return q;
+            }).collect(Collectors.toList());
+
+            quiz.setQuestions(questions);
+
+            Quiz savedQuiz = quizRepository.save(quiz);
+            return mapToResponse(savedQuiz);
+
+        } catch (Exception e) {
+            log.error("Failed to parse AI generated quiz from file. AI Response: {}", aiResponse, e);
+            throw new RuntimeException("AI failed to generate a valid quiz structure. Please try again.");
+        }
+    }
+
     private QuizResponse mapToResponse(Quiz quiz) {
         List<QuestionDTO> questionDTOs = quiz.getQuestions().stream()
                 .map(q -> QuestionDTO.builder()
@@ -281,6 +370,7 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
                 .documentId(quiz.getDocumentId())
                 .projectId(quiz.getProjectId())
                 .ownerId(quiz.getOwner().getId())
+                .courseId(quiz.getCourseId())
                 .createdAt(quiz.getCreatedAt())
                 .questions(questionDTOs)
                 .build();
