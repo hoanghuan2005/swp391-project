@@ -30,6 +30,7 @@ import useDocuments from "@/hooks/useDocuments";
 import axiosClient from "@/api/axiosClient";
 import { getMyProjects, deleteProject } from "@/api/projectApi";
 import CreateProjectModal from "@/components/projects/CreateProjectModal";
+import EditDocumentDialog from "@/components/documents/EditDocumentDialog";
 import { forceDownload } from "@/lib/downloadHelper";
 import { getFileExtension } from "@/lib/utils";
 import { toast } from "react-hot-toast";
@@ -39,6 +40,7 @@ export default function MyLibrary() {
   const [projects, setProjects] = useState([]);
   const [isProjectsLoading, setIsProjectsLoading] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [selectedEditDoc, setSelectedEditDoc] = useState(null);
 
   const [favoriteDocs, setFavoriteDocs] = useState([]);
   const [favoriteFlashcards, setFavoriteFlashcards] = useState([]); // State mới cho Flashcard Yêu thích
@@ -402,7 +404,7 @@ export default function MyLibrary() {
                       </div>
                       <div className="flex items-center gap-2">
                         <button
-                          onClick={() => navigate(`/documents/${doc.id}/edit`)}
+                          onClick={() => setSelectedEditDoc(doc)}
                           className="opacity-0 group-hover:opacity-100 p-2 text-slate-400 hover:text-[#f26522] hover:bg-orange-50 rounded-xl transition-all cursor-pointer"
                         >
                           <Edit2 className="w-4 h-4" />
@@ -869,6 +871,13 @@ export default function MyLibrary() {
         open={createModalOpen}
         onOpenChange={setCreateModalOpen}
         onSuccess={fetchProjects}
+      />
+
+      <EditDocumentDialog
+        open={!!selectedEditDoc}
+        onOpenChange={(open) => !open && setSelectedEditDoc(null)}
+        doc={selectedEditDoc}
+        onUpdateSuccess={refreshDocuments}
       />
     </div>
   );

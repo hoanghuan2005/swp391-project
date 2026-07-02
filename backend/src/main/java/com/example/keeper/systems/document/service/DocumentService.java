@@ -1,6 +1,7 @@
 package com.example.keeper.systems.document.service;
 
 import com.example.keeper.systems.document.dto.request.CreateDocumentRequest;
+import com.example.keeper.systems.document.dto.request.UpdateDocumentRequest;
 import com.example.keeper.systems.document.dto.response.DocumentDetailResponse;
 import com.example.keeper.systems.document.dto.response.DocumentResponse;
 import com.example.keeper.systems.document.entity.Document;
@@ -22,6 +23,8 @@ public interface DocumentService {
     Document getById(UUID id);
 
     DocumentDetailResponse getDetail(UUID id);
+
+    DocumentDetailResponse update(UUID id, UpdateDocumentRequest request);
 
     void recordView(UUID id, String email);
 
