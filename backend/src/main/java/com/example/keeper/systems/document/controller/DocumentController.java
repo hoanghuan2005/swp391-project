@@ -207,10 +207,11 @@ public class DocumentController {
     }
 
     @DeleteMapping("/{id}")
-    public Document delete(
+    public ResponseEntity<Map<String, String>> delete(
             @PathVariable UUID id) {
 
-        return documentService.delete(id);
+        documentService.delete(id);
+        return ResponseEntity.ok(Map.of("message", "Document deleted successfully"));
     }
 
     @PutMapping("/{id}")
