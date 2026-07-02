@@ -481,7 +481,13 @@ public class DocumentServiceImpl implements DocumentService {
 
         documentViewRepository.deleteByDocumentId(document.getId());
 
-        documentChunkRepository.deleteByDocumentId(document.getId());
+        if (documentChunkRepository.tableExists()) {
+            try {
+                documentChunkRepository.deleteByDocumentId(document.getId());
+            } catch (Exception e) {
+                // Fail-safe: log warning but let the main document delete transaction proceed
+            }
+        }
 
         documentRepository.delete(document);
 

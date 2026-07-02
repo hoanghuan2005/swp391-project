@@ -17,6 +17,9 @@ public interface DocumentChunkRepository extends JpaRepository<DocumentChunk, UU
 
     void deleteByDocumentId(UUID documentId);
 
+    @Query(value = "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'document_chunks')", nativeQuery = true)
+    boolean tableExists();
+
     @Query(value = "SELECT * FROM document_chunks ORDER BY embedding <-> cast(:queryEmbedding as vector) LIMIT :limit", nativeQuery = true)
     List<DocumentChunk> findSimilarChunks(@Param("queryEmbedding") String queryEmbedding, @Param("limit") int limit);
 
