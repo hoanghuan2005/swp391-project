@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import SearchSelect from "@/components/search-select/SearchSelect";
 import MultiSearchSelect from "@/components/search-select/MultiSearchSelect";
 import {
@@ -41,6 +42,7 @@ export default function UploadDocumentDialog({
   const [selectedTags, setSelectedTags] = useState([]);
   const [subjectName, setSubjectName] = useState("");
   const [subjectNameOpen, setSubjectNameOpen] = useState(false);
+  const [description, setDescription] = useState("");
 
   const [selectedFile, setSelectedFile] = useState(null);
   const [uploading, setUploading] = useState(false);
@@ -134,6 +136,7 @@ export default function UploadDocumentDialog({
       setSelectedCategory(null);
 
       setSelectedTags([]);
+      setDescription("");
 
       setSubjectName("");
       setSubjectNameOpen(false);
@@ -268,6 +271,13 @@ export default function UploadDocumentDialog({
       return;
     }
 
+    if (description.length > 200) {
+      const message = "Description must be under 200 characters.";
+      setUploadError(message);
+      toast.error(message);
+      return;
+    }
+
     const uploadedById = await resolveUploadedById();
 
     setUploading(true);
@@ -281,6 +291,10 @@ export default function UploadDocumentDialog({
         formData.append("file", selectedFile);
         formData.append("title", selectedFile.name);
         formData.append("visibility", "PUBLIC");
+
+        if (description.trim()) {
+          formData.append("description", description.trim());
+        }
 
         if (uploadedById) {
           formData.append("uploadedById", uploadedById);
@@ -572,6 +586,25 @@ export default function UploadDocumentDialog({
               setSelected={setSelectedTags}
               placeholder="Type to search tags"
             />
+
+            {/* Description Input */}
+            <div className="space-y-1.5">
+              <div className="flex justify-between items-center">
+                <Label className="flex items-center gap-2 text-slate-700 font-semibold">
+                  <FileText size={16} className="text-[#f26522]" /> Description
+                </Label>
+                <span className={`text-[10px] font-bold ${description.length > 200 ? "text-red-500" : "text-slate-400"}`}>
+                  {description.length}/200
+                </span>
+              </div>
+              <Textarea
+                placeholder="Enter description (optional, max 200 characters)"
+                className="rounded-lg border-gray-300 focus-visible:ring-[#f26522] focus-visible:border-[#f26522] min-h-[60px] max-h-[100px]"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                maxLength={200}
+              />
+            </div>
           </div>
           <DialogFooter>
             {uploadError && (

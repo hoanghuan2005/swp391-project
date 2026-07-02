@@ -40,4 +40,6 @@ public class CreateDocumentRequest {
     private String courseName;
 
     private List<String> tagNames;
+
+    private UUID categoryId;
 }

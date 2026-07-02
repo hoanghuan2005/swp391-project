@@ -4,6 +4,7 @@ import com.example.keeper.systems.ai_ask.repository.DocumentChunkRepository;
 import com.example.keeper.systems.auth.entity.User;
 import com.example.keeper.systems.auth.repository.UserRepository;
 import com.example.keeper.systems.document.dto.request.CreateDocumentRequest;
+import com.example.keeper.systems.document.dto.request.UpdateDocumentRequest;
 import com.example.keeper.systems.document.dto.response.DocumentDetailResponse;
 import com.example.keeper.systems.document.dto.response.DocumentResponse;
 import com.example.keeper.systems.document.entity.Document;
@@ -17,6 +18,8 @@ import com.example.keeper.systems.follow.repository.UserFollowRepository;
 import com.example.keeper.systems.major.repository.MajorRepository;
 import com.example.keeper.systems.notification.service.NotificationService;
 import com.example.keeper.systems.ai_ask.service.DocumentParserService;
+import com.example.keeper.systems.category.entity.Category;
+import com.example.keeper.systems.category.repository.CategoryRepository;
 import com.example.keeper.systems.course.entity.Course;
 import com.example.keeper.systems.course.repository.CourseRepository;
 import com.example.keeper.systems.tag.entity.Tag;
@@ -56,6 +59,7 @@ public class DocumentServiceImpl implements DocumentService {
     private final UserFollowRepository userFollowRepository;
     private final NotificationService notificationService;
     private final DocumentQuotaService documentQuotaService;
+    private final CategoryRepository categoryRepository;
 
 
 
@@ -178,6 +182,12 @@ public class DocumentServiceImpl implements DocumentService {
         document.setCourse(course);
         document.setTags(resolveTags(request));
 
+        if (request.getCategoryId() != null) {
+            Category category = categoryRepository.findById(request.getCategoryId())
+                    .orElseThrow(() -> new RuntimeException("Category not found"));
+            document.setCategory(category);
+        }
+
         return document;
     }
 
@@ -186,59 +196,63 @@ public class DocumentServiceImpl implements DocumentService {
                 .getContext().getAuthentication().getName();
     }
 
-    private Course resolveCourse(CreateDocumentRequest request) {
-        if (request.getCourseId() != null) {
-            return courseRepository.findById(request.getCourseId())
+    private Course resolveCourse(UUID courseId, String courseCode, UUID majorId, String courseName) {
+        if (courseId != null) {
+            return courseRepository.findById(courseId)
                     .orElseThrow();
         }
 
-        String courseCode = safeTrim(request.getCourseCode());
-        if (courseCode == null) {
+        String code = safeTrim(courseCode);
+        if (code == null) {
             return null;
         }
 
-        if (request.getMajorId() != null) {
-            return courseRepository.findByMajorIdAndCode(request.getMajorId(), courseCode)
+        if (majorId != null) {
+            return courseRepository.findByMajorIdAndCode(majorId, code)
                     .orElseGet(() -> {
-                        String courseName = safeTrim(request.getCourseName());
-                        if (courseName == null) {
+                        String name = safeTrim(courseName);
+                        if (name == null) {
                             throw new IllegalArgumentException("Course name is required for new course code");
                         }
 
-                        com.example.keeper.systems.major.entity.Major major = majorRepository.findById(request.getMajorId())
+                        com.example.keeper.systems.major.entity.Major major = majorRepository.findById(majorId)
                                 .orElseThrow(() -> new RuntimeException("Major not found"));
 
                         Course course = new Course();
-                        course.setCode(courseCode);
-                        course.setName(courseName);
+                        course.setCode(code);
+                        course.setName(name);
                         course.setDescription(null);
                         course.setMajor(major);
                         return courseRepository.save(course);
                     });
         }
 
-        return courseRepository.findByCode(courseCode)
+        return courseRepository.findByCode(code)
                 .orElseGet(() -> {
-                    String courseName = safeTrim(request.getCourseName());
-                    if (courseName == null) {
+                    String name = safeTrim(courseName);
+                    if (name == null) {
                         throw new IllegalArgumentException("Course name is required for new course code");
                     }
 
                     Course course = new Course();
-                    course.setCode(courseCode);
-                    course.setName(courseName);
+                    course.setCode(code);
+                    course.setName(name);
                     course.setDescription(null);
                     return courseRepository.save(course);
                 });
     }
 
-    private Set<Tag> resolveTags(CreateDocumentRequest request) {
+    private Course resolveCourse(CreateDocumentRequest request) {
+        return resolveCourse(request.getCourseId(), request.getCourseCode(), request.getMajorId(), request.getCourseName());
+    }
+
+    private Set<Tag> resolveTags(List<String> tagNames) {
         Set<Tag> tags = new HashSet<>();
-        if (request.getTagNames() == null || request.getTagNames().isEmpty()) {
+        if (tagNames == null || tagNames.isEmpty()) {
             return tags;
         }
 
-        for (String rawName : request.getTagNames()) {
+        for (String rawName : tagNames) {
             String name = safeTrim(rawName);
             if (name == null) {
                 continue;
@@ -250,6 +264,10 @@ public class DocumentServiceImpl implements DocumentService {
         }
 
         return tags;
+    }
+
+    private Set<Tag> resolveTags(CreateDocumentRequest request) {
+        return resolveTags(request.getTagNames());
     }
 
     private String safeTrim(String value) {
@@ -363,6 +381,43 @@ public class DocumentServiceImpl implements DocumentService {
     }
 
     @Override
+    @org.springframework.transaction.annotation.Transactional
+    public DocumentDetailResponse update(UUID id, UpdateDocumentRequest request) {
+        Document document = getById(id);
+
+        if (request.getTitle() != null) {
+            document.setTitle(sanitizeOptionalFilename(request.getTitle()));
+        }
+        if (request.getDescription() != null) {
+            document.setDescription(request.getDescription());
+        }
+        if (request.getVisibility() != null) {
+            document.setVisibility(request.getVisibility());
+        }
+
+        // Only resolve course if a new course reference is requested
+        if (request.getCourseId() != null || request.getCourseCode() != null) {
+            Course course = resolveCourse(request.getCourseId(), request.getCourseCode(), request.getMajorId(), request.getCourseName());
+            document.setCourse(course);
+        }
+
+        // Only resolve category if a new categoryId is explicitly sent
+        if (request.getCategoryId() != null) {
+            Category category = categoryRepository.findById(request.getCategoryId())
+                    .orElseThrow(() -> new RuntimeException("Category not found"));
+            document.setCategory(category);
+        }
+
+        // Only update tags if new tagNames is sent
+        if (request.getTagNames() != null) {
+            document.setTags(resolveTags(request.getTagNames()));
+        }
+
+        Document saved = documentRepository.save(document);
+        return mapToDetail(saved);
+    }
+
+    @Override
     public void recordView(UUID id, String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
@@ -426,7 +481,13 @@ public class DocumentServiceImpl implements DocumentService {
 
         documentViewRepository.deleteByDocumentId(document.getId());
 
-        documentChunkRepository.deleteByDocumentId(document.getId());
+        if (documentChunkRepository.tableExists()) {
+            try {
+                documentChunkRepository.deleteByDocumentId(document.getId());
+            } catch (Exception e) {
+                // Fail-safe: log warning but let the main document delete transaction proceed
+            }
+        }
 
         documentRepository.delete(document);
 
@@ -499,6 +560,11 @@ public class DocumentServiceImpl implements DocumentService {
                                 .toList())
                 .averageRating(avgRating)
                 .reviewCount(revCount)
+                .category(document.getCategory() == null ? null : DocumentDetailResponse.CategoryInfo.builder()
+                        .id(document.getCategory().getId())
+                        .code(document.getCategory().getCode())
+                        .name(document.getCategory().getName())
+                        .build())
                 .build();
     }
 
@@ -559,6 +625,11 @@ public class DocumentServiceImpl implements DocumentService {
                                 .toList())
                 .averageRating(avgRating)
                 .reviewCount(revCount)
+                .category(document.getCategory() == null ? null : DocumentResponse.CategoryInfo.builder()
+                        .id(document.getCategory().getId())
+                        .code(document.getCategory().getCode())
+                        .name(document.getCategory().getName())
+                        .build())
                 .build();
     }
 

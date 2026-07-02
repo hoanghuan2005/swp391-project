@@ -30,6 +30,8 @@ import useDocuments from "@/hooks/useDocuments";
 import axiosClient from "@/api/axiosClient";
 import { getMyProjects, deleteProject } from "@/api/projectApi";
 import CreateProjectModal from "@/components/projects/CreateProjectModal";
+import EditDocumentDialog from "@/components/documents/EditDocumentDialog";
+import ConfirmationModal from "@/components/ui/ConfirmationModal";
 import { forceDownload } from "@/lib/downloadHelper";
 import { getFileExtension } from "@/lib/utils";
 import { toast } from "react-hot-toast";
@@ -39,6 +41,16 @@ export default function MyLibrary() {
   const [projects, setProjects] = useState([]);
   const [isProjectsLoading, setIsProjectsLoading] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [selectedEditDoc, setSelectedEditDoc] = useState(null);
+
+  const [deleteDoc, setDeleteDoc] = useState(null);
+  const [isDeletingDoc, setIsDeletingDoc] = useState(false);
+
+  const [deleteWorkspace, setDeleteWorkspace] = useState(null);
+  const [isDeletingWorkspace, setIsDeletingWorkspace] = useState(false);
+
+  const [unfollowUser, setUnfollowUser] = useState(null);
+  const [isUnfollowingUser, setIsUnfollowingUser] = useState(false);
 
   const [favoriteDocs, setFavoriteDocs] = useState([]);
   const [favoriteFlashcards, setFavoriteFlashcards] = useState([]); // State mới cho Flashcard Yêu thích
@@ -143,39 +155,60 @@ export default function MyLibrary() {
     fetchMyQuizzes();
   }, [fetchProjects, fetchFavoriteDocuments, fetchFavoriteFlashcards, fetchFollowedUsers, fetchMyFlashcards, fetchMyQuizzes]);
 
-  const handleUnfollowUser = async (userId, fullName) => {
-    if (!window.confirm(`Bạn có chắc chắn muốn bỏ theo dõi ${fullName}?`)) {
-      return;
-    }
+  const handleUnfollowUser = (userId, fullName) => {
+    setUnfollowUser({ id: userId, fullName });
+  };
+
+  const handleUnfollowUserConfirm = async () => {
+    if (!unfollowUser) return;
     try {
-      await axiosClient.delete(`/api/follows/${userId}`);
-      toast.success(`Đã bỏ theo dõi ${fullName}`);
-      setFollowedUsers((prev) => prev.filter((user) => user.id !== userId));
+      setIsUnfollowingUser(true);
+      await axiosClient.delete(`/api/follows/${unfollowUser.id}`);
+      toast.success(`Đã bỏ theo dõi ${unfollowUser.fullName}`);
+      setFollowedUsers((prev) => prev.filter((user) => user.id !== unfollowUser.id));
+      setUnfollowUser(null);
     } catch (error) {
       console.error("Failed to unfollow user:", error);
       toast.error("Không thể bỏ theo dõi");
+    } finally {
+      setIsUnfollowingUser(false);
     }
   };
 
-  const handleDeleteWorkspace = async (e, id, name) => {
+  const handleDeleteWorkspace = (e, id, name) => {
     e.preventDefault();
     e.stopPropagation();
+    setDeleteWorkspace({ id, name });
+  };
 
-    if (
-      !window.confirm(
-        `Are you sure you want to delete the workspace "${name}"? All associated AI data will be removed.`
-      )
-    ) {
-      return;
-    }
-
+  const handleDeleteWorkspaceConfirm = async () => {
+    if (!deleteWorkspace) return;
     try {
-      await deleteProject(id);
+      setIsDeletingWorkspace(true);
+      await deleteProject(deleteWorkspace.id);
       toast.success("Workspace deleted successfully");
       fetchProjects();
+      setDeleteWorkspace(null);
     } catch (error) {
       console.error("Failed to delete workspace:", error);
       toast.error("Failed to delete workspace");
+    } finally {
+      setIsDeletingWorkspace(false);
+    }
+  };
+
+  const handleDeleteDoc = async () => {
+    if (!deleteDoc) return;
+    try {
+      setIsDeletingDoc(true);
+      await axiosClient.delete(`/api/documents/${deleteDoc.id}`);
+      toast.success("Document deleted successfully");
+      await refreshDocuments();
+      setDeleteDoc(null);
+    } catch (err) {
+      toast.error("Failed to delete document");
+    } finally {
+      setIsDeletingDoc(false);
     }
   };
 
@@ -402,22 +435,15 @@ export default function MyLibrary() {
                       </div>
                       <div className="flex items-center gap-2">
                         <button
-                          onClick={() => navigate(`/documents/${doc.id}/edit`)}
+                          onClick={() => setSelectedEditDoc(doc)}
                           className="opacity-0 group-hover:opacity-100 p-2 text-slate-400 hover:text-[#f26522] hover:bg-orange-50 rounded-xl transition-all cursor-pointer"
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={async (e) => {
+                          onClick={(e) => {
                             e.stopPropagation();
-                            if (!window.confirm("Delete this document?")) return;
-                            try {
-                              await axiosClient.delete(`/api/documents/${doc.id}`);
-                              toast.success("Document deleted");
-                              await refreshDocuments();
-                            } catch (err) {
-                              toast.error("Failed to delete document");
-                            }
+                            setDeleteDoc(doc);
                           }}
                           className="opacity-0 group-hover:opacity-100 p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all cursor-pointer"
                         >
@@ -869,6 +895,49 @@ export default function MyLibrary() {
         open={createModalOpen}
         onOpenChange={setCreateModalOpen}
         onSuccess={fetchProjects}
+      />
+
+      <EditDocumentDialog
+        open={!!selectedEditDoc}
+        onOpenChange={(open) => !open && setSelectedEditDoc(null)}
+        doc={selectedEditDoc}
+        onUpdateSuccess={refreshDocuments}
+      />
+
+      <ConfirmationModal
+        isOpen={!!deleteDoc}
+        onClose={() => setDeleteDoc(null)}
+        onConfirm={handleDeleteDoc}
+        title="Xóa tài liệu"
+        message={`Bạn có chắc chắn muốn xóa tài liệu "${deleteDoc?.title}"? Hành động này không thể hoàn tác.`}
+        confirmText="Xóa tài liệu"
+        cancelText="Hủy"
+        variant="danger"
+        loading={isDeletingDoc}
+      />
+
+      <ConfirmationModal
+        isOpen={!!deleteWorkspace}
+        onClose={() => setDeleteWorkspace(null)}
+        onConfirm={handleDeleteWorkspaceConfirm}
+        title="Xóa Workspace"
+        message={`Bạn có chắc chắn muốn xóa workspace "${deleteWorkspace?.name}"? Toàn bộ tài liệu và dữ liệu AI liên quan sẽ bị xóa.`}
+        confirmText="Xóa Workspace"
+        cancelText="Hủy"
+        variant="danger"
+        loading={isDeletingWorkspace}
+      />
+
+      <ConfirmationModal
+        isOpen={!!unfollowUser}
+        onClose={() => setUnfollowUser(null)}
+        onConfirm={handleUnfollowUserConfirm}
+        title="Bỏ theo dõi"
+        message={`Bạn có chắc chắn muốn bỏ theo dõi ${unfollowUser?.fullName}?`}
+        confirmText="Bỏ theo dõi"
+        cancelText="Hủy"
+        variant="warning"
+        loading={isUnfollowingUser}
       />
     </div>
   );
