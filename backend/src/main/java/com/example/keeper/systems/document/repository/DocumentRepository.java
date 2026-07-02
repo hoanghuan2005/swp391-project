@@ -1,6 +1,7 @@
 package com.example.keeper.systems.document.repository;
 
 import com.example.keeper.systems.document.entity.Document;
+import com.example.keeper.systems.document.enums.AiParseStatus;
 import com.example.keeper.systems.document.enums.Visibility;
 
 import org.springframework.data.domain.Page;
@@ -19,7 +20,18 @@ public interface DocumentRepository extends JpaRepository<Document, UUID> {
 
     List<Document> findByUploadedById(UUID uploadedById);
 
+    List<Document> findByUploadedByIdOrderByCreatedAtDesc(UUID uploadedById, Pageable pageable);
+
     long countByUploadedById(UUID uploadedById);
+
+    long countByUploadedByIdAndVisibility(UUID uploadedById, Visibility visibility);
+
+    @Query("select coalesce(sum(d.fileSize), 0) from Document d where d.uploadedBy.id = :uploadedById")
+    Long sumFileSizeByUploadedById(@Param("uploadedById") UUID uploadedById);
+
+    long countByVisibility(Visibility visibility);
+
+    long countByAiParseStatus(AiParseStatus aiParseStatus);
 
     long countByUploadedByIdAndCloudinaryPublicIdIsNotNullAndCreatedAtBetween(
             UUID uploadedById,

@@ -2,10 +2,32 @@ import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Menu, BookOpen, LogOut, Settings } from "lucide-react";
 import { Link } from "react-router-dom";
-import LogoutModal from "@/components/ui/LogoutModal";
 
-export default function AdminNavbar({ onMenuClick, onLogoutClick }) {
+function getEmailPrefix(email) {
+  return email?.includes("@") ? email.split("@")[0] : "";
+}
+
+function getInitials(fullName, email) {
+  const source = fullName || getEmailPrefix(email) || "Admin";
+  const words = source.trim().split(/\s+/).filter(Boolean);
+
+  if (words.length >= 2) {
+    return `${words[0][0]}${words[1][0]}`.toUpperCase();
+  }
+
+  return (words[0]?.[0] || "A").toUpperCase();
+}
+
+export default function AdminNavbar({
+  onMenuClick,
+  onLogoutClick,
+  currentUser = {},
+}) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const displayName =
+    currentUser.fullName || getEmailPrefix(currentUser.email) || "Admin";
+  const secondaryLabel = currentUser.email || currentUser.role || "ADMIN";
+  const initials = getInitials(currentUser.fullName, currentUser.email);
 
   return (
     <div className="w-full bg-white border-b border-gray-100 py-2.5 sticky top-0 z-50 shadow-sm/5 backdrop-blur-sm">
@@ -36,15 +58,28 @@ export default function AdminNavbar({ onMenuClick, onLogoutClick }) {
         {/* Menu Dropdown góc phải */}
         <div className="relative flex items-center gap-4 shrink-0">
           <div className="hidden sm:flex flex-col items-end mr-1">
-            <span className="text-sm font-bold text-slate-800 leading-tight">Administrator</span>
-            <span className="text-[10px] text-[#f26522] font-semibold">System Manager</span>
+            <span className="max-w-[180px] truncate text-sm font-bold text-slate-800 leading-tight">
+              {displayName}
+            </span>
+            <span className="max-w-[220px] truncate text-[10px] text-[#f26522] font-semibold">
+              {secondaryLabel}
+            </span>
           </div>
 
           <button
             onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-            className="cursor-pointer h-10 w-10 shrink-0 rounded-xl bg-slate-800 text-white flex items-center justify-center font-bold shadow-sm ring-2 ring-white hover:opacity-90 transition-all focus:outline-none"
+            className="cursor-pointer h-10 w-10 shrink-0 overflow-hidden rounded-xl bg-slate-800 text-white flex items-center justify-center font-bold shadow-sm ring-2 ring-white hover:opacity-90 transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-[#f26522]/40"
+            aria-label="Open admin account menu"
           >
-            AD
+            {currentUser.avatarUrl ? (
+              <img
+                src={currentUser.avatarUrl}
+                alt={`${displayName} avatar`}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              initials
+            )}
           </button>
 
           {isDropdownOpen && (

@@ -15,6 +15,7 @@ import ForgotPasswordPage from "./pages/Auth/ForgotPasswordPage.jsx";
 import Survey from "./pages/Survey";
 import DashboardPage from "./pages/Admin/DashboardPage";
 import UserListPage from "./pages/Admin/UserListPage";
+import UserDetailPage from "./pages/Admin/UserDetailPage";
 import DocumentListPage from "./pages/Admin/DocumentListPage";
 import AdminDocumentDetailPage from "./pages/Admin/DocumentDetailPage";
 import CatalogSchoolsPage from "./pages/Admin/CatalogSchoolsPage";
@@ -140,6 +141,7 @@ function App() {
           <Route element={<AdminLayout />}>
             <Route path="/admin/dashboard" element={<DashboardPage />} />
             <Route path="/admin/users" element={<UserListPage />} />
+            <Route path="/admin/users/:id" element={<UserDetailPage />} />
             <Route path="/admin/documents" element={<DocumentListPage />} />
             <Route
               path="/admin/documents/:id"

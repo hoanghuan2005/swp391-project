@@ -11,5 +11,6 @@ import java.util.UUID;
 @Repository
 public interface ProjectRepository extends JpaRepository<Project, UUID> {
     List<Project> findByOwnerId(UUID ownerId);
+    long countByOwnerId(UUID ownerId);
     Optional<Project> findByShareToken(String shareToken);
 }
