@@ -4,6 +4,7 @@ import com.example.keeper.systems.ai_ask.repository.DocumentChunkRepository;
 import com.example.keeper.systems.auth.entity.User;
 import com.example.keeper.systems.auth.repository.UserRepository;
 import com.example.keeper.systems.document.dto.request.CreateDocumentRequest;
+import com.example.keeper.systems.document.dto.request.UpdateDocumentRequest;
 import com.example.keeper.systems.document.dto.response.DocumentDetailResponse;
 import com.example.keeper.systems.document.dto.response.DocumentResponse;
 import com.example.keeper.systems.document.entity.Document;
@@ -17,6 +18,8 @@ import com.example.keeper.systems.follow.repository.UserFollowRepository;
 import com.example.keeper.systems.major.repository.MajorRepository;
 import com.example.keeper.systems.notification.service.NotificationService;
 import com.example.keeper.systems.ai_ask.service.DocumentParserService;
+import com.example.keeper.systems.category.entity.Category;
+import com.example.keeper.systems.category.repository.CategoryRepository;
 import com.example.keeper.systems.course.entity.Course;
 import com.example.keeper.systems.course.repository.CourseRepository;
 import com.example.keeper.systems.tag.entity.Tag;
@@ -56,6 +59,7 @@ public class DocumentServiceImpl implements DocumentService {
     private final UserFollowRepository userFollowRepository;
     private final NotificationService notificationService;
     private final DocumentQuotaService documentQuotaService;
+    private final CategoryRepository categoryRepository;
 
 
 
@@ -177,6 +181,12 @@ public class DocumentServiceImpl implements DocumentService {
         document.setUploadedBy(user);
         document.setCourse(course);
         document.setTags(resolveTags(request));
+
+        if (request.getCategoryId() != null) {
+            Category category = categoryRepository.findById(request.getCategoryId())
+                    .orElseThrow(() -> new RuntimeException("Category not found"));
+            document.setCategory(category);
+        }
 
         return document;
     }
@@ -471,6 +481,11 @@ public class DocumentServiceImpl implements DocumentService {
                 .downloadCount(document.getDownloadCount())
                 .viewCount(document.getViewCount() != null ? document.getViewCount() : 0)
                 .createdAt(document.getCreatedAt())
+                .category(document.getCategory() == null ? null : DocumentDetailResponse.CategoryInfo.builder()
+                        .id(document.getCategory().getId())
+                        .code(document.getCategory().getCode())
+                        .name(document.getCategory().getName())
+                        .build())
                 .course(document.getCourse() == null ? null : DocumentDetailResponse.CourseInfo.builder()
                         .id(document.getCourse().getId())
                         .code(document.getCourse().getCode())
@@ -751,5 +766,107 @@ public class DocumentServiceImpl implements DocumentService {
         } catch (Exception e) {
             log.error("Failed to notify followers for new document upload", e);
         }
+    }
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional
+    public DocumentDetailResponse update(UUID id, UpdateDocumentRequest request) {
+        Document document = getById(id);
+        
+        // Owner or Admin validation
+        String currentUserEmail = getCurrentUserEmail();
+        User user = userRepository.findByEmail(currentUserEmail)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy user đăng nhập!"));
+        
+        boolean isAdmin = user.getRole() != null && 
+                (user.getRole().getName().equalsIgnoreCase("ADMIN") || 
+                 user.getRole().getName().equalsIgnoreCase("ROLE_ADMIN"));
+        
+        boolean isOwner = document.getUploadedBy() != null && 
+                document.getUploadedBy().getId().equals(user.getId());
+        
+        if (!isOwner && !isAdmin) {
+            throw new RuntimeException("Bạn không có quyền chỉnh sửa tài liệu này!");
+        }
+
+        // Update properties
+        document.setDescription(request.getDescription());
+        document.setVisibility(request.getVisibility());
+
+        // Category mapping
+        if (request.getCategoryId() != null) {
+            Category category = categoryRepository.findById(request.getCategoryId())
+                    .orElseThrow(() -> new RuntimeException("Category not found"));
+            document.setCategory(category);
+        } else {
+            document.setCategory(null);
+        }
+
+        // Course resolution
+        if (request.getCourseId() != null) {
+            Course course = courseRepository.findById(request.getCourseId())
+                    .orElseThrow(() -> new RuntimeException("Course not found"));
+            document.setCourse(course);
+        } else {
+            String courseCode = safeTrim(request.getCourseCode());
+            if (courseCode != null) {
+                Course course;
+                if (request.getMajorId() != null) {
+                    course = courseRepository.findByMajorIdAndCode(request.getMajorId(), courseCode)
+                            .orElseGet(() -> {
+                                String courseName = safeTrim(request.getCourseName());
+                                if (courseName == null) {
+                                    throw new IllegalArgumentException("Course name is required for new course code");
+                                }
+
+                                com.example.keeper.systems.major.entity.Major major = majorRepository.findById(request.getMajorId())
+                                        .orElseThrow(() -> new RuntimeException("Major not found"));
+
+                                Course newCourse = new Course();
+                                newCourse.setCode(courseCode);
+                                newCourse.setName(courseName);
+                                newCourse.setDescription(null);
+                                newCourse.setMajor(major);
+                                return courseRepository.save(newCourse);
+                            });
+                } else {
+                    course = courseRepository.findByCode(courseCode)
+                            .orElseGet(() -> {
+                                String courseName = safeTrim(request.getCourseName());
+                                if (courseName == null) {
+                                    throw new IllegalArgumentException("Course name is required for new course code");
+                                }
+
+                                Course newCourse = new Course();
+                                newCourse.setCode(courseCode);
+                                newCourse.setName(courseName);
+                                newCourse.setDescription(null);
+                                return courseRepository.save(newCourse);
+                            });
+                }
+                document.setCourse(course);
+            } else {
+                document.setCourse(null);
+            }
+        }
+
+        // Tags resolution
+        java.util.Set<Tag> tags = new java.util.HashSet<>();
+        if (request.getTagNames() != null && !request.getTagNames().isEmpty()) {
+            for (String rawName : request.getTagNames()) {
+                String name = safeTrim(rawName);
+                if (name == null) {
+                    continue;
+                }
+
+                Tag tag = tagRepository.findByNameIgnoreCase(name)
+                        .orElseGet(() -> tagRepository.save(new Tag(name)));
+                tags.add(tag);
+            }
+        }
+        document.setTags(tags);
+
+        Document savedDoc = documentRepository.save(document);
+        return mapToDetail(savedDoc);
     }
 }

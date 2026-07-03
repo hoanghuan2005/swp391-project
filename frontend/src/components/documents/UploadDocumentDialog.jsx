@@ -19,7 +19,16 @@ import {
   BookOpen,
   Tags,
   FileText,
+  Eye,
+  Lock,
 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import axiosClient from "@/api/axiosClient";
 import { isDocumentQuotaExceeded } from "@/api/documentQuotaApi";
 import QuotaExceededDialog from "@/components/quota/QuotaExceededDialog";
@@ -43,6 +52,7 @@ export default function UploadDocumentDialog({
   const [subjectNameOpen, setSubjectNameOpen] = useState(false);
 
   const [selectedFile, setSelectedFile] = useState(null);
+  const [visibility, setVisibility] = useState("PUBLIC");
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
   const [quotaDialog, setQuotaDialog] = useState({
@@ -122,6 +132,7 @@ export default function UploadDocumentDialog({
     } else {
       // Reset state when dialog closes
       setSelectedFile(null);
+      setVisibility("PUBLIC");
 
       setSchoolQuery("");
       setMajorQuery("");
@@ -280,7 +291,7 @@ export default function UploadDocumentDialog({
 
         formData.append("file", selectedFile);
         formData.append("title", selectedFile.name);
-        formData.append("visibility", "PUBLIC");
+        formData.append("visibility", visibility);
 
         if (uploadedById) {
           formData.append("uploadedById", uploadedById);
@@ -342,7 +353,7 @@ export default function UploadDocumentDialog({
       await refreshDocumentQuota();
 
       const normalizedDoc = {
-        visibility: "PUBLIC",
+        visibility: visibility,
         title: selectedFile?.name,
         ...uploadedDoc?.data,
       };
@@ -572,6 +583,37 @@ export default function UploadDocumentDialog({
               setSelected={setSelectedTags}
               placeholder="Type to search tags"
             />
+
+            {/* visibility Input */}
+            <div className="space-y-1">
+              <Label className="flex items-center gap-2 text-slate-700 font-semibold">
+                {visibility === "PUBLIC" ? (
+                  <Eye size={16} className="text-[#f26522]" />
+                ) : (
+                  <Lock size={16} className="text-[#f26522]" />
+                )}
+                Visibility
+              </Label>
+              <Select value={visibility} onValueChange={setVisibility}>
+                <SelectTrigger className="w-full h-10 rounded-xl px-3 border-slate-200">
+                  <SelectValue placeholder="Select visibility" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl">
+                  <SelectItem value="PUBLIC">
+                    <div className="flex items-center gap-2">
+                      <Eye size={14} className="text-slate-500" />
+                      <span>Public</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="PRIVATE">
+                    <div className="flex items-center gap-2">
+                      <Lock size={14} className="text-slate-500" />
+                      <span>Private</span>
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <DialogFooter>
             {uploadError && (

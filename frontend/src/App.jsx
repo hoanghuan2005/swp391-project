@@ -7,6 +7,7 @@ import LandingPage from "./pages/LandingPage";
 import ProfilePage from "./pages/ProfilePage";
 import MyLibrary from "./pages/MyLibrary";
 import DocumentDetailPage from "./pages/DocumentDetailPage";
+import EditDocumentPage from "./pages/EditDocumentPage";
 import LoginPage from "./pages/Auth/LoginPage.jsx";
 import SignUpPage from "./pages/Auth/SignUpPage.jsx";
 import VerifyOTPPage from "./pages/Auth/VerifyOTPPage.jsx";
@@ -85,6 +86,7 @@ function App() {
         <Route element={<MainLayout />}>
           <Route path="/home" element={<Homepage />} />
           <Route path="/documents/:id" element={<DocumentDetailPage />} />
+          <Route path="/documents/:id/edit" element={<EditDocumentPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/users/:userId" element={<UserPage />} />
           <Route path="/my-library" element={<MyLibrary />} />
