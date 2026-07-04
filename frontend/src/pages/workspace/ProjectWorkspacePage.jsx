@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useParams } from "react-router-dom";
-import { Loader2, Sparkles, CheckSquare } from "lucide-react";
+import { Loader2, Sparkles, CheckSquare, AlertCircle } from "lucide-react";
 import { toast } from "react-hot-toast";
 
 import {
@@ -134,6 +134,11 @@ export default function ProjectWorkspacePage() {
   const handleSend = async (messageText) => {
     if (!messageText || isSending) return;
 
+    if (hasFailedOrUnsupportedSelected) {
+      toast.error("Some selected documents failed to parse or are unsupported.");
+      return;
+    }
+
     const pendingDocs =
       selectedDocs.length > 0
         ? selectedDocs.filter((doc) => doc.aiParseStatus === "PENDING")
@@ -230,6 +235,22 @@ export default function ProjectWorkspacePage() {
     }
   };
 
+  const hasFailedOrUnsupportedSelected = selectedDocs.some(
+    (doc) => doc.aiParseStatus === "FAILED" || doc.aiParseStatus === "UNSUPPORTED"
+  );
+
+  const documentAlertBoard = hasFailedOrUnsupportedSelected ? (
+    <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-2xl text-red-800 w-full">
+      <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+      <div className="flex-1">
+        <h4 className="font-bold text-sm">AI Q&A Disabled</h4>
+        <p className="text-xs text-red-700 mt-1">
+          Some of the selected documents failed to parse or are unsupported. You cannot ask AI questions about them.
+        </p>
+      </div>
+    </div>
+  ) : null;
+
   if (loading) {
     return (
       <div className="h-[calc(100vh-100px)] flex items-center justify-center">
@@ -271,6 +292,8 @@ export default function ProjectWorkspacePage() {
           isSending={isSending}
           onSendMessage={handleSend}
           showUploadButton={false}
+          isDisabled={hasFailedOrUnsupportedSelected}
+          alertComponent={documentAlertBoard}
           emptyStateComponent={
             <div className="h-full flex flex-col items-center justify-center text-center p-8 max-w-lg mx-auto">
               <div className="w-16 h-16 rounded-3xl bg-[#f26522]/10 flex items-center justify-center mb-4">
