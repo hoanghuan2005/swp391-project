@@ -393,8 +393,8 @@ export default function UploadDocumentDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-xl rounded-2xl p-6">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-xl rounded-2xl p-6 max-h-[90vh] flex flex-col gap-0 overflow-hidden">
+          <DialogHeader className="pb-4 flex-shrink-0">
             <DialogTitle className="text-2xl font-bold">
               Upload Document
             </DialogTitle>
@@ -410,7 +410,7 @@ export default function UploadDocumentDialog({
                   : `Documents: ${uploadsToday}/${dailyUploadLimit} uploads today, ${totalDocuments}/${totalDocumentLimit} stored, max ${maxFileSizeMb}MB`}
             </p>
           </DialogHeader>
-          <div className="grid gap-5 py-4">
+          <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar grid gap-5 py-4 min-h-0">
             {/* File Input */}
             <div
               className="space-y-2 border-2 border-dashed border-gray-200 rounded-xl p-6 text-center hover:bg-gray-50 transition-colors cursor-pointer"
@@ -615,7 +615,7 @@ export default function UploadDocumentDialog({
               </Select>
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="pt-4 flex-shrink-0">
             {uploadError && (
               <p className="text-xs text-red-500 w-full text-left mb-2 font-medium">
                 {uploadError}
