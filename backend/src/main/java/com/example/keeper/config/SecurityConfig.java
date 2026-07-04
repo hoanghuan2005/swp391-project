@@ -103,6 +103,7 @@ public class SecurityConfig {
 
                                                                 "/api/projects/shared/**",
                                                                 "/api/projects/invitations/*",
+                                                                "/api/payments/vnpay/confirm-return",
 //                                                                "/api/ai/shared/ask",
                                                                 
                                                                 "/error",
