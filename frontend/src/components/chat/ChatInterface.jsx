@@ -17,7 +17,9 @@ export default function ChatInterface({
   isUploading = false,
   onUploadClick,
   contextBadgeComponent,
-  rightElement
+  rightElement,
+  isDisabled = false,
+  alertComponent = null
 }) {
   const [input, setInput] = useState("");
   const messagesEndRef = useRef(null);
@@ -27,7 +29,7 @@ export default function ChatInterface({
   }, [messages, isSending]);
 
   const handleSend = () => {
-    if (!input.trim() || isSending) return;
+    if (!input.trim() || isSending || isDisabled) return;
     onSendMessage(input.trim());
     setInput("");
   };
@@ -51,6 +53,13 @@ export default function ChatInterface({
           </div>
         )}
       </div>
+
+      {/* ALERT/WARNING BOARD */}
+      {alertComponent && (
+        <div className="px-6 py-3 border-b border-slate-200 bg-white shrink-0">
+          {alertComponent}
+        </div>
+      )}
 
       {/* CHAT BODY */}
       <div className="flex-1 overflow-y-auto p-6 space-y-4">
@@ -154,17 +163,17 @@ export default function ChatInterface({
 
             <input
               type="text"
-              placeholder="Ask anything about your study materials..."
+              placeholder={isDisabled ? "AI Q&A is disabled for this document" : "Ask anything about your study materials..."}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSend()}
-              disabled={isSending}
+              disabled={isSending || isDisabled}
               className="flex-1 bg-transparent outline-none text-slate-700 text-sm placeholder-slate-400 px-2"
             />
 
             <button
               onClick={handleSend}
-              disabled={!input.trim() || isSending}
+              disabled={!input.trim() || isSending || isDisabled}
               className="w-9 h-9 rounded-lg bg-[#f26522] hover:bg-[#e45a1b] disabled:opacity-40 disabled:hover:bg-[#f26522] flex items-center justify-center text-white transition-all shrink-0 cursor-pointer disabled:cursor-not-allowed shadow-sm"
             >
               {isSending ? (
