@@ -5,6 +5,7 @@ import {
   Settings2,
   ArrowLeft,
   Heart,
+  AlertCircle,
 } from "lucide-react";
 import {
   Dialog,
@@ -101,6 +102,7 @@ export default function AIQuizGenerator() {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchSidebarData();
   }, []);
 
@@ -217,12 +219,12 @@ export default function AIQuizGenerator() {
       const response = await axiosClient.get(`/api/documents/${documentId}`);
       const status = response.data?.aiParseStatus;
 
-      if (status === "READY" || status === "UNSUPPORTED" || !status) {
+      if (status === "READY" || !status) {
         return;
       }
-      if (status === "FAILED") {
+      if (status === "FAILED" || status === "UNSUPPORTED") {
         throw new Error(
-          "Document text could not be extracted for AI quiz generation.",
+          "This document failed to parse or is unsupported for AI quiz generation.",
         );
       }
 
@@ -441,34 +443,50 @@ export default function AIQuizGenerator() {
           />
 
           {viewMode === VIEW_MODE.GENERATE && (
-            <AIGeneratorInput
-              value={inputText}
-              onChange={setInputText}
-              placeholder="Enter a topic or paste your notes..."
-              fileInputRef={fileInputRef}
-              handleFileSelect={handleFileSelect}
-              activeDocument={activeDocument}
-              clearDocument={clearDocument}
-              onGenerate={handleGenerateQuiz}
-              isGenerating={isGenerating}
-              disabled={!inputText.trim() && !file && !libraryDoc}
-              footerLeft={
-                <>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setOpenSettings(true)}
-                    className="rounded-full"
-                  >
-                    <Settings2 className="w-5 h-5" />
-                  </Button>
+            <>
+              {libraryDoc && ["FAILED", "UNSUPPORTED"].includes(libraryDoc.aiParseStatus) && (
+                <div className="mb-4 p-4 border border-red-200 bg-red-50 text-red-700 rounded-2xl flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="font-bold text-sm">Quiz Generation Disabled</h4>
+                    <p className="text-xs text-red-700 mt-1">
+                      This document ({libraryDoc.title || libraryDoc.name}) failed to parse or is unsupported. Quiz generation is disabled for this file.
+                    </p>
+                  </div>
+                </div>
+              )}
+              <AIGeneratorInput
+                value={inputText}
+                onChange={setInputText}
+                placeholder="Enter a topic or paste your notes..."
+                fileInputRef={fileInputRef}
+                handleFileSelect={handleFileSelect}
+                activeDocument={activeDocument}
+                clearDocument={clearDocument}
+                onGenerate={handleGenerateQuiz}
+                isGenerating={isGenerating}
+                disabled={
+                  (!inputText.trim() && !file && !libraryDoc) ||
+                  (libraryDoc && ["FAILED", "UNSUPPORTED"].includes(libraryDoc.aiParseStatus))
+                }
+                footerLeft={
+                  <>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setOpenSettings(true)}
+                      className="rounded-full"
+                    >
+                      <Settings2 className="w-5 h-5" />
+                    </Button>
 
-                  <span className="text-xs text-slate-500 ml-2">
-                    {questionCount} Questions • {difficulty}
-                  </span>
-                </>
-              }
-            />
+                    <span className="text-xs text-slate-500 ml-2">
+                      {questionCount} Questions • {difficulty}
+                    </span>
+                  </>
+                }
+              />
+            </>
           )}
 
           {viewMode === VIEW_MODE.PREVIEW && selectedQuiz && (

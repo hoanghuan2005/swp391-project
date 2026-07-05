@@ -166,10 +166,7 @@ public class VnpayPaymentServiceImpl implements VnpayPaymentService {
 
     @Override
     @Transactional
-    public ConfirmVnpayReturnResponse confirmReturn(String userEmail, Map<String, String> params) {
-        User currentUser = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
+    public ConfirmVnpayReturnResponse confirmReturn(Map<String, String> params) {
         if (!isValidSecureHash(params)) {
             throw new IllegalArgumentException("Invalid VNPAY signature");
         }
@@ -183,9 +180,6 @@ public class VnpayPaymentServiceImpl implements VnpayPaymentService {
                 .orElseThrow(() -> new IllegalArgumentException("Transaction not found"));
 
         User transactionUser = transaction.getUser();
-        if (!isAdmin(currentUser) && !transactionUser.getEmail().equalsIgnoreCase(userEmail)) {
-            throw new AccessDeniedException("Transaction does not belong to current user");
-        }
 
         if (!isAmountValid(params.get("vnp_Amount"), transaction.getAmountVnd())) {
             throw new IllegalArgumentException("Invalid VNPAY amount");

@@ -263,6 +263,19 @@ export default function DocumentDetailView({
                     <Badge variant="outline">{documentDetail.course?.code || "N/A"}</Badge>
                   </div>
                   <div className="flex items-center justify-between text-sm">
+                    <span className="text-slate-500">Visibility</span>
+                    <Badge
+                      className={
+                        documentDetail.visibility === "PUBLIC"
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-100 hover:bg-emerald-100"
+                          : "bg-amber-50 text-amber-700 border-amber-100 hover:bg-amber-100"
+                      }
+                      variant="outline"
+                    >
+                      {documentDetail.visibility || "PUBLIC"}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
                     <span className="text-slate-500">File size</span>
                     <span className="font-medium">{formatFileSize(documentDetail.fileSize)}</span>
                   </div>

@@ -426,6 +426,13 @@ export default function MyLibrary() {
                         <div className="flex items-center gap-1 text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100">
                           {doc.course?.code || "General"}
                         </div>
+                        <div className={`flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-full border ${
+                          doc.visibility === "PRIVATE"
+                            ? "bg-amber-50 text-amber-700 border-amber-100"
+                            : "bg-emerald-50 text-emerald-700 border-emerald-100"
+                        }`}>
+                          {doc.visibility || "PUBLIC"}
+                        </div>
                       </div>
                     </div>
                     <Link to={`/documents/${doc.id}`}>

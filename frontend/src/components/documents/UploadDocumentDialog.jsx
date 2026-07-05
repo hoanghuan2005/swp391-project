@@ -19,7 +19,18 @@ import {
   BookOpen,
   Tags,
   FileText,
+  Eye,
+  Lock,
+  AlignLeft,
 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import axiosClient from "@/api/axiosClient";
 import { isDocumentQuotaExceeded } from "@/api/documentQuotaApi";
 import QuotaExceededDialog from "@/components/quota/QuotaExceededDialog";
@@ -43,6 +54,8 @@ export default function UploadDocumentDialog({
   const [subjectNameOpen, setSubjectNameOpen] = useState(false);
 
   const [selectedFile, setSelectedFile] = useState(null);
+  const [visibility, setVisibility] = useState("PUBLIC");
+  const [description, setDescription] = useState("");
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
   const [quotaDialog, setQuotaDialog] = useState({
@@ -121,7 +134,10 @@ export default function UploadDocumentDialog({
       fetchOptions();
     } else {
       // Reset state when dialog closes
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedFile(null);
+      setVisibility("PUBLIC");
+      setDescription("");
 
       setSchoolQuery("");
       setMajorQuery("");
@@ -280,7 +296,11 @@ export default function UploadDocumentDialog({
 
         formData.append("file", selectedFile);
         formData.append("title", selectedFile.name);
-        formData.append("visibility", "PUBLIC");
+        formData.append("visibility", visibility);
+
+        if (description.trim()) {
+          formData.append("description", description.trim());
+        }
 
         if (uploadedById) {
           formData.append("uploadedById", uploadedById);
@@ -342,7 +362,7 @@ export default function UploadDocumentDialog({
       await refreshDocumentQuota();
 
       const normalizedDoc = {
-        visibility: "PUBLIC",
+        visibility: visibility,
         title: selectedFile?.name,
         ...uploadedDoc?.data,
       };
@@ -382,8 +402,8 @@ export default function UploadDocumentDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-xl rounded-2xl p-6">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-xl rounded-2xl p-6 max-h-[90vh] flex flex-col gap-0 overflow-hidden">
+          <DialogHeader className="pb-4 flex-shrink-0">
             <DialogTitle className="text-2xl font-bold">
               Upload Document
             </DialogTitle>
@@ -399,42 +419,52 @@ export default function UploadDocumentDialog({
                   : `Documents: ${uploadsToday}/${dailyUploadLimit} uploads today, ${totalDocuments}/${totalDocumentLimit} stored, max ${maxFileSizeMb}MB`}
             </p>
           </DialogHeader>
-          <div className="grid gap-5 py-4">
+          <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar grid gap-5 py-4 min-h-0">
             {/* File Input */}
-            <div
-              className="space-y-2 border-2 border-dashed border-gray-200 rounded-xl p-6 text-center hover:bg-gray-50 transition-colors cursor-pointer"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <div className="flex justify-center">
-                <div className="p-3 bg-[#f26522]/10 rounded-full text-[#f26522]">
-                  <UploadCloud size={32} />
+            <div className="space-y-1">
+              <Label className="flex items-center gap-2 text-slate-700 font-semibold">
+                <FileText size={16} className="text-[#f26522]" />
+                Document File <span className="text-red-500">*</span>
+              </Label>
+              <div
+                className="border-2 border-dashed border-gray-200 rounded-xl p-6 text-center hover:bg-gray-50 transition-colors cursor-pointer"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <div className="flex justify-center">
+                  <div className="p-3 bg-[#f26522]/10 rounded-full text-[#f26522]">
+                    <UploadCloud size={32} />
+                  </div>
                 </div>
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-slate-800">
-                  Click to upload or drag and drop
-                </p>
-                <p className="text-xs text-slate-500 mt-1">
-                  PDF, DOCX, PPTX (max. {maxFileSizeMb || 10}MB)
-                </p>
-                {selectedFile && (
-                  <p className="text-xs text-slate-700 mt-2 font-medium text-[#f26522]">
-                    Selected: {selectedFile.name}
+                <div>
+                  <p className="text-sm font-semibold text-slate-800">
+                    Click to upload or drag and drop
                   </p>
-                )}
+                  <p className="text-xs text-slate-500 mt-1">
+                    PDF, DOCX, PPTX (max. {maxFileSizeMb || 10}MB)
+                  </p>
+                  {selectedFile && (
+                    <p className="text-xs text-slate-700 mt-2 font-medium text-[#f26522]">
+                      Selected: {selectedFile.name}
+                    </p>
+                  )}
+                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".pdf,.doc,.docx,.ppt,.pptx"
+                  className="hidden"
+                  onChange={handleFileSelect}
+                />
               </div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".pdf,.doc,.docx,.ppt,.pptx"
-                className="hidden"
-                onChange={handleFileSelect}
-              />
             </div>
 
             {/* school Input */}
             <SearchSelect
-              label="School"
+              label={
+                <>
+                  School <span className="text-red-500">*</span>
+                </>
+              }
               icon={<GraduationCap size={16} className="text-[#f26522]" />}
               placeholder="Enter school code or name"
               options={schoolOptions}
@@ -457,7 +487,11 @@ export default function UploadDocumentDialog({
 
             {/* major Input */}
             <SearchSelect
-              label="Major"
+              label={
+                <>
+                  Major <span className="text-red-500">*</span>
+                </>
+              }
               icon={<Layers size={16} className="text-[#f26522]" />}
               placeholder={
                 selectedSchool
@@ -484,7 +518,11 @@ export default function UploadDocumentDialog({
             <div className="grid grid-cols-2 gap-4">
               {/* subject Input */}
               <SearchSelect
-                label="Course"
+                label={
+                  <>
+                    Course <span className="text-red-500">*</span>
+                  </>
+                }
                 icon={<BookOpen size={16} className="text-[#f26522]" />}
                 placeholder={
                   selectedMajor
@@ -572,8 +610,53 @@ export default function UploadDocumentDialog({
               setSelected={setSelectedTags}
               placeholder="Type to search tags"
             />
+
+            {/* description Input */}
+            <div className="space-y-1">
+              <Label className="flex items-center gap-2 text-slate-700 font-semibold">
+                <AlignLeft size={16} className="text-[#f26522]" />
+                Description
+              </Label>
+              <Textarea
+                placeholder="Enter description (optional)..."
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className="rounded-lg border-gray-300 focus-visible:ring-[#f26522] focus-visible:border-[#f26522] min-h-[80px]"
+              />
+            </div>
+
+            {/* visibility Input */}
+            <div className="space-y-1">
+              <Label className="flex items-center gap-2 text-slate-700 font-semibold">
+                {visibility === "PUBLIC" ? (
+                  <Eye size={16} className="text-[#f26522]" />
+                ) : (
+                  <Lock size={16} className="text-[#f26522]" />
+                )}
+                Visibility <span className="text-red-500">*</span>
+              </Label>
+              <Select value={visibility} onValueChange={setVisibility}>
+                <SelectTrigger className="w-full h-10 rounded-xl px-3 border-slate-200">
+                  <SelectValue placeholder="Select visibility" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl">
+                  <SelectItem value="PUBLIC">
+                    <div className="flex items-center gap-2">
+                      <Eye size={14} className="text-slate-500" />
+                      <span>Public</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="PRIVATE">
+                    <div className="flex items-center gap-2">
+                      <Lock size={14} className="text-slate-500" />
+                      <span>Private</span>
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="pt-4 flex-shrink-0">
             {uploadError && (
               <p className="text-xs text-red-500 w-full text-left mb-2 font-medium">
                 {uploadError}
