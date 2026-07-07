@@ -18,12 +18,15 @@ import com.example.keeper.systems.follow.repository.UserFollowRepository;
 import com.example.keeper.systems.major.repository.MajorRepository;
 import com.example.keeper.systems.notification.service.NotificationService;
 import com.example.keeper.systems.ai_ask.service.DocumentParserService;
+import com.example.keeper.systems.ai_flashcard.repository.FlashcardSetRepository;
 import com.example.keeper.systems.category.entity.Category;
 import com.example.keeper.systems.category.repository.CategoryRepository;
 import com.example.keeper.systems.course.entity.Course;
 import com.example.keeper.systems.course.repository.CourseRepository;
 import com.example.keeper.systems.tag.entity.Tag;
 import com.example.keeper.systems.tag.repository.TagRepository;
+import com.example.keeper.systems.document.enums.Visibility;
+import com.example.keeper.systems.project.repository.ProjectRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
@@ -60,6 +63,10 @@ public class DocumentServiceImpl implements DocumentService {
     private final NotificationService notificationService;
     private final DocumentQuotaService documentQuotaService;
     private final CategoryRepository categoryRepository;
+    private final FlashcardSetRepository flashcardSetRepository;
+    private final ProjectRepository projectRepository;
+
+
 
     @Override
     public Document create(CreateDocumentRequest request) {
@@ -365,9 +372,33 @@ public class DocumentServiceImpl implements DocumentService {
                 .orElseThrow();
     }
 
+    private void checkDocumentAccess(Document document, String email) {
+        if (document.getVisibility() == Visibility.PRIVATE) {
+            if (email == null || "anonymousUser".equals(email)) {
+                throw new org.springframework.security.access.AccessDeniedException("Access denied. Please log in.");
+            }
+            User user = userRepository.findByEmail(email)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+            
+            if (document.getUploadedBy().getId().equals(user.getId())) {
+                return;
+            }
+            
+            if (user.getRole() != null && "ADMIN".equalsIgnoreCase(user.getRole().getName())) {
+                return;
+            }
+            
+            boolean hasAccess = projectRepository.hasUserAccessToDocumentThroughProjects(document.getId(), user.getId());
+            if (!hasAccess) {
+                throw new org.springframework.security.access.AccessDeniedException("Access denied. You do not have access to this private document.");
+            }
+        }
+    }
+
     @Override
-    public DocumentDetailResponse getDetail(UUID id) {
+    public DocumentDetailResponse getDetail(UUID id, String email) {
         Document document = getById(id);
+        checkDocumentAccess(document, email);
         return mapToDetail(document);
     }
 
@@ -427,9 +458,18 @@ public class DocumentServiceImpl implements DocumentService {
 
     @Override
     @org.springframework.transaction.annotation.Transactional
-    public Document delete(UUID id) {
+    public Document delete(UUID id, String email) {
 
         Document document = getById(id);
+
+        if (email != null) {
+            User user = userRepository.findByEmail(email)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+            boolean isAdmin = user.getRole() != null && "ADMIN".equalsIgnoreCase(user.getRole().getName());
+            if (!document.getUploadedBy().getId().equals(user.getId()) && !isAdmin) {
+                throw new org.springframework.security.access.AccessDeniedException("You do not have permission to delete this document.");
+            }
+        }
 
         fileStorageService.deleteFile(document.getCloudinaryPublicId(), resolveResourceType(document));
 
@@ -709,8 +749,9 @@ public class DocumentServiceImpl implements DocumentService {
     }
 
     @Override
-    public String getDownloadUrl(UUID id) {
+    public String getDownloadUrl(UUID id, String email) {
         Document document = getById(id);
+        checkDocumentAccess(document, email);
 
         // Tăng số lượt tải lên 1
         int currentCount = document.getDownloadCount() != null ? document.getDownloadCount() : 0;

@@ -123,7 +123,7 @@ export default function CatalogCoursesPage() {
 
   return (
     <BaseCrud
-      title="Courses Catalog"
+      title="Courses Management"
       description="Manage academic subjects displayed across system."
       icon={BookOpen}
       entityName="Course"
@@ -134,6 +134,14 @@ export default function CatalogCoursesPage() {
       initialFormState={{ name: "", code: "", description: "", schoolId: "", majorId: "" }}
       searchFilter={searchFilter}
       onFieldChange={handleFieldChange}
+      importUrl="/api/admin/catalog/courses/import"
+      importMapping={{
+        majorId: "Major ID",
+        code: "Course Code",
+        name: "Course Name",
+        description: "Description"
+      }}
+      importRequiredFields={["majorId", "code", "name"]}
     />
   );
 }

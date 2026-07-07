@@ -22,7 +22,7 @@ public interface DocumentService {
 
     Document getById(UUID id);
 
-    DocumentDetailResponse getDetail(UUID id);
+    DocumentDetailResponse getDetail(UUID id, String email);
 
     void recordView(UUID id, String email);
 
@@ -38,9 +38,7 @@ public interface DocumentService {
 
     // List<Document> getRecommended(String email, int limit);
 
-    Document delete(UUID id);
+    Document delete(UUID id, String email);
 
-    DocumentDetailResponse update(UUID id, UpdateDocumentRequest request);
-
-    String getDownloadUrl(UUID id);
+    String getDownloadUrl(UUID id, String email);
 }

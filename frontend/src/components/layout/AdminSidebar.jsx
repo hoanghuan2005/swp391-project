@@ -10,6 +10,8 @@ import {
   Layers,
   Tags,
   Globe,
+  CreditCard,
+  Brain,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -120,6 +122,20 @@ export default function AdminSidebar({ isOpen = true }) {
           to="/admin/documents"
           icon={FileText}
           label="Documents"
+          isOpen={isOpen}
+          pathname={location.pathname}
+        />
+        <AdminNavItem
+          to="/admin/payments"
+          icon={CreditCard}
+          label="Payments"
+          isOpen={isOpen}
+          pathname={location.pathname}
+        />
+        <AdminNavItem
+          to="/admin/ai-usages"
+          icon={Brain}
+          label="AI Usages"
           isOpen={isOpen}
           pathname={location.pathname}
         />

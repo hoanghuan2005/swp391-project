@@ -9,14 +9,18 @@ import CatalogLanguagesPage from "./CatalogLanguagesPage";
 
 export default function SettingsPage() {
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center gap-3">
-        <BookOpen className="w-8 h-8 text-[#f26522]" />
+    <div className="space-y-6">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-800">
-            Catalog Management
-          </h1>
-          <p className="text-sm text-slate-500">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-50 text-[#f26522]">
+              <BookOpen className="h-5 w-5" aria-hidden="true" />
+            </div>
+            <h1 className="text-3xl font-bold tracking-tight text-slate-800">
+              Resource Management
+            </h1>
+          </div>
+          <p className="mt-2 text-sm font-medium text-slate-500">
             Manage schools, tags, and language lists used across the platform.
           </p>
         </div>

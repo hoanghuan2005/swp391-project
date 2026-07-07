@@ -10,6 +10,8 @@ import java.util.List;
 import java.util.UUID;
 
 public interface AiUsageRepository extends JpaRepository<AiUsage, UUID> {
+    long countByUserId(UUID userId);
+
     long countByUserIdAndCreatedAtBetween(UUID userId, LocalDateTime start, LocalDateTime end);
 
     @Query("""

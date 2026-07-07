@@ -23,6 +23,7 @@ import {
 import { Plus, Search, Trash2, Pencil } from "lucide-react";
 import { useModal } from "@/components/share/useModal";
 import { toast } from "sonner";
+import AdminToolbar from "./AdminToolbar";
 
 export default function BaseCrud({
   title,
@@ -38,6 +39,9 @@ export default function BaseCrud({
   hideHeader = false,
   cardTitle,
   onFieldChange,
+  importUrl,
+  importMapping,
+  importRequiredFields = [],
 }) {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -147,19 +151,25 @@ export default function BaseCrud({
   };
 
   return (
-    <div className={hideHeader ? "" : "p-6 space-y-6"}>
+    <div className={hideHeader ? "" : "space-y-6"}>
       {!hideHeader && (
-        <div className="flex items-center gap-3">
-          {Icon && <Icon className="w-8 h-8 text-[#f26522]" />}
+        <header className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight text-slate-800">
-              {title}
-            </h1>
+            <div className="flex items-center gap-3">
+              {Icon && (
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-50 text-[#f26522]">
+                  <Icon className="h-5 w-5" aria-hidden="true" />
+                </div>
+              )}
+              <h1 className="text-3xl font-bold tracking-tight text-slate-800">
+                {title}
+              </h1>
+            </div>
             {description && (
-              <p className="text-sm text-slate-500">{description}</p>
+              <p className="mt-2 text-sm font-medium text-slate-500">{description}</p>
             )}
           </div>
-        </div>
+        </header>
       )}
 
       <Card className="rounded-2xl border-slate-100 shadow-sm">
@@ -167,19 +177,19 @@ export default function BaseCrud({
           <CardTitle className="text-lg text-slate-700">
             {cardTitle || (hideHeader ? title : `${entityName} directory`)}
           </CardTitle>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <div className="relative w-full sm:w-80">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <Input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder={`Search ${entityName.toLowerCase()}s...`}
-                className="pl-9 rounded-xl bg-slate-50 border-transparent focus-visible:border-[#f26522]/40 focus-visible:ring-[#f26522]/20"
-              />
-            </div>
-            <Button
-              className="rounded-xl bg-[#f26522] text-white hover:bg-[#d95316] flex items-center gap-2"
-              onClick={() => {
+          <div className="w-full">
+            <AdminToolbar
+              searchVal={query}
+              onSearchChange={setQuery}
+              searchPlaceholder={`Search ${entityName.toLowerCase()}s...`}
+              importUrl={importUrl}
+              importMapping={importMapping}
+              importRequiredFields={importRequiredFields}
+              onImportSuccess={loadData}
+              exportData={filteredData}
+              exportColumns={columns}
+              exportFilename={`${entityName.toLowerCase()}_export.csv`}
+              onAddClick={() => {
                 setIsEditing(false);
                 setEditingId(null);
                 setForm(initialFormState);
@@ -188,10 +198,8 @@ export default function BaseCrud({
                   onFieldChange("__init__", null, initialFormState, setForm);
                 }
               }}
-            >
-              <Plus className="w-4 h-4" />
-              Add {entityName.toLowerCase()}
-            </Button>
+              addLabel={`Add ${entityName.toLowerCase()}`}
+            />
           </div>
         </CardHeader>
         <CardContent className="pt-6">

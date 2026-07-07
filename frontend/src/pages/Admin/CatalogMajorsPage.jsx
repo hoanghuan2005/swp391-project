@@ -69,7 +69,7 @@ export default function CatalogMajorsPage({ hideHeader }) {
 
   return (
     <BaseCrud
-      title="Majors Catalog"
+      title="Majors Management"
       description="Manage educational majors mapped inside universities."
       icon={Layers}
       entityName="Major"
@@ -79,6 +79,14 @@ export default function CatalogMajorsPage({ hideHeader }) {
       initialFormState={{ name: "", code: "", description: "", schoolId: "" }}
       searchFilter={searchFilter}
       hideHeader={hideHeader}
+      importUrl="/api/admin/catalog/majors/import"
+      importMapping={{
+        schoolId: "School ID",
+        code: "Code",
+        name: "Major Name",
+        description: "Description"
+      }}
+      importRequiredFields={["schoolId", "code", "name"]}
     />
   );
 }

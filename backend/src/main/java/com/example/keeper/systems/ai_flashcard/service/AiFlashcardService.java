@@ -20,6 +20,8 @@ import com.example.keeper.systems.auth.repository.UserRepository;
 import com.example.keeper.systems.document.entity.Document;
 import com.example.keeper.systems.document.enums.AiParseStatus;
 import com.example.keeper.systems.document.repository.DocumentRepository;
+import com.example.keeper.systems.project.repository.ProjectRepository;
+import com.example.keeper.systems.document.enums.Visibility;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -58,6 +60,7 @@ public class AiFlashcardService {
     private final EmbeddingService embeddingService;
     private final AiUsageService aiUsageService;
     private final DocumentParserService documentParserService;
+    private final ProjectRepository projectRepository;
 
     // Helper method to map entities to FlashcardSetResponse
     private FlashcardSetResponse mapToFlashcardSetResponse(FlashcardSet set) {
@@ -118,6 +121,33 @@ public class AiFlashcardService {
         FlashcardSet set = flashcardSetRepository.findById(setId)
                 .orElseThrow(() -> new RuntimeException("Flashcard Set not found"));
         return mapToFlashcardSetResponse(set);
+    }
+
+    public Map<String, Object> getSetDetailsById(UUID setId, String userEmail) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        FlashcardSet set = flashcardSetRepository.findById(setId)
+                .orElseThrow(() -> new RuntimeException("Flashcard set not found"));
+
+        boolean isOwner = set.getUser() != null && set.getUser().getId().equals(user.getId());
+        boolean isAdmin = user.getRole() != null && "ADMIN".equalsIgnoreCase(user.getRole().getName());
+
+        if (!isOwner && !isAdmin) {
+            boolean hasAccess = false;
+            if (set.getDocument() != null) {
+                Document doc = set.getDocument();
+                if (doc.getVisibility() == Visibility.PUBLIC || doc.getUploadedBy().getId().equals(user.getId())) {
+                    hasAccess = true;
+                } else {
+                    hasAccess = projectRepository.hasUserAccessToDocumentThroughProjects(doc.getId(), user.getId());
+                }
+            }
+            if (!hasAccess) {
+                throw new org.springframework.security.access.AccessDeniedException("You do not have permission to access this flashcard set.");
+            }
+        }
+
+        return getSetDetailsById(setId);
     }
 
     @Transactional

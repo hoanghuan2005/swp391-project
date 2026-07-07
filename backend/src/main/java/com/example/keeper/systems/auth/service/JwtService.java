@@ -15,8 +15,8 @@ import java.util.Map;
 @Service
 public class JwtService {
 
-    // Mã bí mật dài hơn (ít nhất 512 bits / 64 bytes) được mã hóa Base64
-    private static final String SECRET_KEY = "ZXhhbXBsZVNlY3JldEtleVRoYXRJc1ZlcnlMb25nQW5kU2VjdXJlRW5vdWdoVG9CZVVzZWRGb3JIUzUxMlNpZ25hdHVyZXNTb0l0TmVlZHNUb0JlQXRMZWFzdDY0Qnl0ZXM=";
+    @org.springframework.beans.factory.annotation.Value("${app.jwt.secret:ZXhhbXBsZVNlY3JldEtleVRoYXRJc1ZlcnlMb25nQW5kU2VjdXJlRW5vdWdoVG9CZVVzZWRGb3JIUzUxMlNpZ25hdHVyZXNTb0l0TmVlZHNUb0JlQXRMZWFzdDY0Qnl0ZXM=}")
+    private String secretKey;
 
     public String generateToken(User user) {
         Map<String, Object> claims = new HashMap<>();
@@ -67,7 +67,7 @@ public class JwtService {
     }
 
     private Key getSignInKey() {
-        byte[] keyBytes = Decoders.BASE64.decode(SECRET_KEY);
+        byte[] keyBytes = Decoders.BASE64.decode(secretKey);
         return Keys.hmacShaKeyFor(keyBytes);
     }
 }

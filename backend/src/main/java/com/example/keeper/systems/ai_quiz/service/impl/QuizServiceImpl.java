@@ -11,6 +11,11 @@ import com.example.keeper.systems.ai_quiz.entity.Quiz;
 import com.example.keeper.systems.ai_quiz.entity.Question;
 import com.example.keeper.systems.ai_quiz.repository.QuizRepository;
 import com.example.keeper.systems.ai_quiz.service.QuizService;
+import com.example.keeper.systems.document.entity.Document;
+import com.example.keeper.systems.document.enums.Visibility;
+import com.example.keeper.systems.document.repository.DocumentRepository;
+import com.example.keeper.systems.project.repository.ProjectRepository;
+import com.example.keeper.systems.project.repository.ProjectMemberRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +30,9 @@ public class QuizServiceImpl implements QuizService {
 
     private final QuizRepository quizRepository;
     private final UserRepository userRepository;
+    private final DocumentRepository documentRepository;
+    private final ProjectRepository projectRepository;
+    private final ProjectMemberRepository projectMemberRepository;
 
     @Override
     @Transactional
@@ -44,9 +52,38 @@ public class QuizServiceImpl implements QuizService {
 
     @Override
     @Transactional(readOnly = true)
-    public QuizResponse getQuizById(UUID id) {
+    public QuizResponse getQuizById(UUID id, String userEmail) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new RuntimeException("User not found"));
         Quiz quiz = quizRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Quiz not found"));
+
+        boolean isOwner = quiz.getOwner().getId().equals(user.getId());
+        boolean isAdmin = user.getRole() != null && "ADMIN".equalsIgnoreCase(user.getRole().getName());
+
+        if (!isOwner && !isAdmin) {
+            boolean hasAccess = false;
+            if (quiz.getDocumentId() != null) {
+                Document doc = documentRepository.findById(quiz.getDocumentId()).orElse(null);
+                if (doc != null) {
+                    if (doc.getVisibility() == Visibility.PUBLIC || doc.getUploadedBy().getId().equals(user.getId())) {
+                        hasAccess = true;
+                    } else {
+                        hasAccess = projectRepository.hasUserAccessToDocumentThroughProjects(doc.getId(), user.getId());
+                    }
+                }
+            } else if (quiz.getProjectId() != null) {
+                boolean isProjectOwner = projectRepository.findById(quiz.getProjectId())
+                        .map(p -> p.getOwner().getId().equals(user.getId())).orElse(false);
+                boolean isProjectMember = projectMemberRepository.existsByProjectIdAndUserId(quiz.getProjectId(), user.getId());
+                if (isProjectOwner || isProjectMember) {
+                    hasAccess = true;
+                }
+            }
+            if (!hasAccess) {
+                throw new org.springframework.security.access.AccessDeniedException("You do not have permission to access this quiz.");
+            }
+        }
         return mapToResponse(quiz);
     }
 

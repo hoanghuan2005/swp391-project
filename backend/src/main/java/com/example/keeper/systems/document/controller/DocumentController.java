@@ -46,7 +46,8 @@ public class DocumentController {
             @RequestBody CreateDocumentRequest request) {
 
         Document document = documentService.create(request);
-        return documentService.getDetail(document.getId());
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        return documentService.getDetail(document.getId(), email);
     }
 
     @Operation(summary = "Upload a document")
@@ -100,8 +101,8 @@ public class DocumentController {
         request.setCategoryId(categoryId);
 
         Document document = documentService.uploadAndCreate(file, request);
-
-        return documentService.getDetail(document.getId());
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        return documentService.getDetail(document.getId(), email);
     }
 
     @GetMapping
@@ -195,22 +196,22 @@ public class DocumentController {
     @GetMapping("/{id}")
     public DocumentDetailResponse getById(
             @PathVariable UUID id) {
-
-        return documentService.getDetail(id);
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        return documentService.getDetail(id, email);
     }
 
     @GetMapping("/{id}/detail")
     public DocumentDetailResponse getDetail(
             @PathVariable UUID id) {
-
-        return documentService.getDetail(id);
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        return documentService.getDetail(id, email);
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(
             @PathVariable UUID id) {
-
-        documentService.delete(id);
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        documentService.delete(id, email);
         return ResponseEntity.noContent().build();
     }
 
@@ -218,8 +219,8 @@ public class DocumentController {
     @GetMapping("/{id}/download")
     public ResponseEntity<Map<String, String>> downloadDocument(
             @PathVariable UUID id) {
-
-        String fileUrl = documentService.getDownloadUrl(id);
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        String fileUrl = documentService.getDownloadUrl(id, email);
 
         return ResponseEntity.ok(
                 Map.of("downloadUrl", fileUrl)

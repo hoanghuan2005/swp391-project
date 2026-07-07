@@ -50,7 +50,8 @@ public class QuizController {
 
     @GetMapping("/{id}")
     public ResponseEntity<QuizResponse> getQuizById(@PathVariable UUID id) {
-        return ResponseEntity.ok(quizService.getQuizById(id));
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        return ResponseEntity.ok(quizService.getQuizById(id, email));
     }
 
     @PutMapping("/{id}")

@@ -30,7 +30,7 @@ export default function CatalogLanguagesPage({ hideHeader }) {
 
   return (
     <BaseCrud
-      title="Languages Catalog"
+      title="Languages Management"
       description="Keep survey language options up to date."
       icon={Globe}
       entityName="Language"
@@ -40,6 +40,12 @@ export default function CatalogLanguagesPage({ hideHeader }) {
       initialFormState={{ name: "", code: "" }}
       searchFilter={searchFilter}
       hideHeader={hideHeader}
+      importUrl="/api/admin/catalog/languages/import"
+      importMapping={{
+        code: "Code",
+        name: "Language"
+      }}
+      importRequiredFields={["code", "name"]}
     />
   );
 }

@@ -38,7 +38,7 @@ export default function CatalogSchoolsPage({ hideHeader }) {
 
   return (
     <BaseCrud
-      title="Schools Catalog"
+      title="Schools Management"
       description="Manage universities displayed across survey and uploads."
       icon={GraduationCap}
       entityName="School"
@@ -48,6 +48,13 @@ export default function CatalogSchoolsPage({ hideHeader }) {
       initialFormState={{ name: "", code: "", description: "" }}
       searchFilter={searchFilter}
       hideHeader={hideHeader}
+      importUrl="/api/admin/catalog/schools/import"
+      importMapping={{
+        code: "Code",
+        name: "School",
+        description: "Description"
+      }}
+      importRequiredFields={["code", "name"]}
     />
   );
 }
