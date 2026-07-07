@@ -89,7 +89,7 @@ public class AiFlashcardService {
                 .build();
     }
 
-    public List<FlashcardSetResponse> getAllSetsByUser(String email) {
+    public List<FlashcardSetResponse> getAllSetsByUser(String email, Boolean savedToLibrary) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
         List<FlashcardSet> sets = flashcardSetRepository.findByUserIdOrderByCreatedAtDesc(user.getId());
@@ -123,7 +123,7 @@ public class AiFlashcardService {
         return mapToFlashcardSetResponse(set);
     }
 
-    public Map<String, Object> getSetDetailsById(UUID setId, String userEmail) {
+    public FlashcardSetResponse getSetDetailsById(UUID setId, String userEmail) {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new RuntimeException("User not found"));
         FlashcardSet set = flashcardSetRepository.findById(setId)
@@ -420,7 +420,7 @@ public class AiFlashcardService {
     }
 
     @Transactional
-    public Map<String, Object> renameFlashcardSet(UUID setId, String newTitle, String userEmail) {
+    public FlashcardSetResponse renameFlashcardSet(UUID setId, String newTitle, String userEmail) {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 

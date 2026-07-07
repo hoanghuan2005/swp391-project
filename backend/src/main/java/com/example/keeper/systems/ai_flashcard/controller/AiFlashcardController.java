@@ -44,9 +44,10 @@ public class AiFlashcardController {
     }
 
     @GetMapping("/sets")
-    public ResponseEntity<List<FlashcardSetResponse>> getMyFlashcardSets() {
+    public ResponseEntity<List<FlashcardSetResponse>> getMyFlashcardSets(
+            @RequestParam(required = false) Boolean savedToLibrary) {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
-        List<FlashcardSetResponse> sets = aiFlashcardService.getAllSetsByUser(email);
+        List<FlashcardSetResponse> sets = aiFlashcardService.getAllSetsByUser(email, savedToLibrary);
         return ResponseEntity.ok(sets);
     }
 

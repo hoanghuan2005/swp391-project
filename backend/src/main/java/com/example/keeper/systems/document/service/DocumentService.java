@@ -41,4 +41,6 @@ public interface DocumentService {
     Document delete(UUID id, String email);
 
     String getDownloadUrl(UUID id, String email);
+
+    DocumentDetailResponse update(UUID id, UpdateDocumentRequest request);
 }
