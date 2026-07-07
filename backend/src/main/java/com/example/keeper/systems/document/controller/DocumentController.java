@@ -1,6 +1,7 @@
 package com.example.keeper.systems.document.controller;
 
 import com.example.keeper.systems.document.dto.request.CreateDocumentRequest;
+import com.example.keeper.systems.document.dto.request.UpdateDocumentRequest;
 import com.example.keeper.systems.document.dto.request.DocumentReviewRequest;
 import com.example.keeper.systems.document.dto.response.DocumentDetailResponse;
 import com.example.keeper.systems.document.dto.response.DocumentResponse;
@@ -66,7 +67,8 @@ public class DocumentController {
             @RequestParam(required = false) UUID majorId,
             @RequestParam(required = false) String courseCode,
             @RequestParam(required = false) String courseName,
-            @RequestParam(required = false) List<String> tagNames) {
+            @RequestParam(required = false) List<String> tagNames,
+            @RequestParam(required = false) UUID categoryId) {
 
         UUID resolvedUploadedById = uploadedById;
 
@@ -95,6 +97,7 @@ public class DocumentController {
         request.setCourseCode(courseCode);
         request.setCourseName(courseName);
         request.setTagNames(tagNames);
+        request.setCategoryId(categoryId);
 
         Document document = documentService.uploadAndCreate(file, request);
 
@@ -263,5 +266,12 @@ public class DocumentController {
         documentReviewRepository.save(review);
 
         return ResponseEntity.ok(Map.of("message", "Review submitted successfully"));
+    }
+
+    @PutMapping("/{id}")
+    public DocumentDetailResponse update(
+            @PathVariable UUID id,
+            @RequestBody UpdateDocumentRequest request) {
+        return documentService.update(id, request);
     }
 }

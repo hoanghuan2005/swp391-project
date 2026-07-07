@@ -29,6 +29,8 @@ public class CreateDocumentRequest {
 
     private Visibility visibility;
 
+    private UUID categoryId;
+
     private UUID uploadedById;
 
     private UUID courseId;

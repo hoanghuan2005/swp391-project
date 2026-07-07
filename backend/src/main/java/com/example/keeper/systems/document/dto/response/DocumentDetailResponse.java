@@ -28,6 +28,7 @@ public class DocumentDetailResponse {
     private Integer viewCount;
     private LocalDateTime createdAt;
     private CourseInfo course;
+    private CategoryInfo category;
     private UserInfo uploadedBy;
     private List<String> tags;
     private Double averageRating;
@@ -65,5 +66,13 @@ public class DocumentDetailResponse {
         private UUID id;
         private String username;
         private String email;
+    }
+
+    @Data
+    @Builder
+    public static class CategoryInfo {
+        private UUID id;
+        private String code;
+        private String name;
     }
 }

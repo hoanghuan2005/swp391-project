@@ -7,6 +7,7 @@ import {
   Sparkles,
   MessageSquare,
   Trash2,
+  AlertCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -374,6 +375,20 @@ export default function AskAIPage() {
     return title.includes(query);
   });
 
+  const isDocUnsupportedOrFailed = !!(selectedDoc && ["FAILED", "UNSUPPORTED"].includes(selectedDoc.aiParseStatus));
+
+  const documentAlertBoard = isDocUnsupportedOrFailed ? (
+    <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-2xl text-red-800 w-full">
+      <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+      <div className="flex-1">
+        <h4 className="font-bold text-sm">AI Q&A Disabled</h4>
+        <p className="text-xs text-red-700 mt-1">
+          This document failed to parse or is unsupported. You cannot ask AI questions about it.
+        </p>
+      </div>
+    </div>
+  ) : null;
+
   return (
     <div className="h-[calc(100vh-68px)] flex overflow-hidden bg-[#fafafa] rounded-xl -mx-8 -my-6">
       {/* SIDEBAR */}
@@ -411,6 +426,8 @@ export default function AskAIPage() {
         showUploadButton={true}
         isUploading={isUploading}
         onUploadClick={() => fileInputRef.current?.click()}
+        isDisabled={isDocUnsupportedOrFailed}
+        alertComponent={documentAlertBoard}
         emptyStateComponent={
           <div className="h-full flex flex-col items-center justify-center text-center p-8 max-w-lg mx-auto">
             <div className="w-16 h-16 rounded-3xl bg-[#f26522]/10 flex items-center justify-center mb-4">

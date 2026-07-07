@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   XCircle,
   RotateCcw,
+  AlertCircle,
 } from "lucide-react";
 import {
   Dialog,
@@ -62,10 +63,7 @@ export default function AIQuizGenerator() {
 
   // Sidebar states
   const [quizHistory, setQuizHistory] = useState([]);
-  const {
-    documents: uploadedDocuments,
-    refreshDocuments,
-  } = useDocuments();
+  const { documents: uploadedDocuments, refreshDocuments } = useDocuments();
   const {
     subscriptionTier,
     remainingUsage,
@@ -178,6 +176,7 @@ export default function AIQuizGenerator() {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchSidebarData();
   }, []);
 
@@ -198,9 +197,10 @@ export default function AIQuizGenerator() {
 
   useEffect(() => {
     if (publishDialogOpen && courses.length === 0) {
-      axiosClient.get("/api/courses/all")
-        .then(res => setCourses(res.data))
-        .catch(err => console.error("Failed to load courses", err));
+      axiosClient
+        .get("/api/courses/all")
+        .then((res) => setCourses(res.data))
+        .catch((err) => console.error("Failed to load courses", err));
     }
   }, [publishDialogOpen, courses.length]);
 
@@ -264,8 +264,8 @@ export default function AIQuizGenerator() {
       toast.success("Quiz renamed successfully!");
       setQuizHistory((current) =>
         current.map((q) =>
-          q.id === quizToRename.id ? { ...q, title: newTitle.trim() } : q
-        )
+          q.id === quizToRename.id ? { ...q, title: newTitle.trim() } : q,
+        ),
       );
       if (selectedQuiz?.id === quizToRename.id) {
         setSelectedQuiz((prev) => ({ ...prev, title: newTitle.trim() }));
@@ -296,7 +296,9 @@ export default function AIQuizGenerator() {
       );
       toast.success("Quiz draft saved successfully!");
     } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to save quiz draft.");
+      toast.error(
+        error.response?.data?.message || "Failed to save quiz draft.",
+      );
     } finally {
       setIsSaving(false);
     }
@@ -321,7 +323,9 @@ export default function AIQuizGenerator() {
       toast.success("Saved to Library successfully!");
       fetchSidebarData();
     } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to save to Library.");
+      toast.error(
+        error.response?.data?.message || "Failed to save to Library.",
+      );
     } finally {
       setIsSaving(false);
     }
@@ -332,12 +336,12 @@ export default function AIQuizGenerator() {
       const response = await axiosClient.get(`/api/documents/${documentId}`);
       const status = response.data?.aiParseStatus;
 
-      if (status === "READY" || status === "UNSUPPORTED" || !status) {
+      if (status === "READY" || !status) {
         return;
       }
-      if (status === "FAILED") {
+      if (status === "FAILED" || status === "UNSUPPORTED") {
         throw new Error(
-          "Document text could not be extracted for AI quiz generation.",
+          "This document failed to parse or is unsupported for AI quiz generation.",
         );
       }
 
@@ -452,7 +456,9 @@ export default function AIQuizGenerator() {
 
   const handlePublishQuizClick = () => {
     if (!selectedQuiz || !selectedQuiz.id) {
-      toast.error("Please save or select a generated quiz first before publishing.");
+      toast.error(
+        "Please save or select a generated quiz first before publishing.",
+      );
       return;
     }
     setPublishCourseId(libraryDoc?.course?.id || "");
@@ -461,13 +467,13 @@ export default function AIQuizGenerator() {
 
   const handlePublishQuiz = async () => {
     const courseId = publishCourseId || null;
-    
+
     try {
       await publish({
         type: "QUIZ",
         id: selectedQuiz.id,
         courseId,
-        visibility: "PUBLIC"
+        visibility: "PUBLIC",
       });
       toast.success("Quiz published successfully!");
       setPublishDialogOpen(false);
@@ -507,7 +513,7 @@ export default function AIQuizGenerator() {
       <div className="relative flex-1 overflow-y-auto bg-slate-50/50">
         <div className="mx-auto max-w-5xl px-6 py-8">
           {/* Header */}
-          {isGenerating && (!selectedQuiz) && (
+          {isGenerating && !selectedQuiz && (
             <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white/80 backdrop-blur-sm">
               <Loader2 className="mb-4 h-10 w-10 animate-spin text-[#f26522]" />
               <p className="font-medium text-slate-600">
@@ -530,34 +536,60 @@ export default function AIQuizGenerator() {
           />
 
           {viewMode === VIEW_MODE.GENERATE && (
-            <AIGeneratorInput
-              value={inputText}
-              onChange={setInputText}
-              placeholder="Enter a topic or paste your notes..."
-              fileInputRef={fileInputRef}
-              handleFileSelect={handleFileSelect}
-              activeDocument={activeDocument}
-              clearDocument={clearDocument}
-              onGenerate={handleGenerateQuiz}
-              isGenerating={isGenerating}
-              disabled={!inputText.trim() && !file && !libraryDoc}
-              footerLeft={
-                <>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setOpenSettings(true)}
-                    className="rounded-full"
-                  >
-                    <Settings2 className="w-5 h-5" />
-                  </Button>
+            <>
+              {libraryDoc &&
+                ["FAILED", "UNSUPPORTED"].includes(
+                  libraryDoc.aiParseStatus,
+                ) && (
+                  <div className="mb-4 p-4 border border-red-200 bg-red-50 text-red-700 rounded-2xl flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="font-bold text-sm">
+                        Quiz Generation Disabled
+                      </h4>
+                      <p className="text-xs text-red-700 mt-1">
+                        This document ({libraryDoc.title || libraryDoc.name})
+                        failed to parse or is unsupported. Quiz generation is
+                        disabled for this file.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              <AIGeneratorInput
+                value={inputText}
+                onChange={setInputText}
+                placeholder="Enter a topic or paste your notes..."
+                fileInputRef={fileInputRef}
+                handleFileSelect={handleFileSelect}
+                activeDocument={activeDocument}
+                clearDocument={clearDocument}
+                onGenerate={handleGenerateQuiz}
+                isGenerating={isGenerating}
+                disabled={
+                  (!inputText.trim() && !file && !libraryDoc) ||
+                  (libraryDoc &&
+                    ["FAILED", "UNSUPPORTED"].includes(
+                      libraryDoc.aiParseStatus,
+                    ))
+                }
+                footerLeft={
+                  <>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setOpenSettings(true)}
+                      className="rounded-full"
+                    >
+                      <Settings2 className="w-5 h-5" />
+                    </Button>
 
-                  <span className="text-xs text-slate-500 ml-2">
-                    {questionCount} Questions • {difficulty}
-                  </span>
-                </>
-              }
-            />
+                    <span className="text-xs text-slate-500 ml-2">
+                      {questionCount} Questions • {difficulty}
+                    </span>
+                  </>
+                }
+              />
+            </>
           )}
 
           {viewMode === VIEW_MODE.PREVIEW && selectedQuiz && (
@@ -594,10 +626,11 @@ export default function AIQuizGenerator() {
                           aria-label="Quiz title"
                         />
                         <p className="mt-1 text-sm text-slate-500">
-                          {selectedQuiz.questions?.length || 0} questions generated successfully
+                          {selectedQuiz.questions?.length || 0} questions
+                          generated successfully
                         </p>
                       </div>
-                      
+
                       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mt-5">
                         <div className="flex flex-wrap gap-3">
                           <Button
@@ -606,7 +639,9 @@ export default function AIQuizGenerator() {
                             onClick={handleSaveDraft}
                             disabled={isSaving}
                           >
-                            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            {isSaving && (
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            )}
                             Save Draft
                           </Button>
 
@@ -623,16 +658,20 @@ export default function AIQuizGenerator() {
                             onClick={handleSaveToLibrary}
                             disabled={isSaving}
                           >
-                            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            {isSaving && (
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            )}
                             Save to Library
                           </Button>
 
-                          <Button 
+                          <Button
                             className="rounded-full bg-[#f26522] hover:bg-[#d95316] h-9 px-4 text-sm text-white cursor-pointer shadow-sm font-semibold"
                             onClick={handlePublishQuizClick}
                             disabled={publishing}
                           >
-                            {publishing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                            {publishing ? (
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            ) : null}
                             Publish Material
                           </Button>
                         </div>
@@ -671,8 +710,12 @@ export default function AIQuizGenerator() {
                     </Button>
                     {isSubmitted && (
                       <div className="text-center px-6 py-2 bg-white/80 rounded-xl border border-orange-200 shadow-sm shrink-0">
-                        <span className="text-xs font-bold text-[#f26522] uppercase tracking-widest mr-2">Score:</span>
-                        <span className="text-lg font-black text-[#f26522]">{score} / {selectedQuiz.questions?.length || 0}</span>
+                        <span className="text-xs font-bold text-[#f26522] uppercase tracking-widest mr-2">
+                          Score:
+                        </span>
+                        <span className="text-lg font-black text-[#f26522]">
+                          {score} / {selectedQuiz.questions?.length || 0}
+                        </span>
                       </div>
                     )}
                   </div>
@@ -685,7 +728,8 @@ export default function AIQuizGenerator() {
                         {selectedQuiz.title}
                       </h1>
                       <p className="text-sm text-slate-505 mt-1">
-                        {selectedQuiz.questions?.length || 0} Questions • Practice Mode
+                        {selectedQuiz.questions?.length || 0} Questions •
+                        Practice Mode
                       </p>
                     </div>
                   </div>
@@ -871,7 +915,8 @@ export default function AIQuizGenerator() {
               Publish Material
             </DialogTitle>
             <DialogDescription className="text-slate-500 pt-2">
-              Select a course to publish this quiz to. It will be visible to everyone in that course.
+              Select a course to publish this quiz to. It will be visible to
+              everyone in that course.
             </DialogDescription>
           </DialogHeader>
 
@@ -884,7 +929,7 @@ export default function AIQuizGenerator() {
                 <SelectValue placeholder="Select a course to publish to" />
               </SelectTrigger>
               <SelectContent className="rounded-xl">
-                {courses.map(c => (
+                {courses.map((c) => (
                   <SelectItem key={c.id} value={c.id}>
                     {c.code} - {c.name}
                   </SelectItem>
@@ -926,16 +971,26 @@ export default function AIQuizGenerator() {
       <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
         <DialogContent className="rounded-3xl max-w-sm bg-white border border-slate-100">
           <DialogHeader>
-            <DialogTitle className="text-lg font-bold text-slate-800">Delete Quiz Session?</DialogTitle>
+            <DialogTitle className="text-lg font-bold text-slate-800">
+              Delete Quiz Session?
+            </DialogTitle>
             <DialogDescription className="text-slate-500 text-sm">
-              Are you sure you want to delete this quiz session? This action cannot be undone.
+              Are you sure you want to delete this quiz session? This action
+              cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex gap-2 justify-end mt-4">
-            <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)} className="rounded-xl cursor-pointer">
+            <Button
+              variant="outline"
+              onClick={() => setDeleteConfirmOpen(false)}
+              className="rounded-xl cursor-pointer"
+            >
               Cancel
             </Button>
-            <Button onClick={confirmDeleteQuiz} className="bg-red-500 hover:bg-red-600 text-white rounded-xl cursor-pointer">
+            <Button
+              onClick={confirmDeleteQuiz}
+              className="bg-red-500 hover:bg-red-600 text-white rounded-xl cursor-pointer"
+            >
               Delete
             </Button>
           </DialogFooter>
@@ -946,7 +1001,9 @@ export default function AIQuizGenerator() {
       <Dialog open={renameDialogOpen} onOpenChange={setRenameDialogOpen}>
         <DialogContent className="rounded-3xl max-w-sm bg-white border border-slate-100">
           <DialogHeader>
-            <DialogTitle className="text-lg font-bold text-slate-800">Rename Quiz</DialogTitle>
+            <DialogTitle className="text-lg font-bold text-slate-800">
+              Rename Quiz
+            </DialogTitle>
             <DialogDescription className="text-slate-500 text-sm">
               Enter a new name for this quiz.
             </DialogDescription>
@@ -960,10 +1017,18 @@ export default function AIQuizGenerator() {
             />
           </div>
           <DialogFooter className="flex gap-2 justify-end mt-4">
-            <Button variant="outline" onClick={() => setRenameDialogOpen(false)} className="rounded-xl cursor-pointer">
+            <Button
+              variant="outline"
+              onClick={() => setRenameDialogOpen(false)}
+              className="rounded-xl cursor-pointer"
+            >
               Cancel
             </Button>
-            <Button onClick={handleRenameQuiz} disabled={isRenaming} className="bg-[#f26522] hover:bg-[#d95316] text-white rounded-xl cursor-pointer">
+            <Button
+              onClick={handleRenameQuiz}
+              disabled={isRenaming}
+              className="bg-[#f26522] hover:bg-[#d95316] text-white rounded-xl cursor-pointer"
+            >
               {isRenaming ? "Saving..." : "Save"}
             </Button>
           </DialogFooter>

@@ -517,7 +517,7 @@ public class AiAskServiceImpl implements AiAskService {
             throw new RuntimeException("Document is still being processed for AI. Please try again shortly.");
         }
         if (status == AiParseStatus.FAILED || status == AiParseStatus.UNSUPPORTED) {
-            log.warn("Document {} parsing status is {}, using metadata fallback for AI context.", document.getId(), status);
+            throw new RuntimeException("This document cannot be used because it failed to parse or is unsupported for AI operations.");
         }
     }
 }

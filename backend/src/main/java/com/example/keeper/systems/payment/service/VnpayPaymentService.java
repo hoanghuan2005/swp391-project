@@ -11,5 +11,5 @@ public interface VnpayPaymentService {
 
     Map<String, String> handleIpn(Map<String, String> params);
 
-    ConfirmVnpayReturnResponse confirmReturn(String userEmail, Map<String, String> params);
+    ConfirmVnpayReturnResponse confirmReturn(Map<String, String> params);
 }

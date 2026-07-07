@@ -1,119 +1,68 @@
 package com.example.keeper.systems.ai_flashcard.controller;
 
-
-
 import com.example.keeper.systems.ai_flashcard.dto.FlashcardSetUpdateRequest;
+import com.example.keeper.systems.ai_flashcard.dto.FlashcardSetResponse;
 import com.example.keeper.systems.ai_flashcard.service.AiFlashcardService;
-
 import com.example.keeper.systems.ai_quiz.dto.request.PublishMaterialRequest;
-import org.springframework.beans.factory.annotation.Autowired;
-
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
-
 import org.springframework.web.multipart.MultipartFile;
 
-
-
+import java.util.List;
 import java.util.Map;
-
 import java.util.UUID;
-import com.example.keeper.systems.ai_usage.exception.AiQuotaExceededException;
-
-
 
 @RestController
-
 @RequestMapping("/api/ai_flashcard")
-
+@RequiredArgsConstructor
 public class AiFlashcardController {
 
+    private final AiFlashcardService aiFlashcardService;
 
-
-    @Autowired
-
-    private AiFlashcardService aiFlashcardService;
-
-
-
-    @PostMapping(value = "/generate") // Bỏ luôn consumes đi cho dễ chịu
-    public ResponseEntity<?> generate(
+    @PostMapping(value = "/generate")
+    public ResponseEntity<FlashcardSetResponse> generate(
             @RequestParam(value = "document", required = false) MultipartFile file,
             @RequestParam(value = "text", required = false) String text
-    ) {
-        // --- IN RA ĐỂ KIỂM TRA ---
-        System.out.println("=== DỮ LIỆU REACT GỬI LÊN ===");
-        System.out.println("Nội dung Text: " + text);
-        System.out.println("Có file đính kèm không? " + (file != null ? "Có (" + file.getOriginalFilename() + ")" : "Không"));
-        System.out.println("=============================");
-
-        try {
-            var result = aiFlashcardService.generateFlashcards(file, text);
-            return ResponseEntity.ok(Map.of("success", true, "data", result));
-        } catch (AiQuotaExceededException e) {
-            throw e;
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError().body(
-                    Map.of("success", false, "message", e.getMessage())
-            );
-        }
+    ) throws Exception {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        FlashcardSetResponse result = aiFlashcardService.generateFlashcards(file, text, email);
+        return ResponseEntity.ok(result);
     }
 
     @PostMapping("/generate-from-document")
-    public ResponseEntity<?> generateFromDocument(@RequestBody Map<String, UUID> request) {
+    public ResponseEntity<FlashcardSetResponse> generateFromDocument(@RequestBody Map<String, UUID> request) throws Exception {
         UUID documentId = request.get("documentId");
         if (documentId == null) {
-            return ResponseEntity.badRequest().body(
-                    Map.of("success", false, "message", "documentId is required")
-            );
+            throw new IllegalArgumentException("documentId is required");
         }
 
-        try {
-            var result = aiFlashcardService.generateFlashcardsFromDocument(documentId);
-            return ResponseEntity.ok(Map.of("success", true, "data", result));
-        } catch (AiQuotaExceededException e) {
-            throw e;
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError().body(
-                    Map.of("success", false, "message", e.getMessage())
-            );
-        }
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        FlashcardSetResponse result = aiFlashcardService.generateFlashcardsFromDocument(documentId, email);
+        return ResponseEntity.ok(result);
     }
-
 
     @GetMapping("/sets")
-    public ResponseEntity<?> getMyFlashcardSets(
-            @RequestParam(value = "savedToLibrary", required = false) Boolean savedToLibrary) {
-        var sets = aiFlashcardService.getAllSetsByUser(savedToLibrary);
-        return ResponseEntity.ok(Map.of("data", sets));
+    public ResponseEntity<List<FlashcardSetResponse>> getMyFlashcardSets() {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        List<FlashcardSetResponse> sets = aiFlashcardService.getAllSetsByUser(email);
+        return ResponseEntity.ok(sets);
     }
 
-
-
     @GetMapping("/sets/{id}")
-
-    public ResponseEntity<?> getFlashcardSetDetails(@PathVariable UUID id) {
-
-        var setDetails = aiFlashcardService.getSetDetailsById(id);
-
-        return ResponseEntity.ok(Map.of("data", setDetails));
-
+    public ResponseEntity<FlashcardSetResponse> getFlashcardSetDetails(@PathVariable UUID id) {
+        FlashcardSetResponse setDetails = aiFlashcardService.getSetDetailsById(id);
+        return ResponseEntity.ok(setDetails);
     }
 
     @PutMapping("/sets/{id}")
-    public ResponseEntity<?> updateFlashcardSet(
+    public ResponseEntity<FlashcardSetResponse> updateFlashcardSet(
             @PathVariable UUID id,
             @RequestBody FlashcardSetUpdateRequest request) {
-        try {
-            return ResponseEntity.ok(Map.of(
-                    "success", true,
-                    "data", aiFlashcardService.updateFlashcardSet(id, request)
-            ));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(Map.of("success", false, "message", e.getMessage()));
-        }
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        FlashcardSetResponse updated = aiFlashcardService.updateFlashcardSet(id, request, email);
+        return ResponseEntity.ok(updated);
     }
 
     @DeleteMapping("/sets/{id}")
@@ -146,60 +95,45 @@ public class AiFlashcardController {
 
 
     @GetMapping("/my-documents")
-
-    public ResponseEntity<?> getMyDocuments() {
-
-        var docs = aiFlashcardService.getAllDocumentsByUser(); // Không cần truyền UUID nữa
-
-        return ResponseEntity.ok(Map.of("data", docs));
-
+    public ResponseEntity<List<Map<String, Object>>> getMyDocuments() {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        List<Map<String, Object>> docs = aiFlashcardService.getAllDocumentsByUser(email);
+        return ResponseEntity.ok(docs);
     }
 
-
-
     @GetMapping("/sets/latest")
-    public ResponseEntity<?> getLatestSet() {
+    public ResponseEntity<Map<String, Object>> getLatestSet() {
         return ResponseEntity.ok(
-                Map.of("data", Map.of("id", UUID.randomUUID(), "title", "Latest Flashcards"))
+                Map.of("id", UUID.randomUUID(), "title", "Latest Flashcards")
         );
     }
 
     @PostMapping("/sets/{id}/publish")
-    public ResponseEntity<?> publishSet(
+    public ResponseEntity<Map<String, Object>> publishSet(
             @PathVariable UUID id,
             @RequestBody PublishMaterialRequest request) {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
-        try {
-            aiFlashcardService.publishFlashcardSet(id, request.getCourseId(), request.getVisibility(), email);
-            return ResponseEntity.ok(Map.of("success", true));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("success", false, "message", e.getMessage()));
-        }
+        aiFlashcardService.publishFlashcardSet(id, request.getCourseId(), request.getVisibility(), email);
+        return ResponseEntity.ok(Map.of("success", true));
     }
 
     @GetMapping("/course/{courseId}")
-    public ResponseEntity<?> getCourseFlashcardSets(@PathVariable UUID courseId) {
-        return ResponseEntity.ok(Map.of("data", aiFlashcardService.getCourseFlashcardSets(courseId)));
+    public ResponseEntity<List<FlashcardSetResponse>> getCourseFlashcardSets(@PathVariable UUID courseId) {
+        List<FlashcardSetResponse> sets = aiFlashcardService.getCourseFlashcardSets(courseId);
+        return ResponseEntity.ok(sets);
     }
 
-    // ====================================================================
-    // API LẤY DANH SÁCH FLASHCARD ĐÃ THÍCH
-    // ====================================================================
     @GetMapping("/favorites")
-    public ResponseEntity<?> getMyFavoriteFlashcards() {
+    public ResponseEntity<List<FlashcardSetResponse>> getMyFavoriteFlashcards() {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
-        // Trả về trực tiếp list để Frontend dễ map
-        return ResponseEntity.ok(aiFlashcardService.getMyFavorites(email));
+        List<FlashcardSetResponse> favorites = aiFlashcardService.getMyFavorites(email);
+        return ResponseEntity.ok(favorites);
     }
 
-    // ====================================================================
-    // API THẢ TIM / BỎ TIM FLASHCARD
-    // ====================================================================
     @PostMapping("/{id}/favorite")
-    public ResponseEntity<?> toggleFavorite(@PathVariable UUID id) {
+    public ResponseEntity<Map<String, Object>> toggleFavorite(@PathVariable UUID id) {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         aiFlashcardService.toggleFavorite(id, email);
         return ResponseEntity.ok(Map.of("success", true, "message", "Đã cập nhật trạng thái yêu thích"));
     }
-    
 }

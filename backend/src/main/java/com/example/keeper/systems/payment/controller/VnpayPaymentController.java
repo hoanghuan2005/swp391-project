@@ -39,10 +39,6 @@ public class VnpayPaymentController {
 
     @PostMapping("/confirm-return")
     public ResponseEntity<ConfirmVnpayReturnResponse> confirmReturn(@RequestBody Map<String, String> params) {
-        String email = SecurityContextHolder.getContext()
-                .getAuthentication()
-                .getName();
-
-        return ResponseEntity.ok(vnpayPaymentService.confirmReturn(email, params));
+        return ResponseEntity.ok(vnpayPaymentService.confirmReturn(params));
     }
 }

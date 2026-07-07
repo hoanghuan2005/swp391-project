@@ -113,9 +113,27 @@ const SidebarDocuments = ({
                         {title}
                       </p>
                     )}
-                    <p className="text-[10px] text-slate-400 uppercase font-bold tracking-tighter">
-                      {doc.courseCode || "General Study"}
-                    </p>
+                    <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                      <p className="text-[10px] text-slate-400 uppercase font-bold tracking-tighter">
+                        {doc.courseCode || "General Study"}
+                      </p>
+                      {doc.aiParseStatus === "PENDING" && (
+                        <span className="inline-flex items-center gap-0.5 px-1 py-0.2 rounded text-[7px] font-extrabold bg-yellow-100 text-yellow-800 border border-yellow-200">
+                          <Loader2 className="w-1.5 h-1.5 animate-spin text-yellow-700" />
+                          Processing
+                        </span>
+                      )}
+                      {doc.aiParseStatus === "FAILED" && (
+                        <span className="inline-flex items-center px-1 py-0.2 rounded text-[7px] font-extrabold bg-red-100 text-red-800 border border-red-200">
+                          Failed
+                        </span>
+                      )}
+                      {doc.aiParseStatus === "UNSUPPORTED" && (
+                        <span className="inline-flex items-center px-1 py-0.2 rounded text-[7px] font-extrabold bg-slate-100 text-slate-800 border border-slate-200">
+                          Unsupported
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   {isSelected && !onDeleteDocument && (

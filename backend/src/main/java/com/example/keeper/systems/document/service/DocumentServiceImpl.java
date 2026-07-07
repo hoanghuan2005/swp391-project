@@ -4,6 +4,7 @@ import com.example.keeper.systems.ai_ask.repository.DocumentChunkRepository;
 import com.example.keeper.systems.auth.entity.User;
 import com.example.keeper.systems.auth.repository.UserRepository;
 import com.example.keeper.systems.document.dto.request.CreateDocumentRequest;
+import com.example.keeper.systems.document.dto.request.UpdateDocumentRequest;
 import com.example.keeper.systems.document.dto.response.DocumentDetailResponse;
 import com.example.keeper.systems.document.dto.response.DocumentResponse;
 import com.example.keeper.systems.document.entity.Document;
@@ -17,6 +18,8 @@ import com.example.keeper.systems.follow.repository.UserFollowRepository;
 import com.example.keeper.systems.major.repository.MajorRepository;
 import com.example.keeper.systems.notification.service.NotificationService;
 import com.example.keeper.systems.ai_ask.service.DocumentParserService;
+import com.example.keeper.systems.category.entity.Category;
+import com.example.keeper.systems.category.repository.CategoryRepository;
 import com.example.keeper.systems.course.entity.Course;
 import com.example.keeper.systems.course.repository.CourseRepository;
 import com.example.keeper.systems.tag.entity.Tag;
@@ -56,9 +59,7 @@ public class DocumentServiceImpl implements DocumentService {
     private final UserFollowRepository userFollowRepository;
     private final NotificationService notificationService;
     private final DocumentQuotaService documentQuotaService;
-    private final com.example.keeper.systems.ai_flashcard.repository.FlashcardSetRepository flashcardSetRepository;
-
-
+    private final CategoryRepository categoryRepository;
 
     @Override
     public Document create(CreateDocumentRequest request) {
@@ -179,6 +180,12 @@ public class DocumentServiceImpl implements DocumentService {
         document.setCourse(course);
         document.setTags(resolveTags(request));
 
+        if (request.getCategoryId() != null) {
+            Category category = categoryRepository.findById(request.getCategoryId())
+                    .orElseThrow(() -> new RuntimeException("Category not found"));
+            document.setCategory(category);
+        }
+
         return document;
     }
 
@@ -206,7 +213,8 @@ public class DocumentServiceImpl implements DocumentService {
                             courseName = courseCode;
                         }
 
-                        com.example.keeper.systems.major.entity.Major major = majorRepository.findById(request.getMajorId())
+                        com.example.keeper.systems.major.entity.Major major = majorRepository
+                                .findById(request.getMajorId())
                                 .orElseThrow(() -> new RuntimeException("Major not found"));
 
                         Course course = new Course();
@@ -474,21 +482,32 @@ public class DocumentServiceImpl implements DocumentService {
                 .downloadCount(document.getDownloadCount())
                 .viewCount(document.getViewCount() != null ? document.getViewCount() : 0)
                 .createdAt(document.getCreatedAt())
-                .course(document.getCourse() == null ? null : DocumentDetailResponse.CourseInfo.builder()
-                        .id(document.getCourse().getId())
-                        .code(document.getCourse().getCode())
-                        .name(document.getCourse().getName())
-                        .major(document.getCourse().getMajor() == null ? null : DocumentDetailResponse.MajorInfo.builder()
-                                .id(document.getCourse().getMajor().getId())
-                                .code(document.getCourse().getMajor().getCode())
-                                .name(document.getCourse().getMajor().getName())
-                                .school(document.getCourse().getMajor().getSchool() == null ? null : DocumentDetailResponse.SchoolInfo.builder()
-                                        .id(document.getCourse().getMajor().getSchool().getId())
-                                        .code(document.getCourse().getMajor().getSchool().getCode())
-                                        .name(document.getCourse().getMajor().getSchool().getName())
-                                        .build())
+                .category(document.getCategory() == null ? null
+                        : DocumentDetailResponse.CategoryInfo.builder()
+                                .id(document.getCategory().getId())
+                                .code(document.getCategory().getCode())
+                                .name(document.getCategory().getName())
                                 .build())
-                        .build())
+                .course(document.getCourse() == null ? null
+                        : DocumentDetailResponse.CourseInfo.builder()
+                                .id(document.getCourse().getId())
+                                .code(document.getCourse().getCode())
+                                .name(document.getCourse().getName())
+                                .major(document.getCourse().getMajor() == null ? null
+                                        : DocumentDetailResponse.MajorInfo.builder()
+                                                .id(document.getCourse().getMajor().getId())
+                                                .code(document.getCourse().getMajor().getCode())
+                                                .name(document.getCourse().getMajor().getName())
+                                                .school(document.getCourse().getMajor().getSchool() == null ? null
+                                                        : DocumentDetailResponse.SchoolInfo.builder()
+                                                                .id(document.getCourse().getMajor().getSchool().getId())
+                                                                .code(document.getCourse().getMajor().getSchool()
+                                                                        .getCode())
+                                                                .name(document.getCourse().getMajor().getSchool()
+                                                                        .getName())
+                                                                .build())
+                                                .build())
+                                .build())
                 .uploadedBy(DocumentDetailResponse.UserInfo.builder()
                         .id(document.getUploadedBy() == null ? null : document.getUploadedBy().getId())
                         .username(document.getUploadedBy() == null ? null : document.getUploadedBy().getUsername())
@@ -539,21 +558,26 @@ public class DocumentServiceImpl implements DocumentService {
                 .downloadCount(document.getDownloadCount())
                 .viewCount(document.getViewCount() != null ? document.getViewCount() : 0)
                 .createdAt(document.getCreatedAt())
-                .course(document.getCourse() == null ? null : DocumentResponse.CourseInfo.builder()
-                        .id(document.getCourse().getId())
-                        .code(document.getCourse().getCode())
-                        .name(document.getCourse().getName())
-                        .major(document.getCourse().getMajor() == null ? null : DocumentResponse.MajorInfo.builder()
-                                .id(document.getCourse().getMajor().getId())
-                                .code(document.getCourse().getMajor().getCode())
-                                .name(document.getCourse().getMajor().getName())
-                                .school(document.getCourse().getMajor().getSchool() == null ? null : DocumentResponse.SchoolInfo.builder()
-                                        .id(document.getCourse().getMajor().getSchool().getId())
-                                        .code(document.getCourse().getMajor().getSchool().getCode())
-                                        .name(document.getCourse().getMajor().getSchool().getName())
-                                        .build())
+                .course(document.getCourse() == null ? null
+                        : DocumentResponse.CourseInfo.builder()
+                                .id(document.getCourse().getId())
+                                .code(document.getCourse().getCode())
+                                .name(document.getCourse().getName())
+                                .major(document.getCourse().getMajor() == null ? null
+                                        : DocumentResponse.MajorInfo.builder()
+                                                .id(document.getCourse().getMajor().getId())
+                                                .code(document.getCourse().getMajor().getCode())
+                                                .name(document.getCourse().getMajor().getName())
+                                                .school(document.getCourse().getMajor().getSchool() == null ? null
+                                                        : DocumentResponse.SchoolInfo.builder()
+                                                                .id(document.getCourse().getMajor().getSchool().getId())
+                                                                .code(document.getCourse().getMajor().getSchool()
+                                                                        .getCode())
+                                                                .name(document.getCourse().getMajor().getSchool()
+                                                                        .getName())
+                                                                .build())
+                                                .build())
                                 .build())
-                        .build())
                 .tags(document.getTags() == null
                         ? List.of()
                         : document.getTags().stream()
@@ -673,7 +697,7 @@ public class DocumentServiceImpl implements DocumentService {
 
     private int mojibakeMarkerCount(String value) {
         int count = 0;
-        String[] markers = {"Ã", "Â", "�", "Ä‘", "Æ°", "Æ¡", "áº", "á»"};
+        String[] markers = { "Ã", "Â", "�", "Ä‘", "Æ°", "Æ¡", "áº", "á»" };
         for (String marker : markers) {
             int index = value.indexOf(marker);
             while (index >= 0) {
@@ -731,14 +755,15 @@ public class DocumentServiceImpl implements DocumentService {
 
     private void notifyFollowers(Document document) {
         try {
-            if (document.getUploadedBy() == null) return;
+            if (document.getUploadedBy() == null)
+                return;
             UUID creatorId = document.getUploadedBy().getId();
-            String creatorName = document.getUploadedBy().getUsername() != null 
-                    ? document.getUploadedBy().getUsername() 
+            String creatorName = document.getUploadedBy().getUsername() != null
+                    ? document.getUploadedBy().getUsername()
                     : document.getUploadedBy().getEmail();
 
-            List<com.example.keeper.systems.follow.entity.UserFollow> followers = 
-                    userFollowRepository.findByFollowingId(creatorId);
+            List<com.example.keeper.systems.follow.entity.UserFollow> followers = userFollowRepository
+                    .findByFollowingId(creatorId);
 
             for (com.example.keeper.systems.follow.entity.UserFollow follow : followers) {
                 notificationService.createNotification(
@@ -748,11 +773,113 @@ public class DocumentServiceImpl implements DocumentService {
                         "New Document Uploaded",
                         creatorName + " uploaded a new document: " + document.getTitle(),
                         document.getId(),
-                        com.example.keeper.systems.notification.enums.ReferenceType.DOCUMENT
-                );
+                        com.example.keeper.systems.notification.enums.ReferenceType.DOCUMENT);
             }
         } catch (Exception e) {
             log.error("Failed to notify followers for new document upload", e);
         }
+    }
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional
+    public DocumentDetailResponse update(UUID id, UpdateDocumentRequest request) {
+        Document document = getById(id);
+
+        // Owner or Admin validation
+        String currentUserEmail = getCurrentUserEmail();
+        User user = userRepository.findByEmail(currentUserEmail)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy user đăng nhập!"));
+
+        boolean isAdmin = user.getRole() != null &&
+                (user.getRole().getName().equalsIgnoreCase("ADMIN") ||
+                        user.getRole().getName().equalsIgnoreCase("ROLE_ADMIN"));
+
+        boolean isOwner = document.getUploadedBy() != null &&
+                document.getUploadedBy().getId().equals(user.getId());
+
+        if (!isOwner && !isAdmin) {
+            throw new RuntimeException("Bạn không có quyền chỉnh sửa tài liệu này!");
+        }
+
+        // Update properties
+        document.setDescription(request.getDescription());
+        document.setVisibility(request.getVisibility());
+
+        // Category mapping
+        if (request.getCategoryId() != null) {
+            Category category = categoryRepository.findById(request.getCategoryId())
+                    .orElseThrow(() -> new RuntimeException("Category not found"));
+            document.setCategory(category);
+        } else {
+            document.setCategory(null);
+        }
+
+        // Course resolution
+        if (request.getCourseId() != null) {
+            Course course = courseRepository.findById(request.getCourseId())
+                    .orElseThrow(() -> new RuntimeException("Course not found"));
+            document.setCourse(course);
+        } else {
+            String courseCode = safeTrim(request.getCourseCode());
+            if (courseCode != null) {
+                Course course;
+                if (request.getMajorId() != null) {
+                    course = courseRepository.findByMajorIdAndCode(request.getMajorId(), courseCode)
+                            .orElseGet(() -> {
+                                String courseName = safeTrim(request.getCourseName());
+                                if (courseName == null) {
+                                    throw new IllegalArgumentException("Course name is required for new course code");
+                                }
+
+                                com.example.keeper.systems.major.entity.Major major = majorRepository
+                                        .findById(request.getMajorId())
+                                        .orElseThrow(() -> new RuntimeException("Major not found"));
+
+                                Course newCourse = new Course();
+                                newCourse.setCode(courseCode);
+                                newCourse.setName(courseName);
+                                newCourse.setDescription(null);
+                                newCourse.setMajor(major);
+                                return courseRepository.save(newCourse);
+                            });
+                } else {
+                    course = courseRepository.findByCode(courseCode)
+                            .orElseGet(() -> {
+                                String courseName = safeTrim(request.getCourseName());
+                                if (courseName == null) {
+                                    throw new IllegalArgumentException("Course name is required for new course code");
+                                }
+
+                                Course newCourse = new Course();
+                                newCourse.setCode(courseCode);
+                                newCourse.setName(courseName);
+                                newCourse.setDescription(null);
+                                return courseRepository.save(newCourse);
+                            });
+                }
+                document.setCourse(course);
+            } else {
+                document.setCourse(null);
+            }
+        }
+
+        // Tags resolution
+        java.util.Set<Tag> tags = new java.util.HashSet<>();
+        if (request.getTagNames() != null && !request.getTagNames().isEmpty()) {
+            for (String rawName : request.getTagNames()) {
+                String name = safeTrim(rawName);
+                if (name == null) {
+                    continue;
+                }
+
+                Tag tag = tagRepository.findByNameIgnoreCase(name)
+                        .orElseGet(() -> tagRepository.save(new Tag(name)));
+                tags.add(tag);
+            }
+        }
+        document.setTags(tags);
+
+        Document savedDoc = documentRepository.save(document);
+        return mapToDetail(savedDoc);
     }
 }
