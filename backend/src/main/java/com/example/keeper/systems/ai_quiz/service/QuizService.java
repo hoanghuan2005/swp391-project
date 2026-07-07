@@ -9,7 +9,7 @@ import java.util.UUID;
 
 public interface QuizService {
     QuizResponse createQuiz(QuizRequest request, String userEmail);
-    QuizResponse getQuizById(UUID id);
+    QuizResponse getQuizById(UUID id, String userEmail);
     QuizResponse updateQuiz(UUID id, QuizUpdateRequest request, String userEmail);
     List<QuizResponse> getUserQuizzes(String userEmail, Boolean savedToLibrary);
     QuizResponse renameQuiz(UUID id, String newTitle, String userEmail);

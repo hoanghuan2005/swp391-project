@@ -95,8 +95,8 @@ public class AiFlashcardController {
     @GetMapping("/sets/{id}")
 
     public ResponseEntity<?> getFlashcardSetDetails(@PathVariable UUID id) {
-
-        var setDetails = aiFlashcardService.getSetDetailsById(id);
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        var setDetails = aiFlashcardService.getSetDetailsById(id, email);
 
         return ResponseEntity.ok(Map.of("data", setDetails));
 

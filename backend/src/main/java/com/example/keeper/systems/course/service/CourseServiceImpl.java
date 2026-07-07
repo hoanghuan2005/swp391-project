@@ -191,4 +191,18 @@ public class CourseServiceImpl implements CourseService {
         list.forEach(this::populateCounts);
         return list;
     }
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional
+    public void importCourses(List<CreateCourseRequest> requests) {
+        for (CreateCourseRequest request : requests) {
+            if (request.getMajorId() != null && request.getCode() != null) {
+                java.util.Optional<Course> existing = courseRepository.findByMajorIdAndCode(request.getMajorId(), request.getCode().trim());
+                if (existing.isPresent()) {
+                    continue; // Skip duplicate courses in the same major
+                }
+            }
+            create(request);
+        }
+    }
 }

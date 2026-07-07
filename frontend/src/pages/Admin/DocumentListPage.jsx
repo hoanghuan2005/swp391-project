@@ -17,6 +17,7 @@ import { Trash2, Eye, Search, Plus, FileText } from "lucide-react";
 import UploadDocumentDialog from "@/components/documents/UploadDocumentDialog";
 import { useModal } from "@/components/share/useModal";
 import { toast } from "sonner";
+import AdminToolbar from "@/components/admin/AdminToolbar";
 
 const ALL_FILTER = "ALL";
 
@@ -116,14 +117,31 @@ export default function DocumentListPage() {
     });
   }, [documents, parseStatusFilter, searchQuery, visibilityFilter]);
 
+  const columnsForExport = [
+    { header: "Title", render: (item) => item.title || "" },
+    { header: "Description", render: (item) => item.description || "" },
+    { header: "File URL", render: (item) => item.fileUrl || "" },
+    { header: "Visibility", render: (item) => item.visibility || "PUBLIC" },
+    { header: "Uploaded By Email", render: (item) => item.uploadedBy?.email || "" },
+  ];
+
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6">
       {/* Tiêu đề trang */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight text-slate-800 flex items-center gap-3">
-          <FileText className="w-8 h-8 text-[#f26522]" />
-          Document Management
-        </h1>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-50 text-[#f26522]">
+              <FileText className="h-5 w-5" aria-hidden="true" />
+            </div>
+            <h1 className="text-3xl font-bold tracking-tight text-slate-800">
+              Document Management
+            </h1>
+          </div>
+          <p className="mt-2 text-sm font-medium text-slate-500">
+            Monitor, audit, and manage user-uploaded learning materials and files.
+          </p>
+        </div>
       </div>
 
       <Card className="rounded-2xl shadow-sm border-slate-100">
@@ -133,53 +151,70 @@ export default function DocumentListPage() {
             All Documents
           </CardTitle>
 
-          <div className="flex flex-col gap-3 w-full lg:w-auto">
-            {/* Ô tìm kiếm */}
-            <div className="relative w-full sm:w-80">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-              <Input
-                placeholder="Search by title or course..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 bg-slate-50 border-transparent focus-visible:ring-[#f26522]/20 focus-visible:border-[#f26522] rounded-xl"
-              />
-            </div>
+          <div className="w-full pt-4">
+            <AdminToolbar
+              searchVal={searchQuery}
+              onSearchChange={setSearchQuery}
+              searchPlaceholder="Search by title or course..."
+              importUrl="/api/admin/documents/import"
+              importMapping={{
+                title: "Title",
+                description: "Description",
+                fileUrl: "File URL",
+                visibility: "Visibility",
+                uploadedByEmail: "Uploaded By Email"
+              }}
+              importRequiredFields={["title", "fileUrl", "uploadedByEmail"]}
+              onImportSuccess={fetchDocuments}
+              exportData={filteredDocuments}
+              exportColumns={columnsForExport}
+              exportFilename="documents_export.csv"
+              activeFiltersCount={
+                (visibilityFilter !== ALL_FILTER ? 1 : 0) +
+                (parseStatusFilter !== ALL_FILTER ? 1 : 0)
+              }
+              onClearFilters={() => {
+                setVisibilityFilter(ALL_FILTER);
+                setParseStatusFilter(ALL_FILTER);
+              }}
+              filters={
+                <>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Visibility</label>
+                    <select
+                      value={visibilityFilter}
+                      onChange={(event) => setVisibilityFilter(event.target.value)}
+                      className="w-full h-10 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-600 outline-none focus:border-[#f26522]/40 focus:ring-1 focus:ring-[#f26522]/20 cursor-pointer"
+                    >
+                      <option value={ALL_FILTER}>All visibility</option>
+                      {visibilityOptions.map((visibility) => (
+                        <option key={visibility} value={visibility}>
+                          {visibility}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <select
-                value={visibilityFilter}
-                onChange={(event) => setVisibilityFilter(event.target.value)}
-                className="h-9 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-600 outline-none focus:border-[#f26522] focus:ring-2 focus:ring-[#f26522]/20"
-              >
-                <option value={ALL_FILTER}>All visibility</option>
-                {visibilityOptions.map((visibility) => (
-                  <option key={visibility} value={visibility}>
-                    {visibility}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={parseStatusFilter}
-                onChange={(event) => setParseStatusFilter(event.target.value)}
-                className="h-9 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-600 outline-none focus:border-[#f26522] focus:ring-2 focus:ring-[#f26522]/20"
-              >
-                <option value={ALL_FILTER}>All AI status</option>
-                {parseStatusOptions.map((status) => (
-                  <option key={status} value={status}>
-                    {status}
-                  </option>
-                ))}
-              </select>
-
-              {/* Nút Thêm mới */}
-              <Button
-                className="bg-[#f26522] hover:bg-[#d9541a] text-white rounded-xl flex items-center gap-2 shadow-md shadow-[#f26522]/20 transition-all cursor-pointer"
-                onClick={() => setIsUploadDialogOpen(true)}
-              >
-                <Plus className="w-4 h-4" />
-                Add New
-              </Button>
-            </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">AI Status</label>
+                    <select
+                      value={parseStatusFilter}
+                      onChange={(event) => setParseStatusFilter(event.target.value)}
+                      className="w-full h-10 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-600 outline-none focus:border-[#f26522]/40 focus:ring-1 focus:ring-[#f26522]/20 cursor-pointer"
+                    >
+                      <option value={ALL_FILTER}>All AI status</option>
+                      {parseStatusOptions.map((status) => (
+                        <option key={status} value={status}>
+                          {status}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </>
+              }
+              onAddClick={() => setIsUploadDialogOpen(true)}
+              addLabel="Add Document"
+            />
           </div>
         </CardHeader>
 

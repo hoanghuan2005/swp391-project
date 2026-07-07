@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   BadgeCheck,
@@ -45,7 +45,7 @@ const defaultStats = {
 
 const statGroups = [
   {
-    title: "Accounts",
+    title: "Accounts Overview",
     cards: [
       {
         key: "totalUsers",
@@ -71,120 +71,6 @@ const statGroups = [
         icon: UserX,
         iconClassName: "bg-red-50 text-red-600",
       },
-      {
-        key: "freeUsers",
-        title: "Free Users",
-        caption: "Free subscription tier",
-        href: "/admin/users",
-        icon: ShieldAlert,
-        iconClassName: "bg-slate-100 text-slate-600",
-      },
-      {
-        key: "proUsers",
-        title: "Pro Users",
-        caption: "Paid subscription tier",
-        href: "/admin/users",
-        icon: BadgeCheck,
-        iconClassName: "bg-orange-50 text-[#f26522]",
-      },
-    ],
-  },
-  {
-    title: "Documents",
-    cards: [
-      {
-        key: "totalDocuments",
-        title: "Total Documents",
-        caption: "Uploaded materials",
-        href: "/admin/documents",
-        icon: FileText,
-        iconClassName: "bg-orange-50 text-[#f26522]",
-      },
-      {
-        key: "publicDocuments",
-        title: "Public Documents",
-        caption: "Visible in discovery",
-        href: "/admin/documents",
-        icon: Globe,
-        iconClassName: "bg-green-50 text-green-600",
-      },
-      {
-        key: "privateDocuments",
-        title: "Private Documents",
-        caption: "Owner-only materials",
-        href: "/admin/documents",
-        icon: Lock,
-        iconClassName: "bg-slate-100 text-slate-600",
-      },
-      {
-        key: "documentsReadyForAi",
-        title: "AI Ready",
-        caption: "Parsed for AI features",
-        href: "/admin/documents",
-        icon: Brain,
-        iconClassName: "bg-emerald-50 text-emerald-600",
-      },
-      {
-        key: "documentsPendingParse",
-        title: "AI Pending",
-        caption: "Waiting for parsing",
-        href: "/admin/documents",
-        icon: CheckCircle2,
-        iconClassName: "bg-amber-50 text-amber-600",
-      },
-      {
-        key: "documentsFailedParse",
-        title: "AI Failed",
-        caption: "Parsing failed",
-        href: "/admin/documents",
-        icon: XCircle,
-        iconClassName: "bg-red-50 text-red-600",
-      },
-      {
-        key: "documentsUnsupportedForAi",
-        title: "AI Unsupported",
-        caption: "Unsupported file type",
-        href: "/admin/documents",
-        icon: FileText,
-        iconClassName: "bg-slate-100 text-slate-600",
-      },
-    ],
-  },
-  {
-    title: "Catalog",
-    cards: [
-      {
-        key: "totalCourses",
-        title: "Total Courses",
-        caption: "Active courses",
-        href: "/admin/courses",
-        icon: BookOpen,
-        iconClassName: "bg-purple-50 text-purple-600",
-      },
-      {
-        key: "totalSchools",
-        title: "Total Schools",
-        caption: "Partner universities",
-        href: "/admin/catalog/schools",
-        icon: GraduationCap,
-        iconClassName: "bg-emerald-50 text-emerald-600",
-      },
-      {
-        key: "totalTags",
-        title: "Total Tags",
-        caption: "Search labels",
-        href: "/admin/catalog/tags",
-        icon: Tags,
-        iconClassName: "bg-slate-100 text-slate-600",
-      },
-      {
-        key: "totalLanguages",
-        title: "Total Languages",
-        caption: "Survey options",
-        href: "/admin/catalog/languages",
-        icon: Globe,
-        iconClassName: "bg-indigo-50 text-indigo-600",
-      },
     ],
   },
 ];
@@ -197,7 +83,7 @@ function StatCard({ stat, value, isLoading }) {
       to={stat.href}
       className="block rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-[#f26522] focus-visible:ring-offset-2"
     >
-      <Card className="group h-full rounded-2xl border-slate-100 bg-white shadow-sm hover:border-[#f26522]/30 hover:shadow-md">
+      <Card className="group h-full rounded-2xl border-slate-100 bg-white shadow-sm hover:border-[#f26522]/30 hover:shadow-md transition-all duration-300">
         <CardContent className="p-5">
           <div className="mb-5 flex items-start justify-between gap-4">
             <div className="min-w-0">
@@ -232,6 +118,10 @@ export default function DashboardPage() {
   const [stats, setStats] = useState(defaultStats);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Hover states for interactive SVG charts
+  const [hoveredTier, setHoveredTier] = useState(null);
+  const [hoveredDoc, setHoveredDoc] = useState(null);
+
   useEffect(() => {
     const fetchStats = async () => {
       try {
@@ -245,10 +135,56 @@ export default function DashboardPage() {
     };
 
     fetchStats();
-  }, []); 
+  }, []);
+
+  // 1. Calculations for Subscription Doughnut Chart (Free vs Pro)
+  const totalSub = (stats.freeUsers || 0) + (stats.proUsers || 0) || 1;
+  const freePercent = Math.round(((stats.freeUsers || 0) / totalSub) * 100);
+  const proPercent = Math.round(((stats.proUsers || 0) / totalSub) * 100);
+
+  // 2. Calculations for Document Status Pie Chart (Ready, Pending, Failed, Unsupported)
+  const totalDocs =
+    (stats.documentsReadyForAi || 0) +
+      (stats.documentsPendingParse || 0) +
+      (stats.documentsFailedParse || 0) +
+      (stats.documentsUnsupportedForAi || 0) || 1;
+
+  const docSlices = [
+    { label: "AI Ready", val: stats.documentsReadyForAi || 0, color: "#10b981" },
+    { label: "AI Pending", val: stats.documentsPendingParse || 0, color: "#f59e0b" },
+    { label: "AI Failed", val: stats.documentsFailedParse || 0, color: "#ef4444" },
+    { label: "Unsupported", val: stats.documentsUnsupportedForAi || 0, color: "#64748b" },
+  ];
+
+  // Compute angles for pie chart
+  let accumulatedAngle = 0;
+  const pieSlices = docSlices.map((slice) => {
+    const angle = (slice.val / totalDocs) * 360;
+    const startAngle = accumulatedAngle;
+    accumulatedAngle += angle;
+    return { ...slice, startAngle, angle };
+  });
+
+  // Helper function to convert polar coordinates to Cartesian (for drawing SVG pie slices)
+  const getCoordinatesForPercent = (percent) => {
+    const x = Math.cos(2 * Math.PI * percent);
+    const y = Math.sin(2 * Math.PI * percent);
+    return [x, y];
+  };
+
+  // 3. Catalog counts for Bar Chart
+  const catalogData = [
+    { label: "Schools", val: stats.totalSchools || 0, color: "#10b981" },
+    { label: "Majors", val: stats.totalMajors || 0, color: "#8b5cf6" },
+    { label: "Courses", val: stats.totalCourses || 0, color: "#f26522" },
+    { label: "Tags", val: stats.totalTags || 0, color: "#64748b" },
+    { label: "Languages", val: stats.totalLanguages || 0, color: "#6366f1" },
+  ];
+  const maxCatalogVal = Math.max(...catalogData.map((d) => d.val), 5);
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <header className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <div className="flex items-center gap-3">
@@ -260,15 +196,16 @@ export default function DashboardPage() {
             </h1>
           </div>
           <p className="mt-2 text-sm font-medium text-slate-500">
-            Quick overview of platform data and catalog totals.
+            Realtime metrics, document parsing intelligence, and database aggregates.
           </p>
         </div>
       </header>
 
+      {/* Numeric Stats */}
       {statGroups.map((group) => (
         <section key={group.title} className="space-y-3">
           <h2 className="text-lg font-bold text-slate-700">{group.title}</h2>
-          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-5 md:grid-cols-3">
             {group.cards.map((stat) => (
               <StatCard
                 key={stat.key}
@@ -280,6 +217,207 @@ export default function DashboardPage() {
           </div>
         </section>
       ))}
+
+      {/* Visual Analytics Section */}
+      <h2 className="text-lg font-bold text-slate-700 mt-8">Visual Analytics</h2>
+      <div className="grid gap-6 md:grid-cols-3">
+        {/* 1. Subscription Tier Doughnut Chart */}
+        <Card className="rounded-2xl border-slate-100 shadow-sm">
+          <CardHeader className="border-b border-slate-100">
+            <CardTitle className="text-base font-bold text-slate-700 flex items-center justify-between">
+              Account Tiers
+              <span className="text-xs font-medium text-slate-400">Doughnut Chart</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-6 flex flex-col items-center justify-center">
+            {isLoading ? (
+              <Skeleton className="w-[180px] h-[180px] rounded-full" />
+            ) : (
+              <div className="relative w-full flex flex-col items-center justify-center">
+                <svg className="w-[180px] h-[180px]" viewBox="0 0 100 100">
+                  {/* Outer circle track */}
+                  <circle cx="50" cy="50" r="38" fill="none" stroke="#f1f5f9" strokeWidth="12" />
+
+                  {/* Free slice - light grey */}
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="38"
+                    fill="none"
+                    stroke="#cbd5e1"
+                    strokeWidth={hoveredTier === "FREE" ? "15" : "12"}
+                    strokeDasharray={`${freePercent * 2.38} 238`}
+                    transform="rotate(-90 50 50)"
+                    strokeLinecap="round"
+                    className="cursor-pointer transition-all duration-300"
+                    onMouseEnter={() => setHoveredTier("FREE")}
+                    onMouseLeave={() => setHoveredTier(null)}
+                  />
+
+                  {/* Pro slice - Orange */}
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="38"
+                    fill="none"
+                    stroke="#f26522"
+                    strokeWidth={hoveredTier === "PRO" ? "15" : "12"}
+                    strokeDasharray={`${proPercent * 2.38} 238`}
+                    strokeDashoffset={-freePercent * 2.38}
+                    transform="rotate(-90 50 50)"
+                    strokeLinecap="round"
+                    className="cursor-pointer transition-all duration-300"
+                    onMouseEnter={() => setHoveredTier("PRO")}
+                    onMouseLeave={() => setHoveredTier(null)}
+                  />
+
+                  {/* Center Text */}
+                  <text x="50%" y="47%" textAnchor="middle" className="text-[7px] font-extrabold fill-slate-400 uppercase">
+                    PRO TIER
+                  </text>
+                  <text x="50%" y="61%" textAnchor="middle" className="text-[14px] font-black fill-slate-800">
+                    {proPercent}%
+                  </text>
+                </svg>
+
+                {/* Legend */}
+                <div className="flex gap-4 mt-6">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-3 h-3 rounded-full bg-[#cbd5e1]" />
+                    <span className="text-xs font-semibold text-slate-500">Free ({stats.freeUsers})</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-3 h-3 rounded-full bg-[#f26522]" />
+                    <span className="text-xs font-semibold text-slate-800">Pro ({stats.proUsers})</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* 2. Document AI Processing Pie Chart */}
+        <Card className="rounded-2xl border-slate-100 shadow-sm">
+          <CardHeader className="border-b border-slate-100">
+            <CardTitle className="text-base font-bold text-slate-700 flex items-center justify-between">
+              AI Document Status
+              <span className="text-xs font-medium text-slate-400">Pie Chart</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-6 flex flex-col items-center justify-center">
+            {isLoading ? (
+              <Skeleton className="w-[180px] h-[180px] rounded-full" />
+            ) : (
+              <div className="relative w-full flex flex-col items-center justify-center">
+                <svg className="w-[180px] h-[180px]" viewBox="0 0 100 100">
+                  <g transform="rotate(-90 50 50)">
+                    {pieSlices.map((slice, idx) => {
+                      if (slice.val === 0) return null;
+                      // Draw SVG arc path for pie slice
+                      const startRad = (slice.startAngle * Math.PI) / 180;
+                      const endRad = ((slice.startAngle + slice.angle) * Math.PI) / 180;
+                      const x1 = 50 + 40 * Math.cos(startRad);
+                      const y1 = 50 + 40 * Math.sin(startRad);
+                      const x2 = 50 + 40 * Math.cos(endRad);
+                      const y2 = 50 + 40 * Math.sin(endRad);
+                      const largeArc = slice.angle > 180 ? 1 : 0;
+                      const pathData = `M 50 50 L ${x1} ${y1} A 40 40 0 ${largeArc} 1 ${x2} ${y2} Z`;
+
+                      const isHovered = hoveredDoc === idx;
+
+                      return (
+                        <path
+                          key={idx}
+                          d={pathData}
+                          fill={slice.color}
+                          className="cursor-pointer transition-all duration-300"
+                          opacity={isHovered ? 0.9 : 0.75}
+                          transform={isHovered ? "scale(1.05) translate(-2.4, -2.4)" : ""}
+                          onMouseEnter={() => setHoveredDoc(idx)}
+                          onMouseLeave={() => setHoveredDoc(null)}
+                        />
+                      );
+                    })}
+                  </g>
+                </svg>
+
+                {/* Dynamic Tooltip inside legend */}
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 mt-6 w-full px-2">
+                  {pieSlices.map((slice, idx) => (
+                    <div
+                      key={idx}
+                      className={`flex items-center gap-1.5 transition-opacity ${
+                        hoveredDoc !== null && hoveredDoc !== idx ? "opacity-40" : "opacity-100"
+                      }`}
+                    >
+                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: slice.color }} />
+                      <span className="text-xs font-semibold text-slate-600 truncate">
+                        {slice.label}: <span className="font-extrabold text-slate-800">{slice.val}</span>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* 3. Catalog Distribution Bar Chart */}
+        <Card className="rounded-2xl border-slate-100 shadow-sm">
+          <CardHeader className="border-b border-slate-100">
+            <CardTitle className="text-base font-bold text-slate-700 flex items-center justify-between">
+              Catalog Distribution
+              <span className="text-xs font-medium text-slate-400">Bar Chart</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-6">
+            {isLoading ? (
+              <div className="space-y-4 w-full h-[180px] flex flex-col justify-end">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-8 w-full" />
+                <Skeleton className="h-12 w-full" />
+              </div>
+            ) : (
+              <div className="w-full h-[220px] flex flex-col justify-between">
+                {/* Visual Bars */}
+                <div className="flex-1 flex items-end justify-between px-2 gap-4 pb-4">
+                  {catalogData.map((d, idx) => {
+                    const barHeight = Math.max(10, Math.round((d.val / maxCatalogVal) * 130)); // max height 130px
+
+                    return (
+                      <div key={idx} className="flex-1 flex flex-col items-center group relative cursor-pointer">
+                        {/* Tooltip on Hover */}
+                        <div className="absolute -top-7 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-sm whitespace-nowrap z-10">
+                          {d.val} items
+                        </div>
+
+                        {/* Bar */}
+                        <div
+                          className="w-full rounded-t-lg transition-all duration-300 group-hover:brightness-110"
+                          style={{
+                            height: `${barHeight}px`,
+                            backgroundColor: d.color,
+                            boxShadow: `0 4px 6px -1px ${d.color}20`,
+                          }}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* X Axis Labels */}
+                <div className="flex justify-between border-t border-slate-100 pt-2 text-[10px] font-extrabold text-slate-400 uppercase tracking-tight">
+                  {catalogData.map((d, idx) => (
+                    <div key={idx} className="flex-1 text-center truncate px-0.5" style={{ color: d.color }}>
+                      {d.label}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

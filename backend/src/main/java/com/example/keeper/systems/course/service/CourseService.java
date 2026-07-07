@@ -34,4 +34,6 @@ public interface CourseService {
     boolean isFollowing(UUID courseId, UUID userId);
 
     List<Course> getMyCourses(UUID userId);
+
+    void importCourses(List<CreateCourseRequest> requests);
 }

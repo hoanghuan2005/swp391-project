@@ -43,6 +43,7 @@ import {
 } from "lucide-react";
 import { useModal } from "@/components/share/useModal";
 import { toast } from "sonner";
+import AdminToolbar from "@/components/admin/AdminToolbar";
 
 const ALL_FILTER = "ALL";
 const numberFormatter = new Intl.NumberFormat("en-US");
@@ -459,14 +460,27 @@ export default function UserListPage() {
     (hasAiSummary ? 1 : 0) +
     (hasCreatedAt ? 1 : 0);
 
+  const columnsForExport = [
+    { header: "Username", render: (item) => item.username || "" },
+    { header: "Email", render: (item) => item.email || "" },
+    { header: "Full Name", render: (item) => item.fullName || "" },
+    { header: "Subscription Tier", render: (item) => item.subscriptionTier || "" },
+    { header: "Role", render: (item) => item.role?.name || "" },
+    { header: "Banned", render: (item) => item.banned ? "TRUE" : "FALSE" },
+  ];
+
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-800 flex items-center gap-3">
-            <Users className="w-8 h-8 text-[#f26522]" aria-hidden="true" />
-            User Management
-          </h1>
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-50 text-[#f26522]">
+              <Users className="h-5 w-5" aria-hidden="true" />
+            </div>
+            <h1 className="text-3xl font-bold tracking-tight text-slate-800">
+              User Management
+            </h1>
+          </div>
           <p className="mt-2 text-sm font-medium text-slate-500">
             Review account status, membership tier, and access restrictions.
           </p>
@@ -518,85 +532,101 @@ export default function UserListPage() {
             </p>
           </div>
           
-          <div className="flex flex-col gap-3 w-full lg:w-auto">
-            <div className="relative w-full sm:w-80">
-              <label htmlFor="admin-user-search" className="sr-only">
-                Search users by username or email
-              </label>
-              <Search
-                className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400"
-                aria-hidden="true"
-              />
-              <Input
-                id="admin-user-search"
-                name="adminUserSearch"
-                placeholder="Search by username or email…"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 bg-slate-50 border-transparent focus-visible:ring-[#f26522]/20 focus-visible:border-[#f26522] rounded-xl"
-              />
-            </div>
+          <div className="w-full pt-4">
+            <AdminToolbar
+              searchVal={searchQuery}
+              onSearchChange={setSearchQuery}
+              searchPlaceholder="Search by username or email…"
+              importUrl="/api/admin/users/import"
+              importMapping={{
+                email: "Email",
+                username: "Username",
+                fullName: "Full Name",
+                subscriptionTier: "Subscription Tier"
+              }}
+              importRequiredFields={["email"]}
+              onImportSuccess={fetchUsers}
+              exportData={filteredUsers}
+              exportColumns={columnsForExport}
+              exportFilename="users_export.csv"
+              activeFiltersCount={
+                (roleFilter !== ALL_FILTER ? 1 : 0) +
+                (statusFilter !== ALL_FILTER ? 1 : 0) +
+                (tierFilter !== ALL_FILTER ? 1 : 0) +
+                (emailFilter !== ALL_FILTER ? 1 : 0)
+              }
+              onClearFilters={() => {
+                setRoleFilter(ALL_FILTER);
+                setStatusFilter(ALL_FILTER);
+                setTierFilter(ALL_FILTER);
+                setEmailFilter(ALL_FILTER);
+              }}
+              filters={
+                <>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Role</label>
+                    <select
+                      id="admin-user-role-filter"
+                      value={roleFilter}
+                      onChange={(event) => setRoleFilter(event.target.value)}
+                      className="w-full h-10 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-600 outline-none focus:border-[#f26522]/40 focus:ring-1 focus:ring-[#f26522]/20 cursor-pointer"
+                    >
+                      <option value={ALL_FILTER}>All roles</option>
+                      {roleOptions.map((role) => (
+                        <option key={role} value={role}>
+                          {role}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              <label className="sr-only" htmlFor="admin-user-role-filter">
-                Filter users by role
-              </label>
-              <select
-                id="admin-user-role-filter"
-                value={roleFilter}
-                onChange={(event) => setRoleFilter(event.target.value)}
-                className="h-9 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-600 outline-none focus:border-[#f26522] focus:ring-2 focus:ring-[#f26522]/20"
-              >
-                <option value={ALL_FILTER}>All roles</option>
-                {roleOptions.map((role) => (
-                  <option key={role} value={role}>
-                    {role}
-                  </option>
-                ))}
-              </select>
-              <label className="sr-only" htmlFor="admin-user-status-filter">
-                Filter users by account status
-              </label>
-              <select
-                id="admin-user-status-filter"
-                value={statusFilter}
-                onChange={(event) => setStatusFilter(event.target.value)}
-                className="h-9 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-600 outline-none focus:border-[#f26522] focus:ring-2 focus:ring-[#f26522]/20"
-              >
-                <option value={ALL_FILTER}>All status</option>
-                <option value="ACTIVE">Active</option>
-                <option value="BANNED">Banned</option>
-              </select>
-              <label className="sr-only" htmlFor="admin-user-tier-filter">
-                Filter users by subscription tier
-              </label>
-              <select
-                id="admin-user-tier-filter"
-                value={tierFilter}
-                onChange={(event) => setTierFilter(event.target.value)}
-                className="h-9 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-600 outline-none focus:border-[#f26522] focus:ring-2 focus:ring-[#f26522]/20"
-              >
-                <option value={ALL_FILTER}>All tiers</option>
-                {tierOptions.map((tier) => (
-                  <option key={tier} value={tier}>
-                    {tier}
-                  </option>
-                ))}
-              </select>
-              <label className="sr-only" htmlFor="admin-user-email-filter">
-                Filter users by email verification
-              </label>
-              <select
-                id="admin-user-email-filter"
-                value={emailFilter}
-                onChange={(event) => setEmailFilter(event.target.value)}
-                className="h-9 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-600 outline-none focus:border-[#f26522] focus:ring-2 focus:ring-[#f26522]/20"
-              >
-                <option value={ALL_FILTER}>All email</option>
-                <option value="VERIFIED">Verified</option>
-                <option value="UNVERIFIED">Unverified</option>
-              </select>
-            </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Status</label>
+                    <select
+                      id="admin-user-status-filter"
+                      value={statusFilter}
+                      onChange={(event) => setStatusFilter(event.target.value)}
+                      className="w-full h-10 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-600 outline-none focus:border-[#f26522]/40 focus:ring-1 focus:ring-[#f26522]/20 cursor-pointer"
+                    >
+                      <option value={ALL_FILTER}>All status</option>
+                      <option value="ACTIVE">Active</option>
+                      <option value="BANNED">Banned</option>
+                    </select>
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Subscription Tier</label>
+                    <select
+                      id="admin-user-tier-filter"
+                      value={tierFilter}
+                      onChange={(event) => setTierFilter(event.target.value)}
+                      className="w-full h-10 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-600 outline-none focus:border-[#f26522]/40 focus:ring-1 focus:ring-[#f26522]/20 cursor-pointer"
+                    >
+                      <option value={ALL_FILTER}>All tiers</option>
+                      {tierOptions.map((tier) => (
+                        <option key={tier} value={tier}>
+                          {tier}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Email Verification</label>
+                    <select
+                      id="admin-user-email-filter"
+                      value={emailFilter}
+                      onChange={(event) => setEmailFilter(event.target.value)}
+                      className="w-full h-10 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-600 outline-none focus:border-[#f26522]/40 focus:ring-1 focus:ring-[#f26522]/20 cursor-pointer"
+                    >
+                      <option value={ALL_FILTER}>All email</option>
+                      <option value="VERIFIED">Verified</option>
+                      <option value="UNVERIFIED">Unverified</option>
+                    </select>
+                  </div>
+                </>
+              }
+            />
           </div>
         </CardHeader>
 

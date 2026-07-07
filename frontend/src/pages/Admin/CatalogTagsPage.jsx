@@ -24,7 +24,7 @@ export default function CatalogTagsPage({ hideHeader }) {
 
   return (
     <BaseCrud
-      title="Tags Catalog"
+      title="Tags Management"
       description="Maintain the document tags available across the platform."
       icon={Tags}
       entityName="Tag"
@@ -34,6 +34,11 @@ export default function CatalogTagsPage({ hideHeader }) {
       initialFormState={{ name: "" }}
       searchFilter={searchFilter}
       hideHeader={hideHeader}
+      importUrl="/api/admin/catalog/tags/import"
+      importMapping={{
+        name: "Tag"
+      }}
+      importRequiredFields={["name"]}
     />
   );
 }
