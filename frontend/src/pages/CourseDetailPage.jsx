@@ -481,7 +481,7 @@ export default function CourseDetailPage() {
             : Promise.resolve({ data: [] }),
           token
             ? axiosClient.get(`/api/ai_flashcard/course/${id}`)
-            : Promise.resolve({ data: { data: [] } }),
+            : Promise.resolve({ data: [] }),
         ]);
 
       setCourse(courseRes.data);
@@ -491,7 +491,7 @@ export default function CourseDetailPage() {
       setDocuments(docsRes.data.content || []);
       setIsFollowing(followStatusRes.data);
       setQuizzes(quizzesRes.data || []);
-      setFlashcards(flashcardsRes.data?.data || []);
+      setFlashcards(flashcardsRes.data || []);
     } catch (err) {
       console.error(err);
     } finally {

@@ -13,6 +13,19 @@ import { toast } from "react-hot-toast"; // Đã thêm import toast
 import axiosClient from "@/api/axiosClient";
 import useDocuments from "@/hooks/useDocuments";
 import useMaterialPublish from "@/hooks/useMaterialPublish";
+import useStudyTimer from "@/hooks/useStudyTimer";
+
+const formatSessionTime = (seconds) => {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  const mStr = m.toString().padStart(2, "0");
+  const sStr = s.toString().padStart(2, "0");
+  if (h > 0) {
+    return `${h}:${mStr}:${sStr}`;
+  }
+  return `${mStr}:${sStr}`;
+};
 import FlashcardItem from "./FlashcardItem";
 import AISidebar from "@/components/ai-sidebar/sidebar/AISidebar";
 import { Button } from "@/components/ui/button";
@@ -49,6 +62,8 @@ import useAiUsage from "@/hooks/useAiUsage";
 import { isAiQuotaExceeded } from "@/api/aiUsageApi";
 
 export default function AIFlashcardGenerator({ contextData }) {
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  useStudyTimer(setElapsedSeconds);
   const [inputText, setInputText] = useState("");
   const [file, setFile] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -506,11 +521,16 @@ export default function AIFlashcardGenerator({ contextData }) {
               title="AI Flashcards Generator"
               description="Create flashcards to enhance your learning and retention."
               rightElement={
-                <AiUsageBadge
-                  subscriptionTier={subscriptionTier}
-                  remainingUsage={remainingUsage}
-                  loading={aiUsageLoading}
-                />
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-[#f26522] bg-orange-50 border border-orange-100 rounded-xl px-2.5 py-1">
+                    <span>⏱️ {formatSessionTime(elapsedSeconds)}</span>
+                  </div>
+                  <AiUsageBadge
+                    subscriptionTier={subscriptionTier}
+                    remainingUsage={remainingUsage}
+                    loading={aiUsageLoading}
+                  />
+                </div>
               }
             />
 

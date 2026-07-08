@@ -127,7 +127,7 @@ export default function MyLibrary() {
     try {
       setIsFlashcardsLoading(true);
       const res = await axiosClient.get("/api/ai_flashcard/sets?savedToLibrary=true");
-      setMyFlashcardSets(res.data?.data || []);
+      setMyFlashcardSets(res.data || []);
     } catch (error) {
       console.error("Error fetching my flashcards:", error);
     } finally {
