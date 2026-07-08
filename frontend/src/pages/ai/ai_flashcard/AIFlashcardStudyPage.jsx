@@ -64,8 +64,16 @@ export default function AIFlashcardStudyPage() {
 
         setFlashcardSet(data);
         setIsLiked(data.isFavorite || false);
-        setCurrentIndex(0);
-        setIsCompleted(false);
+        const savedPercent = localStorage.getItem(`flashcard_progress_${id}`);
+        if (savedPercent) {
+          const percent = parseInt(savedPercent, 10);
+          const idx = Math.min(Math.floor((percent / 100) * (data.flashcards?.length || 0)), (data.flashcards?.length || 1) - 1);
+          setCurrentIndex(isNaN(idx) || idx < 0 ? 0 : idx);
+          setIsCompleted(percent === 100);
+        } else {
+          setCurrentIndex(0);
+          setIsCompleted(false);
+        }
       } catch (error) {
         console.error("Failed to load flashcard study session", error);
         toast.error("Failed to load flashcard set data.");
@@ -127,6 +135,13 @@ export default function AIFlashcardStudyPage() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [currentIndex, isCompleted, flashcardSet]);
+
+  useEffect(() => {
+    if (flashcardSet?.id && flashcardSet.flashcards?.length > 0) {
+      const percentage = isCompleted ? 100 : Math.round((currentIndex / flashcardSet.flashcards.length) * 100);
+      localStorage.setItem(`flashcard_progress_${flashcardSet.id}`, percentage.toString());
+    }
   }, [currentIndex, isCompleted, flashcardSet]);
 
   if (loading && !flashcardSet) {

@@ -166,7 +166,15 @@ export default function AIFlashcardGenerator({ contextData }) {
       } else {
         setViewMode(VIEW_MODE.PREVIEW);
       }
-      resetProgress();
+      const savedPercent = localStorage.getItem(`flashcard_progress_${setId}`);
+      if (savedPercent) {
+        const percent = parseInt(savedPercent, 10);
+        const idx = Math.min(Math.floor((percent / 100) * (data.flashcards?.length || 0)), (data.flashcards?.length || 1) - 1);
+        setCurrentIndex(isNaN(idx) || idx < 0 ? 0 : idx);
+        setIsCompleted(percent === 100);
+      } else {
+        resetProgress();
+      }
     } catch (error) {
       console.error("Load set error:", error);
     } finally {
@@ -483,6 +491,13 @@ export default function AIFlashcardGenerator({ contextData }) {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [currentIndex, isCompleted, flashcards.length]);
+
+  useEffect(() => {
+    if (selectedFlashcardSet?.id && flashcards.length > 0) {
+      const percentage = isCompleted ? 100 : Math.round((currentIndex / flashcards.length) * 100);
+      localStorage.setItem(`flashcard_progress_${selectedFlashcardSet.id}`, percentage.toString());
+    }
+  }, [currentIndex, isCompleted, selectedFlashcardSet, flashcards]);
 
   return (
     <div className="h-[calc(100vh-68px)] overflow-hidden bg-white shadow-sm -mx-8 -my-6">

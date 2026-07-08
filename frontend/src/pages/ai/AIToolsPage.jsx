@@ -97,6 +97,13 @@ const AIQuizPage = () => {
     }
   };
 
+  const getFlashcardProgress = () => {
+    if (!recentFlashcard) return 0;
+    const progress = localStorage.getItem(`flashcard_progress_${recentFlashcard.id}`);
+    return progress ? parseInt(progress, 10) : 0;
+  };
+  const flashcardProgress = getFlashcardProgress();
+
   const tools = [
     {
       id: "flashcard",
@@ -310,15 +317,14 @@ const AIQuizPage = () => {
                 <div className="mb-2 flex items-center justify-between text-xs">
                   <span className="text-slate-500">Progress</span>
                   <span className="font-medium text-slate-700">
-                    {recentFlashcard ? (recentFlashcard.savedToLibrary ? "100%" : "50%") : "0%"}
+                    {recentFlashcard ? `${flashcardProgress}%` : "0%"}
                   </span>
                 </div>
                 <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-                  <div className={`h-full rounded-full bg-[#f26522] ${
-                    recentFlashcard 
-                      ? (recentFlashcard.savedToLibrary ? "w-full" : "w-1/2")
-                      : "w-0"
-                  }`} />
+                  <div 
+                    className="h-full rounded-full bg-[#f26522] transition-all duration-300 ease-out" 
+                    style={{ width: `${recentFlashcard ? flashcardProgress : 0}%` }}
+                  />
                 </div>
               </div>
 
