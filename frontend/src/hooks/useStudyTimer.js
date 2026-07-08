@@ -1,22 +1,28 @@
 import { useEffect } from "react";
 
-export default function useStudyTimer() {
+export default function useStudyTimer(onTick) {
   useEffect(() => {
     const startTime = Date.now();
+    localStorage.setItem("lastStudyTimeSeconds", "0");
 
-    const handleSaveTime = () => {
+    const interval = setInterval(() => {
       const elapsed = Math.floor((Date.now() - startTime) / 1000);
-      if (elapsed > 0) {
-        const currentTotal = parseInt(localStorage.getItem("studyTimeSeconds") || "0", 10);
-        localStorage.setItem("studyTimeSeconds", currentTotal + elapsed);
+      if (onTick) {
+        onTick(elapsed);
       }
-    };
-
-    window.addEventListener("beforeunload", handleSaveTime);
+      
+      const lastSeconds = parseInt(localStorage.getItem("lastStudyTimeSeconds") || "0", 10);
+      const diff = elapsed - lastSeconds;
+      if (diff > 0) {
+        const currentTotal = parseInt(localStorage.getItem("studyTimeSeconds") || "0", 10);
+        localStorage.setItem("studyTimeSeconds", currentTotal + diff);
+        localStorage.setItem("lastStudyTimeSeconds", elapsed.toString());
+      }
+    }, 1000);
 
     return () => {
-      handleSaveTime();
-      window.removeEventListener("beforeunload", handleSaveTime);
+      clearInterval(interval);
+      localStorage.removeItem("lastStudyTimeSeconds");
     };
-  }, []);
+  }, [onTick]);
 }

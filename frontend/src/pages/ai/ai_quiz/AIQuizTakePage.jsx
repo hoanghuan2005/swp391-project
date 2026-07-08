@@ -15,8 +15,21 @@ import { toast } from "react-hot-toast";
 import axiosClient from "@/api/axiosClient";
 import useStudyTimer from "@/hooks/useStudyTimer";
 
+const formatSessionTime = (seconds) => {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  const mStr = m.toString().padStart(2, "0");
+  const sStr = s.toString().padStart(2, "0");
+  if (h > 0) {
+    return `${h}:${mStr}:${sStr}`;
+  }
+  return `${mStr}:${sStr}`;
+};
+
 export default function AIQuizTakePage() {
-  useStudyTimer();
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  useStudyTimer(setElapsedSeconds);
   const { id } = useParams();
   const navigate = useNavigate();
   const [quiz, setQuiz] = useState(null);
@@ -149,6 +162,9 @@ export default function AIQuizTakePage() {
                 style={{ width: `${progressPercentage}%` }}
               ></div>
             </div>
+            <div className="flex items-center gap-1.5 text-xs font-bold text-[#f26522] shrink-0 bg-orange-50 border border-orange-100 rounded-xl px-2.5 py-1">
+              <span>⏱️ {formatSessionTime(elapsedSeconds)}</span>
+            </div>
             <Button
               size="sm"
               onClick={handleSubmit}
@@ -198,7 +214,7 @@ export default function AIQuizTakePage() {
                         {quiz.title}
                       </h1>
                       <p className="text-sm text-slate-500 mt-1">
-                        {totalQuestions} Questions • Multiple Choice
+                        {totalQuestions} Questions • Multiple Choice • ⏱️ {formatSessionTime(elapsedSeconds)}
                       </p>
                     </div>
                   </div>

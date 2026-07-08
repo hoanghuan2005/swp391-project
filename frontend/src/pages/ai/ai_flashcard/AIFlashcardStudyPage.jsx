@@ -16,8 +16,21 @@ import FlashcardItem from "./FlashcardItem";
 import axiosClient from "@/api/axiosClient";
 import useStudyTimer from "@/hooks/useStudyTimer";
 
+const formatSessionTime = (seconds) => {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  const mStr = m.toString().padStart(2, "0");
+  const sStr = s.toString().padStart(2, "0");
+  if (h > 0) {
+    return `${h}:${mStr}:${sStr}`;
+  }
+  return `${mStr}:${sStr}`;
+};
+
 export default function AIFlashcardStudyPage() {
-  useStudyTimer();
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  useStudyTimer(setElapsedSeconds);
   const { id } = useParams();
   const navigate = useNavigate();
   const [flashcardSet, setFlashcardSet] = useState(null);
@@ -146,6 +159,9 @@ export default function AIFlashcardStudyPage() {
                 style={{ width: `${progressPercentage}%` }}
               ></div>
             </div>
+            <div className="flex items-center gap-1.5 text-xs font-bold text-[#f26522] shrink-0 bg-orange-50 border border-orange-100 rounded-xl px-2.5 py-1">
+              <span>⏱️ {formatSessionTime(elapsedSeconds)}</span>
+            </div>
             <Button
               size="sm"
               variant="outline"
@@ -187,7 +203,7 @@ export default function AIFlashcardStudyPage() {
                       {flashcardSet?.title || "AI Flashcards Set"}
                     </h1>
                     <p className="text-sm text-slate-505 mt-1">
-                      {totalCards} cards • Interactive learning mode
+                      {totalCards} cards • Interactive learning mode • ⏱️ {formatSessionTime(elapsedSeconds)}
                     </p>
                   </div>
                 </div>
