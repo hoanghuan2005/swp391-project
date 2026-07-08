@@ -295,7 +295,7 @@ export default function DocumentDetailView({
 
       {/* KHU VỰC HIỂN THỊ ĐÁNH GIÁ (REVIEWS) */}
       {!loading && documentId && (
-        <DocumentReviews documentId={documentId} />
+        <DocumentReviews documentId={documentId} uploadedById={documentDetail?.uploadedBy?.id} />
       )}
 
       <AddToProjectModal

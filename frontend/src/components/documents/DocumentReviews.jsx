@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { Star, Send, Loader2, MessageSquare } from "lucide-react";
 import { toast } from "react-hot-toast";
-import { getDocumentReviews, submitDocumentReview } from "@/api/documentApi"; // Đường dẫn tuỳ project của bạn
+import { getDocumentReviews, submitDocumentReview } from "@/api/documentApi";
+import axiosClient from "@/api/axiosClient";
 
-export default function DocumentReviews({ documentId }) {
+export default function DocumentReviews({ documentId, uploadedById }) {
     const [reviews, setReviews] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [currentUserId, setCurrentUserId] = useState(null);
 
     // State cho form
     const [rating, setRating] = useState(0);
@@ -30,6 +32,28 @@ export default function DocumentReviews({ documentId }) {
             fetchReviews();
         }
     }, [documentId]);
+
+    useEffect(() => {
+        const fetchUserProfile = async () => {
+            try {
+                const token = localStorage.getItem("token");
+                if (!token) return;
+                const cachedId = localStorage.getItem("userId");
+                if (cachedId) {
+                    setCurrentUserId(cachedId);
+                    return;
+                }
+                const res = await axiosClient.get("/api/profile");
+                if (res.data?.id) {
+                    setCurrentUserId(res.data.id);
+                    localStorage.setItem("userId", res.data.id);
+                }
+            } catch (err) {
+                console.error("Failed to fetch profile in DocumentReviews:", err);
+            }
+        };
+        fetchUserProfile();
+    }, []);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -96,48 +120,54 @@ export default function DocumentReviews({ documentId }) {
             )}
 
             {/* FORM GỬI ĐÁNH GIÁ */}
-            <form onSubmit={handleSubmit} className="bg-slate-50 p-6 rounded-2xl mb-8 border border-slate-100">
-                <div className="mb-4">
-                    <label className="block text-sm font-medium text-slate-700 mb-2">How many stars do you rate this document?</label>
-                    <div className="flex gap-1">
-                        {[1, 2, 3, 4, 5].map((star) => (
-                            <button
-                                key={star}
-                                type="button"
-                                className="focus:outline-none transition-transform hover:scale-110"
-                                onMouseEnter={() => setHoverRating(star)}
-                                onMouseLeave={() => setHoverRating(0)}
-                                onClick={() => setRating(star)}
-                            >
-                                <Star
-                                    className={`w-8 h-8 ${star <= (hoverRating || rating)
-                                        ? "fill-yellow-400 text-yellow-400"
-                                        : "text-slate-300"
-                                        }`}
-                                />
-                            </button>
-                        ))}
+            {currentUserId && uploadedById && currentUserId === uploadedById ? (
+                <div className="bg-orange-50/50 border border-orange-100 p-5 rounded-2xl mb-8 text-center text-orange-800 text-sm font-medium flex items-center justify-center gap-2">
+                    <span>💡 Bạn không thể tự đánh giá tài liệu của chính mình.</span>
+                </div>
+            ) : (
+                <form onSubmit={handleSubmit} className="bg-slate-50 p-6 rounded-2xl mb-8 border border-slate-100">
+                    <div className="mb-4">
+                        <label className="block text-sm font-medium text-slate-700 mb-2">How many stars do you rate this document?</label>
+                        <div className="flex gap-1">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                                <button
+                                    key={star}
+                                    type="button"
+                                    className="focus:outline-none transition-transform hover:scale-110"
+                                    onMouseEnter={() => setHoverRating(star)}
+                                    onMouseLeave={() => setHoverRating(0)}
+                                    onClick={() => setRating(star)}
+                                >
+                                    <Star
+                                        className={`w-8 h-8 ${star <= (hoverRating || rating)
+                                            ? "fill-yellow-400 text-yellow-400"
+                                            : "text-slate-300"
+                                            }`}
+                                    />
+                                </button>
+                            ))}
+                        </div>
                     </div>
-                </div>
 
-                <div className="mb-4">
-                    <textarea
-                        value={comment}
-                        onChange={(e) => setComment(e.target.value)}
-                        placeholder="Share your thoughts about this document (optional)..."
-                        className="w-full p-4 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#f26522]/50 resize-none h-24"
-                    />
-                </div>
+                    <div className="mb-4">
+                        <textarea
+                            value={comment}
+                            onChange={(e) => setComment(e.target.value)}
+                            placeholder="Share your thoughts about this document (optional)..."
+                            className="w-full p-4 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#f26522]/50 resize-none h-24"
+                        />
+                    </div>
 
-                <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="flex items-center justify-center gap-2 bg-[#f26522] hover:bg-[#d95316] text-white px-6 py-2.5 rounded-xl font-medium transition-colors disabled:opacity-70"
-                >
-                    {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
-                    Submit Review
-                </button>
-            </form>
+                    <button
+                        type="submit"
+                        disabled={isSubmitting}
+                        className="flex items-center justify-center gap-2 bg-[#f26522] hover:bg-[#d95316] text-white px-6 py-2.5 rounded-xl font-medium transition-colors disabled:opacity-70"
+                    >
+                        {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+                        Submit Review
+                    </button>
+                </form>
+            )}
 
             {/* Reviews List */}
             <div>
