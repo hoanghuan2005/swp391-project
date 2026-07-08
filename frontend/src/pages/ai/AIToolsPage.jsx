@@ -80,7 +80,6 @@ const AIQuizPage = () => {
   const stats = [
     { label: "Study Streak", value: "7", sub: "days 🔥" },
     { label: "Flashcards", value: "124", sub: "+12 today" },
-    { label: "Accuracy", value: "86%", sub: "excellent" },
     { label: "Study Time", value: "12h", sub: "this week" },
   ];
 
@@ -128,7 +127,7 @@ const AIQuizPage = () => {
             </div>
 
             {/* RIGHT */}
-            <div className="grid min-w-[280px] grid-cols-2 gap-3">
+            <div className="grid min-w-[280px] grid-cols-3 gap-3">
               {stats.map((item, index) => (
                 <div
                   key={index}
