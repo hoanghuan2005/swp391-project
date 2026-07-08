@@ -611,7 +611,7 @@ export default function AIFlashcardGenerator({ contextData }) {
                             </Button>
 
                             <Button
-                              className="rounded-full bg-indigo-600 hover:bg-indigo-700 h-9 px-4 text-sm text-white cursor-pointer shadow-sm font-semibold"
+                              className="rounded-full bg-orange-100 hover:bg-orange-200 h-9 px-4 text-sm text-orange-700 cursor-pointer font-semibold"
                               onClick={handleSaveToLibrary}
                               disabled={isSaving || !selectedFlashcardSet?.id}
                             >
