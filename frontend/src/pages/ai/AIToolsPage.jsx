@@ -18,6 +18,7 @@ const AIQuizPage = () => {
   // Thêm state để lưu trữ bài học được chọn
   const [selectedData, setSelectedData] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
+  const [studyTime, setStudyTime] = useState("0s");
 
   const navigate = useNavigate();
 
@@ -31,6 +32,17 @@ const AIQuizPage = () => {
       }
     };
     fetchProfile();
+
+    const seconds = parseInt(localStorage.getItem("studyTimeSeconds") || "0", 10);
+    if (seconds < 60) {
+      setStudyTime(`${seconds}s`);
+    } else if (seconds < 3600) {
+      setStudyTime(`${Math.floor(seconds / 60)}m`);
+    } else {
+      const hours = Math.floor(seconds / 3600);
+      const minutes = Math.floor((seconds % 3600) / 60);
+      setStudyTime(`${hours}h ${minutes}m`);
+    }
   }, []);
 
   const handleNavigate = (view, data = null) => {
@@ -80,7 +92,7 @@ const AIQuizPage = () => {
   const stats = [
     { label: "Study Streak", value: "7", sub: "days 🔥" },
     { label: "Flashcards", value: "124", sub: "+12 today" },
-    { label: "Study Time", value: "12h", sub: "this week" },
+    { label: "Study Time", value: studyTime, sub: "total time" },
   ];
 
   return (

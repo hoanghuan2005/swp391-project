@@ -14,8 +14,10 @@ import { getFlashcardSet } from "@/api/flashcardApi";
 import { toast } from "react-hot-toast";
 import FlashcardItem from "./FlashcardItem";
 import axiosClient from "@/api/axiosClient";
+import useStudyTimer from "@/hooks/useStudyTimer";
 
 export default function AIFlashcardStudyPage() {
+  useStudyTimer();
   const { id } = useParams();
   const navigate = useNavigate();
   const [flashcardSet, setFlashcardSet] = useState(null);

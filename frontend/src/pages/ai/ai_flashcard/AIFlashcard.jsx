@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import axiosClient from '../../../api/axiosClient';
 import { Loader2, Sparkles, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
+import useStudyTimer from '@/hooks/useStudyTimer';
 
 const AIFlashcard = () => {
+    useStudyTimer();
     const [inputText, setInputText] = useState('');
     const [flashcards, setFlashcards] = useState([]);
     const [isLoading, setIsLoading] = useState(false);

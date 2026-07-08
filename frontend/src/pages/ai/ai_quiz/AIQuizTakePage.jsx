@@ -13,8 +13,10 @@ import { Button } from "@/components/ui/button";
 import { getQuizById } from "@/api/quizApi";
 import { toast } from "react-hot-toast";
 import axiosClient from "@/api/axiosClient";
+import useStudyTimer from "@/hooks/useStudyTimer";
 
 export default function AIQuizTakePage() {
+  useStudyTimer();
   const { id } = useParams();
   const navigate = useNavigate();
   const [quiz, setQuiz] = useState(null);
