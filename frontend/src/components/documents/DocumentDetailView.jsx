@@ -119,7 +119,7 @@ export default function DocumentDetailView({
   const handleDownloadFile = async () => {
     const token = localStorage.getItem("token");
     if (!token) {
-      alert("Vui lòng đăng nhập để tải tài liệu!");
+      toast.error("Please log in to download the document!");
       window.location.href = "/login";
       return;
     }
@@ -180,7 +180,7 @@ export default function DocumentDetailView({
                 onClick={() => {
                   const token = localStorage.getItem("token");
                   if (!token) {
-                    alert("Vui lòng đăng nhập để lưu tài liệu vào dự án!");
+                    toast.error("Please log in to save the document to your project!");
                     window.location.href = "/login";
                     return;
                   }
