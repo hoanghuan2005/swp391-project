@@ -157,8 +157,7 @@ export default function AIFlashcardGenerator({ contextData }) {
   const loadFlashcardSet = async (setId) => {
     try {
       setIsGenerating(true);
-      const response = await getFlashcardSet(setId);
-      const data = response.data;
+      const data = await getFlashcardSet(setId);
       setActiveSetTitle(data.title);
       setFlashcards(data.flashcards || []);
       setSelectedFlashcardSet(data);
@@ -247,7 +246,7 @@ export default function AIFlashcardGenerator({ contextData }) {
         title: activeSetTitle,
         flashcards,
       });
-      const updatedSet = response.data;
+      const updatedSet = response;
       setFlashcards(updatedSet.flashcards || []);
       setActiveSetTitle(updatedSet.title);
       setSelectedFlashcardSet((current) => ({ ...current, ...updatedSet }));
@@ -280,7 +279,7 @@ export default function AIFlashcardGenerator({ contextData }) {
         flashcards,
         savedToLibrary: true,
       });
-      const updatedSet = response.data;
+      const updatedSet = response;
       setFlashcards(updatedSet.flashcards || []);
       setActiveSetTitle(updatedSet.title);
       setSelectedFlashcardSet((current) => ({ ...current, ...updatedSet }));
