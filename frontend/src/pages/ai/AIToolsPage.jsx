@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   BookOpen,
   BrainCircuit,
@@ -9,6 +9,7 @@ import {
   Layers,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import axiosClient from "@/api/axiosClient";
 
 import AIFlashcardGenerator from "./ai_flashcard/AIFlashcardGenerator.jsx";
 import AIQuizGenerator from "./ai_quiz/AIQuizGenerator.jsx";
@@ -16,8 +17,21 @@ import AIQuizGenerator from "./ai_quiz/AIQuizGenerator.jsx";
 const AIQuizPage = () => {
   // Thêm state để lưu trữ bài học được chọn
   const [selectedData, setSelectedData] = useState(null);
+  const [userProfile, setUserProfile] = useState(null);
 
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const res = await axiosClient.get("/api/profile");
+        setUserProfile(res.data);
+      } catch (err) {
+        console.error("Error fetching user profile:", err);
+      }
+    };
+    fetchProfile();
+  }, []);
 
   const handleNavigate = (view, data = null) => {
     if (view === "flashcard") {
@@ -85,7 +99,7 @@ const AIQuizPage = () => {
               </div>
 
               <h1 className="text-3xl font-bold tracking-tight text-slate-800">
-                Welcome back, An Nugent 👋
+                Welcome back, {userProfile?.fullName || "User"} 👋
               </h1>
 
               <p className="mt-3 text-sm leading-6 text-slate-500">
