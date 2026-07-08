@@ -144,7 +144,7 @@ export default function AIFlashcardGenerator({ contextData }) {
   const fetchSidebarData = async () => {
     try {
       const historyResponse = await getFlashcardSets();
-      setFlashcardHistory(historyResponse.data || []);
+      setFlashcardHistory(historyResponse || []);
     } catch (error) {
       console.error("Sidebar fetch error:", error);
     }

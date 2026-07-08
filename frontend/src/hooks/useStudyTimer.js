@@ -11,11 +11,15 @@ export default function useStudyTimer(onTick) {
         onTick(elapsed);
       }
       
-      const lastSeconds = parseInt(localStorage.getItem("lastStudyTimeSeconds") || "0", 10);
+      let lastSeconds = parseInt(localStorage.getItem("lastStudyTimeSeconds") || "0", 10);
+      if (isNaN(lastSeconds)) lastSeconds = 0;
       const diff = elapsed - lastSeconds;
       if (diff > 0) {
-        const currentTotal = parseInt(localStorage.getItem("studyTimeSeconds") || "0", 10);
-        localStorage.setItem("studyTimeSeconds", currentTotal + diff);
+        let currentTotal = parseInt(localStorage.getItem("studyTimeSeconds") || "0", 10);
+        if (isNaN(currentTotal)) {
+          currentTotal = 0;
+        }
+        localStorage.setItem("studyTimeSeconds", (currentTotal + diff).toString());
         localStorage.setItem("lastStudyTimeSeconds", elapsed.toString());
       }
     }, 1000);

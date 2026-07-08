@@ -101,7 +101,6 @@ public class AiFlashcardService {
         }
 
         return sets.stream()
-                .filter(FlashcardSet::isSavedToLibrary)
                 .map(this::mapToFlashcardSetResponse)
                 .collect(Collectors.toList());
     }

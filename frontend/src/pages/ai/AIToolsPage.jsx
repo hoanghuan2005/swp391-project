@@ -33,7 +33,8 @@ const AIQuizPage = () => {
     };
     fetchProfile();
 
-    const seconds = parseInt(localStorage.getItem("studyTimeSeconds") || "0", 10);
+    let seconds = parseInt(localStorage.getItem("studyTimeSeconds") || "0", 10);
+    if (isNaN(seconds)) seconds = 0;
     if (seconds < 60) {
       setStudyTime(`${seconds}s`);
     } else if (seconds < 3600) {
