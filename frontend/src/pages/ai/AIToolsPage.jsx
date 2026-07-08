@@ -99,7 +99,7 @@ const AIQuizPage = () => {
               </div>
 
               <h1 className="text-3xl font-bold tracking-tight text-slate-800">
-                Welcome back, {userProfile?.fullName || "User"} 👋
+                Welcome back, {userProfile?.fullName?.replace(/_/g, " ") || "User"} 👋
               </h1>
 
               <p className="mt-3 text-sm leading-6 text-slate-500">
