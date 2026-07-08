@@ -19,8 +19,39 @@ const AIQuizPage = () => {
   const [selectedData, setSelectedData] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
   const [studyTime, setStudyTime] = useState("0s");
+  const [recentFlashcard, setRecentFlashcard] = useState(null);
+  const [recentQuiz, setRecentQuiz] = useState(null);
+  const [loadingHistory, setLoadingHistory] = useState(true);
 
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchRecentHistory = async () => {
+      try {
+        setLoadingHistory(true);
+        const [flashcardsRes, quizzesRes] = await Promise.all([
+          axiosClient.get("/api/ai_flashcard/sets"),
+          axiosClient.get("/api/quizzes/my-quizzes"),
+        ]);
+        
+        const flashcards = flashcardsRes.data || [];
+        if (flashcards.length > 0) {
+          setRecentFlashcard(flashcards[0]);
+        }
+        
+        const quizzes = quizzesRes.data || [];
+        if (quizzes.length > 0) {
+          quizzes.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+          setRecentQuiz(quizzes[0]);
+        }
+      } catch (error) {
+        console.error("Failed to load history on AIToolsPage:", error);
+      } finally {
+        setLoadingHistory(false);
+      }
+    };
+    fetchRecentHistory();
+  }, []);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -256,38 +287,52 @@ const AIQuizPage = () => {
                     <BookOpen className="h-5 w-5 text-[#f26522]" />
                   </div>
                   <h3 className="text-lg font-semibold text-slate-800">
-                    Java OOP Flashcards
+                    {recentFlashcard ? recentFlashcard.title : "No Flashcard Decks"}
                   </h3>
                   <p className="mt-1 text-sm text-slate-500">
-                    68% completed • 42 cards remaining
+                    {recentFlashcard 
+                      ? `${recentFlashcard.cards || recentFlashcard.flashcards?.length || 0} cards generated`
+                      : "Create custom study decks with AI."}
                   </p>
                 </div>
-                <span className="rounded-full bg-orange-50 px-2.5 py-1 text-xs font-medium text-[#f26522]">
-                  In Progress
+                <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                  recentFlashcard 
+                    ? (recentFlashcard.savedToLibrary ? "bg-green-50 text-green-600" : "bg-orange-50 text-[#f26522]")
+                    : "bg-slate-100 text-slate-500"
+                }`}>
+                  {recentFlashcard 
+                    ? (recentFlashcard.savedToLibrary ? "Saved" : "Draft")
+                    : "Inactive"}
                 </span>
               </div>
 
               <div className="mt-5">
                 <div className="mb-2 flex items-center justify-between text-xs">
                   <span className="text-slate-500">Progress</span>
-                  <span className="font-medium text-slate-700">68%</span>
+                  <span className="font-medium text-slate-700">
+                    {recentFlashcard ? (recentFlashcard.savedToLibrary ? "100%" : "50%") : "0%"}
+                  </span>
                 </div>
                 <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-                  <div className="h-full w-[68%] rounded-full bg-[#f26522]" />
+                  <div className={`h-full rounded-full bg-[#f26522] ${
+                    recentFlashcard 
+                      ? (recentFlashcard.savedToLibrary ? "w-full" : "w-1/2")
+                      : "w-0"
+                  }`} />
                 </div>
               </div>
 
-              {/* UPDATE: Click truyền dữ liệu Java OOP vào Flashcard view */}
               <button
-                onClick={() =>
-                  handleNavigate("flashcard", {
-                    id: "java-oop-1",
-                    title: "Java OOP Flashcards",
-                  })
-                }
+                onClick={() => {
+                  if (recentFlashcard?.id) {
+                    navigate(`/ai-tools/ai-flashcard?id=${recentFlashcard.id}`);
+                  } else {
+                    navigate("/ai-tools/ai-flashcard");
+                  }
+                }}
                 className="mt-5 h-10 w-full rounded-xl bg-[#f26522] text-sm font-medium text-white transition hover:opacity-90"
               >
-                Continue Study
+                {recentFlashcard ? "Continue Study" : "Create Flashcard"}
               </button>
             </div>
 
@@ -299,37 +344,49 @@ const AIQuizPage = () => {
                     <BrainCircuit className="h-5 w-5 text-[#f26522]" />
                   </div>
                   <h3 className="text-lg font-semibold text-slate-800">
-                    Database Quiz
+                    {recentQuiz ? recentQuiz.title : "No Quizzes"}
                   </h3>
                   <p className="mt-1 text-sm text-slate-500">
-                    Last score: 18/20 • Intermediate
+                    {recentQuiz
+                      ? `${recentQuiz.questions?.length || 0} questions generated`
+                      : "Assess your knowledge with AI quizzes."}
                   </p>
                 </div>
-                <span className="rounded-full bg-green-50 px-2.5 py-1 text-xs font-medium text-green-600">
-                  Completed
+                <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                  recentQuiz
+                    ? (recentQuiz.savedToLibrary ? "bg-green-50 text-green-600" : "bg-orange-50 text-[#f26522]")
+                    : "bg-slate-100 text-slate-500"
+                }`}>
+                  {recentQuiz
+                    ? (recentQuiz.savedToLibrary ? "Saved" : "Draft")
+                    : "Inactive"}
                 </span>
               </div>
 
               <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
                 <p className="text-xs font-medium text-slate-500">
-                  AI Recommendation
+                  {recentQuiz ? "Creation Info" : "AI Recommendation"}
                 </p>
                 <p className="mt-2 text-sm leading-6 text-slate-700">
-                  Review SQL JOIN concepts to improve your score further.
+                  {recentQuiz
+                    ? `Created on ${new Date(recentQuiz.createdAt).toLocaleDateString("en-US", {
+                        year: 'numeric', month: 'long', day: 'numeric'
+                      })}.`
+                    : "Generate custom quizzes from documents to study effectively."}
                 </p>
               </div>
 
-              {/* UPDATE: Click truyền dữ liệu Database Quiz vào Quiz view */}
               <button
-                onClick={() =>
-                  handleNavigate("quiz", {
-                    id: "db-quiz-1",
-                    title: "Database Quiz",
-                  })
-                }
+                onClick={() => {
+                  if (recentQuiz?.id) {
+                    navigate(`/ai-tools/ai-quiz?id=${recentQuiz.id}`);
+                  } else {
+                    navigate("/ai-tools/ai-quiz");
+                  }
+                }}
                 className="mt-5 h-10 w-full rounded-xl border border-slate-200 bg-white text-sm font-medium text-slate-700 transition hover:bg-slate-50"
               >
-                Retake Quiz
+                {recentQuiz ? "Continue Study" : "Create Quiz"}
               </button>
             </div>
           </div>
