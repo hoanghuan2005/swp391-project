@@ -43,6 +43,9 @@ public class CourseServiceImpl implements CourseService {
 
         Long revCount = documentReviewRepository.getReviewCountByCourseId(course.getId());
         course.setReviewCount(revCount != null ? revCount.intValue() : 0);
+
+        long views = documentRepository.sumViewCountByCourseId(course.getId());
+        course.setViewCount((int) views);
     }
 
     @Override
