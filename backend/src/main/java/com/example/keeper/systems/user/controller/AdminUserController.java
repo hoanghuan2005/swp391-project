@@ -4,9 +4,11 @@ import com.example.keeper.systems.auth.entity.User;
 import com.example.keeper.systems.auth.repository.UserRepository;
 import com.example.keeper.systems.auth.repository.RoleRepository;
 import com.example.keeper.systems.auth.entity.Role;
+import com.example.keeper.systems.user.dto.AdminUserCreateRequest;
 import com.example.keeper.systems.user.dto.AdminUserDetailResponse;
 import com.example.keeper.systems.user.dto.AdminUserListItemResponse;
 import com.example.keeper.systems.user.service.AdminUserService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -59,6 +61,11 @@ public class AdminUserController {
         user.setBanned(!user.isBanned());
         userRepository.save(user);
         return ResponseEntity.ok(user.isBanned() ? "Banned successfully" : "Unbanned successfully");
+    }
+
+    @PostMapping
+    public ResponseEntity<AdminUserDetailResponse> createUser(@Valid @RequestBody AdminUserCreateRequest request) {
+        return ResponseEntity.ok(adminUserService.createUser(request));
     }
 
     @PostMapping("/import")

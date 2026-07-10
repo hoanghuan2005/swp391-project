@@ -14,6 +14,10 @@ import com.example.keeper.systems.payment.entity.PaymentTransaction;
 import com.example.keeper.systems.payment.repository.PaymentTransactionRepository;
 import com.example.keeper.systems.project.repository.ProjectMemberRepository;
 import com.example.keeper.systems.project.repository.ProjectRepository;
+import com.example.keeper.systems.auth.repository.RoleRepository;
+import com.example.keeper.systems.auth.entity.Role;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import com.example.keeper.systems.user.dto.AdminUserCreateRequest;
 import com.example.keeper.systems.user.dto.AdminUserDetailResponse;
 import com.example.keeper.systems.user.dto.AdminUserListItemResponse;
 import com.example.keeper.systems.user.service.AdminUserService;
@@ -37,6 +41,8 @@ public class AdminUserServiceImpl implements AdminUserService {
     private static final long UNLIMITED = -1;
 
     private final UserRepository userRepository;
+    private final RoleRepository roleRepository;
+    private final PasswordEncoder passwordEncoder;
     private final DocumentRepository documentRepository;
     private final AiUsageRepository aiUsageRepository;
     private final QuizRepository quizRepository;
@@ -174,5 +180,36 @@ public class AdminUserServiceImpl implements AdminUserService {
         aiUsageRepository.countByFeatureForUserBetween(userId, start, end)
                 .forEach(row -> usageByFeature.put(String.valueOf(row[0]), ((Number) row[1]).longValue()));
         return usageByFeature;
+    }
+
+    @Override
+    public AdminUserDetailResponse createUser(AdminUserCreateRequest request) {
+        if (userRepository.findByEmail(request.getEmail()).isPresent()) {
+            throw new IllegalArgumentException("Email already exists");
+        }
+        if (userRepository.findByUsername(request.getUsername()).isPresent()) {
+            throw new IllegalArgumentException("Username already exists");
+        }
+
+        Role role = roleRepository.findByName(request.getRole().toUpperCase())
+                .orElseThrow(() -> new IllegalArgumentException("Role not found: " + request.getRole()));
+
+        User user = new User();
+        user.setEmail(request.getEmail().trim());
+        user.setUsername(request.getUsername().trim());
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
+        user.setRole(role);
+        user.setEmailVerified(true);
+        user.setBanned(false);
+
+        String tierStr = request.getSubscriptionTier() != null ? request.getSubscriptionTier() : "FREE";
+        try {
+            user.setSubscriptionTier(SubscriptionTier.valueOf(tierStr.toUpperCase()));
+        } catch (Exception e) {
+            user.setSubscriptionTier(SubscriptionTier.FREE);
+        }
+
+        User savedUser = userRepository.save(user);
+        return getUserDetail(savedUser.getId());
     }
 }
