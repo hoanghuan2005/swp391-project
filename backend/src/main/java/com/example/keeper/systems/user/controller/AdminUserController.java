@@ -63,8 +63,8 @@ public class AdminUserController {
 
     @PostMapping("/import")
     public ResponseEntity<?> importUsers(@RequestBody List<Map<String, String>> requests) {
-        Role userRole = roleRepository.findByName("USER")
-                .orElseThrow(() -> new RuntimeException("Default USER role not found"));
+        Role userRole = roleRepository.findByName("STUDENT")
+                .orElseThrow(() -> new RuntimeException("Default STUDENT role not found"));
         String defaultPassword = passwordEncoder.encode("123456");
 
         for (Map<String, String> req : requests) {
