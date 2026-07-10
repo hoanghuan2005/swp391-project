@@ -104,9 +104,9 @@ export default function WorkspaceOverviewPage() {
   const [confirmTarget, setConfirmTarget] = useState(null); // { type: "REMOVE_DOCUMENT" | "REMOVE_MEMBER", id, name }
   const [isConfirming, setIsConfirming] = useState(false);
 
-  const fetchProject = useCallback(async () => {
+  const fetchProject = useCallback(async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const data = isSharedView 
         ? await getSharedProject(token) 
         : await getProjectDetail(projectId);
@@ -115,12 +115,24 @@ export default function WorkspaceOverviewPage() {
       console.error(error);
       toast.error(error.response?.data?.message || "Failed to load workspace data");
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [projectId, token, isSharedView]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchProject();
+  }, [fetchProject]);
+
+  // Set up background polling every 15 seconds to sync members/documents when tab is focused
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      if (document.visibilityState === "visible") {
+        fetchProject(true);
+      }
+    }, 15000);
+
+    return () => clearInterval(intervalId);
   }, [fetchProject]);
 
   // Derived role checks
@@ -228,7 +240,7 @@ export default function WorkspaceOverviewPage() {
     try {
       await changeMemberRole(project.id, userId, newRole);
       toast.success("Member role updated!");
-      fetchProject();
+      fetchProject(true);
     } catch (error) {
       console.error(error);
       toast.error(error.response?.data?.message || "Failed to update role");
@@ -247,11 +259,11 @@ export default function WorkspaceOverviewPage() {
       if (confirmTarget.type === "REMOVE_DOCUMENT") {
         await removeDocumentFromProject(projectId, confirmTarget.id);
         toast.success("Document removed from workspace");
-        fetchProject();
+        fetchProject(true);
       } else if (confirmTarget.type === "REMOVE_MEMBER") {
         await removeMember(project.id, confirmTarget.id);
         toast.success("Member removed from workspace");
-        fetchProject();
+        fetchProject(true);
       }
     } catch (error) {
       console.error(`Failed to perform action ${confirmTarget.type}:`, error);
@@ -282,37 +294,7 @@ export default function WorkspaceOverviewPage() {
     return searchTarget.includes((searchQuery || "").toLowerCase());
   }) || [];
 
-  const getFileIconAndColor = (fileType) => {
-    const type = (fileType || "").toLowerCase();
-    if (type.includes("pdf")) {
-      return { 
-        icon: <FileText className="w-5 h-5 text-rose-500" />, 
-        bg: "bg-rose-50 border-rose-100" 
-      };
-    }
-    if (type.includes("doc") || type.includes("docx")) {
-      return { 
-        icon: <FileText className="w-5 h-5 text-blue-500" />, 
-        bg: "bg-blue-50 border-blue-100" 
-      };
-    }
-    if (type.includes("xls") || type.includes("xlsx")) {
-      return { 
-        icon: <FileText className="w-5 h-5 text-emerald-500" />, 
-        bg: "bg-emerald-50 border-emerald-100" 
-      };
-    }
-    if (type.includes("ppt") || type.includes("pptx")) {
-      return { 
-        icon: <FileText className="w-5 h-5 text-amber-500" />, 
-        bg: "bg-amber-50 border-amber-100" 
-      };
-    }
-    return { 
-      icon: <FileText className="w-5 h-5 text-slate-500" />, 
-      bg: "bg-slate-50 border-slate-100" 
-    };
-  };
+
 
   return (
     <div className="min-h-screen">

@@ -62,9 +62,9 @@ export default function ProjectWorkspacePage() {
     setMessages(savedMessages.length > 0 ? savedMessages : [welcomeMessage]);
   }, []);
 
-  const fetchProject = useCallback(async () => {
+  const fetchProject = useCallback(async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       let data = token
         ? await getSharedProject(token)
         : await getProjectDetail(projectId);
@@ -94,13 +94,24 @@ export default function ProjectWorkspacePage() {
       console.error("Failed to fetch project:", error);
       toast.error("Failed to load project workspace");
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [projectId, token, loadConversationMessages]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchProject();
+  }, [fetchProject]);
+
+  // Set up background polling every 15 seconds to sync AI workspace documents/conversations when tab is focused
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      if (document.visibilityState === "visible") {
+        fetchProject(true);
+      }
+    }, 15000);
+
+    return () => clearInterval(intervalId);
   }, [fetchProject]);
 
   const handleSelectConversation = async (conversation) => {
@@ -244,7 +255,7 @@ export default function ProjectWorkspacePage() {
       setSelectedDocs((prev) => prev.filter((d) => d.id !== confirmTarget.id));
 
       // Refresh project to update sidebar
-      fetchProject();
+      fetchProject(true);
     } catch (error) {
       console.error("Delete document failed:", error);
       toast.error("Failed to remove document");
