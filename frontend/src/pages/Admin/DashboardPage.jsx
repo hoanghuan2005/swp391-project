@@ -165,13 +165,6 @@ export default function DashboardPage() {
     return { ...slice, startAngle, angle };
   });
 
-  // Helper function to convert polar coordinates to Cartesian (for drawing SVG pie slices)
-  const getCoordinatesForPercent = (percent) => {
-    const x = Math.cos(2 * Math.PI * percent);
-    const y = Math.sin(2 * Math.PI * percent);
-    return [x, y];
-  };
-
   // 3. Catalog counts for Bar Chart
   const catalogData = [
     { label: "Schools", val: stats.totalSchools || 0, color: "#10b981" },
@@ -313,6 +306,26 @@ export default function DashboardPage() {
                   <g transform="rotate(-90 50 50)">
                     {pieSlices.map((slice, idx) => {
                       if (slice.val === 0) return null;
+
+                      const isHovered = hoveredDoc === idx;
+
+                      if (slice.angle >= 359.9) {
+                        return (
+                          <circle
+                            key={idx}
+                            cx="50"
+                            cy="50"
+                            r="40"
+                            fill={slice.color}
+                            className="cursor-pointer transition-all duration-300"
+                            opacity={isHovered ? 0.9 : 0.75}
+                            transform={isHovered ? "scale(1.05) translate(-2.4, -2.4)" : ""}
+                            onMouseEnter={() => setHoveredDoc(idx)}
+                            onMouseLeave={() => setHoveredDoc(null)}
+                          />
+                        );
+                      }
+
                       // Draw SVG arc path for pie slice
                       const startRad = (slice.startAngle * Math.PI) / 180;
                       const endRad = ((slice.startAngle + slice.angle) * Math.PI) / 180;
@@ -322,8 +335,6 @@ export default function DashboardPage() {
                       const y2 = 50 + 40 * Math.sin(endRad);
                       const largeArc = slice.angle > 180 ? 1 : 0;
                       const pathData = `M 50 50 L ${x1} ${y1} A 40 40 0 ${largeArc} 1 ${x2} ${y2} Z`;
-
-                      const isHovered = hoveredDoc === idx;
 
                       return (
                         <path

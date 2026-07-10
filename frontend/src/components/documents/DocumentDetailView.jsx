@@ -52,6 +52,7 @@ export default function DocumentDetailView({
   headerTitle = "Document Detail",
   headerDescription = "Review the metadata and preview the uploaded file.",
 }) {
+  const isAdmin = window.location.pathname.startsWith("/admin");
   const [documentDetail, setDocumentDetail] = useState(null);
   const [loading, setLoading] = useState(true);
   const [addToProjectOpen, setAddToProjectOpen] = useState(false);
@@ -259,6 +260,25 @@ export default function DocumentDetailView({
                 <Separator />
                 <div className="grid gap-3">
                   <div className="flex items-center justify-between text-sm">
+                    <span className="text-slate-500">Uploaded by</span>
+                    {documentDetail.uploadedBy?.id ? (
+                      <Link
+                        to={isAdmin ? `/admin/users/${documentDetail.uploadedBy.id}` : `/users/${documentDetail.uploadedBy.id}`}
+                        className="font-semibold text-[#f26522] hover:text-[#d95316] hover:underline transition-colors"
+                      >
+                        {documentDetail.uploadedBy.username || documentDetail.uploadedBy.email || "User"}
+                      </Link>
+                    ) : (
+                      <span className="font-semibold text-slate-700">System</span>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-slate-500">Category</span>
+                    <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-100 hover:bg-blue-100">
+                      {documentDetail.category ? `${documentDetail.category.code} - ${documentDetail.category.name}` : "N/A"}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
                     <span className="text-slate-500">Course</span>
                     <Badge variant="outline">{documentDetail.course?.code || "N/A"}</Badge>
                   </div>
@@ -287,6 +307,25 @@ export default function DocumentDetailView({
                     </span>
                   </div>
                 </div>
+                {documentDetail.tags && documentDetail.tags.length > 0 && (
+                  <>
+                    <Separator />
+                    <div>
+                      <p className="text-xs font-semibold uppercase text-slate-400 mb-1.5">Tags</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {documentDetail.tags.map((tag, idx) => (
+                          <Badge
+                            key={idx}
+                            variant="secondary"
+                            className="rounded-lg text-xs font-medium bg-slate-100 text-slate-600 hover:bg-slate-200 border-none px-2 py-0.5"
+                          >
+                            #{tag}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </CardContent>
