@@ -182,17 +182,16 @@ function SortableHead({ sortKey, sortConfig, onSort, className, children }) {
   }
 
   return (
-    <TableHead className={className}>
+    <TableHead className={`${className} px-1`}>
       <Button
         type="button"
         variant="ghost"
-        size="sm"
         onClick={() => onSort(sortKey)}
-        className="h-8 px-2 font-bold text-slate-700 hover:bg-slate-100 focus-visible:ring-[#f26522]/30"
+        className="h-7 px-1 font-bold text-slate-700 hover:bg-slate-100 focus-visible:ring-[#f26522]/30 text-xs"
       >
         {children}
         <Icon
-          className={`ml-1 h-3.5 w-3.5 ${
+          className={`ml-0.5 h-3 w-3 ${
             isActive ? "text-[#f26522]" : "text-slate-300"
           }`}
           aria-hidden="true"
@@ -278,6 +277,22 @@ export default function UserListPage() {
   const [selectedUser, setSelectedUser] = useState(null);
   const { confirm } = useModal();
 
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [formData, setFormData] = useState({
+    email: "",
+    username: "",
+    password: "",
+    fullName: "",
+    role: "STUDENT",
+    subscriptionTier: "FREE",
+  });
+  const [isAdding, setIsAdding] = useState(false);
+
+  const handleFormChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
   const fetchUsers = useCallback(async () => {
     try {
       setIsLoading(true);
@@ -317,6 +332,41 @@ export default function UserListPage() {
       isMounted = false;
     };
   }, []);
+
+  const handleAddUser = async (e) => {
+    e.preventDefault();
+    if (!formData.email || !formData.username || !formData.password) {
+      toast.error("Please fill in all required fields.");
+      return;
+    }
+
+    const payload = { ...formData };
+    if (payload.role === "ADMIN") {
+      payload.subscriptionTier = "PRO";
+    }
+
+    setIsAdding(true);
+    try {
+      await axiosClient.post("/api/admin/users", payload);
+      toast.success("User created successfully!");
+      setIsAddModalOpen(false);
+      setFormData({
+        email: "",
+        username: "",
+        password: "",
+        fullName: "",
+        role: "STUDENT",
+        subscriptionTier: "FREE",
+      });
+      fetchUsers();
+    } catch (error) {
+      console.error("Error creating user:", error);
+      const errorMessage = error.response?.data?.message || "Failed to create user.";
+      toast.error(errorMessage);
+    } finally {
+      setIsAdding(false);
+    }
+  };
 
   const handleToggleBan = async (userId, isCurrentlyBanned) => {
     if (updatingUserId) return;
@@ -548,7 +598,9 @@ export default function UserListPage() {
               onImportSuccess={fetchUsers}
               exportData={filteredUsers}
               exportColumns={columnsForExport}
-              exportFilename="users_export.csv"
+              exportFilename="users_export.xlsx"
+              onAddClick={() => setIsAddModalOpen(true)}
+              addLabel="Add User"
               activeFiltersCount={
                 (roleFilter !== ALL_FILTER ? 1 : 0) +
                 (statusFilter !== ALL_FILTER ? 1 : 0) +
@@ -659,18 +711,18 @@ export default function UserListPage() {
               </Button>
             </div>
           ) : (
-            <div className="overflow-x-auto rounded-xl border border-slate-100">
-              <Table className="min-w-[1080px]">
+            <div className="overflow-hidden rounded-xl border border-slate-100 bg-white">
+              <Table className="w-full text-xs sm:text-[13px]">
                 <TableHeader className="bg-slate-50/50">
                   <TableRow>
-                    <TableHead className="w-[56px] text-center font-bold">
+                    <TableHead className="w-[40px] text-center font-bold px-1">
                       No.
                     </TableHead>
                     <SortableHead
                       sortKey="username"
                       sortConfig={sortConfig}
                       onSort={handleSort}
-                      className="min-w-[170px] font-bold"
+                      className="w-[110px] font-bold"
                     >
                       Username
                     </SortableHead>
@@ -678,7 +730,7 @@ export default function UserListPage() {
                       sortKey="email"
                       sortConfig={sortConfig}
                       onSort={handleSort}
-                      className="min-w-[220px] font-bold"
+                      className="w-[150px] font-bold"
                     >
                       Email
                     </SortableHead>
@@ -686,7 +738,7 @@ export default function UserListPage() {
                       sortKey="role"
                       sortConfig={sortConfig}
                       onSort={handleSort}
-                      className="w-[120px] text-center font-bold"
+                      className="w-[80px] text-center font-bold"
                     >
                       Role
                     </SortableHead>
@@ -694,7 +746,7 @@ export default function UserListPage() {
                       sortKey="tier"
                       sortConfig={sortConfig}
                       onSort={handleSort}
-                      className="w-[110px] text-center font-bold"
+                      className="w-[65px] text-center font-bold"
                     >
                       Tier
                     </SortableHead>
@@ -702,7 +754,7 @@ export default function UserListPage() {
                       sortKey="verified"
                       sortConfig={sortConfig}
                       onSort={handleSort}
-                      className="w-[130px] text-center font-bold"
+                      className="w-[85px] text-center font-bold"
                     >
                       Verified
                     </SortableHead>
@@ -710,7 +762,7 @@ export default function UserListPage() {
                       sortKey="status"
                       sortConfig={sortConfig}
                       onSort={handleSort}
-                      className="w-[120px] text-center font-bold"
+                      className="w-[80px] text-center font-bold"
                     >
                       Status
                     </SortableHead>
@@ -719,7 +771,7 @@ export default function UserListPage() {
                         sortKey="documents"
                         sortConfig={sortConfig}
                         onSort={handleSort}
-                        className="w-[120px] text-center font-bold"
+                        className="w-[60px] text-center font-bold"
                       >
                         Docs
                       </SortableHead>
@@ -729,7 +781,7 @@ export default function UserListPage() {
                         sortKey="aiUsage"
                         sortConfig={sortConfig}
                         onSort={handleSort}
-                        className="w-[130px] text-center font-bold"
+                        className="w-[90px] text-center font-bold"
                       >
                         AI Today
                       </SortableHead>
@@ -739,12 +791,12 @@ export default function UserListPage() {
                         sortKey="createdAt"
                         sortConfig={sortConfig}
                         onSort={handleSort}
-                        className="w-[140px] text-center font-bold"
+                        className="w-[90px] text-center font-bold"
                       >
                         Created
                       </SortableHead>
                     )}
-                    <TableHead className="w-[280px] text-right font-bold pr-4">
+                    <TableHead className="w-[180px] text-right font-bold pr-2 px-1">
                       Actions
                     </TableHead>
                   </TableRow>
@@ -825,65 +877,69 @@ export default function UserListPage() {
                         key={user.id}
                         className="hover:bg-slate-50/50"
                       >
-                        <TableCell className="font-medium text-center text-slate-500">{index + 1}</TableCell>
-                        <TableCell className="font-semibold text-slate-700">
-                          <div className="max-w-[180px] truncate">
+                        <TableCell className="font-medium text-center text-slate-500 px-1">{index + 1}</TableCell>
+                        <TableCell className="font-semibold text-slate-700 px-1">
+                          <div className="max-w-[100px] truncate">
                             {user.username || "N/A"}
                           </div>
                         </TableCell>
-                        <TableCell className="text-slate-600">
-                          <div className="max-w-[240px] truncate">
+                        <TableCell className="text-slate-600 px-1">
+                          <div className="max-w-[140px] truncate">
                             {user.email || "N/A"}
                           </div>
                         </TableCell>
-                        <TableCell className="text-center">
+                        <TableCell className="text-center px-1">
                           <RoleBadge roleName={getRoleName(user)} />
                         </TableCell>
-                        <TableCell className="text-center">
-                          <TierBadge tier={getTier(user)} />
+                        <TableCell className="text-center px-1">
+                          {getRoleName(user) === "ADMIN" ? (
+                            <span className="text-slate-400 font-semibold">-</span>
+                          ) : (
+                            <TierBadge tier={getTier(user)} />
+                          )}
                         </TableCell>
-                        <TableCell className="text-center">
+                        <TableCell className="text-center px-1">
                           <VerifiedBadge verified={user.emailVerified} />
                         </TableCell>
-                        <TableCell className="text-center">
+                        <TableCell className="text-center px-1">
                           <StatusBadge banned={user.banned} />
                         </TableCell>
                         {hasDocumentSummary && (
-                          <TableCell className="text-center text-sm font-semibold tabular-nums text-slate-600">
+                          <TableCell className="text-center text-xs font-semibold tabular-nums text-slate-600 px-1">
                             {hasValue(user.totalDocuments)
                               ? numberFormatter.format(user.totalDocuments)
                               : "N/A"}
                           </TableCell>
                         )}
                         {hasAiSummary && (
-                          <TableCell className="text-center text-sm font-semibold tabular-nums text-slate-600">
+                          <TableCell className="text-center text-xs font-semibold tabular-nums text-slate-600 px-1">
                             {formatAiUsage(user)}
                           </TableCell>
                         )}
                         {hasCreatedAt && (
-                          <TableCell className="text-center text-sm text-slate-500">
+                          <TableCell className="text-center text-xs text-slate-500 px-1">
                             {formatDate(user.createdAt)}
                           </TableCell>
                         )}
-                        <TableCell className="text-right pr-4">
-                          <div className="flex justify-end gap-2">
+                        <TableCell className="text-right px-1 pr-2">
+                          <div className="flex justify-end gap-1">
                             <Button
                               size="sm"
                               variant="outline"
                               onClick={() => setSelectedUser(user)}
-                              className="rounded-lg border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-[#f26522]"
+                              className="rounded-lg border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-[#f26522] h-7 px-1.5 text-xs flex items-center gap-1"
                             >
-                              <Eye className="h-4 w-4" aria-hidden="true" />
-                              Quick View
+                              <Eye className="h-3 w-3 text-slate-400" aria-hidden="true" />
+                              View
                             </Button>
                             <Button
                               asChild
                               size="sm"
                               variant="outline"
-                              className="rounded-lg border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-[#f26522]"
+                              className="rounded-lg border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-[#f26522] h-7 px-1.5 text-xs flex items-center gap-1"
                             >
                               <Link to={`/admin/users/${user.id}`}>
-                                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                                <ArrowRight className="h-3 w-3 text-slate-400" aria-hidden="true" />
                                 Details
                               </Link>
                             </Button>
@@ -893,23 +949,23 @@ export default function UserListPage() {
                                 variant={user.banned ? "outline" : "destructive"}
                                 onClick={() => handleToggleBan(user.id, user.banned)}
                                 disabled={updatingUserId === user.id}
-                                className="flex items-center gap-2 rounded-lg"
+                                className="flex items-center gap-1 rounded-lg h-7 px-1.5 text-xs"
                               >
                                 {updatingUserId === user.id ? (
                                   <>
                                     <Loader2
-                                      className="w-4 h-4 animate-spin"
+                                      className="w-3 h-3 animate-spin"
                                       aria-hidden="true"
                                     />
                                     Updating
                                   </>
                                 ) : user.banned ? (
                                   <>
-                                    <Unlock className="w-4 h-4" aria-hidden="true" /> Unban
+                                    <Unlock className="w-3 h-3" aria-hidden="true" /> Unban
                                   </>
                                 ) : (
                                   <>
-                                    <Ban className="w-4 h-4" aria-hidden="true" /> Ban
+                                    <Ban className="w-3 h-3" aria-hidden="true" /> Ban
                                   </>
                                 )}
                               </Button>
@@ -959,7 +1015,9 @@ export default function UserListPage() {
               <div className="space-y-5 px-6 py-5">
                 <div className="flex flex-wrap gap-2">
                   <RoleBadge roleName={getRoleName(selectedUser)} />
-                  <TierBadge tier={getTier(selectedUser)} />
+                  {getRoleName(selectedUser) !== "ADMIN" && (
+                    <TierBadge tier={getTier(selectedUser)} />
+                  )}
                   <VerifiedBadge verified={selectedUser.emailVerified} />
                   <StatusBadge banned={selectedUser.banned} />
                   {selectedUser.surveyCompleted !== undefined && (
@@ -1133,6 +1191,146 @@ export default function UserListPage() {
               </DialogFooter>
             </>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isAddModalOpen} onOpenChange={(open) => !open && !isAdding && setIsAddModalOpen(false)}>
+        <DialogContent className="sm:max-w-md rounded-3xl border border-slate-100 bg-white p-6 shadow-2xl shadow-slate-900/10 max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-slate-800 flex items-center gap-2">
+              <span className="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center text-[#f26522]">
+                <Users className="w-5 h-5" />
+              </span>
+              Add New User
+            </DialogTitle>
+            <DialogDescription className="text-sm text-slate-500">
+              Create a new user account manually. Fields marked with * are required.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleAddUser} className="space-y-4 mt-4">
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-slate-500 uppercase">Email *</label>
+              <Input
+                type="email"
+                name="email"
+                required
+                value={formData.email}
+                onChange={handleFormChange}
+                placeholder="email@example.com"
+                className="rounded-xl border-slate-200 focus-visible:ring-[#f26522]/20 focus-visible:border-[#f26522] h-10 w-full"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-slate-500 uppercase">Username *</label>
+              <Input
+                type="text"
+                name="username"
+                required
+                value={formData.username}
+                onChange={handleFormChange}
+                placeholder="username"
+                className="rounded-xl border-slate-200 focus-visible:ring-[#f26522]/20 focus-visible:border-[#f26522] h-10 w-full"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-slate-500 uppercase">Full Name</label>
+              <Input
+                type="text"
+                name="fullName"
+                value={formData.fullName}
+                onChange={handleFormChange}
+                placeholder="John Doe"
+                className="rounded-xl border-slate-200 focus-visible:ring-[#f26522]/20 focus-visible:border-[#f26522] h-10 w-full"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-slate-500 uppercase">Password *</label>
+              <Input
+                type="password"
+                name="password"
+                required
+                value={formData.password}
+                onChange={handleFormChange}
+                placeholder="••••••••"
+                className="rounded-xl border-slate-200 focus-visible:ring-[#f26522]/20 focus-visible:border-[#f26522] h-10 w-full"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-500 uppercase">Role *</label>
+                <select
+                  name="role"
+                  value={formData.role}
+                  onChange={handleFormChange}
+                  className="w-full h-10 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-600 outline-none focus:border-[#f26522]/40 focus:ring-1 focus:ring-[#f26522]/20 cursor-pointer"
+                >
+                  <option value="STUDENT">Student</option>
+                  <option value="ADMIN">Admin</option>
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-500 uppercase">Subscription Tier *</label>
+                <select
+                  name="subscriptionTier"
+                  value={formData.role === "ADMIN" ? "PRO" : formData.subscriptionTier}
+                  disabled={formData.role === "ADMIN"}
+                  onChange={handleFormChange}
+                  className="w-full h-10 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-600 outline-none focus:border-[#f26522]/40 focus:ring-1 focus:ring-[#f26522]/20 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  <option value="FREE">Free</option>
+                  <option value="PRO">Pro</option>
+                </select>
+              </div>
+            </div>
+
+            {formData.role === "ADMIN" && (
+              <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4 mt-2">
+                <div className="flex gap-2.5">
+                  <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                  <div>
+                    <h5 className="text-xs font-bold text-amber-800 uppercase tracking-wider">
+                      High Privilege Alert
+                    </h5>
+                    <p className="text-xs text-amber-700 mt-1 font-medium leading-relaxed">
+                      Assigning the ADMIN role will grant this user full access to the entire dashboard and all user data.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <DialogFooter className="pt-4 gap-2 flex justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={isAdding}
+                onClick={() => setIsAddModalOpen(false)}
+                className="rounded-xl font-semibold"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={isAdding}
+                className="rounded-xl bg-[#f26522] hover:bg-[#d95316] text-white font-semibold flex items-center gap-2 border-none cursor-pointer"
+              >
+                {isAdding ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Adding...
+                  </>
+                ) : (
+                  "Add User"
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </div>

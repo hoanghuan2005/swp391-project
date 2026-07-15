@@ -40,11 +40,12 @@ import axiosClient from "@/api/axiosClient";
 import { getMyProjects, deleteProject } from "@/api/projectApi";
 import CreateProjectModal from "@/components/projects/CreateProjectModal";
 import { forceDownload } from "@/lib/downloadHelper";
+import EditDocumentModal from "@/components/share/EditDocumentModal";
 import { getFileExtension } from "@/lib/utils";
 import { toast } from "sonner";
 
 export default function MyLibrary() {
-  const { documents, loading: isLoading, refreshDocuments } = useDocuments();
+  const { documents, setDocuments, loading: isLoading, refreshDocuments } = useDocuments();
   const [projects, setProjects] = useState([]);
   const [isProjectsLoading, setIsProjectsLoading] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -66,6 +67,7 @@ export default function MyLibrary() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null); // { id, type, name, description }
   const [isDeleting, setIsDeleting] = useState(false);
+  const [editingDocId, setEditingDocId] = useState(null);
 
   const fetchProjects = useCallback(async () => {
     try {
@@ -148,6 +150,7 @@ export default function MyLibrary() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchProjects();
     fetchFavoriteDocuments();
     fetchFavoriteFlashcards();
@@ -213,20 +216,21 @@ export default function MyLibrary() {
       if (deleteTarget.type === "DOCUMENT") {
         await axiosClient.delete(`/api/documents/${deleteTarget.id}`);
         toast.success("Document deleted successfully");
-        await refreshDocuments();
-        await fetchFavoriteDocuments();
+        setDocuments((prev) => prev.filter((doc) => doc.id !== deleteTarget.id));
+        setFavoriteDocs((prev) => prev.filter((doc) => doc.id !== deleteTarget.id));
       } else if (deleteTarget.type === "FLASHCARD") {
         await axiosClient.delete(`/api/ai_flashcard/sets/${deleteTarget.id}`);
         toast.success("Flashcard set deleted successfully");
-        await fetchMyFlashcards();
+        setMyFlashcardSets((prev) => prev.filter((fc) => fc.id !== deleteTarget.id));
+        setFavoriteFlashcards((prev) => prev.filter((fc) => fc.id !== deleteTarget.id));
       } else if (deleteTarget.type === "QUIZ") {
         await axiosClient.delete(`/api/quizzes/${deleteTarget.id}`);
         toast.success("Quiz deleted successfully");
-        await fetchMyQuizzes();
+        setMyQuizzes((prev) => prev.filter((q) => q.id !== deleteTarget.id));
       } else if (deleteTarget.type === "WORKSPACE") {
         await deleteProject(deleteTarget.id);
         toast.success("Workspace deleted successfully");
-        await fetchProjects();
+        setProjects((prev) => prev.filter((proj) => proj.id !== deleteTarget.id));
       } else if (deleteTarget.type === "UNFOLLOW") {
         await axiosClient.delete(`/api/follows/${deleteTarget.id}`);
         toast.success(`Đã bỏ theo dõi ${deleteTarget.name}`);
@@ -442,7 +446,7 @@ export default function MyLibrary() {
                       </div>
                       <div className="flex items-center gap-2">
                         <button
-                          onClick={() => navigate(`/documents/${doc.id}/edit`)}
+                          onClick={() => setEditingDocId(doc.id)}
                           className="opacity-0 group-hover:opacity-100 p-2 text-slate-400 hover:text-[#f26522] hover:bg-orange-50 rounded-xl transition-all cursor-pointer"
                         >
                           <Edit2 className="w-4 h-4" />
@@ -936,6 +940,19 @@ export default function MyLibrary() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Edit Document Modal */}
+      {editingDocId && (
+        <EditDocumentModal
+          open={Boolean(editingDocId)}
+          documentId={editingDocId}
+          onClose={() => setEditingDocId(null)}
+          onSuccess={() => {
+            setEditingDocId(null);
+            refreshDocuments();
+          }}
+        />
+      )}
     </div>
   );
 }
