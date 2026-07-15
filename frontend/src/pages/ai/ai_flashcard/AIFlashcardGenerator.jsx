@@ -108,6 +108,7 @@ export default function AIFlashcardGenerator({ contextData }) {
 
   const [viewMode, setViewMode] = useState(VIEW_MODE.GENERATE);
   const [publishDialogOpen, setPublishDialogOpen] = useState(false);
+  const [publishConfirmOpen, setPublishConfirmOpen] = useState(false);
   const [courses, setCourses] = useState([]);
   const [publishCourseId, setPublishCourseId] = useState("");
 
@@ -128,8 +129,8 @@ export default function AIFlashcardGenerator({ contextData }) {
 
   const fetchSidebarData = async () => {
     try {
-      const historyResponse = await getFlashcardSets();
-      setFlashcardHistory(historyResponse.data || []);
+      const historyData = await getFlashcardSets();
+      setFlashcardHistory(Array.isArray(historyData) ? historyData : []);
     } catch (error) {
       console.error("Sidebar fetch error:", error);
     }
@@ -142,8 +143,7 @@ export default function AIFlashcardGenerator({ contextData }) {
   const loadFlashcardSet = async (setId) => {
     try {
       setIsGenerating(true);
-      const response = await getFlashcardSet(setId);
-      const data = response.data;
+      const data = await getFlashcardSet(setId);
       setActiveSetTitle(data.title);
       setFlashcards(data.flashcards || []);
       setSelectedFlashcardSet(data);
@@ -202,8 +202,7 @@ export default function AIFlashcardGenerator({ contextData }) {
     if (!setToRename || !newTitle.trim()) return;
     setIsRenaming(true);
     try {
-      const response = await renameFlashcardSet(setToRename.id, newTitle.trim());
-      const updatedSet = response.data || response;
+      const updatedSet = await renameFlashcardSet(setToRename.id, newTitle.trim());
       toast.success("Flashcard set renamed successfully!");
       setFlashcardHistory((current) =>
         current.map((s) =>
@@ -228,11 +227,10 @@ export default function AIFlashcardGenerator({ contextData }) {
 
     setIsSaving(true);
     try {
-      const response = await updateFlashcardSet(selectedFlashcardSet.id, {
+      const updatedSet = await updateFlashcardSet(selectedFlashcardSet.id, {
         title: activeSetTitle,
         flashcards,
       });
-      const updatedSet = response.data;
       setFlashcards(updatedSet.flashcards || []);
       setActiveSetTitle(updatedSet.title);
       setSelectedFlashcardSet((current) => ({ ...current, ...updatedSet }));
@@ -260,12 +258,11 @@ export default function AIFlashcardGenerator({ contextData }) {
 
     setIsSaving(true);
     try {
-      const response = await updateFlashcardSet(selectedFlashcardSet.id, {
+      const updatedSet = await updateFlashcardSet(selectedFlashcardSet.id, {
         title: activeSetTitle,
         flashcards,
         savedToLibrary: true,
       });
-      const updatedSet = response.data;
       setFlashcards(updatedSet.flashcards || []);
       setActiveSetTitle(updatedSet.title);
       setSelectedFlashcardSet((current) => ({ ...current, ...updatedSet }));
@@ -319,6 +316,15 @@ export default function AIFlashcardGenerator({ contextData }) {
     }
   }, [publishDialogOpen, courses.length]);
 
+  // Derive detected course from the selected flashcard set's source document
+  const detectedCourse = selectedFlashcardSet?.documentCourseId
+    ? {
+        id: selectedFlashcardSet.documentCourseId,
+        name: selectedFlashcardSet.documentCourseName,
+        code: selectedFlashcardSet.documentCourseCode,
+      }
+    : null;
+
   const handleCreateFlashcardSet = () => {
     setSelectedFlashcardSet(null);
     setFlashcards([]);
@@ -335,8 +341,16 @@ export default function AIFlashcardGenerator({ contextData }) {
       toast.error("Please save or select a generated set first before publishing.");
       return;
     }
-    setPublishCourseId(selectedDoc?.course?.id || "");
-    setPublishDialogOpen(true);
+
+    if (detectedCourse) {
+      // Smart publish: document belongs to a course — show confirmation
+      setPublishCourseId(detectedCourse.id);
+      setPublishConfirmOpen(true);
+    } else {
+      // No course detected — show course selection dropdown
+      setPublishCourseId("");
+      setPublishDialogOpen(true);
+    }
   };
 
   const handlePublish = async () => {
@@ -351,6 +365,7 @@ export default function AIFlashcardGenerator({ contextData }) {
       });
       toast.success("Flashcard set published successfully!");
       setPublishDialogOpen(false);
+      setPublishConfirmOpen(false);
     } catch (e) {
       toast.error("Failed to publish flashcard set.");
       console.error(e);
@@ -361,17 +376,16 @@ export default function AIFlashcardGenerator({ contextData }) {
     if (!inputText && !file && !selectedDoc) return;
     setIsGenerating(true);
     try {
-      let response;
+      let result;
       if (selectedDoc) {
-        response = await generateFlashcardsFromDocument(selectedDoc.id);
+        result = await generateFlashcardsFromDocument(selectedDoc.id);
       } else {
         const formData = new FormData();
         if (file) formData.append("document", file);
         if (inputText) formData.append("text", inputText);
-        response = await generateFlashcards(formData);
+        result = await generateFlashcards(formData);
       }
       await refreshAiUsage();
-      const result = response.data || response;
       if (Array.isArray(result) || result.id) {
         setFlashcards(result.flashcards || result);
         if (result.id) {
@@ -742,7 +756,61 @@ export default function AIFlashcardGenerator({ contextData }) {
         </div>
       </div>
 
-      {/* Publish Confirmation Dialog */}
+      {/* Smart Publish: Confirmation Dialog (when course is auto-detected) */}
+      <Dialog open={publishConfirmOpen} onOpenChange={setPublishConfirmOpen}>
+        <DialogContent className="sm:max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-slate-800">
+              Publish Material
+            </DialogTitle>
+            <DialogDescription className="text-slate-500 pt-2">
+              This flashcard set was created from a document in course{" "}
+              <span className="font-semibold text-slate-700">
+                {detectedCourse?.code} - {detectedCourse?.name}
+              </span>
+              . Would you like to publish it to this course?
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-4 flex items-center gap-3 rounded-xl bg-orange-50 border border-orange-100 px-4 py-3">
+            <div className="w-10 h-10 rounded-lg bg-[#f26522] flex items-center justify-center text-white shrink-0">
+              <Layers className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-slate-800">
+                {detectedCourse?.code} - {detectedCourse?.name}
+              </p>
+              <p className="text-xs text-slate-500">Auto-detected from source document</p>
+            </div>
+          </div>
+
+          <DialogFooter className="mt-6 flex gap-3 sm:justify-end">
+            <Button
+              variant="outline"
+              onClick={() => {
+                // User wants to pick a different course
+                setPublishConfirmOpen(false);
+                setPublishCourseId("");
+                setPublishDialogOpen(true);
+              }}
+              className="rounded-xl"
+              disabled={publishing}
+            >
+              Choose Another Course
+            </Button>
+            <Button
+              onClick={handlePublish}
+              className="rounded-xl bg-[#f26522] hover:bg-[#d95316] text-white"
+              disabled={publishing}
+            >
+              {publishing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Publish
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Publish: Course Selection Dialog (when no course auto-detected) */}
       <Dialog open={publishDialogOpen} onOpenChange={setPublishDialogOpen}>
         <DialogContent className="sm:max-w-md rounded-2xl">
           <DialogHeader>

@@ -142,4 +142,10 @@ public class ProjectController {
         projectService.removeMember(projectId, userId, email);
         return ResponseEntity.ok().build();
     }
+
+    @GetMapping("/{projectId}/my-invitation")
+    public ResponseEntity<?> getMyInvitation(@PathVariable UUID projectId) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        return ResponseEntity.ok(projectService.getMyInvitationStatus(projectId, email));
+    }
 }

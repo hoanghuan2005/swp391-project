@@ -25,4 +25,5 @@ public interface ProjectService {
     void changeMemberRole(UUID projectId, UUID userId, String role, String userEmail);
     void removeMember(UUID projectId, UUID userId, String userEmail);
     ProjectInvitation verifyInvitationToken(String token);
+    java.util.Map<String, Object> getMyInvitationStatus(UUID projectId, String userEmail);
 }

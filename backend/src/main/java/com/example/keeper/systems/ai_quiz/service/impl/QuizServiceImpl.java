@@ -233,6 +233,19 @@ public class QuizServiceImpl implements QuizService {
                         .build())
                 .collect(Collectors.toList());
 
+        // Extract source document's course info for smart publish
+        UUID documentCourseId = null;
+        String documentCourseName = null;
+        String documentCourseCode = null;
+        if (quiz.getDocumentId() != null) {
+            Document doc = documentRepository.findById(quiz.getDocumentId()).orElse(null);
+            if (doc != null && doc.getCourse() != null) {
+                documentCourseId = doc.getCourse().getId();
+                documentCourseName = doc.getCourse().getName();
+                documentCourseCode = doc.getCourse().getCode();
+            }
+        }
+
         return QuizResponse.builder()
                 .id(quiz.getId())
                 .title(quiz.getTitle())
@@ -240,6 +253,9 @@ public class QuizServiceImpl implements QuizService {
                 .projectId(quiz.getProjectId())
                 .ownerId(quiz.getOwner().getId())
                 .courseId(quiz.getCourseId())
+                .documentCourseId(documentCourseId)
+                .documentCourseName(documentCourseName)
+                .documentCourseCode(documentCourseCode)
                 .createdAt(quiz.getCreatedAt())
                 .questions(questionDTOs)
                 .build();
