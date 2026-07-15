@@ -436,150 +436,158 @@ export default function Navbar({
 
               {/* BẢNG LỌC NÂNG CAO */}
               {isFilterOpen && (
-                <div className="absolute right-0 top-13 w-[400px] bg-white rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-slate-200/50 z-50 animate-in slide-in-from-top-4 duration-200">
-                  <div className="p-4 border-b flex justify-between items-center bg-white rounded-t-[24px]">
-                    <div className="flex items-center gap-2">
-                      <Filter className="h-5 w-5 text-[#f26522]" />
-                      <h4 className="font-extrabold text-slate-800 text-[16px]">
-                        Advanced Filter
-                      </h4>
-                    </div>
-                    <button onClick={() => setIsFilterOpen(false)}>
-                      <X
-                        size={18}
-                        className="text-slate-400 hover:text-slate-700 cursor-pointer"
-                      />
-                    </button>
-                  </div>
+                <>
+                  {/* Backdrop for mobile */}
+                  <div
+                    className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 sm:hidden"
+                    onClick={() => setIsFilterOpen(false)}
+                  />
 
-                  <div className="p-4 space-y-5">
-                    {/* Academic Cascade Connector Wrapper */}
-                    <div className="bg-slate-50/70 p-4 rounded-2xl border border-slate-100/80 space-y-4 relative">
-                      {/* Cascade connection dashed line */}
-                      <div className="absolute left-[18px] top-[45px] bottom-[5px] border-l-2 border-dashed border-orange-200" />
-                      {/* Combobox School */}
-                      <div className="pl-6 relative">
-                        <div className="absolute left-[-3px] top-[42px] w-3 h-3 rounded-full bg-[#f26522] border-2 border-white shadow-sm" />
-                        <SearchableDropdown
-                          icon={
-                            <GraduationCap className="h-4 w-4 text-[#f26522]" />
-                          }
-                          label="School"
-                          placeholder="Select School"
-                          items={schools}
-                          value={filterData.school}
-                          onChange={handleSchoolChange}
-                        />
+                  <div className="fixed sm:absolute top-1/2 sm:top-13 left-1/2 sm:left-auto sm:right-0 -translate-x-1/2 -translate-y-1/2 sm:translate-x-0 sm:translate-y-0 w-[92vw] sm:w-[400px] max-h-[85vh] sm:max-h-[calc(100vh-100px)] bg-white rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-slate-200/50 z-50 flex flex-col overflow-hidden animate-in fade-in-50 sm:slide-in-from-top-4 duration-200">
+                    <div className="p-4 border-b flex justify-between items-center bg-white shrink-0">
+                      <div className="flex items-center gap-2">
+                        <Filter className="h-5 w-5 text-[#f26522]" />
+                        <h4 className="font-extrabold text-slate-800 text-[16px]">
+                          Advanced Filter
+                        </h4>
                       </div>
-
-                      {/* Combobox Major */}
-                      <div className="pl-6 relative">
-                        <div
-                          className={`absolute left-[-3px] top-[42px] w-3 h-3 rounded-full border-2 border-white shadow-sm transition-colors ${
-                            filterData.school ? "bg-[#f26522]" : "bg-slate-300"
-                          }`}
+                      <button onClick={() => setIsFilterOpen(false)}>
+                        <X
+                          size={18}
+                          className="text-slate-400 hover:text-slate-700 cursor-pointer"
                         />
-                        <SearchableDropdown
-                          icon={<Layers className="h-4 w-4 text-[#f26522]" />}
-                          label="Major"
-                          placeholder={
-                            filterData.school
-                              ? "Select Major"
-                              : "Please select school first"
-                          }
-                          items={majors}
-                          value={filterData.major}
-                          onChange={handleMajorChange}
-                          disabled={!filterData.school}
-                        />
-                      </div>
-
-                      {/* Combobox Course */}
-                      <div className="pl-6 relative">
-                        <div
-                          className={`absolute left-[-3px] top-[42px] w-3 h-3 rounded-full border-2 border-white shadow-sm transition-colors ${
-                            filterData.major ? "bg-[#f26522]" : "bg-slate-300"
-                          }`}
-                        />
-                        <SearchableDropdown
-                          icon={<BookOpen className="h-4 w-4 text-[#f26522]" />}
-                          label="Course"
-                          placeholder={
-                            filterData.major
-                              ? "Select Course"
-                              : "Please select major first"
-                          }
-                          items={courses}
-                          value={filterData.course}
-                          onChange={(val) =>
-                            setFilterData((prev) => ({ ...prev, course: val }))
-                          }
-                          disabled={!filterData.major}
-                        />
-                      </div>
+                      </button>
                     </div>
 
-                    {/* Category Selection Grid */}
-                    <div className="flex flex-col gap-2.5">
-                      <label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
-                        <Tag className="h-4 w-4 text-[#f26522]" /> Category
-                      </label>
-                      <div className="grid grid-cols-3 gap-2">
-                        {categories.map((cat) => {
-                          const isSelected = filterData.category === cat.code;
+                    <div className="p-4 space-y-5 overflow-y-auto flex-1 pb-8">
+                      {/* Academic Cascade Connector Wrapper */}
+                      <div className="bg-slate-50/70 p-4 rounded-2xl border border-slate-100/80 space-y-4 relative">
+                        {/* Cascade connection dashed line */}
+                        <div className="absolute left-[18px] top-[45px] bottom-[5px] border-l-2 border-dashed border-orange-200" />
+                        {/* Combobox School */}
+                        <div className="pl-6 relative">
+                          <div className="absolute left-[-3px] top-[42px] w-3 h-3 rounded-full bg-[#f26522] border-2 border-white shadow-sm" />
+                          <SearchableDropdown
+                            icon={
+                              <GraduationCap className="h-4 w-4 text-[#f26522]" />
+                            }
+                            label="School"
+                            placeholder="Select School"
+                            items={schools}
+                            value={filterData.school}
+                            onChange={handleSchoolChange}
+                          />
+                        </div>
 
-                          return (
-                            <button
-                              key={cat.id || cat.code}
-                              type="button"
-                              onClick={() => {
-                                setFilterData((prev) => ({
-                                  ...prev,
-                                  category: isSelected ? "" : cat.code,
-                                }));
-                              }}
-                              className={`h-9 px-2.5 rounded-lg border text-[11px] font-bold
-flex items-center justify-center
-transition-all cursor-pointer select-none
-${
-  isSelected
-    ? "bg-[#f26522]/10 border-[#f26522] text-[#f26522] shadow-sm"
-    : "bg-white border-slate-200/60 text-slate-600 hover:border-slate-300 hover:bg-slate-50"
-}`}
-                            >
-                              <span className="truncate whitespace-nowrap leading-normal">
-                                {cat.name}
-                              </span>
-                            </button>
-                          );
-                        })}
+                        {/* Combobox Major */}
+                        <div className="pl-6 relative">
+                          <div
+                            className={`absolute left-[-3px] top-[42px] w-3 h-3 rounded-full border-2 border-white shadow-sm transition-colors ${
+                              filterData.school ? "bg-[#f26522]" : "bg-slate-300"
+                            }`}
+                          />
+                          <SearchableDropdown
+                            icon={<Layers className="h-4 w-4 text-[#f26522]" />}
+                            label="Major"
+                            placeholder={
+                              filterData.school
+                                ? "Select Major"
+                                : "Please select school first"
+                            }
+                            items={majors}
+                            value={filterData.major}
+                            onChange={handleMajorChange}
+                            disabled={!filterData.school}
+                          />
+                        </div>
+
+                        {/* Combobox Course */}
+                        <div className="pl-6 relative">
+                          <div
+                            className={`absolute left-[-3px] top-[42px] w-3 h-3 rounded-full border-2 border-white shadow-sm transition-colors ${
+                              filterData.major ? "bg-[#f26522]" : "bg-slate-300"
+                            }`}
+                          />
+                          <SearchableDropdown
+                            icon={<BookOpen className="h-4 w-4 text-[#f26522]" />}
+                            label="Course"
+                            placeholder={
+                              filterData.major
+                                ? "Select Course"
+                                : "Please select major first"
+                            }
+                            items={courses}
+                            value={filterData.course}
+                            onChange={(val) =>
+                              setFilterData((prev) => ({ ...prev, course: val }))
+                            }
+                            disabled={!filterData.major}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Category Selection Grid */}
+                      <div className="flex flex-col gap-2.5">
+                        <label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                          <Tag className="h-4 w-4 text-[#f26522]" /> Category
+                        </label>
+                        <div className="grid grid-cols-3 gap-2">
+                          {categories.map((cat) => {
+                            const isSelected = filterData.category === cat.code;
+
+                            return (
+                              <button
+                                key={cat.id || cat.code}
+                                type="button"
+                                onClick={() => {
+                                  setFilterData((prev) => ({
+                                    ...prev,
+                                    category: isSelected ? "" : cat.code,
+                                  }));
+                                }}
+                                className={`h-9 px-2.5 rounded-lg border text-[11px] font-bold
+  flex items-center justify-center
+  transition-all cursor-pointer select-none
+  ${
+    isSelected
+      ? "bg-[#f26522]/10 border-[#f26522] text-[#f26522] shadow-sm"
+      : "bg-white border-slate-200/60 text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+  }`}
+                              >
+                                <span className="truncate whitespace-nowrap leading-normal">
+                                  {cat.name}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="p-4.5 bg-slate-50/50 border-t border-slate-100 flex gap-3 rounded-b-[24px]">
-                    <Button
-                      variant="outline"
-                      className="flex-1 rounded-xl font-bold cursor-pointer"
-                      onClick={() =>
-                        setFilterData({
-                          school: "",
-                          major: "",
-                          course: "",
-                          category: "",
-                        })
-                      }
-                    >
-                      Reset
-                    </Button>
-                    <Button
-                      className="flex-[2] bg-[#f26522] text-white rounded-xl hover:bg-[#d9581c] font-bold shadow-md shadow-orange-500/10 cursor-pointer"
-                      onClick={handleApplyFilter}
-                    >
-                      Apply{" "}
-                    </Button>
+                    <div className="p-4.5 bg-slate-50/50 border-t border-slate-100 flex gap-3 shrink-0">
+                      <Button
+                        variant="outline"
+                        className="flex-1 rounded-xl font-bold cursor-pointer"
+                        onClick={() =>
+                          setFilterData({
+                            school: "",
+                            major: "",
+                            course: "",
+                            category: "",
+                          })
+                        }
+                      >
+                        Reset
+                      </Button>
+                      <Button
+                        className="flex-[2] bg-[#f26522] text-white rounded-xl hover:bg-[#d9581c] font-bold shadow-md shadow-orange-500/10 cursor-pointer"
+                        onClick={handleApplyFilter}
+                      >
+                        Apply{" "}
+                      </Button>
+                    </div>
                   </div>
-                </div>
+                </>
               )}
             </div>
           </div>
