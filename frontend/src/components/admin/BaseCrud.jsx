@@ -302,9 +302,10 @@ export default function BaseCrud({
                 ) : field.type === "textarea" ? (
                   <textarea
                     value={form[field.name] || ""}
-                    onChange={(event) => handleFieldChange(field.name, event.target.value)}
+                    onChange={(event) => handleFieldChange(field.name, event.target.value.slice(0, 500))}
                     placeholder={field.placeholder}
-                    className="w-full p-3 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-[#f26522] text-slate-700 text-sm"
+                    maxLength={500}
+                    className="w-full p-3 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-[#f26522] text-slate-700 text-sm resize-none break-all max-h-[120px] overflow-y-auto"
                     rows={3}
                   />
                 ) : (

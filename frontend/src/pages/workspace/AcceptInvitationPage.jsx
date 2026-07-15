@@ -92,7 +92,7 @@ export default function AcceptInvitationPage() {
 
   if (loading) {
     return (
-      <div className="min-h-[80vh] flex flex-col items-center justify-center gap-3">
+      <div className="min-h-screen flex flex-col items-center justify-center gap-3">
         <Loader2 className="w-10 h-10 animate-spin text-[#f66810]" />
         <p className="text-slate-500 font-medium text-sm animate-pulse">
           Verifying your invitation...
@@ -103,7 +103,7 @@ export default function AcceptInvitationPage() {
 
   if (error) {
     return (
-      <div className="min-h-[80vh] flex items-center justify-center p-4">
+      <div className="min-h-screen flex items-center justify-center p-4">
         <Card className="max-w-md w-full rounded-3xl border border-red-100 bg-white shadow-xl overflow-hidden">
           <div className="p-8 text-center flex flex-col items-center gap-4">
             <div className="w-16 h-16 rounded-2xl bg-red-50 flex items-center justify-center text-red-500">
@@ -128,7 +128,7 @@ export default function AcceptInvitationPage() {
   }
 
   return (
-    <div className="min-h-[80vh] flex items-center justify-center p-4">
+    <div className="min-h-screen flex items-center justify-center p-4">
       <Card className="max-w-xl w-full rounded-[32px] border border-orange-100 bg-gradient-to-br from-orange-50/20 to-white shadow-2xl overflow-hidden relative">
         <div className="absolute top-0 left-0 w-full h-2" />
         

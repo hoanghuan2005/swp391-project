@@ -18,11 +18,25 @@ import {
   Tag,
   Loader2,
   Sparkles,
+  UserPlus,
+  Shield,
+  Users,
+  Check,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import axiosClient from "@/api/axiosClient";
 import { createVnpayPayment } from "@/api/paymentApi";
 import useAiUsage from "@/hooks/useAiUsage";
+import { getMyInvitationStatus, acceptInvitation, rejectInvitation } from "@/api/projectApi";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { toast } from "sonner";
 
 // ==========================================
 // COMPONENT TẠO DROPDOWN CÓ TÌM KIẾM (GIỐNG ẢNH)
@@ -186,6 +200,12 @@ export default function Navbar({
   const profileButtonRef = useRef(null);
   const { subscriptionTier, refreshAiUsage } = useAiUsage();
   const canUpgrade = userRole !== "ADMIN" && subscriptionTier === "FREE";
+
+  // Workspace invitation dialog state
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const [inviteData, setInviteData] = useState(null);
+  const [inviteSubmitting, setInviteSubmitting] = useState(false);
+  const [inviteProjectId, setInviteProjectId] = useState(null);
 
   // Dynamic filter state lists loaded from backend APIs
   const [schools, setSchools] = useState([]);
@@ -670,7 +690,26 @@ ${
                               item.referenceType === "WORKSPACE" &&
                               item.referenceId
                             ) {
-                              navigate(`/workspace/${item.referenceId}`);
+                              // Smart workspace notification: check invitation status
+                              if (item.type === "WORKSPACE_INVITED") {
+                                try {
+                                  const status = await getMyInvitationStatus(item.referenceId);
+                                  if (status.isMember) {
+                                    navigate(`/workspace/${item.referenceId}`);
+                                  } else if (status.invitation?.token && status.invitation?.status === "PENDING") {
+                                    setInviteData(status.invitation);
+                                    setInviteProjectId(item.referenceId);
+                                    setInviteDialogOpen(true);
+                                  } else {
+                                    navigate(`/workspace/${item.referenceId}`);
+                                  }
+                                } catch (err) {
+                                  console.error("Failed to check invitation status", err);
+                                  navigate(`/workspace/${item.referenceId}`);
+                                }
+                              } else {
+                                navigate(`/workspace/${item.referenceId}`);
+                              }
                             }
                           }}
                           className={`p-3 text-left hover:bg-slate-50 transition-colors cursor-pointer flex gap-3 ${!item.isRead ? "bg-orange-50/20" : ""}`}
@@ -779,6 +818,98 @@ ${
           </div>
         )}
       </div>
+
+      {/* Workspace Invitation Dialog */}
+      <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
+        <DialogContent className="sm:max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-slate-800 flex items-center gap-2">
+              <div className="w-9 h-9 rounded-xl bg-[#f26522] flex items-center justify-center text-white">
+                <UserPlus className="w-5 h-5" />
+              </div>
+              Workspace Invitation
+            </DialogTitle>
+            <DialogDescription className="text-slate-500 pt-2">
+              You have been invited to join a workspace.
+            </DialogDescription>
+          </DialogHeader>
+
+          {inviteData && (
+            <div className="bg-orange-50/50 border border-orange-100 rounded-xl p-4 space-y-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-orange-100/50 flex items-center justify-center text-[#f26522]">
+                  <Users className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Workspace</p>
+                  <p className="font-extrabold text-slate-800 text-sm">{inviteData.projectName}</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3 pt-2 border-t border-orange-100">
+                <div>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Invited By</p>
+                  <p className="font-bold text-slate-700 text-sm truncate">{inviteData.inviterName}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Your Role</p>
+                  <span className="inline-flex items-center gap-1 mt-0.5 px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-[#f26522]/10 text-[#f26522]">
+                    <Shield className="w-3.5 h-3.5" />
+                    {inviteData.role}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="mt-4 flex gap-3 sm:justify-end">
+            <Button
+              variant="outline"
+              disabled={inviteSubmitting}
+              onClick={async () => {
+                try {
+                  setInviteSubmitting(true);
+                  await rejectInvitation(inviteData.token);
+                  toast.success("Invitation declined.");
+                  setInviteDialogOpen(false);
+                  setInviteData(null);
+                } catch (err) {
+                  toast.error(err.response?.data?.message || "Failed to decline invitation.");
+                } finally {
+                  setInviteSubmitting(false);
+                }
+              }}
+              className="rounded-xl"
+            >
+              Decline
+            </Button>
+            <Button
+              disabled={inviteSubmitting}
+              onClick={async () => {
+                try {
+                  setInviteSubmitting(true);
+                  await acceptInvitation(inviteData.token);
+                  toast.success("Invitation accepted! Welcome to the workspace.");
+                  setInviteDialogOpen(false);
+                  setInviteData(null);
+                  navigate(`/workspace/${inviteProjectId}`);
+                } catch (err) {
+                  toast.error(err.response?.data?.message || "Failed to accept invitation.");
+                } finally {
+                  setInviteSubmitting(false);
+                }
+              }}
+              className="rounded-xl bg-[#f26522] hover:bg-[#d95316] text-white"
+            >
+              {inviteSubmitting ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              ) : (
+                <Check className="w-4 h-4 mr-2" />
+              )}
+              Accept & Join
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

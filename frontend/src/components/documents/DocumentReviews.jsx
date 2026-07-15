@@ -123,9 +123,10 @@ export default function DocumentReviews({ documentId }) {
                 <div className="mb-4">
                     <textarea
                         value={comment}
-                        onChange={(e) => setComment(e.target.value)}
+                        onChange={(e) => setComment(e.target.value.slice(0, 500))}
+                        maxLength={500}
                         placeholder="Share your thoughts about this document (optional)..."
-                        className="w-full p-4 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#f26522]/50 resize-none h-24"
+                        className="w-full p-4 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#f26522]/50 resize-none h-24 break-all overflow-y-auto"
                     />
                 </div>
 

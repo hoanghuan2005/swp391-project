@@ -309,10 +309,12 @@ export default function EditDocumentModal({ open, documentId, onClose, onSuccess
               <Label className="text-slate-700 font-semibold">Description</Label>
               <Textarea
                 value={description}
-                onChange={(e) => setDescription(e.target.value)}
+                onChange={(e) => setDescription(e.target.value.slice(0, 500))}
+                maxLength={500}
                 placeholder="Enter document description..."
-                className="rounded-xl border-slate-200 focus-visible:ring-[#f26522] focus-visible:border-[#f26522] min-h-[100px]"
+                className="rounded-xl border-slate-200 focus-visible:ring-[#f26522] focus-visible:border-[#f26522] min-h-[100px] max-h-[120px] resize-none overflow-y-auto"
               />
+              <p className="text-xs text-slate-400 text-right">{description.length}/500</p>
             </div>
 
             {/* Visibility and Category Grid */}

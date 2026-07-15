@@ -948,9 +948,11 @@ export default function WorkspaceOverviewPage() {
                       rows={3}
                       placeholder="Enter a description of this workspace..."
                       value={editDescription}
-                      onChange={(e) => setEditDescription(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl border border-slate-200 text-slate-755 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#f66810] resize-none"
+                      onChange={(e) => setEditDescription(e.target.value.slice(0, 300))}
+                      maxLength={300}
+                      className="w-full px-4 py-3 rounded-xl border border-slate-200 text-slate-755 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#f66810] resize-none break-all max-h-[120px] overflow-y-auto"
                     />
+                    <p className="text-xs text-slate-400 text-right mt-1">{editDescription?.length || 0}/300</p>
                   </div>
                 </div>
 

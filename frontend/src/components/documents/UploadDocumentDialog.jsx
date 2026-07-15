@@ -622,8 +622,7 @@ export default function UploadDocumentDialog({
                 value={description}
                 onChange={(e) => setDescription(e.target.value.slice(0, 500))}
                 maxLength={500}
-                style={{ fieldSizing: "fixed" }}
-                className="rounded-lg border-gray-300 focus-visible:ring-[#f26522] focus-visible:border-[#f26522] min-h-[80px] max-h-[120px] resize-none break-all overflow-y-auto w-full"
+                className="rounded-lg border-gray-300 focus-visible:ring-[#f26522] focus-visible:border-[#f26522] min-h-[80px] max-h-[120px] resize-none overflow-y-auto w-full"
               />
               <p className="text-xs text-slate-400 text-right">{description.length}/500</p>
             </div>

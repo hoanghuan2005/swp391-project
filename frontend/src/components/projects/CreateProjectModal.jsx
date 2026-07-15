@@ -89,9 +89,11 @@ export default function CreateProjectModal({ open, onOpenChange, onSuccess }) {
               id="description"
               placeholder="What are you studying in this project?"
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="rounded-xl min-h-[100px] focus-visible:ring-[#f26522] resize-none"
+              onChange={(e) => setDescription(e.target.value.slice(0, 300))}
+              maxLength={300}
+              className="rounded-xl min-h-[100px] max-h-[120px] focus-visible:ring-[#f26522] resize-none overflow-y-auto"
             />
+            <p className="text-xs text-slate-400 text-right">{description.length}/300</p>
           </div>
 
           <DialogFooter className="pt-2">
