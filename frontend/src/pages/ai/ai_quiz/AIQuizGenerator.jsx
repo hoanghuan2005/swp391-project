@@ -10,6 +10,19 @@ import {
   RotateCcw,
   AlertCircle,
 } from "lucide-react";
+import useStudyTimer from "@/hooks/useStudyTimer";
+
+const formatSessionTime = (seconds) => {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  const mStr = m.toString().padStart(2, "0");
+  const sStr = s.toString().padStart(2, "0");
+  if (h > 0) {
+    return `${h}:${mStr}:${sStr}`;
+  }
+  return `${mStr}:${sStr}`;
+};
 import {
   Dialog,
   DialogContent,
@@ -53,6 +66,8 @@ import { isDocumentQuotaExceeded } from "@/api/documentQuotaApi";
 import QuotaExceededDialog from "@/components/quota/QuotaExceededDialog";
 
 export default function AIQuizGenerator() {
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  useStudyTimer(setElapsedSeconds);
   const [inputText, setInputText] = useState("");
   const [file, setFile] = useState(null);
   const [libraryDoc, setLibraryDoc] = useState(null);
@@ -546,11 +561,16 @@ export default function AIQuizGenerator() {
             title="AI Quiz Generator"
             description="Create quizzes instantly from any topic or document. Perfect for study sessions and self-assessment."
             rightElement={
-              <AiUsageBadge
-                subscriptionTier={subscriptionTier}
-                remainingUsage={remainingUsage}
-                loading={aiUsageLoading}
-              />
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-[#f26522] bg-orange-50 border border-orange-100 rounded-xl px-2.5 py-1">
+                  <span>⏱️ {formatSessionTime(elapsedSeconds)}</span>
+                </div>
+                <AiUsageBadge
+                  subscriptionTier={subscriptionTier}
+                  remainingUsage={remainingUsage}
+                  loading={aiUsageLoading}
+                />
+              </div>
             }
           />
 
@@ -673,7 +693,7 @@ export default function AIQuizGenerator() {
                           </Button>
 
                           <Button
-                            className="rounded-full bg-indigo-600 hover:bg-indigo-700 h-9 px-4 text-sm text-white cursor-pointer shadow-sm font-semibold"
+                            className="rounded-full bg-orange-100 hover:bg-orange-200 h-9 px-4 text-sm text-orange-700 cursor-pointer font-semibold"
                             onClick={handleSaveToLibrary}
                             disabled={isSaving}
                           >

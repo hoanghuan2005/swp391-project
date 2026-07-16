@@ -61,6 +61,17 @@ public class Course extends BaseEntity {
     @Transient
     private int quizCount = 0;
 
+    @Transient
+    private int viewCount = 0;
+
+    public int getViewCount() {
+        return viewCount;
+    }
+
+    public void setViewCount(int viewCount) {
+        this.viewCount = viewCount;
+    }
+
     public int getFlashcardCount() {
         return flashcardCount;
     }
