@@ -83,3 +83,8 @@ export const removeMember = async (projectId, userId) => {
   return response.data;
 };
 
+export const getMyInvitationStatus = async (projectId) => {
+  const response = await axiosClient.get(`/api/projects/${projectId}/my-invitation`);
+  return response.data;
+};
+

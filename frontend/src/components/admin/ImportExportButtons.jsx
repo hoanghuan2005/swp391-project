@@ -1,6 +1,7 @@
 import React, { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Download, Upload, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
+import * as XLSX from "xlsx";
 import {
   Dialog,
   DialogContent,
@@ -16,7 +17,7 @@ import axiosClient from "@/api/axiosClient";
 export default function ImportExportButtons({
   data = [],
   columns = [],
-  filename = "export.csv",
+  filename = "export.xlsx",
   importUrl,
   importMapping, // mapping: e.g. { schoolId: "School", name: "Course name", code: "Course code", description: "Description" }
   importRequiredFields = [],
@@ -27,7 +28,7 @@ export default function ImportExportButtons({
   const [previewRows, setPreviewRows] = useState([]);
   const [isImporting, setIsImporting] = useState(false);
 
-  // 1. Export CSV
+  // 1. Export Excel
   const handleExport = () => {
     if (!data || data.length === 0) {
       toast.error("No data to export.");
@@ -36,12 +37,12 @@ export default function ImportExportButtons({
 
     try {
       // Build headers
-      const csvHeaders = columns.map((col) => col.header);
-      const csvRows = [csvHeaders.join(",")];
+      const headers = columns.map((col) => col.header);
+      const aoa = [headers];
 
       // Build rows
       data.forEach((item) => {
-        const values = columns.map((col) => {
+        const row = columns.map((col) => {
           // Render item values
           let val = "";
           if (col.render) {
@@ -52,75 +53,68 @@ export default function ImportExportButtons({
             } else if (rendered && rendered.props && rendered.props.children) {
               val = String(rendered.props.children);
             } else {
-              // Fallback: try field from item (if we guess key)
+              // Fallback: try field from item
               val = "";
             }
           }
-          // Cleanup string values
-          val = val.replace(/"/g, '""');
-          return `"${val}"`;
+          return val;
         });
-        csvRows.push(values.join(","));
+        aoa.push(row);
       });
 
-      // Download CSV
-      const csvContent = "\uFEFF" + csvRows.join("\n"); // add BOM for UTF-8 compatibility in Excel
-      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.setAttribute("href", url);
-      link.setAttribute("download", filename);
-      link.style.visibility = "hidden";
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      toast.success("CSV exported successfully");
+      // Create workbook and sheet
+      const worksheet = XLSX.utils.aoa_to_sheet(aoa);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Sheet1");
+
+      // Download Excel file
+      const safeFilename = filename.replace(/\.csv$/i, ".xlsx");
+      XLSX.writeFile(workbook, safeFilename);
+      toast.success("Excel exported successfully");
     } catch (error) {
       console.error("Export error:", error);
       toast.error("Failed to export data.");
     }
   };
 
-  // 2. Parse CSV
+  // 2. Parse Excel
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
     const reader = new FileReader();
     reader.onload = (event) => {
-      const text = event.target.result;
-      parseCSV(text);
+      const data = event.target.result;
+      parseExcel(data);
     };
-    reader.readAsText(file);
+    reader.readAsArrayBuffer(file);
     e.target.value = ""; // clear input
   };
 
-  const parseCSV = (text) => {
+  const parseExcel = (data) => {
     try {
-      const lines = text.split(/\r?\n/).filter((line) => line.trim().length > 0);
-      if (lines.length < 2) {
-        toast.error("CSV file is empty or missing headers.");
+      const workbook = XLSX.read(data, { type: "array" });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+      if (!jsonData || jsonData.length === 0) {
+        toast.error("Excel file is empty or missing data.");
         return;
       }
-
-      // Read header row
-      const headers = lines[0].split(",").map((h) => h.replace(/^["']|["']$/g, "").trim());
 
       const parsedData = [];
       const mappingKeys = Object.keys(importMapping);
 
-      for (let i = 1; i < lines.length; i++) {
-        const line = lines[i];
-        // Handle split by comma with quotes support
-        const matches = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || line.split(",");
-        const values = matches.map((v) => v.replace(/^["']|["']$/g, "").trim().replace(/""/g, '"'));
-
+      for (let i = 0; i < jsonData.length; i++) {
+        const row = jsonData[i];
         const item = {};
         mappingKeys.forEach((key) => {
-          const csvHeaderName = importMapping[key];
-          const headerIdx = headers.findIndex((h) => h.toLowerCase() === csvHeaderName.toLowerCase());
-          if (headerIdx !== -1) {
-            item[key] = values[headerIdx] || "";
+          const expectedHeaderName = importMapping[key].toLowerCase();
+          // Find a key in the row object that matches expectedHeaderName case-insensitively
+          const rowKey = Object.keys(row).find((k) => k.toLowerCase() === expectedHeaderName);
+          if (rowKey) {
+            item[key] = String(row[rowKey] ?? "").trim();
           } else {
             item[key] = "";
           }
@@ -140,15 +134,15 @@ export default function ImportExportButtons({
       }
 
       if (parsedData.length === 0) {
-        toast.error("No valid rows found in CSV. Please verify required columns.");
+        toast.error("No valid rows found in Excel. Please verify required columns.");
         return;
       }
 
       setPreviewRows(parsedData);
       setPreviewOpen(true);
     } catch (error) {
-      console.error("CSV parse error:", error);
-      toast.error("Failed to parse CSV. Please make sure the format is valid.");
+      console.error("Excel parse error:", error);
+      toast.error("Failed to parse Excel file. Please make sure the format is valid.");
     }
   };
 
@@ -180,13 +174,13 @@ export default function ImportExportButtons({
             className="rounded-xl border-slate-200 hover:bg-slate-50 flex items-center gap-2 cursor-pointer font-semibold"
           >
             <Upload className="w-4 h-4 text-slate-500" />
-            Import CSV
+            Import Excel
           </Button>
           <input
             type="file"
             ref={fileInputRef}
             onChange={handleFileChange}
-            accept=".csv"
+            accept=".xlsx, .xls"
             className="hidden"
           />
         </>
@@ -198,7 +192,7 @@ export default function ImportExportButtons({
         className="rounded-xl border-slate-200 hover:bg-slate-50 flex items-center gap-2 cursor-pointer font-semibold"
       >
         <Download className="w-4 h-4 text-slate-500" />
-        Export CSV
+        Export Excel
       </Button>
 
       {/* Import Preview Dialog */}
@@ -209,10 +203,10 @@ export default function ImportExportButtons({
               <span className="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center text-[#f26522]">
                 <CheckCircle2 className="w-5 h-5" />
               </span>
-              CSV Data Preview
+              Excel Data Preview
             </DialogTitle>
             <DialogDescription className="text-sm text-slate-500 mt-2">
-              Review parsed rows from the CSV file. Checked rows will be imported to the system.
+              Review parsed rows from the Excel file. Checked rows will be imported to the system.
             </DialogDescription>
           </DialogHeader>
 

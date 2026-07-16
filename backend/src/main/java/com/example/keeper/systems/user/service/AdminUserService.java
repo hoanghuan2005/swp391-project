@@ -1,5 +1,6 @@
 package com.example.keeper.systems.user.service;
 
+import com.example.keeper.systems.user.dto.AdminUserCreateRequest;
 import com.example.keeper.systems.user.dto.AdminUserDetailResponse;
 import com.example.keeper.systems.user.dto.AdminUserListItemResponse;
 
@@ -11,4 +12,6 @@ public interface AdminUserService {
     List<AdminUserListItemResponse> getAllUsers();
 
     AdminUserDetailResponse getUserDetail(UUID id);
+
+    AdminUserDetailResponse createUser(AdminUserCreateRequest request);
 }

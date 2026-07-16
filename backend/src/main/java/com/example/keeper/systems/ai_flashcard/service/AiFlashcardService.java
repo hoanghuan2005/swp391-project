@@ -76,6 +76,17 @@ public class AiFlashcardService {
                         .build())
                 .collect(Collectors.toList());
 
+        // Extract source document's course info for smart publish
+        UUID documentCourseId = null;
+        String documentCourseName = null;
+        String documentCourseCode = null;
+        if (set.getDocument() != null && set.getDocument().getCourse() != null) {
+            var course = set.getDocument().getCourse();
+            documentCourseId = course.getId();
+            documentCourseName = course.getName();
+            documentCourseCode = course.getCode();
+        }
+
         return FlashcardSetResponse.builder()
                 .id(set.getId())
                 .title(set.getTitle() != null ? set.getTitle() : "Untitled")
@@ -83,6 +94,11 @@ public class AiFlashcardService {
                 .userId(set.getUser() != null ? set.getUser().getId() : null)
                 .status(set.getStatus())
                 .visibility(set.getVisibility())
+                .savedToLibrary(set.isSavedToLibrary())
+                .courseId(set.getCourseId())
+                .documentCourseId(documentCourseId)
+                .documentCourseName(documentCourseName)
+                .documentCourseCode(documentCourseCode)
                 .cards(flashcardResponses.size())
                 .createdAt(set.getCreatedAt())
                 .flashcards(flashcardResponses)

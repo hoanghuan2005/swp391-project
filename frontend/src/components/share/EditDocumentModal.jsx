@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate, useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,7 +13,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  ArrowLeft,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
   GraduationCap,
   Layers,
   BookOpen,
@@ -26,13 +31,9 @@ import {
 } from "lucide-react";
 import axiosClient from "@/api/axiosClient";
 import { toast } from "sonner";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
-export default function EditDocumentPage() {
-  const { id } = useParams();
-  const navigate = useNavigate();
-
+export default function EditDocumentModal({ open, documentId, onClose, onSuccess }) {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
@@ -48,7 +49,6 @@ export default function EditDocumentPage() {
   const [schoolQuery, setSchoolQuery] = useState("");
   const [majorQuery, setMajorQuery] = useState("");
   const [subjectQuery, setSubjectQuery] = useState("");
-  const [categoryQuery, setCategoryQuery] = useState("");
   const [subjectName, setSubjectName] = useState("");
   const [subjectNameOpen, setSubjectNameOpen] = useState(false);
 
@@ -70,7 +70,7 @@ export default function EditDocumentPage() {
             axiosClient.get("/api/courses/all"),
             axiosClient.get("/api/tags"),
             axiosClient.get("/api/categories/active"),
-            axiosClient.get(`/api/documents/${id}/detail`),
+            axiosClient.get(`/api/documents/${documentId}/detail`),
           ]);
 
         setSchoolOptions(
@@ -162,16 +162,16 @@ export default function EditDocumentPage() {
       } catch (error) {
         console.error("Failed to load edit details", error);
         toast.error("Failed to load document details");
-        navigate("/my-library");
+        onClose();
       } finally {
         setLoading(false);
       }
     };
 
-    if (id) {
+    if (documentId && open) {
       fetchOptionsAndDetails();
     }
-  }, [id, navigate]);
+  }, [documentId, open, onClose]);
 
   const handleSchoolSelect = async (school) => {
     setSelectedSchool(school);
@@ -259,9 +259,9 @@ export default function EditDocumentPage() {
     };
 
     try {
-      await axiosClient.put(`/api/documents/${id}`, payload);
+      await axiosClient.put(`/api/documents/${documentId}`, payload);
       toast.success("Document updated successfully!");
-      navigate("/my-library");
+      onSuccess();
     } catch (err) {
       console.error("Failed to update document:", err);
       toast.error(err.response?.data?.message || "Failed to update document");
@@ -270,50 +270,32 @@ export default function EditDocumentPage() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="max-w-3xl mx-auto p-6 space-y-6">
-        <Skeleton className="h-10 w-48 rounded-xl" />
-        <Card className="rounded-3xl border-slate-100 shadow-sm">
-          <CardContent className="p-6 space-y-6">
+  return (
+    <Dialog open={open} onOpenChange={(val) => !val && !submitting && onClose()}>
+      <DialogContent className="sm:max-w-2xl rounded-3xl border border-slate-100 bg-white p-6 shadow-2xl shadow-slate-900/10 max-h-[90vh] overflow-y-auto">
+        <DialogHeader className="border-b border-slate-50 pb-4">
+          <DialogTitle className="text-xl font-black text-slate-800 flex items-center gap-2">
+            <FileText className="w-5 h-5 text-[#f26522]" /> Edit Document
+          </DialogTitle>
+          <DialogDescription className="mt-1 text-sm text-slate-500">
+            Title is read-only. Edit description, course, tags, etc.
+          </DialogDescription>
+        </DialogHeader>
+
+        {loading ? (
+          <div className="space-y-6 py-4">
             <Skeleton className="h-12 w-full rounded-xl" />
             <Skeleton className="h-32 w-full rounded-xl" />
             <div className="grid grid-cols-2 gap-4">
               <Skeleton className="h-12 w-full rounded-xl" />
               <Skeleton className="h-12 w-full rounded-xl" />
             </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  return (
-    <div className="max-w-3xl mx-auto p-6 space-y-6">
-      <div className="flex items-center gap-3">
-        <Button asChild variant="ghost" className="rounded-xl p-2 h-10 w-10">
-          <Link to="/my-library">
-            <ArrowLeft className="w-5 h-5" />
-          </Link>
-        </Button>
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-800">Edit Document</h1>
-          <p className="text-sm text-slate-500">Update document details and metadata.</p>
-        </div>
-      </div>
-
-      <form onSubmit={handleSubmit}>
-        <Card className="rounded-3xl border-slate-100 shadow-sm bg-white border border-1">
-          <CardHeader className="border-b border-slate-50 pb-4">
-            <CardTitle className="text-lg font-bold text-slate-700 flex items-center gap-2">
-              <FileText className="w-5 h-5 text-[#f26522]" /> Document Info
-            </CardTitle>
-            <CardDescription>Title is read-only. Edit description, course, tags, etc.</CardDescription>
-          </CardHeader>
-          <CardContent className="p-6 space-y-5">
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-5 py-4">
             {/* Title (Read-only) */}
             <div className="space-y-2">
-              <Label className="text-slate-700 font-semibold flex items-center gap-2">Title</Label>
+              <Label className="text-slate-700 font-semibold">Title</Label>
               <Input
                 value={title}
                 readOnly
@@ -368,7 +350,7 @@ export default function EditDocumentPage() {
 
               {/* Category Dropdown */}
               <div className="space-y-2">
-                <Label className="text-slate-700 font-semibold flex items-center gap-2">Category</Label>
+                <Label className="text-slate-700 font-semibold">Category</Label>
                 <Select
                   value={selectedCategory?.id || ""}
                   onValueChange={(val) => {
@@ -488,28 +470,29 @@ export default function EditDocumentPage() {
               setSelected={setSelectedTags}
               placeholder="Type to search tags"
             />
-          </CardContent>
-        </Card>
 
-        <div className="mt-6 flex justify-end gap-3">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => navigate("/my-library")}
-            className="rounded-xl border-slate-200 px-6 h-11"
-          >
-            Cancel
-          </Button>
-          <Button
-            type="submit"
-            disabled={submitting}
-            className="rounded-xl bg-[#f26522] hover:bg-[#d95316] text-white font-bold px-6 h-11 flex items-center gap-2 hover:scale-[1.01] active:scale-[0.99] transition-all"
-          >
-            <Save size={16} />
-            {submitting ? "Saving..." : "Save Changes"}
-          </Button>
-        </div>
-      </form>
-    </div>
+            <div className="mt-6 flex justify-end gap-3 border-t border-slate-50 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onClose}
+                disabled={submitting}
+                className="rounded-xl border-slate-200 px-6 h-11 cursor-pointer"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={submitting}
+                className="rounded-xl bg-[#f26522] hover:bg-[#d95316] text-white font-bold px-6 h-11 flex items-center gap-2 hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer border-none"
+              >
+                <Save size={16} />
+                {submitting ? "Saving..." : "Save Changes"}
+              </Button>
+            </div>
+          </form>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }

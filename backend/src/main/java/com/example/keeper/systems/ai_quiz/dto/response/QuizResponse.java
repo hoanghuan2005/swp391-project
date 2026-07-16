@@ -16,6 +16,10 @@ public class QuizResponse {
     private UUID projectId;
     private UUID ownerId;
     private UUID courseId;
+    // Source document's course info (for smart publish)
+    private UUID documentCourseId;
+    private String documentCourseName;
+    private String documentCourseCode;
     private LocalDateTime createdAt;
     private List<QuestionDTO> questions;
 }

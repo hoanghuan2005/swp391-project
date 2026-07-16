@@ -24,11 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -584,5 +580,39 @@ public class ProjectServiceImpl implements ProjectService {
             }
         }
         return document.getMimeType();
+    }
+
+    @Override
+    public Map<String, Object> getMyInvitationStatus(UUID projectId, String userEmail) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        // Check if user is already a member
+        boolean isMember = projectMemberRepository.existsByProjectIdAndUserId(projectId, user.getId());
+        if (isMember) {
+            return Map.of("isMember", true);
+        }
+
+        // Look up the latest invitation for this user + project
+        var invitationOpt = projectInvitationRepository.findFirstByProjectIdAndEmailOrderByCreatedAtDesc(projectId, userEmail);
+        if (invitationOpt.isEmpty()) {
+            return Map.of("isMember", false, "invitation", Map.of());
+        }
+
+        var invitation = invitationOpt.get();
+        String inviterName = invitation.getInviter().getUsername() != null
+                ? invitation.getInviter().getUsername()
+                : invitation.getInviter().getEmail();
+
+        return Map.of(
+                "isMember", false,
+                "invitation", Map.of(
+                        "token", invitation.getToken(),
+                        "status", invitation.getStatus(),
+                        "role", invitation.getRole().name(),
+                        "projectName", invitation.getProject().getName(),
+                        "inviterName", inviterName
+                )
+        );
     }
 }

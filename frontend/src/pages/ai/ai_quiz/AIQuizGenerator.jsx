@@ -110,6 +110,7 @@ export default function AIQuizGenerator() {
   const [viewMode, setViewMode] = useState(VIEW_MODE.GENERATE);
   const [selectedQuiz, setSelectedQuiz] = useState(null);
   const [publishDialogOpen, setPublishDialogOpen] = useState(false);
+  const [publishConfirmOpen, setPublishConfirmOpen] = useState(false);
   const [courses, setCourses] = useState([]);
   const [publishCourseId, setPublishCourseId] = useState("");
 
@@ -218,6 +219,15 @@ export default function AIQuizGenerator() {
         .catch((err) => console.error("Failed to load courses", err));
     }
   }, [publishDialogOpen, courses.length]);
+
+  // Derive detected course from the selected quiz's source document
+  const detectedCourse = selectedQuiz?.documentCourseId
+    ? {
+        id: selectedQuiz.documentCourseId,
+        name: selectedQuiz.documentCourseName,
+        code: selectedQuiz.documentCourseCode,
+      }
+    : null;
 
   const clearDocument = () => {
     setFile(null);
@@ -476,8 +486,16 @@ export default function AIQuizGenerator() {
       );
       return;
     }
-    setPublishCourseId(libraryDoc?.course?.id || "");
-    setPublishDialogOpen(true);
+
+    if (detectedCourse) {
+      // Smart publish: document belongs to a course — show confirmation
+      setPublishCourseId(detectedCourse.id);
+      setPublishConfirmOpen(true);
+    } else {
+      // No course detected — show course selection dropdown
+      setPublishCourseId("");
+      setPublishDialogOpen(true);
+    }
   };
 
   const handlePublishQuiz = async () => {
@@ -492,6 +510,7 @@ export default function AIQuizGenerator() {
       });
       toast.success("Quiz published successfully!");
       setPublishDialogOpen(false);
+      setPublishConfirmOpen(false);
     } catch (e) {
       toast.error("Failed to publish quiz.");
       console.error(e);
@@ -927,7 +946,61 @@ export default function AIQuizGenerator() {
         </DialogContent>
       </Dialog>
 
-      {/* Publish Confirmation Dialog */}
+      {/* Smart Publish: Confirmation Dialog (when course is auto-detected) */}
+      <Dialog open={publishConfirmOpen} onOpenChange={setPublishConfirmOpen}>
+        <DialogContent className="sm:max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-slate-800">
+              Publish Material
+            </DialogTitle>
+            <DialogDescription className="text-slate-500 pt-2">
+              This quiz was created from a document in course{" "}
+              <span className="font-semibold text-slate-700">
+                {detectedCourse?.code} - {detectedCourse?.name}
+              </span>
+              . Would you like to publish it to this course?
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-4 flex items-center gap-3 rounded-xl bg-orange-50 border border-orange-100 px-4 py-3">
+            <div className="w-10 h-10 rounded-lg bg-[#f26522] flex items-center justify-center text-white shrink-0">
+              <ListChecks className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-slate-800">
+                {detectedCourse?.code} - {detectedCourse?.name}
+              </p>
+              <p className="text-xs text-slate-500">Auto-detected from source document</p>
+            </div>
+          </div>
+
+          <DialogFooter className="mt-6 flex gap-3 sm:justify-end">
+            <Button
+              variant="outline"
+              onClick={() => {
+                // User wants to pick a different course
+                setPublishConfirmOpen(false);
+                setPublishCourseId("");
+                setPublishDialogOpen(true);
+              }}
+              className="rounded-xl"
+              disabled={publishing}
+            >
+              Choose Another Course
+            </Button>
+            <Button
+              onClick={handlePublishQuiz}
+              className="rounded-xl bg-[#f26522] hover:bg-[#d95316] text-white"
+              disabled={publishing}
+            >
+              {publishing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Publish
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Publish: Course Selection Dialog (when no course auto-detected) */}
       <Dialog open={publishDialogOpen} onOpenChange={setPublishDialogOpen}>
         <DialogContent className="sm:max-w-md rounded-2xl">
           <DialogHeader>
