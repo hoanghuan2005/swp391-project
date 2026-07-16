@@ -1,8 +1,23 @@
 import React, { useState } from 'react';
 import axiosClient from '../../../api/axiosClient';
 import { Loader2, Sparkles, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
+import useStudyTimer from '@/hooks/useStudyTimer';
+
+const formatSessionTime = (seconds) => {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  const mStr = m.toString().padStart(2, "0");
+  const sStr = s.toString().padStart(2, "0");
+  if (h > 0) {
+    return `${h}:${mStr}:${sStr}`;
+  }
+  return `${mStr}:${sStr}`;
+};
 
 const AIFlashcard = () => {
+    const [elapsedSeconds, setElapsedSeconds] = useState(0);
+    useStudyTimer(setElapsedSeconds);
     const [inputText, setInputText] = useState('');
     const [flashcards, setFlashcards] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -50,8 +65,13 @@ const AIFlashcard = () => {
         <div className="max-w-2xl mx-auto p-6 space-y-8 animate-in fade-in duration-500">
             {/* Input Section */}
             <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-                <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-slate-800">
-                    <Sparkles className="text-orange-500" /> AI Flashcard Generator
+                <h2 className="text-xl font-bold mb-4 flex items-center justify-between gap-2 text-slate-800">
+                    <span className="flex items-center gap-2">
+                        <Sparkles className="text-orange-500" /> AI Flashcard Generator
+                    </span>
+                    <span className="text-xs font-bold text-[#f26522] bg-orange-50 border border-orange-100 rounded-xl px-2.5 py-1">
+                        ⏱️ {formatSessionTime(elapsedSeconds)}
+                    </span>
                 </h2>
                 <textarea
                     className="w-full p-4 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none transition-all resize-none"

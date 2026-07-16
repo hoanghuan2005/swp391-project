@@ -13,6 +13,19 @@ import { toast } from "react-hot-toast"; // Đã thêm import toast
 import axiosClient from "@/api/axiosClient";
 import useDocuments from "@/hooks/useDocuments";
 import useMaterialPublish from "@/hooks/useMaterialPublish";
+import useStudyTimer from "@/hooks/useStudyTimer";
+
+const formatSessionTime = (seconds) => {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  const mStr = m.toString().padStart(2, "0");
+  const sStr = s.toString().padStart(2, "0");
+  if (h > 0) {
+    return `${h}:${mStr}:${sStr}`;
+  }
+  return `${mStr}:${sStr}`;
+};
 import FlashcardItem from "./FlashcardItem";
 import AISidebar from "@/components/ai-sidebar/sidebar/AISidebar";
 import { Button } from "@/components/ui/button";
@@ -49,6 +62,8 @@ import useAiUsage from "@/hooks/useAiUsage";
 import { isAiQuotaExceeded } from "@/api/aiUsageApi";
 
 export default function AIFlashcardGenerator({ contextData }) {
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  useStudyTimer(setElapsedSeconds);
   const [inputText, setInputText] = useState("");
   const [file, setFile] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -129,6 +144,8 @@ export default function AIFlashcardGenerator({ contextData }) {
 
   const fetchSidebarData = async () => {
     try {
+      const historyResponse = await getFlashcardSets();
+      setFlashcardHistory(historyResponse || []);
       const historyData = await getFlashcardSets();
       setFlashcardHistory(Array.isArray(historyData) ? historyData : []);
     } catch (error) {
@@ -152,7 +169,15 @@ export default function AIFlashcardGenerator({ contextData }) {
       } else {
         setViewMode(VIEW_MODE.PREVIEW);
       }
-      resetProgress();
+      const savedPercent = localStorage.getItem(`flashcard_progress_${setId}`);
+      if (savedPercent) {
+        const percent = parseInt(savedPercent, 10);
+        const idx = Math.min(Math.floor((percent / 100) * (data.flashcards?.length || 0)), (data.flashcards?.length || 1) - 1);
+        setCurrentIndex(isNaN(idx) || idx < 0 ? 0 : idx);
+        setIsCompleted(percent === 100);
+      } else {
+        resetProgress();
+      }
     } catch (error) {
       console.error("Load set error:", error);
     } finally {
@@ -231,6 +256,7 @@ export default function AIFlashcardGenerator({ contextData }) {
         title: activeSetTitle,
         flashcards,
       });
+      const updatedSet = response;
       setFlashcards(updatedSet.flashcards || []);
       setActiveSetTitle(updatedSet.title);
       setSelectedFlashcardSet((current) => ({ ...current, ...updatedSet }));
@@ -263,6 +289,7 @@ export default function AIFlashcardGenerator({ contextData }) {
         flashcards,
         savedToLibrary: true,
       });
+      const updatedSet = response;
       setFlashcards(updatedSet.flashcards || []);
       setActiveSetTitle(updatedSet.title);
       setSelectedFlashcardSet((current) => ({ ...current, ...updatedSet }));
@@ -484,6 +511,13 @@ export default function AIFlashcardGenerator({ contextData }) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [currentIndex, isCompleted, flashcards.length]);
 
+  useEffect(() => {
+    if (selectedFlashcardSet?.id && flashcards.length > 0) {
+      const percentage = isCompleted ? 100 : Math.round((currentIndex / flashcards.length) * 100);
+      localStorage.setItem(`flashcard_progress_${selectedFlashcardSet.id}`, percentage.toString());
+    }
+  }, [currentIndex, isCompleted, selectedFlashcardSet, flashcards]);
+
   return (
     <div className="h-[calc(100vh-68px)] overflow-hidden bg-white shadow-sm -mx-8 -my-6">
       <div className="flex h-full">
@@ -520,11 +554,16 @@ export default function AIFlashcardGenerator({ contextData }) {
               title="AI Flashcards Generator"
               description="Create flashcards to enhance your learning and retention."
               rightElement={
-                <AiUsageBadge
-                  subscriptionTier={subscriptionTier}
-                  remainingUsage={remainingUsage}
-                  loading={aiUsageLoading}
-                />
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-[#f26522] bg-orange-50 border border-orange-100 rounded-xl px-2.5 py-1">
+                    <span>⏱️ {formatSessionTime(elapsedSeconds)}</span>
+                  </div>
+                  <AiUsageBadge
+                    subscriptionTier={subscriptionTier}
+                    remainingUsage={remainingUsage}
+                    loading={aiUsageLoading}
+                  />
+                </div>
               }
             />
 
@@ -606,7 +645,7 @@ export default function AIFlashcardGenerator({ contextData }) {
                             </Button>
 
                             <Button
-                              className="rounded-full bg-indigo-600 hover:bg-indigo-700 h-9 px-4 text-sm text-white cursor-pointer shadow-sm font-semibold"
+                              className="rounded-full bg-orange-100 hover:bg-orange-200 h-9 px-4 text-sm text-orange-700 cursor-pointer font-semibold"
                               onClick={handleSaveToLibrary}
                               disabled={isSaving || !selectedFlashcardSet?.id}
                             >

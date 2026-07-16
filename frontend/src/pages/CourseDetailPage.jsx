@@ -481,7 +481,7 @@ export default function CourseDetailPage() {
             : Promise.resolve({ data: [] }),
           token
             ? axiosClient.get(`/api/ai_flashcard/course/${id}`)
-            : Promise.resolve({ data: { data: [] } }),
+            : Promise.resolve({ data: [] }),
         ]);
 
       setCourse(courseRes.data);
@@ -491,7 +491,7 @@ export default function CourseDetailPage() {
       setDocuments(docsRes.data.content || []);
       setIsFollowing(followStatusRes.data);
       setQuizzes(quizzesRes.data || []);
-      setFlashcards(flashcardsRes.data?.data || []);
+      setFlashcards(flashcardsRes.data || []);
     } catch (err) {
       console.error(err);
     } finally {
@@ -717,7 +717,12 @@ export default function CourseDetailPage() {
 
                   <div className="flex items-center gap-2 bg-white border border-orange-100/90 rounded-full px-3.5 py-1 text-xs font-medium text-slate-650 shadow-sm">
                     <Eye className="w-4 h-4 text-[#f66810]" />
-                    <span>2.1k views</span>
+                    <span>
+                      {course.viewCount >= 1000
+                        ? `${(course.viewCount / 1000).toFixed(1)}k`
+                        : course.viewCount || 0}{" "}
+                      views
+                    </span>
                   </div>
 
                   <div className="flex items-center gap-2 bg-white border border-orange-100/90 rounded-full px-3.5 py-1 text-xs font-medium text-slate-650 shadow-sm">

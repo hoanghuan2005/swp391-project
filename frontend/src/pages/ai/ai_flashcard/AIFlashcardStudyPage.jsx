@@ -14,8 +14,23 @@ import { getFlashcardSet } from "@/api/flashcardApi";
 import { toast } from "react-hot-toast";
 import FlashcardItem from "./FlashcardItem";
 import axiosClient from "@/api/axiosClient";
+import useStudyTimer from "@/hooks/useStudyTimer";
+
+const formatSessionTime = (seconds) => {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  const mStr = m.toString().padStart(2, "0");
+  const sStr = s.toString().padStart(2, "0");
+  if (h > 0) {
+    return `${h}:${mStr}:${sStr}`;
+  }
+  return `${mStr}:${sStr}`;
+};
 
 export default function AIFlashcardStudyPage() {
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  useStudyTimer(setElapsedSeconds);
   const { id } = useParams();
   const navigate = useNavigate();
   const [flashcardSet, setFlashcardSet] = useState(null);
@@ -49,8 +64,16 @@ export default function AIFlashcardStudyPage() {
 
         setFlashcardSet(data);
         setIsLiked(data.isFavorite || false);
-        setCurrentIndex(0);
-        setIsCompleted(false);
+        const savedPercent = localStorage.getItem(`flashcard_progress_${id}`);
+        if (savedPercent) {
+          const percent = parseInt(savedPercent, 10);
+          const idx = Math.min(Math.floor((percent / 100) * (data.flashcards?.length || 0)), (data.flashcards?.length || 1) - 1);
+          setCurrentIndex(isNaN(idx) || idx < 0 ? 0 : idx);
+          setIsCompleted(percent === 100);
+        } else {
+          setCurrentIndex(0);
+          setIsCompleted(false);
+        }
       } catch (error) {
         console.error("Failed to load flashcard study session", error);
         toast.error("Failed to load flashcard set data.");
@@ -114,6 +137,13 @@ export default function AIFlashcardStudyPage() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [currentIndex, isCompleted, flashcardSet]);
 
+  useEffect(() => {
+    if (flashcardSet?.id && flashcardSet.flashcards?.length > 0) {
+      const percentage = isCompleted ? 100 : Math.round((currentIndex / flashcardSet.flashcards.length) * 100);
+      localStorage.setItem(`flashcard_progress_${flashcardSet.id}`, percentage.toString());
+    }
+  }, [currentIndex, isCompleted, flashcardSet]);
+
   if (loading && !flashcardSet) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50/50">
@@ -143,6 +173,9 @@ export default function AIFlashcardStudyPage() {
                 className="bg-[#f26522] h-full rounded-full transition-all duration-300 ease-out"
                 style={{ width: `${progressPercentage}%` }}
               ></div>
+            </div>
+            <div className="flex items-center gap-1.5 text-xs font-bold text-[#f26522] shrink-0 bg-orange-50 border border-orange-100 rounded-xl px-2.5 py-1">
+              <span>⏱️ {formatSessionTime(elapsedSeconds)}</span>
             </div>
             <Button
               size="sm"
@@ -185,7 +218,7 @@ export default function AIFlashcardStudyPage() {
                       {flashcardSet?.title || "AI Flashcards Set"}
                     </h1>
                     <p className="text-sm text-slate-505 mt-1">
-                      {totalCards} cards • Interactive learning mode
+                      {totalCards} cards • Interactive learning mode • ⏱️ {formatSessionTime(elapsedSeconds)}
                     </p>
                   </div>
                 </div>

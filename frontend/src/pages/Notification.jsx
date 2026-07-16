@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Bell } from "lucide-react";
 import axiosClient from "@/api/axiosClient";
 import { getMyInvitationStatus, acceptInvitation, rejectInvitation } from "@/api/projectApi";
 import { Button } from "@/components/ui/button";
@@ -153,7 +154,7 @@ export default function NotificationPage() {
             >
               <div className="flex items-start gap-4">
                 <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center text-orange-500 flex-shrink-0">
-                  🔔
+                  <Bell className="w-5 h-5 text-[#f26522]" />
                 </div>
 
                 <div className="flex-1">
