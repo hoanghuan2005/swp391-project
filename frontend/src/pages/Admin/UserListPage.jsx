@@ -572,8 +572,8 @@ export default function UserListPage() {
 
       <Card className="rounded-2xl shadow-sm border-slate-100">
         <CardHeader className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 pb-4 border-b border-slate-100">
-          <div>
-            <CardTitle className="text-lg text-slate-700">
+          <div className="shrink-0">
+            <CardTitle className="text-lg text-slate-700 whitespace-nowrap">
               Account List
             </CardTitle>
             <p className="mt-1 text-xs font-medium text-slate-400">

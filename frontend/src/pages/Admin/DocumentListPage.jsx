@@ -147,7 +147,7 @@ export default function DocumentListPage() {
       <Card className="rounded-2xl shadow-sm border-slate-100">
         {/* Thanh công cụ (Toolbar) theo chuẩn Base CRUD của Leader */}
         <CardHeader className="flex flex-col sm:flex-row items-center justify-between gap-4 pb-4 border-b border-slate-100">
-          <CardTitle className="text-lg text-slate-700">
+          <CardTitle className="text-lg text-slate-700 whitespace-nowrap shrink-0">
             All Documents
           </CardTitle>
 
