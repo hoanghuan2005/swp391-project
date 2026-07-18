@@ -4,13 +4,40 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Brain, Search, Sparkles, BarChart3, Database } from "lucide-react";
+import { Brain, Search, Sparkles, BarChart3, Database, ChevronUp, ChevronDown } from "lucide-react";
 import AdminToolbar from "@/components/admin/AdminToolbar";
+import { Button } from "@/components/ui/button";
+
+function SortableHead({ sortKey, sortConfig, onSort, className, children }) {
+  const isActive = sortConfig.key === sortKey;
+  const Icon = isActive && sortConfig.direction === "desc" ? ChevronDown : ChevronUp;
+
+  return (
+    <TableHead className={`${className} px-1 text-center`}>
+      <Button
+        type="button"
+        variant="ghost"
+        onClick={() => onSort(sortKey)}
+        className="h-7 mx-auto flex items-center justify-center px-1 font-bold text-slate-700 hover:bg-slate-100 focus-visible:ring-[#f26522]/30 text-xs"
+      >
+        {children}
+        <Icon
+          className={`ml-0.5 h-3 w-3 ${
+            isActive ? "text-[#f26522]" : "text-slate-300"
+          }`}
+          aria-hidden="true"
+        />
+      </Button>
+    </TableHead>
+  );
+}
 
 export default function AiUsageListPage() {
   const [usages, setUsages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [subscriptionFilter, setSubscriptionFilter] = useState("ALL");
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
 
   const fetchUsages = async () => {
     try {
@@ -30,11 +57,51 @@ export default function AiUsageListPage() {
 
   const filteredUsages = usages.filter((u) => {
     const keyword = searchQuery.trim().toLowerCase();
-    return (
+    const matchesSearch = (
       u.username?.toLowerCase().includes(keyword) ||
       u.email?.toLowerCase().includes(keyword)
     );
+    const matchesSubscription = subscriptionFilter === "ALL" || u.subscriptionTier === subscriptionFilter;
+    return matchesSearch && matchesSubscription;
   });
+
+  const handleSort = (key) => {
+    let direction = "asc";
+    if (sortConfig.key === key && sortConfig.direction === "asc") {
+      direction = "desc";
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const sortedUsages = React.useMemo(() => {
+    const sortableItems = [...filteredUsages];
+    if (sortConfig.key !== null) {
+      sortableItems.sort((a, b) => {
+        let aVal = a[sortConfig.key];
+        let bVal = b[sortConfig.key];
+
+        if (sortConfig.key === "subscriptionTier") {
+          aVal = a.subscriptionTier || "";
+          bVal = b.subscriptionTier || "";
+        } else if (sortConfig.key === "remainingUsage") {
+          aVal = a.remainingUsage ?? 0;
+          bVal = b.remainingUsage ?? 0;
+        } else if (sortConfig.key === "totalRequests") {
+          aVal = a.totalRequests ?? 0;
+          bVal = b.totalRequests ?? 0;
+        }
+
+        if (aVal < bVal) {
+          return sortConfig.direction === "asc" ? -1 : 1;
+        }
+        if (aVal > bVal) {
+          return sortConfig.direction === "asc" ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+    return sortableItems;
+  }, [filteredUsages, sortConfig]);
 
   const stats = React.useMemo(() => {
     let totalLifetimeRequests = 0;
@@ -133,7 +200,7 @@ export default function AiUsageListPage() {
       <Card className="rounded-2xl border-slate-100 shadow-sm">
         <CardContent className="p-6 space-y-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between w-full pb-2 border-b border-slate-100">
-            <h4 className="text-lg font-bold text-slate-700">AI usages directory</h4>
+            <h4 className="text-lg font-bold text-slate-700 whitespace-nowrap">AI usages directory</h4>
           </div>
           <div className="w-full pt-2">
             <AdminToolbar
@@ -141,9 +208,26 @@ export default function AiUsageListPage() {
               onSearchChange={setSearchQuery}
               searchPlaceholder="Search by user or email..."
               showImport={false}
-              exportData={filteredUsages}
+              exportData={sortedUsages}
               exportColumns={columnsForExport}
               exportFilename="ai_usages_export.csv"
+              activeFiltersCount={subscriptionFilter !== "ALL" ? 1 : 0}
+              onClearFilters={() => setSubscriptionFilter("ALL")}
+              filters={
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Subscription</label>
+                  <select
+                    id="admin-ai-subscription-filter"
+                    value={subscriptionFilter}
+                    onChange={(event) => setSubscriptionFilter(event.target.value)}
+                    className="w-full h-10 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-600 outline-none focus:border-[#f26522]/40 focus:ring-1 focus:ring-[#f26522]/20 cursor-pointer"
+                  >
+                    <option value="ALL">All plans</option>
+                    <option value="FREE">FREE</option>
+                    <option value="PRO">PRO</option>
+                  </select>
+                </div>
+              }
             />
           </div>
 
@@ -151,7 +235,7 @@ export default function AiUsageListPage() {
             <div className="text-center py-10 text-slate-400 text-sm">
               Loading AI usage logs...
             </div>
-          ) : filteredUsages.length === 0 ? (
+          ) : sortedUsages.length === 0 ? (
             <div className="text-center py-10 text-slate-400 text-sm">
               No users match the query.
             </div>
@@ -163,19 +247,34 @@ export default function AiUsageListPage() {
                     <TableHead className="text-slate-600 font-bold text-xs uppercase w-[35%]">
                       User details
                     </TableHead>
-                    <TableHead className="text-slate-600 font-bold text-xs uppercase w-[20%] text-center">
+                    <SortableHead
+                      sortKey="subscriptionTier"
+                      sortConfig={sortConfig}
+                      onSort={handleSort}
+                      className="w-[20%] font-bold"
+                    >
                       Subscription
-                    </TableHead>
-                    <TableHead className="text-slate-600 font-bold text-xs uppercase w-[25%] text-center">
+                    </SortableHead>
+                    <SortableHead
+                      sortKey="remainingUsage"
+                      sortConfig={sortConfig}
+                      onSort={handleSort}
+                      className="w-[25%] font-bold"
+                    >
                       Remaining Monthly Quota
-                    </TableHead>
-                    <TableHead className="text-slate-600 font-bold text-xs uppercase w-[20%] text-center">
+                    </SortableHead>
+                    <SortableHead
+                      sortKey="totalRequests"
+                      sortConfig={sortConfig}
+                      onSort={handleSort}
+                      className="w-[20%] font-bold"
+                    >
                       Lifetime Requests
-                    </TableHead>
+                    </SortableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredUsages.map((u) => {
+                  {sortedUsages.map((u) => {
                     const isPro = u.subscriptionTier === "PRO";
 
                     return (

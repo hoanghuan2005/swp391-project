@@ -256,7 +256,6 @@ export default function AIFlashcardGenerator({ contextData }) {
         title: activeSetTitle,
         flashcards,
       });
-      const updatedSet = response;
       setFlashcards(updatedSet.flashcards || []);
       setActiveSetTitle(updatedSet.title);
       setSelectedFlashcardSet((current) => ({ ...current, ...updatedSet }));
@@ -289,7 +288,6 @@ export default function AIFlashcardGenerator({ contextData }) {
         flashcards,
         savedToLibrary: true,
       });
-      const updatedSet = response;
       setFlashcards(updatedSet.flashcards || []);
       setActiveSetTitle(updatedSet.title);
       setSelectedFlashcardSet((current) => ({ ...current, ...updatedSet }));
