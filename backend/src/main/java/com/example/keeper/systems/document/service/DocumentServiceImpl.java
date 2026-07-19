@@ -538,6 +538,7 @@ public class DocumentServiceImpl implements DocumentService {
 
         documentReportRepository.deleteByDocumentId(document.getId());
 
+        documentRepository.deleteDocumentReviewAssociations(document.getId());
         documentRepository.deleteProjectDocumentAssociations(document.getId());
         documentRepository.deleteUserFavoriteAssociations(document.getId());
 

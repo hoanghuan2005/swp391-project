@@ -19,7 +19,7 @@ export default function DocumentReviews({ documentId, uploadedById }) {
         try {
             setIsLoading(true);
             const res = await getDocumentReviews(documentId);
-            setReviews(res.data.data || []);
+            setReviews(Array.isArray(res.data) ? res.data : (res.data?.data || []));
         } catch (error) {
             console.error("Error when loading reviews:", error);
         } finally {
