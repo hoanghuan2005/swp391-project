@@ -2,9 +2,9 @@ package com.example.keeper.systems.auth.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -13,7 +13,9 @@ import org.springframework.stereotype.Service;
 public class EmailService {
     private final JavaMailSender mailSender;
 
-    @Async
+    @Value("${app.frontend.url:http://localhost:5173}")
+    private String frontendUrl;
+
     public void sendResetPasswordEmail(String to, String otp) {
         try {
             SimpleMailMessage message = new SimpleMailMessage();
@@ -26,7 +28,6 @@ public class EmailService {
         }
     }
 
-    @Async
     public void sendSignupOtpEmail(String to, String otp) {
         try {
             SimpleMailMessage message = new SimpleMailMessage();
@@ -39,16 +40,17 @@ public class EmailService {
         }
     }
 
-    @Async
     public void sendWorkspaceInvitationEmail(String to, String inviterName, String workspaceName, String token) {
         try {
             SimpleMailMessage message = new SimpleMailMessage();
             message.setTo(to);
             message.setSubject("Invitation to join workspace " + workspaceName + " - Keeper App");
+            String acceptUrl = (frontendUrl.endsWith("/") ? frontendUrl.substring(0, frontendUrl.length() - 1) : frontendUrl)
+                    + "/workspace/invite/accept?token=" + token;
             message.setText(inviterName + " has invited you to collaborate on the workspace \"" + workspaceName
                     + "\" on Keeper App.\n\n" +
                     "To accept the invitation, please click the link below:\n" +
-                    "http://localhost:5173/workspace/invite/accept?token=" + token + "\n\n" +
+                    acceptUrl + "\n\n" +
                     "This invitation will expire in 24 hours.");
             mailSender.send(message);
         } catch (Exception e) {
@@ -56,7 +58,6 @@ public class EmailService {
         }
     }
 
-    @Async
     public void sendSubscriptionSuccessEmail(String to, String fullName) {
         try {
             SimpleMailMessage message = new SimpleMailMessage();
