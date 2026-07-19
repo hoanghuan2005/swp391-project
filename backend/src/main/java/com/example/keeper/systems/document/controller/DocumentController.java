@@ -51,6 +51,18 @@ public class DocumentController {
         return documentService.getDetail(document.getId(), email);
     }
 
+    @Operation(summary = "Check if a duplicate document exists in the user's library")
+    @GetMapping("/check-duplicate")
+    public ResponseEntity<Map<String, Object>> checkDuplicate(
+            @RequestParam("fileName") String fileName,
+            @RequestParam("fileSize") Long fileSize) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        boolean isDuplicate = documentService.checkDuplicate(fileName, fileSize, email);
+        Map<String, Object> response = new java.util.HashMap<>();
+        response.put("isDuplicate", isDuplicate);
+        return ResponseEntity.ok(response);
+    }
+
     @Operation(summary = "Upload a document")
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public DocumentDetailResponse upload(

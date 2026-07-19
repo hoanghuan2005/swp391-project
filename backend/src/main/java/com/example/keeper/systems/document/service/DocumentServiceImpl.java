@@ -996,4 +996,11 @@ public class DocumentServiceImpl implements DocumentService {
         report.setStatus(status);
         documentReportRepository.save(report);
     }
+
+    @Override
+    public boolean checkDuplicate(String fileName, Long fileSize, String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        return documentRepository.existsByOriginalFileNameAndFileSizeAndUploadedById(fileName, fileSize, user.getId());
+    }
 }

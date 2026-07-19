@@ -92,4 +92,6 @@ public interface DocumentRepository extends JpaRepository<Document, UUID> {
     @org.springframework.transaction.annotation.Transactional
     @Query(value = "DELETE FROM user_favorites WHERE document_id = :documentId", nativeQuery = true)
     void deleteUserFavoriteAssociations(@Param("documentId") UUID documentId);
+
+    boolean existsByOriginalFileNameAndFileSizeAndUploadedById(String originalFileName, Long fileSize, UUID uploadedById);
 }

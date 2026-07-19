@@ -49,4 +49,6 @@ public interface DocumentService {
     List<com.example.keeper.systems.document.dto.response.DocumentReportResponse> getAllReports();
 
     void resolveReport(UUID reportId, String status);
+
+    boolean checkDuplicate(String fileName, Long fileSize, String email);
 }
