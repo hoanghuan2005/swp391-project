@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axiosClient from "@/api/axiosClient";
+import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -258,7 +259,18 @@ export default function TransactionListPage() {
                         <TableCell>
                           {t.email ? (
                             <div>
-                              <div className="font-semibold text-slate-700">{t.username}</div>
+                              <div className="font-semibold text-slate-700">
+                                {t.userId ? (
+                                  <Link
+                                    to={`/admin/users/${t.userId}`}
+                                    className="text-slate-700 hover:text-[#f26522] transition-colors cursor-pointer"
+                                  >
+                                    {t.username}
+                                  </Link>
+                                ) : (
+                                  t.username
+                                )}
+                              </div>
                               <div className="text-xs text-slate-400 mt-0.5">{t.email}</div>
                             </div>
                           ) : (

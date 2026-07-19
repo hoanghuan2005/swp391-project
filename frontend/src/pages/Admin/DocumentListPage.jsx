@@ -13,7 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Trash2, Eye, Search, Plus, FileText, Pencil } from "lucide-react";
+import { Trash2, Search, Plus, FileText, Pencil } from "lucide-react";
 import UploadDocumentDialog from "@/components/documents/UploadDocumentDialog";
 import EditDocumentModal from "@/components/share/EditDocumentModal";
 import { useModal } from "@/components/share/useModal";
@@ -240,14 +240,15 @@ export default function DocumentListPage() {
                     <TableHead className="w-[50px] text-center font-bold">
                       No.
                     </TableHead>
-                    <TableHead className="w-[25%] font-bold">Title</TableHead>
-                    <TableHead className="w-[15%] text-center font-bold">
+                    <TableHead className="w-[20%] font-bold">Title</TableHead>
+                    <TableHead className="w-[12%] text-center font-bold">Uploader</TableHead>
+                    <TableHead className="w-[12%] text-center font-bold">
                       Course Code
                     </TableHead>
-                    <TableHead className="w-[15%] text-center font-bold">
+                    <TableHead className="w-[12%] text-center font-bold">
                       Visibility
                     </TableHead>
-                    <TableHead className="w-[14%] text-center font-bold">
+                    <TableHead className="w-[12%] text-center font-bold">
                       AI Status
                     </TableHead>
                     <TableHead className="w-[10%] text-center font-bold">
@@ -265,7 +266,7 @@ export default function DocumentListPage() {
                   {filteredDocuments.length === 0 ? (
                     <TableRow>
                       <TableCell
-                        colSpan={8}
+                        colSpan={9}
                         className="text-center py-8 text-slate-500"
                       >
                         No documents found.
@@ -281,8 +282,30 @@ export default function DocumentListPage() {
                           {index + 1}
                         </TableCell>
 
-                        <TableCell className="font-semibold text-slate-700">
-                          {doc.title || "Untitled Document"}
+                         <TableCell className="font-semibold text-slate-700">
+                          <div className="max-w-[220px] truncate" title={doc.title}>
+                            <Link
+                              to={`/admin/documents/${doc.id}`}
+                              className="text-slate-700 hover:text-[#f26522] transition-colors cursor-pointer"
+                            >
+                              {doc.title || "Untitled Document"}
+                            </Link>
+                          </div>
+                        </TableCell>
+
+                        <TableCell className="text-center font-semibold text-slate-700 text-sm">
+                          <div className="max-w-[120px] mx-auto truncate" title={doc.uploadedBy?.username}>
+                            {doc.uploadedBy?.username ? (
+                              <Link
+                                to={`/admin/users/${doc.uploadedBy.id}`}
+                                className="text-slate-700 hover:text-[#f26522] transition-colors cursor-pointer"
+                              >
+                                {doc.uploadedBy.username}
+                              </Link>
+                            ) : (
+                              <span className="text-slate-400 font-medium">N/A</span>
+                            )}
+                          </div>
                         </TableCell>
 
                         <TableCell className="text-center">
@@ -343,19 +366,6 @@ export default function DocumentListPage() {
 
                         <TableCell className="text-right pr-4">
                           <div className="flex justify-end gap-2">
-                            {/* Nút Xem (View) */}
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-8 w-8 text-slate-500 hover:text-[#f26522] hover:bg-[#f26522]/10 rounded-lg cursor-pointer transition-colors"
-                              title="View Document"
-                              asChild
-                            >
-                              <Link to={`/admin/documents/${doc.id}`}>
-                                <Eye className="w-4 h-4" />
-                              </Link>
-                            </Button>
-
                             {/* Nút Sửa (Edit - Chỉ hiển thị nếu tài liệu của chính Admin) */}
                             {currentAdmin?.id && doc.uploadedBy?.id && doc.uploadedBy.id === currentAdmin.id && (
                               <Button

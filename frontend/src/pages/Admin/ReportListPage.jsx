@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { getDocumentReports, resolveDocumentReport } from "@/api/documentApi";
+import { Link } from "react-router-dom";
 import axiosClient from "@/api/axiosClient";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -89,26 +90,46 @@ export default function ReportListPage() {
                         {index + 1}
                       </TableCell>
                       <TableCell className="font-semibold text-slate-700">
-                        <a
-                          href={`/admin/documents/${report.documentId}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-[#f26522] hover:underline"
-                        >
-                          {report.documentTitle || "Untitled"}
-                        </a>
+                        <div className="max-w-[200px] truncate" title={report.documentTitle}>
+                          <Link
+                            to={`/admin/documents/${report.documentId}`}
+                            className="text-slate-700 hover:text-[#f26522] transition-colors cursor-pointer"
+                          >
+                            {report.documentTitle || "Untitled"}
+                          </Link>
+                        </div>
                       </TableCell>
                       <TableCell className="text-slate-600 text-sm">
                         {report.reason}
                       </TableCell>
                       <TableCell className="text-slate-600 text-sm">
-                        <div>{report.reporterUsername || "User"}</div>
-                        <div className="text-xs text-slate-400">{report.reporterEmail}</div>
+                        <div className="font-semibold">
+                          {report.reporterId ? (
+                            <Link
+                              to={`/admin/users/${report.reporterId}`}
+                              className="text-slate-700 hover:text-[#f26522] transition-colors cursor-pointer"
+                            >
+                              {report.reporterUsername || "User"}
+                            </Link>
+                          ) : (
+                            report.reporterUsername || "User"
+                          )}
+                        </div>
+                        <div className="text-xs text-slate-400 mt-0.5">{report.reporterEmail}</div>
                       </TableCell>
                       <TableCell className="text-slate-600 text-sm">
                         <div className="flex flex-col gap-1">
-                          <div>
-                            {report.uploaderUsername || "User"}{" "}
+                          <div className="font-semibold">
+                            {report.uploaderId ? (
+                              <Link
+                                  to={`/admin/users/${report.uploaderId}`}
+                                  className="text-slate-700 hover:text-[#f26522] transition-colors cursor-pointer"
+                              >
+                                {report.uploaderUsername || "User"}
+                              </Link>
+                            ) : (
+                              report.uploaderUsername || "User"
+                            )}{" "}
                             {report.isUploaderBanned && (
                               <Badge variant="destructive" className="ml-1 text-[10px] px-1 py-0">
                                 Banned

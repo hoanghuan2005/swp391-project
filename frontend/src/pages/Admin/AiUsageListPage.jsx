@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axiosClient from "@/api/axiosClient";
+import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -280,7 +281,18 @@ export default function AiUsageListPage() {
                     return (
                       <TableRow key={u.userId} className="hover:bg-slate-50/30">
                         <TableCell>
-                          <div className="font-semibold text-slate-700">{u.username}</div>
+                          <div className="font-semibold text-slate-700">
+                            {u.userId ? (
+                              <Link
+                                to={`/admin/users/${u.userId}`}
+                                className="text-slate-700 hover:text-[#f26522] transition-colors cursor-pointer"
+                              >
+                                {u.username}
+                              </Link>
+                            ) : (
+                              u.username
+                            )}
+                          </div>
                           <div className="text-xs text-slate-400 mt-0.5">{u.email}</div>
                         </TableCell>
                         <TableCell className="text-center">
