@@ -1,0 +1,183 @@
+# Implementation Plan: Subscription Tier Limits
+
+## Mục tiêu
+Enforce giới hạn theo subscription tier (FREE / PRO) cho flashcard, quiz, project/group. Cập nhật UI hiển thị chi tiết quyền lợi.
+
+## Proposed Tier Limits
+
+| Feature | FREE | PRO |
+|---|---|---|
+| **Flashcard / lần tạo** | Tối đa 15 cards | Unlimited (AI tự quyết) |
+| **Quiz questions / lần tạo** | Tối đa 20 câu | Tối đa 50 câu |
+| **Project tạo** | Tối đa 3 projects | Unlimited |
+| **Project tham gia** | Tối đa 5 projects | Unlimited |
+| **AI requests / ngày** | 5 (giữ nguyên) | Unlimited (giữ nguyên) |
+| **Upload tài liệu / ngày** | 3 (giữ nguyên) | Unlimited (giữ nguyên) |
+| **Tổng tài liệu** | 20 (giữ nguyên) | Unlimited (giữ nguyên) |
+| **File size tối đa** | 10MB (giữ nguyên) | 50MB (giữ nguyên) |
+
+> [!IMPORTANT]
+> Các con số trên có phù hợp không? Bạn muốn điều chỉnh gì?
+
+---
+
+## Proposed Changes
+
+### 1. Centralized Tier Config
+
+#### [NEW] TierLimitsConfig.java
+`backend/src/main/java/com/example/keeper/systems/auth/config/TierLimitsConfig.java`
+
+Tạo utility class tập trung tất cả giới hạn theo tier:
+- `getMaxFlashcardsPerGeneration(SubscriptionTier)` → FREE: 15, PRO: -1 (unlimited)
+- `getMaxQuizQuestionsPerGeneration(SubscriptionTier)` → FREE: 20, PRO: 50
+- `getMaxOwnedProjects(SubscriptionTier)` → FREE: 3, PRO: -1
+- `getMaxJoinedProjects(SubscriptionTier)` → FREE: 5, PRO: -1
+
+---
+
+### 2. Backend: Flashcard Generation Limit
+
+#### [MODIFY] [AiFlashcardService.java](file:///d:/SWP391/backend/src/main/java/com/example/keeper/systems/ai_flashcard/service/AiFlashcardService.java)
+
+Trong `generateFlashcardsFromContent()` (L319):
+- Inject `TierLimitsConfig`
+- Lấy `maxCards` dựa trên user's tier
+- Thêm số lượng cards vào prompt AI: `"Tạo tối đa {maxCards} flashcards"`
+- Sau khi parse kết quả, truncate list nếu vượt quá `maxCards`
+
+---
+
+### 3. Backend: Quiz Generation Limit
+
+#### [MODIFY] [QuizGeneratorServiceImpl.java](file:///d:/SWP391/backend/src/main/java/com/example/keeper/systems/ai_quiz/service/impl/QuizGeneratorServiceImpl.java)
+
+Trong cả `generateQuiz()` (L54) và `generateQuizFromFile()` (L296):
+- Inject `TierLimitsConfig`
+- Lấy `maxQuestions` theo tier
+- Validate `questionCount` không vượt quá `maxQuestions` → throw exception nếu vi phạm
+- Cập nhật `buildPrompt()` clamp count theo tier limit
+
+---
+
+### 4. Backend: Project/Group Limits
+
+#### [MODIFY] [ProjectServiceImpl.java](file:///d:/SWP391/backend/src/main/java/com/example/keeper/systems/project/service/impl/ProjectServiceImpl.java)
+
+**Tạo project** (`create()` L45):
+- Inject `TierLimitsConfig`
+- Đếm projects hiện tại bằng `projectRepository.countByOwnerId()`
+- So sánh với `getMaxOwnedProjects(tier)` → throw `ProjectQuotaExceededException` nếu vượt
+
+**Tham gia project** (`acceptInvitation()` L369):
+- Đếm memberships bằng `projectMemberRepository.countByUserId()`
+- So sánh với `getMaxJoinedProjects(tier)` → throw `ProjectQuotaExceededException` nếu vượt
+
+#### [NEW] ProjectQuotaExceededException.java
+`backend/src/main/java/com/example/keeper/systems/project/exception/ProjectQuotaExceededException.java`
+- Extends `RuntimeException`
+- Handled by global exception handler, trả về HTTP 429
+
+---
+
+### 5. Backend: API trả thêm tier limits cho frontend
+
+#### [MODIFY] [AiUsageController.java](file:///d:/SWP391/backend/src/main/java/com/example/keeper/systems/ai_usage/controller/AiUsageController.java)
+
+Thêm thông tin tier limits vào response `/api/ai-usage/me`:
+```json
+{
+  "subscriptionTier": "FREE",
+  "remainingUsage": 3,
+  "tierLimits": {
+    "maxFlashcardsPerGeneration": 15,
+    "maxQuizQuestionsPerGeneration": 20,
+    "maxOwnedProjects": 3,
+    "maxJoinedProjects": 5,
+    "maxFileSizeBytes": 10485760,
+    "dailyUploadLimit": 3,
+    "totalDocumentLimit": 20,
+    "dailyAiLimit": 5
+  }
+}
+```
+
+---
+
+### 6. Frontend: Cập nhật Pricing UI chi tiết
+
+#### [MODIFY] [PricingModal.jsx](file:///d:/SWP391/frontend/src/components/modals/PricingModal.jsx)
+
+Cập nhật `plans` array với features chi tiết hơn:
+```
+FREE:
+- "5 AI requests / day"
+- "Up to 15 flashcards per generation"
+- "Up to 20 quiz questions per generation"
+- "Create up to 3 workspaces"
+- "Join up to 5 workspaces"
+- "10MB max file size"
+
+PRO:
+- "Unlimited AI requests"
+- "Unlimited flashcards per generation"
+- "Up to 50 quiz questions per generation"
+- "Unlimited workspaces"
+- "50MB max file size"
+- "Priority support"
+```
+
+#### [MODIFY] [LandingPage.jsx](file:///d:/SWP391/frontend/src/pages/LandingPage.jsx)
+
+Cập nhật pricing section (L246-L336) với cùng danh sách features chi tiết.
+
+---
+
+### 7. Frontend: Quiz Settings cập nhật theo tier
+
+#### [MODIFY] [AIQuizGenerator.jsx](file:///d:/SWP391/frontend/src/pages/ai/ai_quiz/AIQuizGenerator.jsx)
+
+- Thay đổi question count options dựa trên tier:
+  - FREE: `[5, 10, 15, 20]` (giữ nguyên, max 20)
+  - PRO: `[5, 10, 15, 20, 30, 50]` (mở rộng đến 50)
+- Hiển thị thông báo nếu user FREE chọn nhiều hơn limit
+
+---
+
+### 8. Frontend: useAiUsage hook cập nhật
+
+#### [MODIFY] [useAiUsage.js](file:///d:/SWP391/frontend/src/hooks/useAiUsage.js)
+
+Thêm `tierLimits` vào state để frontend sử dụng.
+
+---
+
+## Verification Plan
+
+### Automated Tests
+- Chạy lại `mvn compile` để đảm bảo backend build thành công
+- Test frontend vẫn chạy bình thường với `npm run dev`
+
+### Manual Verification
+- Đăng nhập tài khoản FREE → tạo flashcard → verify số lượng cards ≤ 15
+- Đăng nhập tài khoản FREE → tạo quiz → verify không chọn được > 20 questions
+- Đăng nhập tài khoản FREE → tạo project thứ 4 → verify bị chặn
+- Kiểm tra Pricing Modal hiển thị đầy đủ quyền lợi
+- Kiểm tra Landing Page pricing section
+
+---
+
+## Danh sách Files sẽ thay đổi
+
+| File | Action |
+|---|---|
+| `backend/.../auth/config/TierLimitsConfig.java` | **NEW** |
+| `backend/.../project/exception/ProjectQuotaExceededException.java` | **NEW** |
+| `backend/.../ai_flashcard/service/AiFlashcardService.java` | MODIFY |
+| `backend/.../ai_quiz/service/impl/QuizGeneratorServiceImpl.java` | MODIFY |
+| `backend/.../project/service/impl/ProjectServiceImpl.java` | MODIFY |
+| `backend/.../ai_usage/controller/AiUsageController.java` | MODIFY |
+| `frontend/src/components/modals/PricingModal.jsx` | MODIFY |
+| `frontend/src/pages/LandingPage.jsx` | MODIFY |
+| `frontend/src/pages/ai/ai_quiz/AIQuizGenerator.jsx` | MODIFY |
+| `frontend/src/hooks/useAiUsage.js` | MODIFY |

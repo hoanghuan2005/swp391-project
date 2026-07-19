@@ -1,5 +1,6 @@
 package com.example.keeper.systems.project.service.impl;
 
+import com.example.keeper.systems.auth.config.TierLimitsConfig;
 import com.example.keeper.systems.auth.entity.User;
 import com.example.keeper.systems.auth.repository.UserRepository;
 import com.example.keeper.systems.auth.service.EmailService;
@@ -15,6 +16,7 @@ import com.example.keeper.systems.project.entity.ProjectInvitation;
 import com.example.keeper.systems.project.entity.ProjectMember;
 import com.example.keeper.systems.project.entity.ProjectRole;
 import com.example.keeper.systems.project.entity.ProjectVisibility;
+import com.example.keeper.systems.project.exception.ProjectQuotaExceededException;
 import com.example.keeper.systems.project.repository.ProjectInvitationRepository;
 import com.example.keeper.systems.project.repository.ProjectMemberRepository;
 import com.example.keeper.systems.project.repository.ProjectRepository;
@@ -45,6 +47,19 @@ public class ProjectServiceImpl implements ProjectService {
     public ProjectDetailResponse create(CreateProjectRequest request, String userEmail) {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new RuntimeException("User not found"));
+
+        // Enforce tier-based project creation limit
+        boolean isAdmin = user.getRole() != null && "ADMIN".equals(user.getRole().getName());
+        if (!isAdmin) {
+            int maxOwned = TierLimitsConfig.getMaxOwnedProjects(user.getSubscriptionTier());
+            if (!TierLimitsConfig.isUnlimited(maxOwned)) {
+                long currentCount = projectRepository.countByOwnerId(user.getId());
+                if (currentCount >= maxOwned) {
+                    throw new ProjectQuotaExceededException(
+                            "You have reached the maximum number of workspaces (" + maxOwned + ") for your " + user.getSubscriptionTier().name() + " plan. Upgrade to Pro for unlimited workspaces.");
+                }
+            }
+        }
 
         Project project = new Project();
         project.setName(request.getName());
@@ -380,6 +395,19 @@ public class ProjectServiceImpl implements ProjectService {
             invitation.setStatus("ACCEPTED");
             projectInvitationRepository.save(invitation);
             return mapToResponse(invitation.getProject(), user);
+        }
+
+        // Enforce tier-based joined project limit
+        boolean isAdmin = user.getRole() != null && "ADMIN".equals(user.getRole().getName());
+        if (!isAdmin) {
+            int maxJoined = TierLimitsConfig.getMaxJoinedProjects(user.getSubscriptionTier());
+            if (!TierLimitsConfig.isUnlimited(maxJoined)) {
+                long currentCount = projectMemberRepository.countByUserId(user.getId());
+                if (currentCount >= maxJoined) {
+                    throw new ProjectQuotaExceededException(
+                            "You have reached the maximum number of workspaces you can join (" + maxJoined + ") for your " + user.getSubscriptionTier().name() + " plan. Upgrade to Pro for unlimited access.");
+                }
+            }
         }
 
         ProjectMember member = new ProjectMember();

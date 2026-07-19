@@ -1,6 +1,7 @@
 package com.example.keeper.config;
 
 import com.example.keeper.systems.ai_usage.exception.AiQuotaExceededException;
+import com.example.keeper.systems.project.exception.ProjectQuotaExceededException;
 import jakarta.persistence.EntityNotFoundException;
 import com.example.keeper.systems.document.exception.DocumentQuotaExceededException;
 import org.springframework.http.HttpStatus;
@@ -54,6 +55,15 @@ public class GlobalExceptionHandler {
                 return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                                 .body(Map.of(
                                                 "code", "DOCUMENT_QUOTA_EXCEEDED",
+                                                "message", ex.getMessage()));
+        }
+
+        @ExceptionHandler(ProjectQuotaExceededException.class)
+        public ResponseEntity<Map<String, Object>> handleProjectQuotaExceededException(
+                        ProjectQuotaExceededException ex) {
+                return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                                .body(Map.of(
+                                                "code", "PROJECT_QUOTA_EXCEEDED",
                                                 "message", ex.getMessage()));
         }
 

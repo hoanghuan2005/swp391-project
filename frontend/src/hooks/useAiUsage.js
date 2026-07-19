@@ -5,6 +5,7 @@ export default function useAiUsage() {
   const [aiUsage, setAiUsage] = useState({
     subscriptionTier: "FREE",
     remainingUsage: null,
+    tierLimits: null,
   });
   const [loading, setLoading] = useState(true);
 
@@ -51,3 +52,4 @@ export default function useAiUsage() {
     refreshAiUsage,
   };
 }
+

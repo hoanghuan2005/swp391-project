@@ -256,15 +256,31 @@ export default function LandingPage() {
                 <ul className="my-8 space-y-3.5">
                   <li className="flex items-start gap-2.5 text-sm text-slate-600 font-semibold">
                     <Check className="h-5 w-5 text-green-500 shrink-0" strokeWidth={3} />
-                    <span>Daily AI request limit</span>
+                    <span>5 AI requests per day</span>
                   </li>
                   <li className="flex items-start gap-2.5 text-sm text-slate-600 font-semibold">
                     <Check className="h-5 w-5 text-green-500 shrink-0" strokeWidth={3} />
-                    <span>Ask AI</span>
+                    <span>Up to 15 flashcards per generation</span>
                   </li>
                   <li className="flex items-start gap-2.5 text-sm text-slate-600 font-semibold">
                     <Check className="h-5 w-5 text-green-500 shrink-0" strokeWidth={3} />
-                    <span>Quiz and flashcard generation</span>
+                    <span>Up to 20 quiz questions per generation</span>
+                  </li>
+                  <li className="flex items-start gap-2.5 text-sm text-slate-600 font-semibold">
+                    <Check className="h-5 w-5 text-green-500 shrink-0" strokeWidth={3} />
+                    <span>Create up to 3 workspaces</span>
+                  </li>
+                  <li className="flex items-start gap-2.5 text-sm text-slate-600 font-semibold">
+                    <Check className="h-5 w-5 text-green-500 shrink-0" strokeWidth={3} />
+                    <span>Join up to 5 workspaces</span>
+                  </li>
+                  <li className="flex items-start gap-2.5 text-sm text-slate-600 font-semibold">
+                    <Check className="h-5 w-5 text-green-500 shrink-0" strokeWidth={3} />
+                    <span>10MB max file size</span>
+                  </li>
+                  <li className="flex items-start gap-2.5 text-sm text-slate-600 font-semibold">
+                    <Check className="h-5 w-5 text-green-500 shrink-0" strokeWidth={3} />
+                    <span>20 total documents</span>
                   </li>
                 </ul>
               </div>
@@ -298,19 +314,27 @@ export default function LandingPage() {
                   </li>
                   <li className="flex items-start gap-2.5 text-sm text-slate-600 font-semibold">
                     <Check className="h-5 w-5 text-green-500 shrink-0" strokeWidth={3} />
-                    <span>Ask AI</span>
+                    <span>Unlimited flashcards per generation</span>
                   </li>
                   <li className="flex items-start gap-2.5 text-sm text-slate-600 font-semibold">
                     <Check className="h-5 w-5 text-green-500 shrink-0" strokeWidth={3} />
-                    <span>Quiz and flashcard generation</span>
+                    <span>Up to 50 quiz questions per generation</span>
+                  </li>
+                  <li className="flex items-start gap-2.5 text-sm text-slate-600 font-semibold">
+                    <Check className="h-5 w-5 text-green-500 shrink-0" strokeWidth={3} />
+                    <span>Unlimited workspaces</span>
+                  </li>
+                  <li className="flex items-start gap-2.5 text-sm text-slate-600 font-semibold">
+                    <Check className="h-5 w-5 text-green-500 shrink-0" strokeWidth={3} />
+                    <span>50MB max file size</span>
+                  </li>
+                  <li className="flex items-start gap-2.5 text-sm text-slate-600 font-semibold">
+                    <Check className="h-5 w-5 text-green-500 shrink-0" strokeWidth={3} />
+                    <span>Unlimited documents</span>
                   </li>
                   <li className="flex items-start gap-2.5 text-sm text-slate-600 font-semibold">
                     <Check className="h-5 w-5 text-green-500 shrink-0" strokeWidth={3} />
                     <span>Priority support</span>
-                  </li>
-                  <li className="flex items-start gap-2.5 text-sm text-slate-600 font-semibold">
-                    <Check className="h-5 w-5 text-green-500 shrink-0" strokeWidth={3} />
-                    <span>Exclusive updates</span>
                   </li>
                 </ul>
               </div>

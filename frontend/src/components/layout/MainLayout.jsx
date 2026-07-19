@@ -105,6 +105,14 @@ export default function MainLayout() {
     };
   }, []);
 
+  useEffect(() => {
+    const handleOpenSurvey = () => setShowSurvey(true);
+    window.addEventListener("open-survey-modal", handleOpenSurvey);
+    return () => {
+      window.removeEventListener("open-survey-modal", handleOpenSurvey);
+    };
+  }, []);
+
   const handleClosePricingModal = () => {
     setShowPricingModal(false);
   };

@@ -26,6 +26,8 @@ import {
 } from "@/api/aiApi";
 import ChatInterface from "@/components/chat/ChatInterface";
 import AISidebar from "@/components/ai-sidebar/sidebar/AISidebar";
+import WorkspaceGroupChat from "@/components/chat/WorkspaceGroupChat";
+import axiosClient, { backendBaseUrl } from "@/api/axiosClient";
 
 const welcomeMessage = {
   id: "initial",
@@ -42,6 +44,13 @@ export default function ProjectWorkspacePage() {
 
   const [isSending, setIsSending] = useState(false);
   const isSharedView = !!token;
+
+  // Group Chat States
+  const [chatMode, setChatMode] = useState("ai"); // "ai" or "group"
+  const [groupMessages, setGroupMessages] = useState([]);
+  const [isGroupChatConnected, setIsGroupChatConnected] = useState(false);
+  const [groupSocket, setGroupSocket] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
 
   const [searchDocQuery, setSearchDocQuery] = useState("");
   const fileInputRef = useRef(null);
@@ -103,6 +112,18 @@ export default function ProjectWorkspacePage() {
     fetchProject();
   }, [fetchProject]);
 
+  // Prevent parent container from scrolling while workspace is mounted
+  useEffect(() => {
+    const mainElement = document.querySelector("main");
+    if (mainElement) {
+      const originalOverflow = mainElement.style.overflow;
+      mainElement.style.overflow = "hidden";
+      return () => {
+        mainElement.style.overflow = originalOverflow;
+      };
+    }
+  }, []);
+
   // Set up background polling every 15 seconds to sync AI workspace documents/conversations when tab is focused
   useEffect(() => {
     const intervalId = setInterval(() => {
@@ -113,6 +134,113 @@ export default function ProjectWorkspacePage() {
 
     return () => clearInterval(intervalId);
   }, [fetchProject]);
+
+  // Fetch current user details for the group chat bubbles
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const res = await axiosClient.get("/api/profile");
+        setCurrentUser(res.data);
+      } catch (e) {
+        console.error("Failed to fetch user profile", e);
+      }
+    };
+    fetchProfile();
+  }, []);
+
+  // Fetch group chat history
+  useEffect(() => {
+    if (chatMode !== "group" || !projectId) return;
+
+    const fetchGroupChatHistory = async () => {
+      try {
+        const res = await axiosClient.get(`/api/projects/${projectId}/messages`);
+        if (Array.isArray(res.data)) {
+          setGroupMessages(res.data);
+        }
+      } catch (e) {
+        console.error("Failed to load workspace group chat history", e);
+      }
+    };
+
+    fetchGroupChatHistory();
+  }, [chatMode, projectId]);
+
+  // Connect to Group Chat WebSocket
+  useEffect(() => {
+    if (chatMode !== "group" || !projectId) return;
+
+    const tokenVal = localStorage.getItem("token");
+    if (!tokenVal) return;
+
+    const wsBaseUrl = backendBaseUrl
+      .replace("http://", "ws://")
+      .replace("https://", "wss://");
+
+    const cleanWsBaseUrl = wsBaseUrl.endsWith("/") ? wsBaseUrl.slice(0, -1) : wsBaseUrl;
+    const wsUrl = `${cleanWsBaseUrl}/project-chat-ws/${projectId}?token=${tokenVal}`;
+    console.log("Connecting to workspace chat WebSocket:", wsUrl);
+    const ws = new WebSocket(wsUrl);
+
+    ws.onopen = () => {
+      console.log("WebSocket connection established successfully for workspace chat.");
+      setIsGroupChatConnected(true);
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const parsed = JSON.parse(event.data);
+        if (parsed.event === "NEW_COMMENT") {
+          setGroupMessages((prev) => [...prev, parsed.data]);
+        } else if (parsed.event === "REACTION_UPDATE") {
+          setGroupMessages((prev) =>
+            prev.map((msg) => (msg.id === parsed.data.id ? parsed.data : msg))
+          );
+        }
+      } catch (err) {
+        console.error("Failed to parse message", err);
+      }
+    };
+
+    ws.onclose = () => {
+      setIsGroupChatConnected(false);
+    };
+
+    ws.onerror = (err) => {
+      console.error("WebSocket error", err);
+    };
+
+    setGroupSocket(ws);
+
+    return () => {
+      ws.close();
+      setIsGroupChatConnected(false);
+    };
+  }, [chatMode, projectId]);
+
+  const handleSendGroupMessage = (content, parentId = null) => {
+    if (!content.trim() || !groupSocket || groupSocket.readyState !== WebSocket.OPEN) return;
+
+    const payload = JSON.stringify({
+      type: "COMMENT",
+      content: content.trim(),
+      parentId: parentId,
+    });
+
+    groupSocket.send(payload);
+  };
+
+  const handleToggleGroupReaction = (messageId, reactionType) => {
+    if (!groupSocket || groupSocket.readyState !== WebSocket.OPEN) return;
+
+    const payload = JSON.stringify({
+      type: "REACTION",
+      messageId: messageId,
+      reactionType: reactionType,
+    });
+
+    groupSocket.send(payload);
+  };
 
   const handleSelectConversation = async (conversation) => {
     if (!conversation || conversation.id === activeConversation?.id) {
@@ -294,7 +422,7 @@ export default function ProjectWorkspacePage() {
 
   return (
     <div
-      className={`flex overflow-hidden bg-[#fafafa] ${isSharedView ? "h-screen w-full absolute inset-0 z-50" : "h-[calc(100vh-68px)] rounded-xl -mx-8 -my-6"}`}
+      className={`flex overflow-hidden bg-[#fafafa] ${isSharedView ? "h-screen w-full absolute inset-0 z-50" : "h-[calc(100vh-73px)] rounded-b-xl -mx-8 -my-6"}`}
     >
       <AISidebar
         type="project-workspace"
@@ -312,51 +440,112 @@ export default function ProjectWorkspacePage() {
       />
 
       <div className="flex-1 flex flex-col min-w-0">
-        <ChatInterface
-          title={project.name}
-          subtitle={
-            selectedDocs.length > 0
-              ? `Synthesizing ${selectedDocs.length} selected sources`
-              : "Querying entire workspace"
-          }
-          messages={messages}
-          isSending={isSending}
-          onSendMessage={handleSend}
-          showUploadButton={false}
-          isDisabled={hasFailedOrUnsupportedSelected}
-          alertComponent={documentAlertBoard}
-          emptyStateComponent={
-            <div className="h-full flex flex-col items-center justify-center text-center p-8 max-w-lg mx-auto">
-              <div className="w-16 h-16 rounded-3xl bg-[#f26522]/10 flex items-center justify-center mb-4">
-                <Sparkles className="w-8 h-8 text-[#f26522]" />
-              </div>
-              <h3 className="text-lg font-bold text-slate-800 mb-2">
-                Project Workspace Active
-              </h3>
-              <p className="text-xs text-slate-500 leading-relaxed mb-6">
-                Select specific sources from the sidebar to limit the context,
-                or leave them unchecked to have the AI synthesize answers across
-                all {project.documents?.length || 0} documents.
-              </p>
-            </div>
-          }
-          // The Context Badge now reflects multiple sources
-          contextBadgeComponent={
-            selectedDocs.length > 0 && (
-              <div className="mt-1.5 flex items-center gap-1.5 px-3 py-1 bg-orange-50 border border-orange-100 rounded-md text-[10px] text-slate-600 font-semibold w-fit">
-                <CheckSquare className="w-3.5 h-3.5 text-[#f26522]" />
-                Focused on {selectedDocs.length} source
-                {selectedDocs.length > 1 ? "s" : ""}
+        {chatMode === "ai" ? (
+          <ChatInterface
+            title={project.name}
+            subtitle={
+              selectedDocs.length > 0
+                ? `Synthesizing ${selectedDocs.length} selected sources`
+                : "Querying entire workspace"
+            }
+            messages={messages}
+            isSending={isSending}
+            onSendMessage={handleSend}
+            showUploadButton={false}
+            isDisabled={hasFailedOrUnsupportedSelected}
+            alertComponent={documentAlertBoard}
+            rightElement={
+              <div className="flex bg-slate-100 p-0.5 rounded-full select-none shrink-0 border border-slate-200/50">
                 <button
-                  onClick={handleClearSelection}
-                  className="text-red-500 hover:text-red-700 font-bold ml-1 hover:underline cursor-pointer"
+                  onClick={() => setChatMode("ai")}
+                  className={`px-3 py-1 text-xs font-bold rounded-full transition-all cursor-pointer border-none ${
+                    chatMode === "ai"
+                      ? "bg-white text-slate-800 shadow-xs"
+                      : "text-slate-500 hover:text-slate-800 bg-transparent"
+                  }`}
                 >
-                  Clear All
+                  AI Assistant
+                </button>
+                <button
+                  onClick={() => setChatMode("group")}
+                  className={`px-3 py-1 text-xs font-bold rounded-full transition-all cursor-pointer border-none ${
+                    chatMode === "group"
+                      ? "bg-white text-slate-800 shadow-xs"
+                      : "text-slate-500 hover:text-slate-800 bg-transparent"
+                  }`}
+                >
+                  Group Chat
                 </button>
               </div>
-            )
-          }
-        />
+            }
+            emptyStateComponent={
+              <div className="h-full flex flex-col items-center justify-center text-center p-8 max-w-lg mx-auto">
+                <div className="w-16 h-16 rounded-3xl bg-[#f26522]/10 flex items-center justify-center mb-4">
+                  <Sparkles className="w-8 h-8 text-[#f26522]" />
+                </div>
+                <h3 className="text-lg font-bold text-slate-800 mb-2">
+                  Project Workspace Active
+                </h3>
+                <p className="text-xs text-slate-500 leading-relaxed mb-6">
+                  Select specific sources from the sidebar to limit the context,
+                  or leave them unchecked to have the AI synthesize answers across
+                  all {project.documents?.length || 0} documents.
+                </p>
+              </div>
+            }
+            // The Context Badge now reflects multiple sources
+            contextBadgeComponent={
+              selectedDocs.length > 0 && (
+                <div className="mt-1.5 flex items-center gap-1.5 px-3 py-1 bg-orange-50 border border-orange-100 rounded-md text-[10px] text-slate-600 font-semibold w-fit">
+                  <CheckSquare className="w-3.5 h-3.5 text-[#f26522]" />
+                  Focused on {selectedDocs.length} source
+                  {selectedDocs.length > 1 ? "s" : ""}
+                  <button
+                    onClick={handleClearSelection}
+                    className="text-red-500 hover:text-red-700 font-bold ml-1 hover:underline cursor-pointer"
+                  >
+                    Clear All
+                  </button>
+                </div>
+              )
+            }
+          />
+        ) : (
+          <WorkspaceGroupChat
+            projectId={project.id}
+            title={project.name}
+            subtitle="Phòng thảo luận Workspace"
+            messages={groupMessages}
+            isChatConnected={isGroupChatConnected}
+            currentUser={currentUser}
+            onSendMessage={handleSendGroupMessage}
+            onToggleReaction={handleToggleGroupReaction}
+            rightElement={
+              <div className="flex bg-slate-100 p-0.5 rounded-full select-none shrink-0 border border-slate-200/50">
+                <button
+                  onClick={() => setChatMode("ai")}
+                  className={`px-3 py-1 text-xs font-bold rounded-full transition-all cursor-pointer border-none ${
+                    chatMode === "ai"
+                      ? "bg-white text-slate-800 shadow-xs"
+                      : "text-slate-500 hover:text-slate-800 bg-transparent"
+                  }`}
+                >
+                  AI Assistant
+                </button>
+                <button
+                  onClick={() => setChatMode("group")}
+                  className={`px-3 py-1 text-xs font-bold rounded-full transition-all cursor-pointer border-none ${
+                    chatMode === "group"
+                      ? "bg-white text-slate-800 shadow-xs"
+                      : "text-slate-500 hover:text-slate-800 bg-transparent"
+                  }`}
+                >
+                  Group Chat
+                </button>
+              </div>
+            }
+          />
+        )}
       </div>
 
       <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>

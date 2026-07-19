@@ -19,7 +19,15 @@ const plans = [
     description: "For trying Study Hub AI features.",
     price: "0đ",
     period: "forever",
-    features: ["Daily AI request limit", "Ask AI", "Quiz and flashcard generation"],
+    features: [
+      "5 AI requests per day",
+      "Up to 15 flashcards per generation",
+      "Up to 20 quiz questions per generation",
+      "Create up to 3 workspaces",
+      "Join up to 5 workspaces",
+      "10MB max file size",
+      "20 total documents",
+    ],
     action: "Current plan",
   },
   {
@@ -27,7 +35,15 @@ const plans = [
     description: "For frequent study sessions.",
     price: "99.000đ",
     period: "month",
-    features: ["Unlimited AI requests", "Ask AI", "Quiz and flashcard generation", "Priority support", "Exclusive updates"],
+    features: [
+      "Unlimited AI requests",
+      "Unlimited flashcards per generation",
+      "Up to 50 quiz questions per generation",
+      "Unlimited workspaces",
+      "50MB max file size",
+      "Unlimited documents",
+      "Priority support",
+    ],
     action: "Upgrade to Pro",
   },
 ];

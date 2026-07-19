@@ -7,6 +7,7 @@ import com.example.keeper.systems.ai_ask.entity.DocumentChunk;
 import com.example.keeper.systems.ai_ask.repository.DocumentChunkRepository;
 import com.example.keeper.systems.ai_usage.service.AiUsageService;
 import com.example.keeper.systems.ai_usage.enums.AiUsageFeature;
+import com.example.keeper.systems.auth.config.TierLimitsConfig;
 import com.example.keeper.systems.auth.entity.User;
 import com.example.keeper.systems.auth.repository.UserRepository;
 import com.example.keeper.systems.document.entity.Document;
@@ -54,6 +55,14 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
     public QuizResponse generateQuiz(QuizRequest request, String userEmail) {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new RuntimeException("User not found"));
+
+        // Enforce tier-based question count limit
+        int maxQuestions = TierLimitsConfig.getMaxQuizQuestions(user.getSubscriptionTier());
+        boolean isAdmin = user.getRole() != null && "ADMIN".equals(user.getRole().getName());
+        if (!isAdmin && request.getQuestionCount() != null && request.getQuestionCount() > maxQuestions) {
+            request.setQuestionCount(maxQuestions);
+            log.info("Clamped quiz question count to {} for tier {}", maxQuestions, user.getSubscriptionTier());
+        }
 
         String context = "";
         if (request.getDocumentId() != null || request.getProjectId() != null) {
@@ -296,6 +305,14 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
     public QuizResponse generateQuizFromFile(MultipartFile file, String text, String title, Integer questionCount, String difficulty, String userEmail) {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new RuntimeException("User not found"));
+
+        // Enforce tier-based question count limit
+        int maxQuestions = TierLimitsConfig.getMaxQuizQuestions(user.getSubscriptionTier());
+        boolean isAdmin = user.getRole() != null && "ADMIN".equals(user.getRole().getName());
+        if (!isAdmin && questionCount != null && questionCount > maxQuestions) {
+            questionCount = maxQuestions;
+            log.info("Clamped quiz question count to {} for tier {}", maxQuestions, user.getSubscriptionTier());
+        }
 
         String context = "";
         if (file != null && !file.isEmpty()) {

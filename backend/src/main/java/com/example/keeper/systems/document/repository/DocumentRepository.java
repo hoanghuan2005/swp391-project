@@ -82,4 +82,28 @@ public interface DocumentRepository extends JpaRepository<Document, UUID> {
             @Param("keyword") String keyword,
             Pageable pageable
     );
+
+    @Query("select d from Document d where d.visibility = com.example.keeper.systems.document.enums.Visibility.PUBLIC order by d.downloadCount desc, d.viewCount desc")
+    List<Document> findTopPublicDocuments(Pageable pageable);
+
+    @Query("""
+            select distinct d from Document d
+            left join d.course c
+            left join c.major m
+            left join m.school s
+            left join d.tags t
+            where d.visibility = com.example.keeper.systems.document.enums.Visibility.PUBLIC
+              and (
+                (:schoolName is not null and :schoolName != '' and (lower(s.name) = lower(:schoolName) or lower(s.code) = lower(:schoolName) or lower(c.name) like lower(concat('%', :schoolName, '%'))))
+                or (:majorName is not null and :majorName != '' and (lower(m.name) = lower(:majorName) or lower(m.code) = lower(:majorName) or lower(c.name) like lower(concat('%', :majorName, '%'))))
+                or (lower(t.name) in :languageNames)
+              )
+            order by d.downloadCount desc, d.viewCount desc
+            """)
+    List<Document> findRecommendedDocuments(
+            @Param("schoolName") String schoolName,
+            @Param("majorName") String majorName,
+            @Param("languageNames") List<String> languageNames,
+            Pageable pageable
+    );
 }

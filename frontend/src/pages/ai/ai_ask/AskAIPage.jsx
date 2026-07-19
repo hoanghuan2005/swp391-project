@@ -132,6 +132,18 @@ export default function AskAIPage() {
     });
   }, [fetchConversations, refreshDocuments]);
 
+  // Prevent parent container from scrolling while workspace is mounted
+  useEffect(() => {
+    const mainElement = document.querySelector("main");
+    if (mainElement) {
+      const originalOverflow = mainElement.style.overflow;
+      mainElement.style.overflow = "hidden";
+      return () => {
+        mainElement.style.overflow = originalOverflow;
+      };
+    }
+  }, []);
+
   const handleCreateNewChat = async (doc = null) => {
     try {
       const payload = {
@@ -390,7 +402,7 @@ export default function AskAIPage() {
   ) : null;
 
   return (
-    <div className="h-[calc(100vh-68px)] flex overflow-hidden bg-[#fafafa] rounded-xl -mx-8 -my-6">
+    <div className="h-[calc(100vh-73px)] flex overflow-hidden bg-[#fafafa] rounded-b-xl -mx-8 -my-6">
       {/* SIDEBAR */}
       <AISidebar
         type="ask-ai"

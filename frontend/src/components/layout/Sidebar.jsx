@@ -245,15 +245,22 @@ export default function Sidebar({ isOpen = true }) {
       fetchSidebarProfile();
     };
 
+    const handleSurveyCompleted = () => {
+      fetchSidebarProfile();
+    };
+
     // Chạy lần đầu khi load component
     fetchSidebarProfile();
 
-    // Lắng nghe sự kiện "documents:uploaded" từ hàm handleUploadDocument bên dưới
+    // Lắng nghe sự kiện từ các component khác
     window.addEventListener("documents:uploaded", handleDocumentUploaded);
+    window.addEventListener("survey:completed", handleSurveyCompleted);
 
     // Cleanup event khi component unmount
-    return () =>
+    return () => {
       window.removeEventListener("documents:uploaded", handleDocumentUploaded);
+      window.removeEventListener("survey:completed", handleSurveyCompleted);
+    };
   }, []);
 
   // load danh sách course đã follow

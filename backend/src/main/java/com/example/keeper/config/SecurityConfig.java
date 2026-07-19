@@ -84,6 +84,7 @@ public class SecurityConfig {
 
                                                 .requestMatchers(
                                                                 "/chat-ws/**",
+                                                                "/project-chat-ws/**",
                                                                 "/api/auth/**",
                                                                 "/oauth2/**",
                                                                 "/login/oauth2/**",
