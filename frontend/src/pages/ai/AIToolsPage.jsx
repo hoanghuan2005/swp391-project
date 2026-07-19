@@ -23,6 +23,11 @@ const AIQuizPage = () => {
   const [recentQuiz, setRecentQuiz] = useState(null);
   const [loadingHistory, setLoadingHistory] = useState(true);
 
+  // Dynamic stats states
+  const [streakDays, setStreakDays] = useState(1);
+  const [totalFlashcards, setTotalFlashcards] = useState(0);
+  const [flashcardsToday, setFlashcardsToday] = useState(0);
+
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -37,6 +42,17 @@ const AIQuizPage = () => {
         const flashcards = flashcardsRes.data || [];
         if (flashcards.length > 0) {
           setRecentFlashcard(flashcards[0]);
+          
+          // Calculate total flashcards count
+          const total = flashcards.reduce((sum, s) => sum + (s.cards || s.flashcards?.length || 0), 0);
+          setTotalFlashcards(total);
+
+          // Calculate flashcards created today
+          const todayStr = new Date().toDateString();
+          const todayTotal = flashcards
+            .filter(s => s.createdAt && new Date(s.createdAt).toDateString() === todayStr)
+            .reduce((sum, s) => sum + (s.cards || s.flashcards?.length || 0), 0);
+          setFlashcardsToday(todayTotal);
         }
         
         const quizzes = quizzesRes.data || [];
@@ -64,6 +80,7 @@ const AIQuizPage = () => {
     };
     fetchProfile();
 
+    // Study Time Calculation
     let seconds = parseInt(localStorage.getItem("studyTimeSeconds") || "0", 10);
     if (isNaN(seconds)) seconds = 0;
     if (seconds < 60) {
@@ -75,6 +92,38 @@ const AIQuizPage = () => {
       const minutes = Math.floor((seconds % 3600) / 60);
       setStudyTime(`${hours}h ${minutes}m`);
     }
+
+    // Study Streak Calculation
+    const today = new Date();
+    const todayStr = today.toDateString();
+    
+    let currentStreak = parseInt(localStorage.getItem("study_streak_count") || "0", 10);
+    const lastStudyDate = localStorage.getItem("last_study_date");
+    
+    if (!lastStudyDate) {
+      currentStreak = 1;
+      localStorage.setItem("study_streak_count", "1");
+      localStorage.setItem("last_study_date", todayStr);
+    } else {
+      const lastDate = new Date(lastStudyDate);
+      const diffTime = today.setHours(0,0,0,0) - lastDate.setHours(0,0,0,0);
+      const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+      
+      if (todayStr !== lastStudyDate) {
+        if (diffDays === 1) {
+          // Increment streak if studied yesterday
+          currentStreak += 1;
+          localStorage.setItem("study_streak_count", currentStreak.toString());
+          localStorage.setItem("last_study_date", todayStr);
+        } else if (diffDays > 1) {
+          // Reset streak if missed a day
+          currentStreak = 1;
+          localStorage.setItem("study_streak_count", "1");
+          localStorage.setItem("last_study_date", todayStr);
+        }
+      }
+    }
+    setStreakDays(currentStreak || 1);
   }, []);
 
   const handleNavigate = (view, data = null) => {
@@ -129,8 +178,8 @@ const AIQuizPage = () => {
   ];
 
   const stats = [
-    { label: "Study Streak", value: "7", sub: "days 🔥" },
-    { label: "Flashcards", value: "124", sub: "+12 today" },
+    { label: "Study Streak", value: streakDays.toString(), sub: "days 🔥" },
+    { label: "Flashcards", value: totalFlashcards.toString(), sub: `+${flashcardsToday} today` },
     { label: "Study Time", value: studyTime, sub: "total time" },
   ];
 
@@ -171,7 +220,12 @@ const AIQuizPage = () => {
                   Continue Learning
                 </button>
 
-                <button className="h-10 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-50">
+                <button
+                  onClick={() => {
+                    document.getElementById("ai-tools-section")?.scrollIntoView({ behavior: "smooth" });
+                  }}
+                  className="h-10 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                >
                   Explore Tools
                 </button>
               </div>
@@ -196,7 +250,7 @@ const AIQuizPage = () => {
         </div>
 
         {/* ================= AI TOOLS ================= */}
-        <div>
+        <div id="ai-tools-section">
           <div className="mb-5 flex items-end justify-between">
             <div>
               <h2 className="text-2xl font-semibold text-slate-800">

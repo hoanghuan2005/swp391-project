@@ -24,7 +24,8 @@ import {
   Link as LinkIcon,
   Eye,
   ChevronDown,
-  Lock
+  Lock,
+  MessageSquare
 } from "lucide-react";
 import {
   Dialog,
@@ -61,7 +62,9 @@ import {
   CardDescription,
   CardFooter,
 } from "@/components/ui/card";
-import axiosClient from "@/api/axiosClient";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import WorkspaceGroupChat from "@/components/chat/WorkspaceGroupChat";
+import axiosClient, { backendBaseUrl } from "@/api/axiosClient";
 import { forceDownload } from "@/lib/downloadHelper";
 import { getFileExtension } from "@/lib/utils";
 import UploadDocumentDialog from "@/components/documents/UploadDocumentDialog";
@@ -104,6 +107,13 @@ export default function WorkspaceOverviewPage() {
   const [confirmTarget, setConfirmTarget] = useState(null); // { type: "REMOVE_DOCUMENT" | "REMOVE_MEMBER", id, name }
   const [isConfirming, setIsConfirming] = useState(false);
 
+  // Group Chat States
+  const [activeTab, setActiveTab] = useState("materials"); // "materials" or "chat"
+  const [groupMessages, setGroupMessages] = useState([]);
+  const [isGroupChatConnected, setIsGroupChatConnected] = useState(false);
+  const [groupSocket, setGroupSocket] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
+
   const fetchProject = useCallback(async (silent = false) => {
     try {
       if (!silent) setLoading(true);
@@ -134,6 +144,115 @@ export default function WorkspaceOverviewPage() {
 
     return () => clearInterval(intervalId);
   }, [fetchProject]);
+
+  // Fetch current user details for the group chat bubbles
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const res = await axiosClient.get("/api/profile");
+        setCurrentUser(res.data);
+      } catch (e) {
+        console.error("Failed to fetch user profile", e);
+      }
+    };
+    fetchProfile();
+  }, []);
+
+  // Fetch group chat history
+  useEffect(() => {
+    const pId = projectId || (project && project.id);
+    if (activeTab !== "chat" || !pId) return;
+
+    const fetchGroupChatHistory = async () => {
+      try {
+        const res = await axiosClient.get(`/api/projects/${pId}/messages`);
+        if (Array.isArray(res.data)) {
+          setGroupMessages(res.data);
+        }
+      } catch (e) {
+        console.error("Failed to load workspace group chat history", e);
+      }
+    };
+
+    fetchGroupChatHistory();
+  }, [activeTab, projectId, project]);
+
+  // Connect to Group Chat WebSocket
+  useEffect(() => {
+    const pId = projectId || (project && project.id);
+    if (activeTab !== "chat" || !pId) return;
+
+    const tokenVal = localStorage.getItem("token");
+    if (!tokenVal) return;
+
+    const wsBaseUrl = backendBaseUrl
+      .replace("http://", "ws://")
+      .replace("https://", "wss://");
+
+    const cleanWsBaseUrl = wsBaseUrl.endsWith("/") ? wsBaseUrl.slice(0, -1) : wsBaseUrl;
+    const wsUrl = `${cleanWsBaseUrl}/project-chat-ws/${pId}?token=${tokenVal}`;
+    console.log("Connecting to workspace chat WebSocket:", wsUrl);
+    const ws = new WebSocket(wsUrl);
+
+    ws.onopen = () => {
+      console.log("WebSocket connection established successfully for workspace chat.");
+      setIsGroupChatConnected(true);
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const parsed = JSON.parse(event.data);
+        if (parsed.event === "NEW_COMMENT") {
+          setGroupMessages((prev) => [...prev, parsed.data]);
+        } else if (parsed.event === "REACTION_UPDATE") {
+          setGroupMessages((prev) =>
+            prev.map((msg) => (msg.id === parsed.data.id ? parsed.data : msg))
+          );
+        }
+      } catch (err) {
+        console.error("Failed to parse message", err);
+      }
+    };
+
+    ws.onclose = () => {
+      setIsGroupChatConnected(false);
+    };
+
+    ws.onerror = (err) => {
+      console.error("WebSocket error", err);
+    };
+
+    setGroupSocket(ws);
+
+    return () => {
+      ws.close();
+      setIsGroupChatConnected(false);
+    };
+  }, [activeTab, projectId, project]);
+
+  const handleSendGroupMessage = (content, parentId = null) => {
+    if (!content.trim() || !groupSocket || groupSocket.readyState !== WebSocket.OPEN) return;
+
+    const payload = JSON.stringify({
+      type: "COMMENT",
+      content: content.trim(),
+      parentId: parentId,
+    });
+
+    groupSocket.send(payload);
+  };
+
+  const handleToggleGroupReaction = (messageId, reactionType) => {
+    if (!groupSocket || groupSocket.readyState !== WebSocket.OPEN) return;
+
+    const payload = JSON.stringify({
+      type: "REACTION",
+      messageId: messageId,
+      reactionType: reactionType,
+    });
+
+    groupSocket.send(payload);
+  };
 
   // Derived role checks
   const currentUserRole = project?.currentUserRole;
@@ -489,117 +608,153 @@ export default function WorkspaceOverviewPage() {
         </div>
       </div>
 
-      {/* Documents */}
-      <div className="max-w-[1700px] w-full mx-auto">
-        <div className="pb-3 border-b border-slate-200/60 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2.5">
-            <Library className="w-5.5 h-5.5 text-[#f66810]" />
-            <span>Workspace Documents</span>
-            <span className="text-xs font-semibold text-slate-500 bg-slate-200 px-2 py-1 rounded-full">
-              {filteredDocuments.length}
-            </span>
-          </h2>
-        </div>
+      {/* Documents & Q&A Chat Room Tabs */}
+      <div className="max-w-[1700px] w-full mx-auto -mt-4">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="bg-slate-100/80 px-1 py-4 rounded-2xl flex w-max gap-1 mb-5 border border-slate-200/50">
+            <TabsTrigger
+              value="materials"
+              className="rounded-xl px-4 py-3 text-xs font-bold transition-all data-[state=active]:bg-white data-[state=active]:text-[#f66810] data-[state=active]:shadow-sm text-slate-500 hover:text-slate-800 cursor-pointer border-none"
+            >
+              <BookOpen className="w-4 h-4 mr-1" />
+              Workspace Documents
+            </TabsTrigger>
+            <TabsTrigger
+              value="chat"
+              className="rounded-xl px-4 py-3 text-xs font-bold transition-all data-[state=active]:bg-white data-[state=active]:text-[#f66810] data-[state=active]:shadow-sm text-slate-500 hover:text-slate-800 cursor-pointer border-none"
+            >
+              <MessageSquare className="w-4 h-4 mr-1" />
+              Q&A Chat Room
+            </TabsTrigger>
+          </TabsList>
 
-        <ScrollArea className="h-[600px] px-1">
-          {/* Changed grid layout to grid-cols-4 */}
-          <div className="py-5 px-1 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-4.5">
-            {filteredDocuments.length === 0 ? (
-              <div className="col-span-full text-center py-16 text-slate-500 bg-slate-50 rounded-3xl border border-dashed border-slate-200 flex flex-col items-center justify-center gap-3">
-                <FileText className="w-10 h-10 text-slate-355" />
-                {searchQuery ? (
-                  <p>No documents match "{searchQuery}"</p>
+          <TabsContent value="materials" className="mt-0">
+            <div className="pb-3 border-b border-slate-200/60 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2.5">
+                <Library className="w-5.5 h-5.5 text-[#f66810]" />
+                <span>Workspace Documents</span>
+                <span className="text-xs font-semibold text-slate-500 bg-slate-200 px-2 py-1 rounded-full">
+                  {filteredDocuments.length}
+                </span>
+              </h2>
+            </div>
+
+            <ScrollArea className="h-[600px] px-1">
+              {/* Changed grid layout to grid-cols-4 */}
+              <div className="py-5 px-1 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-4.5">
+                {filteredDocuments.length === 0 ? (
+                  <div className="col-span-full text-center py-16 text-slate-500 bg-slate-50 rounded-3xl border border-dashed border-slate-200 flex flex-col items-center justify-center gap-3">
+                    <FileText className="w-10 h-10 text-slate-355" />
+                    {searchQuery ? (
+                      <p>No documents match "{searchQuery}"</p>
+                    ) : (
+                      <p>No documents in this workspace yet.</p>
+                    )}
+                  </div>
                 ) : (
-                  <p>No documents in this workspace yet.</p>
-                )}
-              </div>
-            ) : (
-              filteredDocuments.map((doc) => (
-                <Card
-                  key={doc.id}
-                  className="shadow-sm border-slate-100 hover:shadow-md transition-all group flex flex-col h-full rounded-[20px] overflow-hidden bg-white"
-                >
-                  <CardContent className="p-3.5 flex-1 flex flex-col">
-                    <div className="relative w-full aspect-[4/3] bg-slate-50 rounded-xl mb-3 -mt-4 border border-slate-200 group-hover:border-[#f26522]/20 transition-colors flex items-center justify-center overflow-hidden">
-                      {/* Simulated Paper Sheet */}
-                      <div className="w-[85%] h-[80%] bg-white rounded-lg shadow-sm border border-slate-100 p-2.5 flex flex-col gap-1 transform rotate-1 group-hover:rotate-0 transition-transform duration-200 select-none overflow-hidden">
-                        <div className="flex items-center gap-1 pb-1 border-b border-slate-100/70">
-                          <FileText className="w-3.5 h-3.5 text-slate-300" />
-                          <span className="text-[9px] font-extrabold text-[#f26522] uppercase tracking-wider">
-                            {getFileExtension(doc)}
+                  filteredDocuments.map((doc) => (
+                    <Card
+                      key={doc.id}
+                      className="shadow-sm border-slate-100 hover:shadow-md transition-all group flex flex-col h-full rounded-[20px] overflow-hidden bg-white"
+                    >
+                      <CardContent className="p-3.5 flex-1 flex flex-col">
+                        <div className="relative w-full aspect-[4/3] bg-slate-50 rounded-xl mb-3 -mt-4 border border-slate-200 group-hover:border-[#f26522]/20 transition-colors flex items-center justify-center overflow-hidden">
+                          {/* Simulated Paper Sheet */}
+                          <div className="w-[85%] h-[80%] bg-white rounded-lg shadow-sm border border-slate-100 p-2.5 flex flex-col gap-1 transform rotate-1 group-hover:rotate-0 transition-transform duration-200 select-none overflow-hidden">
+                            <div className="flex items-center gap-1 pb-1 border-b border-slate-100/70">
+                              <FileText className="w-3.5 h-3.5 text-slate-300" />
+                              <span className="text-[9px] font-extrabold text-[#f26522] uppercase tracking-wider">
+                                {getFileExtension(doc)}
+                              </span>
+                            </div>
+                            
+                            <p className="text-[9.5px] text-slate-400 font-serif leading-relaxed line-clamp-3 text-left whitespace-normal break-words">
+                              {doc.description || doc.title || "No description provided for this document. Open to view full study guide content."}
+                            </p>
+                            
+                            <div className="mt-auto flex flex-col gap-1 opacity-50">
+                              <div className="w-[90%] h-0.5 bg-slate-100 rounded-full" />
+                              <div className="w-[70%] h-0.5 bg-slate-100 rounded-full" />
+                            </div>
+                          </div>
+
+                          {canModifyDocs && !isSharedView && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleRemoveDocument(doc.id, doc.title);
+                              }}
+                              className="absolute top-1.5 right-1.5 w-7.5 h-7.5 rounded-full border shadow-sm backdrop-blur-sm transition-all duration-200 flex items-center justify-center cursor-pointer bg-white/90 text-slate-400 hover:text-red-500 hover:bg-white border-slate-100 opacity-0 group-hover:opacity-100"
+                              title="Remove document from workspace"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                        <CardTitle
+                          className="text-[15px] mb-1 font-bold text-slate-800 line-clamp-1"
+                          title={doc.title}
+                        >
+                          {doc.title || "Untitled Document"}
+                        </CardTitle>
+                        <CardDescription className="text-xs text-slate-500 font-medium mb-3 flex items-center gap-1.5">
+                          <BookOpen className="w-3.5 h-3.5" />{" "}
+                          {doc.course?.code || "General"}
+                        </CardDescription>
+                        <div className="text-[11px] text-slate-400 mt-auto flex justify-between items-center">
+                          <span className="flex items-center gap-1">
+                            {doc.createdAt ? new Date(doc.createdAt).toLocaleDateString("en-GB") : ""}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Download className="w-3.5 h-3.5 text-slate-300" /> {doc.downloadCount || 0}
                           </span>
                         </div>
-                        
-                        <p className="text-[9.5px] text-slate-400 font-serif leading-relaxed line-clamp-3 text-left whitespace-normal break-words">
-                          {doc.description || doc.title || "No description provided for this document. Open to view full study guide content."}
-                        </p>
-                        
-                        <div className="mt-auto flex flex-col gap-1 opacity-50">
-                          <div className="w-[90%] h-0.5 bg-slate-100 rounded-full" />
-                          <div className="w-[70%] h-0.5 bg-slate-100 rounded-full" />
-                        </div>
-                      </div>
-
-                      {canModifyDocs && !isSharedView && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            handleRemoveDocument(doc.id, doc.title);
+                      </CardContent>
+                      <CardFooter className="-mt-5 px-3.5 py-2.5 flex gap-2">
+                        <Button
+                          onClick={() => {
+                            if (isSharedView) {
+                              toast.error("Anonymous views cannot inspect document files directly.");
+                            } else {
+                              navigate(`/documents/${doc.id}`);
+                            }
                           }}
-                          className="absolute top-1.5 right-1.5 w-7.5 h-7.5 rounded-full border shadow-sm backdrop-blur-sm transition-all duration-200 flex items-center justify-center cursor-pointer bg-white/90 text-slate-400 hover:text-red-500 hover:bg-white border-slate-100 opacity-0 group-hover:opacity-100"
-                          title="Remove document from workspace"
+                          className="flex-1 bg-slate-100 text-slate-700 hover:bg-slate-200 font-bold text-xs rounded-xl h-9 cursor-pointer"
                         >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
-                    <CardTitle
-                      className="text-[15px] mb-1 font-bold text-slate-800 line-clamp-1"
-                      title={doc.title}
-                    >
-                      {doc.title || "Untitled Document"}
-                    </CardTitle>
-                    <CardDescription className="text-xs text-slate-500 font-medium mb-3 flex items-center gap-1.5">
-                      <BookOpen className="w-3.5 h-3.5" />{" "}
-                      {doc.course?.code || "General"}
-                    </CardDescription>
-                    <div className="text-[11px] text-slate-400 mt-auto flex justify-between items-center">
-                      <span className="flex items-center gap-1">
-                        {doc.createdAt ? new Date(doc.createdAt).toLocaleDateString("en-GB") : ""}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Download className="w-3.5 h-3.5 text-slate-300" /> {doc.downloadCount || 0}
-                      </span>
-                    </div>
-                  </CardContent>
-                  <CardFooter className="-mt-5 px-3.5 py-2.5 flex gap-2">
-                    <Button
-                      onClick={() => {
-                        if (isSharedView) {
-                          toast.error("Anonymous views cannot inspect document files directly.");
-                        } else {
-                          navigate(`/documents/${doc.id}`);
-                        }
-                      }}
-                      className="flex-1 bg-slate-100 text-slate-700 hover:bg-slate-200 font-bold text-xs rounded-xl h-9 cursor-pointer"
-                    >
-                      <Eye className="w-3.5 h-3.5 mr-1.5" /> View
-                    </Button>
-                    <Button
-                      onClick={() => handleDownload(doc.id, doc.title)}
-                      className="w-9 h-9 rounded-xl bg-[#f26522]/10 text-[#f26522] hover:bg-[#f26522] hover:text-white flex items-center justify-center transition-colors shrink-0 p-0 cursor-pointer"
-                      title="Download Document"
-                    >
-                      <Download className="w-4 h-4" />
-                    </Button>
-                  </CardFooter>
-                </Card>
-              ))
-            )}
-          </div>
-        </ScrollArea>
+                          <Eye className="w-3.5 h-3.5 mr-1.5" /> View
+                        </Button>
+                        <Button
+                          onClick={() => handleDownload(doc.id, doc.title)}
+                          className="w-9 h-9 rounded-xl bg-[#f26522]/10 text-[#f26522] hover:bg-[#f26522] hover:text-white flex items-center justify-center transition-colors shrink-0 p-0 cursor-pointer"
+                          title="Download Document"
+                        >
+                          <Download className="w-4 h-4" />
+                        </Button>
+                      </CardFooter>
+                    </Card>
+                  ))
+                )}
+              </div>
+            </ScrollArea>
+          </TabsContent>
+
+          <TabsContent value="chat" className="mt-0">
+            <div className="rounded-[28px] border border-orange-100 shadow-sm bg-white overflow-hidden flex flex-col h-[650px]">
+              <WorkspaceGroupChat
+                projectId={projectId || (project && project.id)}
+                title="Phòng thảo luận Workspace"
+                subtitle="Trò chuyện thời gian thực cùng bạn bè trong workspace"
+                messages={groupMessages}
+                isChatConnected={isGroupChatConnected}
+                currentUser={currentUser}
+                onSendMessage={handleSendGroupMessage}
+                onToggleReaction={handleToggleGroupReaction}
+              />
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
 
       {!isSharedView && (

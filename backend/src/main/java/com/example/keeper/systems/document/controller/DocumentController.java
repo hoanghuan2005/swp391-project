@@ -134,6 +134,17 @@ public class DocumentController {
         return documentService.getRecentViewed(email, limit);
     }
 
+    @GetMapping("/recommended")
+    public List<DocumentResponse> getRecommended(
+            @RequestParam(defaultValue = "5") int limit) {
+
+        String email = SecurityContextHolder.getContext()
+                .getAuthentication()
+                .getName();
+
+        return documentService.getRecommended(email, limit);
+    }
+
     @PostMapping("/{id}/view")
     public void recordView(@PathVariable UUID id) {
 

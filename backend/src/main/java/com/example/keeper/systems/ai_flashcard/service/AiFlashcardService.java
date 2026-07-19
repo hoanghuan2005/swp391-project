@@ -15,6 +15,7 @@ import com.example.keeper.systems.ai_flashcard.repository.FlashcardRepository;
 import com.example.keeper.systems.ai_flashcard.repository.FlashcardSetRepository;
 import com.example.keeper.systems.ai_usage.service.AiUsageService;
 import com.example.keeper.systems.ai_usage.enums.AiUsageFeature;
+import com.example.keeper.systems.auth.config.TierLimitsConfig;
 import com.example.keeper.systems.auth.entity.User;
 import com.example.keeper.systems.auth.repository.UserRepository;
 import com.example.keeper.systems.document.entity.Document;
@@ -322,9 +323,17 @@ public class AiFlashcardService {
                 .orElseThrow(() -> new RuntimeException("User not found"));
         aiUsageService.checkQuota(user.getEmail());
 
+        // Determine max flashcards based on subscription tier
+        int maxCards = TierLimitsConfig.getMaxFlashcardsPerGeneration(user.getSubscriptionTier());
+        boolean isAdmin = user.getRole() != null && "ADMIN".equals(user.getRole().getName());
+        String cardLimitInstruction = (!isAdmin && !TierLimitsConfig.isUnlimited(maxCards))
+                ? "Tạo tối đa " + maxCards + " flashcards. "
+                : "";
+
         String systemPrompt = "Bạn là trợ lý AI chuyên tạo flashcard. "
                 + "Nhiệm vụ: Trích xuất các khái niệm (term) và định nghĩa (definition) "
                 + "TỪ ĐÚNG NỘI DUNG VĂN BẢN MÀ USER CUNG CẤP. "
+                + cardLimitInstruction
                 + "Tuyệt đối KHÔNG tự bịa ra nội dung nếu văn bản không có. "
                 + "Luôn trả về duy nhất 1 mảng JSON hợp lệ, không markdown, không giải thích thêm.";
 
@@ -353,6 +362,12 @@ public class AiFlashcardService {
 
         if (cards.isEmpty()) {
             throw new RuntimeException("AI did not generate valid flashcards.");
+        }
+
+        // Enforce tier limit: truncate if AI returned more cards than allowed
+        if (!isAdmin && !TierLimitsConfig.isUnlimited(maxCards) && cards.size() > maxCards) {
+            log.info("Truncating flashcards from {} to {} for tier {}", cards.size(), maxCards, user.getSubscriptionTier());
+            cards = cards.subList(0, maxCards);
         }
 
         aiUsageService.recordUsage(user.getEmail(), AiUsageFeature.FLASHCARD_GENERATION);

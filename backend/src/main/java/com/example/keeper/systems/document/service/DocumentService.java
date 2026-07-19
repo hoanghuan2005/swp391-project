@@ -36,7 +36,7 @@ public interface DocumentService {
     void toggleFavorite(UUID documentId, String email);
     // =========================
 
-    // List<Document> getRecommended(String email, int limit);
+    List<DocumentResponse> getRecommended(String email, int limit);
 
     Document delete(UUID id, String email);
 

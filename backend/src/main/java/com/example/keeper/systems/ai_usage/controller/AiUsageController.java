@@ -1,7 +1,9 @@
 package com.example.keeper.systems.ai_usage.controller;
 
 import com.example.keeper.systems.ai_usage.service.AiUsageService;
+import com.example.keeper.systems.auth.config.TierLimitsConfig;
 import com.example.keeper.systems.auth.entity.User;
+import com.example.keeper.systems.auth.enums.SubscriptionTier;
 import com.example.keeper.systems.auth.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -10,6 +12,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 @RestController
@@ -28,9 +31,24 @@ public class AiUsageController {
         User user =  userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        return ResponseEntity.ok(Map.of(
-                "subscriptionTier", user.getSubscriptionTier().name(),
-                "remainingUsage", aiUsageService.getRemainingUsage(email)
-                ));
+        SubscriptionTier tier = user.getSubscriptionTier();
+
+        Map<String, Object> tierLimits = new LinkedHashMap<>();
+        tierLimits.put("maxFlashcardsPerGeneration", TierLimitsConfig.getMaxFlashcardsPerGeneration(tier));
+        tierLimits.put("maxQuizQuestionsPerGeneration", TierLimitsConfig.getMaxQuizQuestions(tier));
+        tierLimits.put("maxOwnedProjects", TierLimitsConfig.getMaxOwnedProjects(tier));
+        tierLimits.put("maxJoinedProjects", TierLimitsConfig.getMaxJoinedProjects(tier));
+        tierLimits.put("maxFileSizeBytes", TierLimitsConfig.getMaxFileSize(tier));
+        tierLimits.put("dailyUploadLimit", TierLimitsConfig.getDailyUploadLimit(tier));
+        tierLimits.put("totalDocumentLimit", TierLimitsConfig.getTotalDocumentLimit(tier));
+        tierLimits.put("dailyAiLimit", TierLimitsConfig.getDailyAiLimit(tier));
+
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("subscriptionTier", tier.name());
+        response.put("remainingUsage", aiUsageService.getRemainingUsage(email));
+        response.put("tierLimits", tierLimits);
+
+        return ResponseEntity.ok(response);
     }
 }
+

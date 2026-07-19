@@ -1,0 +1,125 @@
+# Implementation Plan: Document Recommendations & Suggestions Section
+
+Dựa trên kết quả khảo sát (Survey) của người dùng (trường, ngành học, ngôn ngữ), hệ thống sẽ đề xuất các tài liệu (documents) phù hợp trực tiếp trên trang chủ.
+
+## User Review Required
+
+> [!NOTE]
+> - Nếu người dùng chưa làm khảo sát (hoặc là khách vãng lai), trang chủ sẽ hiển thị một banner kêu gọi làm khảo sát cực kỳ bắt mắt bên cạnh danh sách tài liệu phổ biến nhất hệ thống.
+> - Nếu người dùng đã làm khảo sát, hệ thống hiển thị danh sách tài liệu được cá nhân hóa theo Trường, Ngành học và Ngôn ngữ đã chọn.
+
+---
+
+## Proposed Changes
+
+### 1. Backend: Repository Updates
+
+#### [MODIFY] [DocumentRepository.java](file:///d:/SWP391/backend/src/main/java/com/example/keeper/systems/document/repository/DocumentRepository.java)
+
+Thêm các query method:
+- `findTopPublicDocuments(Pageable pageable)`: Lấy các tài liệu công khai có lượt tải/lượt xem nhiều nhất để làm fallback.
+- `findRecommendedDocuments(...)`: Lấy các tài liệu công khai khớp với trường (schoolName/schoolCode), ngành (majorName/majorCode), hoặc danh sách ngôn ngữ (tags).
+
+```java
+    @Query("select d from Document d where d.visibility = com.example.keeper.systems.document.enums.Visibility.PUBLIC order by d.downloadCount desc, d.viewCount desc")
+    List<Document> findTopPublicDocuments(Pageable pageable);
+
+    @Query("""
+            select distinct d from Document d
+            left join d.course c
+            left join c.major m
+            left join m.school s
+            left join d.tags t
+            where d.visibility = com.example.keeper.systems.document.enums.Visibility.PUBLIC
+              and (
+                (:schoolName is not null and :schoolName != '' and (lower(s.name) = lower(:schoolName) or lower(s.code) = lower(:schoolName) or lower(c.name) like lower(concat('%', :schoolName, '%'))))
+                or (:majorName is not null and :majorName != '' and (lower(m.name) = lower(:majorName) or lower(m.code) = lower(:majorName) or lower(c.name) like lower(concat('%', :majorName, '%'))))
+                or (lower(t.name) in :languageNames)
+              )
+            order by d.downloadCount desc, d.viewCount desc
+            """)
+    List<Document> findRecommendedDocuments(
+            @Param("schoolName") String schoolName,
+            @Param("majorName") String majorName,
+            @Param("languageNames") List<String> languageNames,
+            Pageable pageable
+    );
+```
+
+---
+
+### 2. Backend: Service Updates
+
+#### [MODIFY] [DocumentService.java](file:///d:/SWP391/backend/src/main/java/com/example/keeper/systems/document/service/DocumentService.java)
+
+Uncomment/định nghĩa phương thức đề xuất:
+```java
+    List<DocumentResponse> getRecommended(String email, int limit);
+```
+
+#### [MODIFY] [DocumentServiceImpl.java](file:///d:/SWP391/backend/src/main/java/com/example/keeper/systems/document/service/DocumentServiceImpl.java)
+
+Triển khai phương thức `getRecommended`:
+- Lấy thông tin người dùng từ `email`.
+- Nếu user đã hoàn thành khảo sát:
+  - Trích xuất `schoolName`/`schoolCode`, `major` từ `UserProfile`.
+  - Trích xuất danh sách tên ngôn ngữ từ `User.languages`.
+  - Gọi `documentRepository.findRecommendedDocuments(...)` để tìm tài liệu phù hợp.
+- Nếu không có dữ liệu khảo sát hoặc danh sách tài liệu trả về ít hơn `limit`:
+  - Lấy các tài liệu phổ biến bằng `documentRepository.findTopPublicDocuments(...)` và append/merge vào kết quả để đảm bảo luôn đủ số lượng `limit` mà không bị trùng lặp ID.
+
+---
+
+### 3. Backend: Controller Updates
+
+#### [MODIFY] [DocumentController.java](file:///d:/SWP391/backend/src/main/java/com/example/keeper/systems/document/controller/DocumentController.java)
+
+Thêm API endpoint `/api/documents/recommended`:
+```java
+    @GetMapping("/recommended")
+    public List<DocumentResponse> getRecommended(
+            @RequestParam(defaultValue = "5") int limit) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        return documentService.getRecommended(email, limit);
+    }
+```
+
+---
+
+### 4. Frontend: Survey Trigger & Layout updates
+
+#### [MODIFY] [MainLayout.jsx](file:///d:/SWP391/frontend/src/components/layout/MainLayout.jsx)
+
+- Thêm sự kiện lắng nghe `"open-survey-modal"` để mở modal khảo sát bất kỳ khi nào được gọi từ các component con (như banner trang chủ).
+```javascript
+  useEffect(() => {
+    const handleOpenSurvey = () => setShowSurvey(true);
+    window.addEventListener("open-survey-modal", handleOpenSurvey);
+    return () => window.removeEventListener("open-survey-modal", handleOpenSurvey);
+  }, []);
+```
+
+#### [MODIFY] [Homepage.jsx](file:///d:/SWP391/frontend/src/pages/Homepage.jsx)
+
+- Thêm state `recommendedDocs` để lưu danh sách tài liệu đề xuất.
+- Viết hàm `fetchRecommendedDocs()` gọi endpoint `/api/documents/recommended?limit=5`.
+- Lắng nghe sự kiện `"survey:completed"` để cập nhật lại danh sách đề xuất ngay lập tức khi hoàn thành khảo sát.
+- Hiển thị phần đề xuất **"Recommended for You"** ngay bên dưới phần **"Recent Documents"** (hoặc vị trí phù hợp nhất).
+- Nếu chưa hoàn thành khảo sát, hiển thị banner thiết kế Premium khuyến khích người dùng thực hiện khảo sát:
+  - *"Personalize Your Learning Experience. Tell us your university, major, and target languages to get tailored study materials!"*
+  - Button **"Complete Survey"** kích hoạt sự kiện `"open-survey-modal"`.
+
+---
+
+## Verification Plan
+
+### Automated Tests
+- Chạy `mvn compile` để kiểm tra compile thành công phía backend.
+- Chạy `npm run dev` kiểm tra frontend khởi động bình thường.
+
+### Manual Verification
+- Đăng nhập tài khoản chưa khảo sát → Kiểm tra trang chủ hiển thị banner kêu gọi khảo sát.
+- Click "Complete Survey" từ banner trang chủ → Modal khảo sát hiện lên. Hoàn thành khảo sát.
+- Sau khi click submit khảo sát → Banner biến mất, thay thế bằng danh sách tài liệu gợi ý khớp với ngành học, trường hoặc ngôn ngữ vừa nhập.
+- Thả tim hoặc tải tài liệu từ danh sách đề xuất để kiểm tra tương thích.
+- Đăng nhập tài khoản Guest (chưa login) → Xem đề xuất mặc định (tài liệu phổ biến nhất) mà không bị lỗi.

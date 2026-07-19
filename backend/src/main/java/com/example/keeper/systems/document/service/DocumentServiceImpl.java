@@ -436,28 +436,75 @@ public class DocumentServiceImpl implements DocumentService {
                 .toList();
     }
 
-    // @Override
-    // public List<Document> getRecommended(String email, int limit) {
-    // User user = userRepository.findByEmail(email)
-    // .orElseThrow(() -> new RuntimeException("User not found"));
-    //
-    // List<String> preferredLanguages = user.getPreferredLanguages()
-    // .stream()
-    // .map(value -> value == null ? "" : value.trim().toLowerCase())
-    // .filter(value -> !value.isEmpty())
-    // .collect(Collectors.toList());
-    //
-    // if (user.isSurveyCompleted() && !preferredLanguages.isEmpty()) {
-    // List<Document> matches =
-    // documentRepository.findByTagNames(preferredLanguages, PageRequest.of(0,
-    // limit));
-    // if (!matches.isEmpty()) {
-    // return matches;
-    // }
-    // }
-    //
-    // return documentRepository.findTopByDownloadCount(PageRequest.of(0, limit));
-    // }
+    @Override
+    public List<DocumentResponse> getRecommended(String email, int limit) {
+        String schoolName = null;
+        String majorName = null;
+        List<String> languageNames = List.of();
+
+        if (email != null && !email.isBlank() && !"anonymousUser".equalsIgnoreCase(email)) {
+            Optional<User> userOpt = userRepository.findByEmail(email);
+            if (userOpt.isPresent()) {
+                User user = userOpt.get();
+                if (user.isSurveyCompleted()) {
+                    if (user.getProfile() != null) {
+                        schoolName = user.getProfile().getSchoolName();
+                        if (schoolName == null || schoolName.isBlank()) {
+                            schoolName = user.getProfile().getSchoolCode();
+                        }
+                        majorName = user.getProfile().getMajor();
+                    }
+                    if (user.getLanguages() != null) {
+                        languageNames = user.getLanguages().stream()
+                                .map(l -> l.getName().trim().toLowerCase())
+                                .filter(name -> !name.isEmpty())
+                                .collect(Collectors.toList());
+                    }
+                }
+            }
+        }
+
+        List<Document> recommendedDocs = List.of();
+        boolean hasSurveyData = (schoolName != null && !schoolName.isBlank())
+                || (majorName != null && !majorName.isBlank())
+                || !languageNames.isEmpty();
+
+        if (hasSurveyData) {
+            List<String> queryLanguages = languageNames;
+            if (queryLanguages.isEmpty()) {
+                queryLanguages = List.of("__DUMMY_LANG__");
+            }
+            recommendedDocs = documentRepository.findRecommendedDocuments(
+                    schoolName,
+                    majorName,
+                    queryLanguages,
+                    PageRequest.of(0, limit)
+            );
+        }
+
+        List<DocumentResponse> resultList = new java.util.ArrayList<>();
+        Set<UUID> addedIds = new HashSet<>();
+
+        for (Document doc : recommendedDocs) {
+            if (addedIds.add(doc.getId())) {
+                resultList.add(mapToResponse(doc));
+            }
+        }
+
+        if (resultList.size() < limit) {
+            List<Document> topDocs = documentRepository.findTopPublicDocuments(PageRequest.of(0, limit * 2));
+            for (Document doc : topDocs) {
+                if (resultList.size() >= limit) {
+                    break;
+                }
+                if (addedIds.add(doc.getId())) {
+                    resultList.add(mapToResponse(doc));
+                }
+            }
+        }
+
+        return resultList;
+    }
 
     @Override
     @org.springframework.transaction.annotation.Transactional
