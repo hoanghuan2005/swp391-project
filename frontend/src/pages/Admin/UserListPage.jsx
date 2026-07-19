@@ -572,8 +572,8 @@ export default function UserListPage() {
 
       <Card className="rounded-2xl shadow-sm border-slate-100">
         <CardHeader className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 pb-4 border-b border-slate-100">
-          <div>
-            <CardTitle className="text-lg text-slate-700">
+          <div className="shrink-0">
+            <CardTitle className="text-lg text-slate-700 whitespace-nowrap">
               Account List
             </CardTitle>
             <p className="mt-1 text-xs font-medium text-slate-400">
@@ -880,7 +880,12 @@ export default function UserListPage() {
                         <TableCell className="font-medium text-center text-slate-500 px-1">{index + 1}</TableCell>
                         <TableCell className="font-semibold text-slate-700 px-1">
                           <div className="max-w-[100px] truncate">
-                            {user.username || "N/A"}
+                            <Link
+                              to={`/admin/users/${user.id}`}
+                              className="text-slate-700 hover:text-[#f26522] transition-colors cursor-pointer"
+                            >
+                              {user.username || "N/A"}
+                            </Link>
                           </div>
                         </TableCell>
                         <TableCell className="text-slate-600 px-1">
@@ -931,17 +936,6 @@ export default function UserListPage() {
                             >
                               <Eye className="h-3 w-3 text-slate-400" aria-hidden="true" />
                               View
-                            </Button>
-                            <Button
-                              asChild
-                              size="sm"
-                              variant="outline"
-                              className="rounded-lg border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-[#f26522] h-7 px-1.5 text-xs flex items-center gap-1"
-                            >
-                              <Link to={`/admin/users/${user.id}`}>
-                                <ArrowRight className="h-3 w-3 text-slate-400" aria-hidden="true" />
-                                Details
-                              </Link>
                             </Button>
                             {getRoleName(user) !== "ADMIN" && (
                               <Button

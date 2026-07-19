@@ -82,4 +82,16 @@ public interface DocumentRepository extends JpaRepository<Document, UUID> {
             @Param("keyword") String keyword,
             Pageable pageable
     );
+
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.transaction.annotation.Transactional
+    @Query(value = "DELETE FROM project_documents WHERE document_id = :documentId", nativeQuery = true)
+    void deleteProjectDocumentAssociations(@Param("documentId") UUID documentId);
+
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.transaction.annotation.Transactional
+    @Query(value = "DELETE FROM user_favorites WHERE document_id = :documentId", nativeQuery = true)
+    void deleteUserFavoriteAssociations(@Param("documentId") UUID documentId);
+
+    boolean existsByOriginalFileNameAndFileSizeAndUploadedById(String originalFileName, Long fileSize, UUID uploadedById);
 }

@@ -174,7 +174,7 @@ export default function BaseCrud({
 
       <Card className="rounded-2xl border-slate-100 shadow-sm">
         <CardHeader className="flex flex-col gap-3 border-b border-slate-100 sm:flex-row sm:items-center sm:justify-between">
-          <CardTitle className="text-lg text-slate-700">
+          <CardTitle className="text-lg text-slate-700 whitespace-nowrap shrink-0">
             {cardTitle || (hideHeader ? title : `${entityName} directory`)}
           </CardTitle>
           <div className="w-full">

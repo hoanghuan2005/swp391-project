@@ -76,4 +76,17 @@ public class AdminDocumentController {
         }
         return ResponseEntity.ok(Map.of("success", true, "message", "Documents imported successfully"));
     }
+
+    @GetMapping("/reports")
+    public ResponseEntity<?> getAllReports() {
+        return ResponseEntity.ok(documentService.getAllReports());
+    }
+
+    @PutMapping("/reports/{reportId}/resolve")
+    public ResponseEntity<?> resolveReport(
+            @PathVariable UUID reportId,
+            @RequestParam String status) {
+        documentService.resolveReport(reportId, status);
+        return ResponseEntity.ok(Map.of("message", "Report resolved successfully"));
+    }
 }

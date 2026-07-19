@@ -12,6 +12,7 @@ import {
   Globe,
   CreditCard,
   Brain,
+  ShieldAlert,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -122,6 +123,13 @@ export default function AdminSidebar({ isOpen = true }) {
           to="/admin/documents"
           icon={FileText}
           label="Documents"
+          isOpen={isOpen}
+          pathname={location.pathname}
+        />
+        <AdminNavItem
+          to="/admin/reports"
+          icon={ShieldAlert}
+          label="Reports"
           isOpen={isOpen}
           pathname={location.pathname}
         />

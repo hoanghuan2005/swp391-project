@@ -56,13 +56,11 @@ export default function AdminToolbar({
         {filters && (
           <div className="relative" ref={popoverRef}>
             <Button
-              variant="outline"
+              variant="adminOutline"
               onClick={() => setIsOpen(!isOpen)}
-              className={`rounded-xl border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 flex items-center gap-2 h-10 px-4 font-semibold transition-all ${
-                isOpen ? "border-[#f26522] ring-1 ring-[#f26522]/20" : ""
-              }`}
+              className={isOpen ? "border-[#f26522] ring-1 ring-[#f26522]/20" : ""}
             >
-              <SlidersHorizontal className="w-4 h-4 text-[#f26522]" />
+              <SlidersHorizontal className="w-4 h-4" />
               <span>Filters</span>
               {activeFiltersCount > 0 && (
                 <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#f26522] px-1 text-[10px] font-bold text-white">
@@ -120,8 +118,8 @@ export default function AdminToolbar({
         {/* 3. Add New Button */}
         {onAddClick && (
           <Button
+            variant="adminSolid"
             onClick={onAddClick}
-            className="rounded-xl bg-[#f26522] text-white hover:bg-[#d95316] flex items-center gap-2 h-10 px-4 font-semibold border-none cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             {addLabel || "Add New"}

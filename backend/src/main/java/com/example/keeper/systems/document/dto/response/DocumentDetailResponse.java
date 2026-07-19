@@ -66,6 +66,7 @@ public class DocumentDetailResponse {
         private UUID id;
         private String username;
         private String email;
+        private String roleName;
     }
 
     @Data

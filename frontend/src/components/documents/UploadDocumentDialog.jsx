@@ -36,6 +36,7 @@ import { isDocumentQuotaExceeded } from "@/api/documentQuotaApi";
 import QuotaExceededDialog from "@/components/quota/QuotaExceededDialog";
 import useDocumentQuota from "@/hooks/useDocumentQuota";
 import { toast } from "sonner";
+import ConfirmModal from "@/components/share/ConfirmModal";
 
 export default function UploadDocumentDialog({
   open,
@@ -58,6 +59,7 @@ export default function UploadDocumentDialog({
   const [description, setDescription] = useState("");
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
+  const [duplicateConfirmOpen, setDuplicateConfirmOpen] = useState(false);
   const [quotaDialog, setQuotaDialog] = useState({
     open: false,
     type: "DOCUMENT",
@@ -155,6 +157,7 @@ export default function UploadDocumentDialog({
       setSubjectNameOpen(false);
 
       setUploadError("");
+      setDuplicateConfirmOpen(false);
       setMajorOptions([]);
       setSubjectOptions([]);
     }
@@ -237,58 +240,11 @@ export default function UploadDocumentDialog({
     return null;
   };
 
-  const handleUploadDocument = async () => {
-    if (!selectedFile) {
-      const message = "Please select a file to upload.";
-      setUploadError(message);
-      toast.error(message);
-      return;
-    }
-
-    if (!selectedSchool) {
-      const message = "Please select a school.";
-      setUploadError(message);
-      toast.error(message);
-      return;
-    }
-
-    if (!selectedMajor) {
-      const message = "Please select a major.";
-      setUploadError(message);
-      toast.error(message);
-      return;
-    }
-
-    if (maxFileSizeBytes && selectedFile.size > maxFileSizeBytes) {
-      setQuotaDialog({
-        open: true,
-        type: "FILE_SIZE",
-        message: `Maximum file size for your plan is ${maxFileSizeMb}MB.`,
-      });
-      return;
-    }
-
-    const courseCode = subjectQuery.split("-")[0]?.trim();
-
-    if (!selectedSubject && !subjectNameOpen) {
-      const message = "Please select or enter a course.";
-      setUploadError(message);
-      toast.error(message);
-      return;
-    }
-
-    if (subjectNameOpen && !subjectName.trim()) {
-      const message = "Please enter the course name.";
-      setUploadError(message);
-      toast.error(message);
-      return;
-    }
-
-    const uploadedById = await resolveUploadedById();
-
+  const executeUpload = async (uploadedById) => {
     setUploading(true);
     setUploadError("");
     const toastId = toast.loading("Uploading document...");
+    const courseCode = subjectQuery.split("-")[0]?.trim();
 
     try {
       const uploadPromise = async () => {
@@ -397,6 +353,69 @@ export default function UploadDocumentDialog({
     } finally {
       setUploading(false);
     }
+  };
+
+  const handleUploadDocument = async () => {
+    if (!selectedFile) {
+      const message = "Please select a file to upload.";
+      setUploadError(message);
+      toast.error(message);
+      return;
+    }
+
+    if (!selectedSchool) {
+      const message = "Please select a school.";
+      setUploadError(message);
+      toast.error(message);
+      return;
+    }
+
+    if (!selectedMajor) {
+      const message = "Please select a major.";
+      setUploadError(message);
+      toast.error(message);
+      return;
+    }
+
+    if (maxFileSizeBytes && selectedFile.size > maxFileSizeBytes) {
+      setQuotaDialog({
+        open: true,
+        type: "FILE_SIZE",
+        message: `Maximum file size for your plan is ${maxFileSizeMb}MB.`,
+      });
+      return;
+    }
+
+    if (!selectedSubject && !subjectNameOpen) {
+      const message = "Please select or enter a course.";
+      setUploadError(message);
+      toast.error(message);
+      return;
+    }
+
+    if (subjectNameOpen && !subjectName.trim()) {
+      const message = "Please enter the course name.";
+      setUploadError(message);
+      toast.error(message);
+      return;
+    }
+
+    const uploadedById = await resolveUploadedById();
+
+    // Check duplicate
+    try {
+      const duplicateRes = await axiosClient.get(
+        `/api/documents/check-duplicate?fileName=${encodeURIComponent(selectedFile.name)}&fileSize=${selectedFile.size}`
+      );
+      if (duplicateRes.data?.isDuplicate) {
+        setDuplicateConfirmOpen(true);
+        return;
+      }
+    } catch (checkErr) {
+      console.warn("Failed to complete duplicate check, continuing with normal upload...", checkErr);
+    }
+
+    await executeUpload(uploadedById);
   };
 
   return (
@@ -672,6 +691,19 @@ export default function UploadDocumentDialog({
               {uploading ? "Uploading..." : "Upload"}
             </Button>
           </DialogFooter>
+          <ConfirmModal
+            open={duplicateConfirmOpen}
+            title="Duplicate Document"
+            message={`A file named "${selectedFile?.name}" with the same size already exists in your library. Do you still want to upload it?`}
+            onConfirm={async () => {
+              setDuplicateConfirmOpen(false);
+              const uploadedById = await resolveUploadedById();
+              await executeUpload(uploadedById);
+            }}
+            onCancel={() => {
+              setDuplicateConfirmOpen(false);
+            }}
+          />
         </DialogContent>
       </Dialog>
       <QuotaExceededDialog

@@ -2,6 +2,7 @@ package com.example.keeper.systems.payment.repository;
 
 import com.example.keeper.systems.payment.entity.PaymentTransaction;
 import jakarta.persistence.LockModeType;
+import net.minidev.json.JSONUtil;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;

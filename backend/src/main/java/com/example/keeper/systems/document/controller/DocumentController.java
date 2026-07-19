@@ -3,6 +3,7 @@ package com.example.keeper.systems.document.controller;
 import com.example.keeper.systems.document.dto.request.CreateDocumentRequest;
 import com.example.keeper.systems.document.dto.request.UpdateDocumentRequest;
 import com.example.keeper.systems.document.dto.request.DocumentReviewRequest;
+import com.example.keeper.systems.document.dto.request.DocumentReportRequest;
 import com.example.keeper.systems.document.dto.response.DocumentDetailResponse;
 import com.example.keeper.systems.document.dto.response.DocumentResponse;
 import com.example.keeper.systems.document.dto.response.DocumentReviewResponse;
@@ -48,6 +49,18 @@ public class DocumentController {
         Document document = documentService.create(request);
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         return documentService.getDetail(document.getId(), email);
+    }
+
+    @Operation(summary = "Check if a duplicate document exists in the user's library")
+    @GetMapping("/check-duplicate")
+    public ResponseEntity<Map<String, Object>> checkDuplicate(
+            @RequestParam("fileName") String fileName,
+            @RequestParam("fileSize") Long fileSize) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        boolean isDuplicate = documentService.checkDuplicate(fileName, fileSize, email);
+        Map<String, Object> response = new java.util.HashMap<>();
+        response.put("isDuplicate", isDuplicate);
+        return ResponseEntity.ok(response);
     }
 
     @Operation(summary = "Upload a document")
@@ -274,5 +287,14 @@ public class DocumentController {
             @PathVariable UUID id,
             @RequestBody UpdateDocumentRequest request) {
         return documentService.update(id, request);
+    }
+
+    @PostMapping("/{id}/report")
+    public ResponseEntity<?> reportDocument(
+            @PathVariable UUID id,
+            @RequestBody @jakarta.validation.Valid DocumentReportRequest request) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        documentService.reportDocument(id, request, email);
+        return ResponseEntity.ok(java.util.Map.of("message", "Document reported successfully!"));
     }
 }

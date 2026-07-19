@@ -71,6 +71,14 @@ const statGroups = [
         icon: UserX,
         iconClassName: "bg-red-50 text-red-600",
       },
+      {
+        key: "pendingReports",
+        title: "Pending Reports",
+        caption: "Unresolved reports",
+        href: "/admin/reports",
+        icon: ShieldAlert,
+        iconClassName: "bg-orange-50 text-[#f26522]",
+      },
     ],
   },
 ];
@@ -115,26 +123,37 @@ function StatCard({ stat, value, isLoading }) {
 }
 
 export default function DashboardPage() {
-  const [stats, setStats] = useState(defaultStats);
+  const [stats, setStats] = useState({ ...defaultStats, pendingReports: 0 });
   const [isLoading, setIsLoading] = useState(true);
+  const [reports, setReports] = useState([]);
 
   // Hover states for interactive SVG charts
   const [hoveredTier, setHoveredTier] = useState(null);
   const [hoveredDoc, setHoveredDoc] = useState(null);
 
   useEffect(() => {
-    const fetchStats = async () => {
+    const fetchDashboardData = async () => {
       try {
-        const response = await axiosClient.get("/api/admin/dashboard/stats");
-        setStats({ ...defaultStats, ...response.data });
+        const [statsRes, reportsRes] = await Promise.all([
+          axiosClient.get("/api/admin/dashboard/stats"),
+          axiosClient.get("/api/admin/documents/reports"),
+        ]);
+
+        const pendingCount = reportsRes.data.filter((r) => r.status === "PENDING").length;
+        setStats({
+          ...defaultStats,
+          ...statsRes.data,
+          pendingReports: pendingCount,
+        });
+        setReports(reportsRes.data);
       } catch (error) {
-        console.error("Error fetching statistics:", error);
+        console.error("Error fetching dashboard data:", error);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchStats();
+    fetchDashboardData();
   }, []);
 
   // 1. Calculations for Subscription Doughnut Chart (Free vs Pro)
@@ -175,6 +194,13 @@ export default function DashboardPage() {
   ];
   const maxCatalogVal = Math.max(...catalogData.map((d) => d.val), 5);
 
+  // 4. Calculations for Report Resolution Overview (Pending vs Resolved)
+  const pendingReportsCount = reports.filter((r) => r.status === "PENDING").length;
+  const resolvedReportsCount = reports.filter((r) => r.status === "RESOLVED").length;
+  const totalReportsCount = pendingReportsCount + resolvedReportsCount || 1;
+  const pendingPercent = Math.round((pendingReportsCount / totalReportsCount) * 100);
+  const resolvedPercent = Math.round((resolvedReportsCount / totalReportsCount) * 100);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -198,7 +224,7 @@ export default function DashboardPage() {
       {statGroups.map((group) => (
         <section key={group.title} className="space-y-3">
           <h2 className="text-lg font-bold text-slate-700">{group.title}</h2>
-          <div className="grid gap-5 md:grid-cols-3">
+          <div className="grid gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
             {group.cards.map((stat) => (
               <StatCard
                 key={stat.key}
@@ -213,7 +239,7 @@ export default function DashboardPage() {
 
       {/* Visual Analytics Section */}
       <h2 className="text-lg font-bold text-slate-700 mt-8">Visual Analytics</h2>
-      <div className="grid gap-6 md:grid-cols-3">
+      <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
         {/* 1. Subscription Tier Doughnut Chart */}
         <Card className="rounded-2xl border-slate-100 shadow-sm">
           <CardHeader className="border-b border-slate-100">
@@ -423,6 +449,81 @@ export default function DashboardPage() {
                       {d.label}
                     </div>
                   ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* 4. Report Resolution Overview Chart */}
+        <Card className="rounded-2xl border-slate-100 shadow-sm">
+          <CardHeader className="border-b border-slate-100">
+            <CardTitle className="text-base font-bold text-slate-700 flex items-center justify-between">
+              Report Resolution
+              <span className="text-xs font-medium text-slate-400">Doughnut Chart</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-6 flex flex-col items-center justify-center">
+            {isLoading ? (
+              <Skeleton className="w-[180px] h-[180px] rounded-full" />
+            ) : (
+              <div className="relative w-full flex flex-col items-center justify-center">
+                <svg className="w-[180px] h-[180px]" viewBox="0 0 100 100">
+                  {/* Outer circle track */}
+                  <circle cx="50" cy="50" r="38" fill="none" stroke="#f1f5f9" strokeWidth="12" />
+
+                  {/* Resolved slice - Green */}
+                  {resolvedPercent > 0 && (
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="38"
+                      fill="none"
+                      stroke="#10b981"
+                      strokeWidth="12"
+                      strokeDasharray={`${resolvedPercent * 2.38} 238`}
+                      transform="rotate(-90 50 50)"
+                      strokeLinecap="round"
+                      className="transition-all duration-300"
+                    />
+                  )}
+
+                  {/* Pending slice - Orange/Red */}
+                  {pendingPercent > 0 && (
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="38"
+                      fill="none"
+                      stroke="#ef4444"
+                      strokeWidth="12"
+                      strokeDasharray={`${pendingPercent * 2.38} 238`}
+                      strokeDashoffset={-(resolvedPercent * 2.38)}
+                      transform="rotate(-90 50 50)"
+                      strokeLinecap="round"
+                      className="transition-all duration-300"
+                    />
+                  )}
+
+                  {/* Center Text */}
+                  <text x="50%" y="47%" textAnchor="middle" className="text-[7px] font-extrabold fill-slate-400 uppercase">
+                    RESOLVED
+                  </text>
+                  <text x="50%" y="61%" textAnchor="middle" className="text-[14px] font-black fill-slate-800">
+                    {resolvedPercent}%
+                  </text>
+                </svg>
+
+                {/* Legend */}
+                <div className="flex gap-4 mt-6">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-3 h-3 rounded-full bg-[#10b981]" />
+                    <span className="text-xs font-semibold text-slate-500">Resolved ({resolvedReportsCount})</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-3 h-3 rounded-full bg-[#ef4444]" />
+                    <span className="text-xs font-semibold text-slate-500">Pending ({pendingReportsCount})</span>
+                  </div>
                 </div>
               </div>
             )}

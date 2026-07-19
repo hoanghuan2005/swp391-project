@@ -13,8 +13,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Trash2, Eye, Search, Plus, FileText } from "lucide-react";
+import { Trash2, Search, Plus, FileText, Pencil } from "lucide-react";
 import UploadDocumentDialog from "@/components/documents/UploadDocumentDialog";
+import EditDocumentModal from "@/components/share/EditDocumentModal";
 import { useModal } from "@/components/share/useModal";
 import { toast } from "sonner";
 import AdminToolbar from "@/components/admin/AdminToolbar";
@@ -29,6 +30,14 @@ export default function DocumentListPage() {
   const [parseStatusFilter, setParseStatusFilter] = useState(ALL_FILTER);
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const { confirm } = useModal();
+  const [currentAdmin, setCurrentAdmin] = useState(null);
+  const [editingDocId, setEditingDocId] = useState(null);
+
+  useEffect(() => {
+    axiosClient.get("/api/profile")
+      .then((res) => setCurrentAdmin(res.data))
+      .catch((err) => console.error("Error loading admin profile:", err));
+  }, []);
 
   // Lấy danh sách tài liệu từ Backend
   const fetchDocuments = async () => {
@@ -147,7 +156,7 @@ export default function DocumentListPage() {
       <Card className="rounded-2xl shadow-sm border-slate-100">
         {/* Thanh công cụ (Toolbar) theo chuẩn Base CRUD của Leader */}
         <CardHeader className="flex flex-col sm:flex-row items-center justify-between gap-4 pb-4 border-b border-slate-100">
-          <CardTitle className="text-lg text-slate-700">
+          <CardTitle className="text-lg text-slate-700 whitespace-nowrap shrink-0">
             All Documents
           </CardTitle>
 
@@ -231,14 +240,15 @@ export default function DocumentListPage() {
                     <TableHead className="w-[50px] text-center font-bold">
                       No.
                     </TableHead>
-                    <TableHead className="w-[25%] font-bold">Title</TableHead>
-                    <TableHead className="w-[15%] text-center font-bold">
+                    <TableHead className="w-[20%] font-bold">Title</TableHead>
+                    <TableHead className="w-[12%] text-center font-bold">Uploader</TableHead>
+                    <TableHead className="w-[12%] text-center font-bold">
                       Course Code
                     </TableHead>
-                    <TableHead className="w-[15%] text-center font-bold">
+                    <TableHead className="w-[12%] text-center font-bold">
                       Visibility
                     </TableHead>
-                    <TableHead className="w-[14%] text-center font-bold">
+                    <TableHead className="w-[12%] text-center font-bold">
                       AI Status
                     </TableHead>
                     <TableHead className="w-[10%] text-center font-bold">
@@ -256,7 +266,7 @@ export default function DocumentListPage() {
                   {filteredDocuments.length === 0 ? (
                     <TableRow>
                       <TableCell
-                        colSpan={8}
+                        colSpan={9}
                         className="text-center py-8 text-slate-500"
                       >
                         No documents found.
@@ -272,8 +282,30 @@ export default function DocumentListPage() {
                           {index + 1}
                         </TableCell>
 
-                        <TableCell className="font-semibold text-slate-700">
-                          {doc.title || "Untitled Document"}
+                         <TableCell className="font-semibold text-slate-700">
+                          <div className="max-w-[220px] truncate" title={doc.title}>
+                            <Link
+                              to={`/admin/documents/${doc.id}`}
+                              className="text-slate-700 hover:text-[#f26522] transition-colors cursor-pointer"
+                            >
+                              {doc.title || "Untitled Document"}
+                            </Link>
+                          </div>
+                        </TableCell>
+
+                        <TableCell className="text-center font-semibold text-slate-700 text-sm">
+                          <div className="max-w-[120px] mx-auto truncate" title={doc.uploadedBy?.username}>
+                            {doc.uploadedBy?.username ? (
+                              <Link
+                                to={`/admin/users/${doc.uploadedBy.id}`}
+                                className="text-slate-700 hover:text-[#f26522] transition-colors cursor-pointer"
+                              >
+                                {doc.uploadedBy.username}
+                              </Link>
+                            ) : (
+                              <span className="text-slate-400 font-medium">N/A</span>
+                            )}
+                          </div>
                         </TableCell>
 
                         <TableCell className="text-center">
@@ -334,18 +366,18 @@ export default function DocumentListPage() {
 
                         <TableCell className="text-right pr-4">
                           <div className="flex justify-end gap-2">
-                            {/* Nút Xem (View) */}
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-8 w-8 text-slate-500 hover:text-[#f26522] hover:bg-[#f26522]/10 rounded-lg cursor-pointer transition-colors"
-                              title="View Document"
-                              asChild
-                            >
-                              <Link to={`/admin/documents/${doc.id}`}>
-                                <Eye className="w-4 h-4" />
-                              </Link>
-                            </Button>
+                            {/* Nút Sửa (Edit - Chỉ hiển thị nếu tài liệu của chính Admin) */}
+                            {currentAdmin?.id && doc.uploadedBy?.id && doc.uploadedBy.id === currentAdmin.id && (
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => setEditingDocId(doc.id)}
+                                className="h-8 w-8 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg cursor-pointer transition-colors"
+                                title="Edit Document"
+                              >
+                                <Pencil className="w-4 h-4" />
+                              </Button>
+                            )}
 
                             {/* Nút Xóa (Delete) */}
                             <Button
@@ -373,6 +405,17 @@ export default function DocumentListPage() {
         onOpenChange={setIsUploadDialogOpen}
         onUploadSuccess={fetchDocuments}
       />
+      {editingDocId && (
+        <EditDocumentModal
+          open={Boolean(editingDocId)}
+          documentId={editingDocId}
+          onClose={() => setEditingDocId(null)}
+          onSuccess={() => {
+            setEditingDocId(null);
+            fetchDocuments();
+          }}
+        />
+      )}
     </div>
   );
 }

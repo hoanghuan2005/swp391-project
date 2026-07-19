@@ -43,4 +43,12 @@ public interface DocumentService {
     String getDownloadUrl(UUID id, String email);
 
     DocumentDetailResponse update(UUID id, UpdateDocumentRequest request);
+
+    void reportDocument(UUID documentId, com.example.keeper.systems.document.dto.request.DocumentReportRequest request, String reporterEmail);
+
+    List<com.example.keeper.systems.document.dto.response.DocumentReportResponse> getAllReports();
+
+    void resolveReport(UUID reportId, String status);
+
+    boolean checkDuplicate(String fileName, Long fileSize, String email);
 }

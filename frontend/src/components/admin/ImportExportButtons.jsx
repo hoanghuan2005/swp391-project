@@ -169,11 +169,10 @@ export default function ImportExportButtons({
       {importUrl && importMapping && (
         <>
           <Button
-            variant="outline"
+            variant="adminOutline"
             onClick={() => fileInputRef.current?.click()}
-            className="rounded-xl border-slate-200 hover:bg-slate-50 flex items-center gap-2 cursor-pointer font-semibold"
           >
-            <Upload className="w-4 h-4 text-slate-500" />
+            <Upload className="w-4 h-4" />
             Import Excel
           </Button>
           <input
@@ -187,11 +186,10 @@ export default function ImportExportButtons({
       )}
 
       <Button
-        variant="outline"
+        variant="adminOutline"
         onClick={handleExport}
-        className="rounded-xl border-slate-200 hover:bg-slate-50 flex items-center gap-2 cursor-pointer font-semibold"
       >
-        <Download className="w-4 h-4 text-slate-500" />
+        <Download className="w-4 h-4" />
         Export Excel
       </Button>
 

@@ -29,3 +29,17 @@ export const submitDocumentReview = async (documentId, data) => {
   const response = await axiosClient.post(`/api/documents/${documentId}/reviews`, data);
   return response;
 };
+
+export const reportDocument = async (documentId, reason) => {
+  return await axiosClient.post(`/api/documents/${documentId}/report`, { reason });
+};
+
+export const getDocumentReports = async () => {
+  return await axiosClient.get("/api/admin/documents/reports");
+};
+
+export const resolveDocumentReport = async (reportId, status) => {
+  return await axiosClient.put(`/api/admin/documents/reports/${reportId}/resolve`, null, {
+    params: { status },
+  });
+};

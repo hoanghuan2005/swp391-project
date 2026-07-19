@@ -122,7 +122,7 @@ export default function DocumentReviews({ documentId, uploadedById }) {
             {/* FORM GỬI ĐÁNH GIÁ */}
             {currentUserId && uploadedById && currentUserId === uploadedById ? (
                 <div className="bg-orange-50/50 border border-orange-100 p-5 rounded-2xl mb-8 text-center text-orange-800 text-sm font-medium flex items-center justify-center gap-2">
-                    <span>💡 You cannot review your own document.</span>
+                    <span>You cannot review your own document.</span>
                 </div>
             ) : (
                 <form onSubmit={handleSubmit} className="bg-slate-50 p-6 rounded-2xl mb-8 border border-slate-100">
