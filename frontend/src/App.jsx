@@ -18,6 +18,7 @@ import UserListPage from "./pages/Admin/UserListPage";
 import UserDetailPage from "./pages/Admin/UserDetailPage";
 import DocumentListPage from "./pages/Admin/DocumentListPage";
 import AdminDocumentDetailPage from "./pages/Admin/DocumentDetailPage";
+import ReportListPage from "./pages/Admin/ReportListPage";
 import CatalogSchoolsPage from "./pages/Admin/CatalogSchoolsPage";
 import CatalogTagsPage from "./pages/Admin/CatalogTagsPage";
 import CatalogLanguagesPage from "./pages/Admin/CatalogLanguagesPage";
@@ -149,6 +150,7 @@ function App() {
               path="/admin/documents/:id"
               element={<AdminDocumentDetailPage />}
             />
+            <Route path="/admin/reports" element={<ReportListPage />} />
             <Route path="/admin/payments" element={<TransactionListPage />} />
             <Route path="/admin/ai-usages" element={<AiUsageListPage />} />
             <Route path="/admin/courses" element={<CatalogCoursesPage />} />

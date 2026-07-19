@@ -5,9 +5,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
 import {
   AlertCircle,
   ArrowLeft,
+  Ban,
   Bot,
   CreditCard,
   ExternalLink,
@@ -243,6 +245,29 @@ export default function UserDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [notFound, setNotFound] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+
+  useEffect(() => {
+    axiosClient.get("/api/profile")
+      .then((res) => setCurrentUser(res.data))
+      .catch((err) => console.error("Error loading profile:", err));
+  }, []);
+
+  const isSelf = currentUser?.id && user?.id && currentUser.id === user.id;
+  const isOtherAdmin = user?.roleName === "ADMIN";
+  const canBan = !isSelf && !isOtherAdmin;
+
+  const handleToggleBan = async () => {
+    if (confirm(`Are you sure you want to ${user.banned ? 'unban' : 'ban'} account ${user.username}?`)) {
+      try {
+        await axiosClient.put(`/api/admin/users/${user.id}/ban`);
+        toast.success("User status updated successfully");
+        fetchUser();
+      } catch (err) {
+        toast.error("Action failed");
+      }
+    }
+  };
 
   const fetchUser = useCallback(async () => {
     try {
@@ -310,6 +335,17 @@ export default function UserDetailPage() {
             Back to Users
           </Link>
         </Button>
+
+        {canBan && (
+          <Button
+            variant={user.banned ? "outline" : "destructive"}
+            className="w-fit rounded-xl font-semibold"
+            onClick={handleToggleBan}
+          >
+            <Ban className="mr-2 h-4 w-4" aria-hidden="true" />
+            {user.banned ? "Unban User" : "Ban User"}
+          </Button>
+        )}
       </div>
 
       <Card className="overflow-hidden rounded-2xl border-slate-100 shadow-sm">

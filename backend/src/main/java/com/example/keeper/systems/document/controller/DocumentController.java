@@ -3,6 +3,7 @@ package com.example.keeper.systems.document.controller;
 import com.example.keeper.systems.document.dto.request.CreateDocumentRequest;
 import com.example.keeper.systems.document.dto.request.UpdateDocumentRequest;
 import com.example.keeper.systems.document.dto.request.DocumentReviewRequest;
+import com.example.keeper.systems.document.dto.request.DocumentReportRequest;
 import com.example.keeper.systems.document.dto.response.DocumentDetailResponse;
 import com.example.keeper.systems.document.dto.response.DocumentResponse;
 import com.example.keeper.systems.document.dto.response.DocumentReviewResponse;
@@ -274,5 +275,14 @@ public class DocumentController {
             @PathVariable UUID id,
             @RequestBody UpdateDocumentRequest request) {
         return documentService.update(id, request);
+    }
+
+    @PostMapping("/{id}/report")
+    public ResponseEntity<?> reportDocument(
+            @PathVariable UUID id,
+            @RequestBody @jakarta.validation.Valid DocumentReportRequest request) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        documentService.reportDocument(id, request, email);
+        return ResponseEntity.ok(java.util.Map.of("message", "Document reported successfully!"));
     }
 }

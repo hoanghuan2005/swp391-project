@@ -27,6 +27,10 @@ import com.example.keeper.systems.tag.entity.Tag;
 import com.example.keeper.systems.tag.repository.TagRepository;
 import com.example.keeper.systems.document.enums.Visibility;
 import com.example.keeper.systems.project.repository.ProjectRepository;
+import com.example.keeper.systems.document.repository.DocumentReportRepository;
+import com.example.keeper.systems.document.entity.DocumentReport;
+import com.example.keeper.systems.document.dto.request.DocumentReportRequest;
+import com.example.keeper.systems.document.dto.response.DocumentReportResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
@@ -65,8 +69,7 @@ public class DocumentServiceImpl implements DocumentService {
     private final CategoryRepository categoryRepository;
     private final FlashcardSetRepository flashcardSetRepository;
     private final ProjectRepository projectRepository;
-
-
+    private final DocumentReportRepository documentReportRepository;
 
     @Override
     public Document create(CreateDocumentRequest request) {
@@ -466,7 +469,14 @@ public class DocumentServiceImpl implements DocumentService {
             User user = userRepository.findByEmail(email)
                     .orElseThrow(() -> new RuntimeException("User not found"));
             boolean isAdmin = user.getRole() != null && "ADMIN".equalsIgnoreCase(user.getRole().getName());
-            if (!document.getUploadedBy().getId().equals(user.getId()) && !isAdmin) {
+            boolean isOwner = document.getUploadedBy().getId().equals(user.getId());
+            boolean isUploaderAdmin = document.getUploadedBy().getRole() != null && "ADMIN".equalsIgnoreCase(document.getUploadedBy().getRole().getName());
+
+            if (isAdmin) {
+                if (isUploaderAdmin && !isOwner) {
+                    throw new org.springframework.security.access.AccessDeniedException("You cannot delete a document uploaded by another Admin.");
+                }
+            } else if (!isOwner) {
                 throw new org.springframework.security.access.AccessDeniedException("You do not have permission to delete this document.");
             }
         }
@@ -478,6 +488,11 @@ public class DocumentServiceImpl implements DocumentService {
         documentChunkRepository.deleteByDocumentId(document.getId());
 
         flashcardSetRepository.clearDocumentReference(document.getId());
+
+        documentReportRepository.deleteByDocumentId(document.getId());
+
+        documentRepository.deleteProjectDocumentAssociations(document.getId());
+        documentRepository.deleteUserFavoriteAssociations(document.getId());
 
         documentRepository.delete(document);
 
@@ -552,6 +567,8 @@ public class DocumentServiceImpl implements DocumentService {
                         .id(document.getUploadedBy() == null ? null : document.getUploadedBy().getId())
                         .username(document.getUploadedBy() == null ? null : document.getUploadedBy().getUsername())
                         .email(document.getUploadedBy() == null ? null : document.getUploadedBy().getEmail())
+                        .roleName(document.getUploadedBy() == null || document.getUploadedBy().getRole() == null ? null
+                                : document.getUploadedBy().getRole().getName())
                         .build())
                 .tags(document.getTags() == null
                         ? List.of()
@@ -584,6 +601,12 @@ public class DocumentServiceImpl implements DocumentService {
                 .id(document.getId())
                 .title(document.getTitle())
                 .description(document.getDescription())
+                .uploadedBy(document.getUploadedBy() == null ? null
+                        : DocumentResponse.UserInfo.builder()
+                                .id(document.getUploadedBy().getId())
+                                .username(document.getUploadedBy().getUsername())
+                                .email(document.getUploadedBy().getEmail())
+                                .build())
                 .fileType(resolveFileType(document))
                 .resourceType(resourceType)
                 .previewUrl(previewUrl)
@@ -922,5 +945,55 @@ public class DocumentServiceImpl implements DocumentService {
 
         Document savedDoc = documentRepository.save(document);
         return mapToDetail(savedDoc);
+    }
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional
+    public void reportDocument(UUID documentId, DocumentReportRequest request, String reporterEmail) {
+        Document document = getById(documentId);
+        User reporter = userRepository.findByEmail(reporterEmail)
+                .orElseThrow(() -> new RuntimeException("Reporter not found"));
+
+        if (document.getUploadedBy().getId().equals(reporter.getId())) {
+            throw new IllegalArgumentException("You cannot report your own document");
+        }
+
+        DocumentReport report = new DocumentReport();
+        report.setDocument(document);
+        report.setReporter(reporter);
+        report.setReason(request.getReason());
+        report.setStatus("PENDING");
+
+        documentReportRepository.save(report);
+    }
+
+    @Override
+    public List<DocumentReportResponse> getAllReports() {
+        return documentReportRepository.findAllByOrderByCreatedAtDesc().stream()
+                .map(report -> DocumentReportResponse.builder()
+                        .id(report.getId())
+                        .documentId(report.getDocument().getId())
+                        .documentTitle(report.getDocument().getTitle())
+                        .uploaderId(report.getDocument().getUploadedBy().getId())
+                        .uploaderUsername(report.getDocument().getUploadedBy().getUsername())
+                        .uploaderEmail(report.getDocument().getUploadedBy().getEmail())
+                        .isUploaderBanned(report.getDocument().getUploadedBy().isBanned())
+                        .reporterId(report.getReporter().getId())
+                        .reporterUsername(report.getReporter().getUsername())
+                        .reporterEmail(report.getReporter().getEmail())
+                        .reason(report.getReason())
+                        .status(report.getStatus())
+                        .createdAt(report.getCreatedAt())
+                        .build())
+                .toList();
+    }
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional
+    public void resolveReport(UUID reportId, String status) {
+        DocumentReport report = documentReportRepository.findById(reportId)
+                .orElseThrow(() -> new RuntimeException("Report not found"));
+        report.setStatus(status);
+        documentReportRepository.save(report);
     }
 }

@@ -13,8 +13,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Trash2, Eye, Search, Plus, FileText } from "lucide-react";
+import { Trash2, Eye, Search, Plus, FileText, Pencil } from "lucide-react";
 import UploadDocumentDialog from "@/components/documents/UploadDocumentDialog";
+import EditDocumentModal from "@/components/share/EditDocumentModal";
 import { useModal } from "@/components/share/useModal";
 import { toast } from "sonner";
 import AdminToolbar from "@/components/admin/AdminToolbar";
@@ -29,6 +30,14 @@ export default function DocumentListPage() {
   const [parseStatusFilter, setParseStatusFilter] = useState(ALL_FILTER);
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const { confirm } = useModal();
+  const [currentAdmin, setCurrentAdmin] = useState(null);
+  const [editingDocId, setEditingDocId] = useState(null);
+
+  useEffect(() => {
+    axiosClient.get("/api/profile")
+      .then((res) => setCurrentAdmin(res.data))
+      .catch((err) => console.error("Error loading admin profile:", err));
+  }, []);
 
   // Lấy danh sách tài liệu từ Backend
   const fetchDocuments = async () => {
@@ -347,6 +356,19 @@ export default function DocumentListPage() {
                               </Link>
                             </Button>
 
+                            {/* Nút Sửa (Edit - Chỉ hiển thị nếu tài liệu của chính Admin) */}
+                            {currentAdmin?.id && doc.uploadedBy?.id && doc.uploadedBy.id === currentAdmin.id && (
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => setEditingDocId(doc.id)}
+                                className="h-8 w-8 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg cursor-pointer transition-colors"
+                                title="Edit Document"
+                              >
+                                <Pencil className="w-4 h-4" />
+                              </Button>
+                            )}
+
                             {/* Nút Xóa (Delete) */}
                             <Button
                               size="icon"
@@ -373,6 +395,17 @@ export default function DocumentListPage() {
         onOpenChange={setIsUploadDialogOpen}
         onUploadSuccess={fetchDocuments}
       />
+      {editingDocId && (
+        <EditDocumentModal
+          open={Boolean(editingDocId)}
+          documentId={editingDocId}
+          onClose={() => setEditingDocId(null)}
+          onSuccess={() => {
+            setEditingDocId(null);
+            fetchDocuments();
+          }}
+        />
+      )}
     </div>
   );
 }

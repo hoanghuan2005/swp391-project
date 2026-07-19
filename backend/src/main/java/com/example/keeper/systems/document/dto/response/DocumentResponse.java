@@ -29,6 +29,15 @@ public class DocumentResponse {
     private List<String> tags;
     private Double averageRating;
     private Integer reviewCount;
+    private UserInfo uploadedBy;
+
+    @Data
+    @Builder
+    public static class UserInfo {
+        private UUID id;
+        private String username;
+        private String email;
+    }
 
     @Data
     @Builder

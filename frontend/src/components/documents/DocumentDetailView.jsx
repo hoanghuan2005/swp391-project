@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import axiosClient from "@/api/axiosClient";
 import DocumentReviews from "./DocumentReviews"; // Import component đánh giá
 import { Badge } from "@/components/ui/badge";
@@ -29,10 +29,12 @@ import {
   FileText,
   Heart,
   FolderPlus,
+  ShieldAlert,
+  Trash2,
 } from "lucide-react";
 import FilePreview from "@/components/documents/FilePreview";
 import { forceDownload } from "@/lib/downloadHelper";
-import { recordDocumentView } from "@/api/documentApi";
+import { recordDocumentView, reportDocument } from "@/api/documentApi";
 import AddToProjectModal from "@/components/projects/AddToProjectModal";
 
 const formatFileSize = (bytes) => {
@@ -53,11 +55,63 @@ export default function DocumentDetailView({
   headerDescription = "Review the metadata and preview the uploaded file.",
 }) {
   const isAdmin = window.location.pathname.startsWith("/admin");
+  const navigate = useNavigate();
   const [documentDetail, setDocumentDetail] = useState(null);
   const [loading, setLoading] = useState(true);
   const [addToProjectOpen, setAddToProjectOpen] = useState(false);
   const [isFavorited, setIsFavorited] = useState(false);
   const [likeConfirmOpen, setLikeConfirmOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportReason, setReportReason] = useState("");
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+    axiosClient.get("/api/profile")
+      .then((res) => {
+        setCurrentUser(res.data);
+      })
+      .catch((e) => {
+        console.error("Failed to load current user profile:", e);
+      });
+  }, []);
+
+  const isOwnDocument =
+    documentDetail?.uploadedBy?.id &&
+    currentUser?.id &&
+    documentDetail.uploadedBy.id === currentUser.id;
+
+  const isUploaderAdmin = documentDetail?.uploadedBy?.roleName === "ADMIN";
+  const canDeleteByAdmin = isAdmin && (!isUploaderAdmin || isOwnDocument);
+
+  const handleReportSubmit = async () => {
+    if (!reportReason.trim()) {
+      toast.error("Please enter a reason for reporting!");
+      return;
+    }
+    try {
+      await reportDocument(documentId, reportReason);
+      toast.success("Document reported successfully!");
+      setReportOpen(false);
+      setReportReason("");
+    } catch (error) {
+      console.error("Failed to report document:", error);
+      toast.error(error.response?.data?.message || "Failed to submit report!");
+    }
+  };
+
+  const handleDeleteDocByAdmin = async () => {
+    if (confirm(`Are you sure you want to PERMANENTLY DELETE document "${documentDetail?.title}"?`)) {
+      try {
+        await axiosClient.delete(`/api/admin/documents/${documentId}`);
+        toast.success("Document deleted successfully!");
+        navigate("/admin/documents");
+      } catch (err) {
+        toast.error("Failed to delete document!");
+      }
+    }
+  };
 
   useEffect(() => {
     const checkFavoriteStatus = async () => {
@@ -208,6 +262,32 @@ export default function DocumentDetailView({
               >
                 <Download className="w-4 h-4 mr-2" /> Download
               </Button>
+              {!isAdmin && !isOwnDocument && (
+                <Button
+                  variant="outline"
+                  className="rounded-xl text-red-500 border-red-200 hover:bg-red-50"
+                  onClick={() => {
+                    const token = localStorage.getItem("token");
+                    if (!token) {
+                      toast.error("Please log in to report this document!");
+                      window.location.href = "/login";
+                      return;
+                    }
+                    setReportOpen(true);
+                  }}
+                >
+                  <ShieldAlert className="w-4 h-4 mr-2" /> Report
+                </Button>
+              )}
+              {canDeleteByAdmin && (
+                <Button
+                  variant="destructive"
+                  className="rounded-xl"
+                  onClick={handleDeleteDocByAdmin}
+                >
+                  <Trash2 className="w-4 h-4 mr-2" /> Delete Document
+                </Button>
+              )}
             </div>
           )}
         </div>
@@ -369,6 +449,46 @@ export default function DocumentDetailView({
               className="rounded-xl bg-[#f26522] hover:bg-[#d95316] text-white font-semibold"
             >
               Add
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={reportOpen} onOpenChange={setReportOpen}>
+        <DialogContent className="sm:max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-slate-800 flex items-center gap-2">
+              <ShieldAlert className="w-5 h-5 text-red-500" />
+              Report Document
+            </DialogTitle>
+            <DialogDescription className="text-slate-500 pt-2">
+              Please let us know the reason you are reporting <strong>"{documentDetail?.title}"</strong>:
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-4">
+            <textarea
+              className="w-full min-h-[100px] p-3 rounded-xl border border-slate-200 focus:outline-none focus:border-[#f26522] text-sm"
+              placeholder="Enter the reason (e.g. spam, fake content, copyright violation...)"
+              value={reportReason}
+              onChange={(e) => setReportReason(e.target.value)}
+            />
+          </div>
+          <DialogFooter className="mt-6 flex gap-3 sm:justify-end">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setReportOpen(false);
+                setReportReason("");
+              }}
+              className="rounded-xl"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleReportSubmit}
+              className="rounded-xl bg-red-500 hover:bg-red-600 text-white font-semibold"
+            >
+              Submit Report
             </Button>
           </DialogFooter>
         </DialogContent>
