@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -12,6 +13,7 @@ import org.springframework.stereotype.Service;
 public class EmailService {
     private final JavaMailSender mailSender;
 
+    @Async
     public void sendResetPasswordEmail(String to, String otp) {
         try {
             SimpleMailMessage message = new SimpleMailMessage();
@@ -20,10 +22,11 @@ public class EmailService {
             message.setText("Your OTP code is: " + otp + ". Please do not share this code with anyone.");
             mailSender.send(message);
         } catch (Exception e) {
-            log.error("Failed to send reset password email to {}: {}", to, e.getMessage(), e);
+            log.warn("Could not send reset password email to {}: {}", to, e.getMessage());
         }
     }
 
+    @Async
     public void sendSignupOtpEmail(String to, String otp) {
         try {
             SimpleMailMessage message = new SimpleMailMessage();
@@ -32,10 +35,11 @@ public class EmailService {
             message.setText("Your verification code is: " + otp + ". It expires soon, please do not share this code.");
             mailSender.send(message);
         } catch (Exception e) {
-            log.error("Failed to send signup OTP email to {}: {}", to, e.getMessage(), e);
+            log.warn("Could not send signup OTP email to {}: {}", to, e.getMessage());
         }
     }
 
+    @Async
     public void sendWorkspaceInvitationEmail(String to, String inviterName, String workspaceName, String token) {
         try {
             SimpleMailMessage message = new SimpleMailMessage();
@@ -48,10 +52,11 @@ public class EmailService {
                     "This invitation will expire in 24 hours.");
             mailSender.send(message);
         } catch (Exception e) {
-            log.error("Failed to send workspace invitation email to {}: {}", to, e.getMessage(), e);
+            log.warn("Could not send workspace invitation email to {}: {}", to, e.getMessage());
         }
     }
 
+    @Async
     public void sendSubscriptionSuccessEmail(String to, String fullName) {
         try {
             SimpleMailMessage message = new SimpleMailMessage();
@@ -66,7 +71,7 @@ public class EmailService {
                     "The MinDoCu Team");
             mailSender.send(message);
         } catch (Exception e) {
-            log.error("Failed to send subscription success email to {}: {}", to, e.getMessage(), e);
+            log.warn("Could not send subscription success email to {}: {}", to, e.getMessage());
         }
     }
 }
