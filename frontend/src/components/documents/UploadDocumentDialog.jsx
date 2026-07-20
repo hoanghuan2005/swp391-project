@@ -693,8 +693,8 @@ export default function UploadDocumentDialog({
           </DialogFooter>
           <ConfirmModal
             open={duplicateConfirmOpen}
-            title="Duplicate Document"
-            message={`A file named "${selectedFile?.name}" with the same size already exists in your library. Do you still want to upload it?`}
+            title="Phát hiện tài liệu trùng lặp"
+            message={`Tài liệu "${selectedFile?.name}" với cùng kích thước đã tồn tại trong thư viện của bạn. Bạn vẫn muốn tiếp tục đăng thành bài tài liệu mới? (Nếu muốn gộp thành phiên bản mới v2.0, bạn hãy vào trang chi tiết tài liệu đó và chọn 'Upload Version mới').`}
             onConfirm={async () => {
               setDuplicateConfirmOpen(false);
               const uploadedById = await resolveUploadedById();

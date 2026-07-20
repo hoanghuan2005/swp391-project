@@ -31,6 +31,11 @@ import com.example.keeper.systems.document.repository.DocumentReportRepository;
 import com.example.keeper.systems.document.entity.DocumentReport;
 import com.example.keeper.systems.document.dto.request.DocumentReportRequest;
 import com.example.keeper.systems.document.dto.response.DocumentReportResponse;
+import com.example.keeper.systems.document.dto.response.DocumentVersionResponse;
+import com.example.keeper.systems.document.entity.DocumentVersion;
+import com.example.keeper.systems.document.repository.DocumentVersionRepository;
+import com.example.keeper.systems.ai_ask.service.EmbeddingService;
+import com.example.keeper.systems.ai_ask.entity.DocumentChunk;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
@@ -70,6 +75,8 @@ public class DocumentServiceImpl implements DocumentService {
     private final FlashcardSetRepository flashcardSetRepository;
     private final ProjectRepository projectRepository;
     private final DocumentReportRepository documentReportRepository;
+    private final DocumentVersionRepository documentVersionRepository;
+    private final EmbeddingService embeddingService;
 
     @Override
     public Document create(CreateDocumentRequest request) {
@@ -142,6 +149,25 @@ public class DocumentServiceImpl implements DocumentService {
         }
 
         Document savedDocument = documentRepository.save(document);
+
+        // Save initial DocumentVersion (v1.0)
+        try {
+            DocumentVersion initialVersion = new DocumentVersion();
+            initialVersion.setDocument(savedDocument);
+            initialVersion.setVersionNumber(savedDocument.getCurrentVersionNumber() != null ? savedDocument.getCurrentVersionNumber() : "v1.0");
+            initialVersion.setFileUrl(fileUrl);
+            initialVersion.setCloudinaryPublicId(publicId);
+            initialVersion.setMimeType(uploadResult.getMimeType());
+            initialVersion.setResourceType(resourceType);
+            initialVersion.setOriginalFileName(originalFilename);
+            initialVersion.setFileSize(file.getSize());
+            initialVersion.setChangelog("Initial upload");
+            initialVersion.setUploadedBy(savedDocument.getUploadedBy());
+            documentVersionRepository.save(initialVersion);
+        } catch (Exception e) {
+            log.error("Failed to save initial document version", e);
+        }
+
         notifyFollowers(savedDocument);
 
         if (savedDocument.getAiParseStatus() == AiParseStatus.PENDING && fileBytes != null) {
@@ -442,10 +468,11 @@ public class DocumentServiceImpl implements DocumentService {
         String majorName = null;
         List<String> languageNames = List.of();
 
+        User user = null;
         if (email != null && !email.isBlank() && !"anonymousUser".equalsIgnoreCase(email)) {
             Optional<User> userOpt = userRepository.findByEmail(email);
             if (userOpt.isPresent()) {
-                User user = userOpt.get();
+                user = userOpt.get();
                 if (user.isSurveyCompleted()) {
                     if (user.getProfile() != null) {
                         schoolName = user.getProfile().getSchoolName();
@@ -464,39 +491,88 @@ public class DocumentServiceImpl implements DocumentService {
             }
         }
 
-        List<Document> recommendedDocs = List.of();
-        boolean hasSurveyData = (schoolName != null && !schoolName.isBlank())
-                || (majorName != null && !majorName.isBlank())
-                || !languageNames.isEmpty();
-
-        if (hasSurveyData) {
-            List<String> queryLanguages = languageNames;
-            if (queryLanguages.isEmpty()) {
-                queryLanguages = List.of("__DUMMY_LANG__");
-            }
-            recommendedDocs = documentRepository.findRecommendedDocuments(
-                    schoolName,
-                    majorName,
-                    queryLanguages,
-                    PageRequest.of(0, limit)
-            );
-        }
-
         List<DocumentResponse> resultList = new java.util.ArrayList<>();
         Set<UUID> addedIds = new HashSet<>();
 
-        for (Document doc : recommendedDocs) {
-            if (addedIds.add(doc.getId())) {
-                resultList.add(mapToResponse(doc));
+        // 1. TRIỂN KHAI VECTOR SEARCH (ƯU TIÊN HÀNG ĐẦU)
+        try {
+            StringBuilder contextText = new StringBuilder();
+
+            // Lấy ngữ cảnh từ 3 tài liệu gần nhất user vừa xem
+            if (user != null) {
+                var recentViews = documentViewRepository.findRecentDocuments(user.getId(), PageRequest.of(0, 3));
+                for (var view : recentViews) {
+                    if (view.getDocument() != null && view.getDocument().getTitle() != null) {
+                        contextText.append(view.getDocument().getTitle()).append(" ");
+                        if (view.getDocument().getDescription() != null) {
+                            contextText.append(view.getDocument().getDescription()).append(" ");
+                        }
+                    }
+                }
+            }
+
+            // Nếu chưa có lịch sử xem, dùng thông tin khảo sát
+            if (contextText.toString().trim().isEmpty()) {
+                if (majorName != null) contextText.append(majorName).append(" ");
+                if (schoolName != null) contextText.append(schoolName).append(" ");
+                if (!languageNames.isEmpty()) contextText.append(String.join(" ", languageNames)).append(" ");
+            }
+
+            String queryText = contextText.toString().trim();
+            if (!queryText.isEmpty()) {
+                float[] embedding = embeddingService.embed(queryText);
+                if (embedding != null && embedding.length > 0) {
+                    String vectorStr = java.util.Arrays.toString(embedding);
+                    List<DocumentChunk> similarChunks = documentChunkRepository.findSimilarPublicChunks(vectorStr, limit * 5);
+
+                    for (DocumentChunk chunk : similarChunks) {
+                        UUID docId = chunk.getDocumentId();
+                        if (docId != null && !addedIds.contains(docId)) {
+                            Optional<Document> docOpt = documentRepository.findById(docId);
+                            if (docOpt.isPresent()) {
+                                Document doc = docOpt.get();
+                                if (doc.getVisibility() == Visibility.PUBLIC) {
+                                    addedIds.add(docId);
+                                    resultList.add(mapToResponse(doc));
+                                    if (resultList.size() >= limit) break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Vector search recommendation failed, falling back to SQL query. Error: {}", e.getMessage());
+        }
+
+        // 2. FALLBACK 1: SQL QUERY (NẾU VECTOR SEARCH KHÔNG ĐỦ HÀNG)
+        if (resultList.size() < limit) {
+            boolean hasSurveyData = (schoolName != null && !schoolName.isBlank())
+                    || (majorName != null && !majorName.isBlank())
+                    || !languageNames.isEmpty();
+
+            if (hasSurveyData) {
+                List<String> queryLanguages = languageNames.isEmpty() ? List.of("__DUMMY_LANG__") : languageNames;
+                List<Document> recommendedDocs = documentRepository.findRecommendedDocuments(
+                        schoolName,
+                        majorName,
+                        queryLanguages,
+                        PageRequest.of(0, limit)
+                );
+                for (Document doc : recommendedDocs) {
+                    if (resultList.size() >= limit) break;
+                    if (addedIds.add(doc.getId())) {
+                        resultList.add(mapToResponse(doc));
+                    }
+                }
             }
         }
 
+        // 3. FALLBACK 2: TOP PUBLIC DOCUMENTS (NẾU VẪN CHƯA ĐỦ HÀNG)
         if (resultList.size() < limit) {
             List<Document> topDocs = documentRepository.findTopPublicDocuments(PageRequest.of(0, limit * 2));
             for (Document doc : topDocs) {
-                if (resultList.size() >= limit) {
-                    break;
-                }
+                if (resultList.size() >= limit) break;
                 if (addedIds.add(doc.getId())) {
                     resultList.add(mapToResponse(doc));
                 }
@@ -626,6 +702,8 @@ public class DocumentServiceImpl implements DocumentService {
                                 .toList())
                 .averageRating(avgRating)
                 .reviewCount(revCount)
+                .currentVersionNumber(document.getCurrentVersionNumber() != null ? document.getCurrentVersionNumber() : "v1.0")
+                .versions(getDocumentVersions(document.getId()))
                 .build();
     }
 
@@ -1050,5 +1128,137 @@ public class DocumentServiceImpl implements DocumentService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
         return documentRepository.existsByOriginalFileNameAndFileSizeAndUploadedById(fileName, fileSize, user.getId());
+    }
+
+    // =========================
+    // TÍNH NĂNG: DOCUMENT VERSIONING
+    // =========================
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional
+    public DocumentVersion uploadNewVersion(UUID documentId, MultipartFile file, String changelog, String email) {
+        User uploader = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        Document document = getById(documentId);
+        checkDocumentAccess(document, email);
+
+        documentQuotaService.validateUpload(email, file.getSize());
+
+        FileUploadResult uploadResult = fileStorageService.uploadFile(file, "documents");
+        String fileUrl = uploadResult.getSecureUrl();
+        String publicId = uploadResult.getPublicId();
+        String resourceType = uploadResult.getResourceType();
+
+        List<DocumentVersion> existingVersions = documentVersionRepository.findByDocumentIdOrderByCreatedAtDesc(documentId);
+        int nextVersionNum = existingVersions.size() + 1;
+        String newVersionStr = "v" + nextVersionNum + ".0";
+
+        String originalFilename = sanitizeFilename(uploadResult.getOriginalFileName());
+        String extension = "";
+        if (originalFilename != null && originalFilename.contains(".")) {
+            extension = originalFilename.substring(originalFilename.lastIndexOf('.') + 1).toLowerCase();
+        }
+
+        DocumentVersion newVersion = new DocumentVersion();
+        newVersion.setDocument(document);
+        newVersion.setVersionNumber(newVersionStr);
+        newVersion.setFileUrl(fileUrl);
+        newVersion.setCloudinaryPublicId(publicId);
+        newVersion.setMimeType(uploadResult.getMimeType());
+        newVersion.setResourceType(resourceType);
+        newVersion.setOriginalFileName(originalFilename);
+        newVersion.setFileSize(file.getSize());
+        newVersion.setChangelog(changelog != null && !changelog.isBlank() ? changelog.trim() : "Cập nhật phiên bản mới");
+        newVersion.setUploadedBy(uploader);
+        DocumentVersion savedVersion = documentVersionRepository.save(newVersion);
+
+        // Update Document active file fields
+        document.setFileUrl(fileUrl);
+        document.setCloudinaryPublicId(publicId);
+        document.setMimeType(uploadResult.getMimeType());
+        document.setFileSize(file.getSize());
+        document.setResourceType(resourceType);
+        document.setOriginalFileName(originalFilename);
+        document.setCurrentVersionNumber(newVersionStr);
+        document.setPreviewUrl(fileStorageService.generatePreviewUrl(publicId, resourceType, extension));
+        document.setDownloadUrl(fileStorageService.generateDownloadUrl(publicId, resourceType, extension));
+
+        AiParseStatus parseStatus = resolveAiParseStatus(file);
+        document.setAiParseStatus(parseStatus);
+
+        byte[] fileBytes = null;
+        String parserFilename = file.getOriginalFilename();
+        String parserContentType = file.getContentType();
+        if (parseStatus == AiParseStatus.PENDING) {
+            try {
+                fileBytes = file.getBytes();
+            } catch (IOException e) {
+                log.warn("Failed to copy document bytes for async parsing version: {}", e.getMessage());
+                document.setAiParseStatus(AiParseStatus.FAILED);
+            }
+        }
+
+        Document savedDoc = documentRepository.save(document);
+
+        if (savedDoc.getAiParseStatus() == AiParseStatus.PENDING && fileBytes != null) {
+            byte[] stableBytes = fileBytes;
+            java.util.concurrent.CompletableFuture.runAsync(() -> {
+                boolean parsed = documentParserService.parseAndChunkDocument(stableBytes, parserFilename, parserContentType, savedDoc.getId());
+                documentRepository.findById(savedDoc.getId()).ifPresent(d -> {
+                    d.setAiParseStatus(parsed ? AiParseStatus.READY : AiParseStatus.FAILED);
+                    documentRepository.save(d);
+                });
+            });
+        }
+
+        return savedVersion;
+    }
+
+    @Override
+    public List<DocumentVersionResponse> getDocumentVersions(UUID documentId) {
+        return documentVersionRepository.findByDocumentIdOrderByCreatedAtDesc(documentId)
+                .stream()
+                .map(v -> DocumentVersionResponse.builder()
+                        .id(v.getId())
+                        .documentId(v.getDocument().getId())
+                        .versionNumber(v.getVersionNumber())
+                        .fileUrl(v.getFileUrl())
+                        .originalFileName(v.getOriginalFileName())
+                        .fileSize(v.getFileSize())
+                        .mimeType(v.getMimeType())
+                        .changelog(v.getChangelog())
+                        .uploaderId(v.getUploadedBy() != null ? v.getUploadedBy().getId() : null)
+                        .uploaderName(v.getUploadedBy() != null ? (v.getUploadedBy().getUsername() != null ? v.getUploadedBy().getUsername() : v.getUploadedBy().getEmail()) : "N/A")
+                        .createdAt(v.getCreatedAt())
+                        .build())
+                .toList();
+    }
+
+    @Override
+    public String getDownloadUrlForVersion(UUID documentId, UUID versionId, String email) {
+        Document document = getById(documentId);
+        checkDocumentAccess(document, email);
+
+        DocumentVersion version = documentVersionRepository.findById(versionId)
+                .orElseThrow(() -> new RuntimeException("Version not found"));
+
+        if (!version.getDocument().getId().equals(documentId)) {
+            throw new IllegalArgumentException("Version does not belong to specified document");
+        }
+
+        int currentCount = document.getDownloadCount() != null ? document.getDownloadCount() : 0;
+        document.setDownloadCount(currentCount + 1);
+        documentRepository.save(document);
+
+        if (version.getCloudinaryPublicId() != null && !version.getCloudinaryPublicId().isBlank()) {
+            String resourceType = version.getResourceType() != null ? version.getResourceType() : "raw";
+            String ext = "";
+            if (version.getOriginalFileName() != null && version.getOriginalFileName().contains(".")) {
+                ext = version.getOriginalFileName().substring(version.getOriginalFileName().lastIndexOf('.') + 1);
+            }
+            return fileStorageService.generateDownloadUrl(version.getCloudinaryPublicId(), resourceType, ext);
+        }
+
+        return version.getFileUrl();
     }
 }

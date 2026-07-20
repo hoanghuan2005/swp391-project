@@ -64,21 +64,19 @@ axiosClient.interceptors.response.use(
       } catch (refreshError) {
         console.error("Refresh token expired or invalid:", refreshError);
         if (refreshError.message === "Guest user accessing protected resource") {
-          alert("Vui lòng đăng nhập để sử dụng tính năng này!");
+          // Khách truy cập tính năng cần bảo vệ, không popup alert tự động khi tải trang
         } else {
           alert("Phiên đăng nhập đã hết hạn hoàn toàn. Vui lòng đăng nhập lại!");
+          localStorage.removeItem("token");
+          localStorage.removeItem("refreshToken");
+          window.location.href = "/login";
         }
-
-        localStorage.removeItem("token");
-        localStorage.removeItem("refreshToken");
-        window.location.href = "/login";
         return Promise.reject(refreshError);
       }
     }
 
     if (error.response && error.response.status === 403) {
       console.warn("Bạn không có quyền truy cập API này:", error.config.url);
-      alert("Bạn không có quyền truy cập vào tính năng/tài liệu này!");
     }
 
     return Promise.reject(error);

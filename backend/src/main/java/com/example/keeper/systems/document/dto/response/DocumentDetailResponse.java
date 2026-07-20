@@ -33,6 +33,8 @@ public class DocumentDetailResponse {
     private List<String> tags;
     private Double averageRating;
     private Integer reviewCount;
+    private String currentVersionNumber;
+    private List<DocumentVersionResponse> versions;
 
     @Data
     @Builder

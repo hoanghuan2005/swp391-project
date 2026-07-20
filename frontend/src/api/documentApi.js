@@ -43,3 +43,32 @@ export const resolveDocumentReport = async (reportId, status) => {
     params: { status },
   });
 };
+
+// ==========================================
+// TÍNH NĂNG: DOCUMENT VERSIONING (QUẢN LÝ PHIÊN BẢN)
+// ==========================================
+
+export const uploadNewVersion = async (documentId, formData) => {
+  const response = await axiosClient.post(
+    `/api/documents/${documentId}/versions`,
+    formData,
+    {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    }
+  );
+  return response.data;
+};
+
+export const getDocumentVersions = async (documentId) => {
+  const response = await axiosClient.get(`/api/documents/${documentId}/versions`);
+  return response.data;
+};
+
+export const downloadDocumentVersion = async (documentId, versionId) => {
+  const response = await axiosClient.get(
+    `/api/documents/${documentId}/versions/${versionId}/download`
+  );
+  return response.data;
+};

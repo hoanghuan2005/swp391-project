@@ -51,4 +51,13 @@ public interface DocumentService {
     void resolveReport(UUID reportId, String status);
 
     boolean checkDuplicate(String fileName, Long fileSize, String email);
+
+    // =========================
+    // TÍNH NĂNG: DOCUMENT VERSIONING (QUẢN LÝ PHIÊN BẢN)
+    // =========================
+    com.example.keeper.systems.document.entity.DocumentVersion uploadNewVersion(UUID documentId, MultipartFile file, String changelog, String email);
+
+    List<com.example.keeper.systems.document.dto.response.DocumentVersionResponse> getDocumentVersions(UUID documentId);
+
+    String getDownloadUrlForVersion(UUID documentId, UUID versionId, String email);
 }
