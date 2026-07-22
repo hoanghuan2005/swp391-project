@@ -49,6 +49,9 @@ public class VnpayPaymentServiceImpl implements VnpayPaymentService {
     private final EmailService emailService;
     private final NotificationService notificationService;
 
+    @org.springframework.beans.factory.annotation.Value("${app.frontend.url:http://localhost:5173}")
+    private String frontendUrl;
+
     @Override
     @Transactional
     public CreateVnpayPaymentResponse createProPayment(String userEmail, HttpServletRequest request) {
@@ -76,7 +79,7 @@ public class VnpayPaymentServiceImpl implements VnpayPaymentService {
         params.put("vnp_OrderInfo", orderInfo);
         params.put("vnp_OrderType", VNP_ORDER_TYPE);
         params.put("vnp_Locale", VNP_LOCALE);
-        params.put("vnp_ReturnUrl", vnpayConfig.getReturnUrl());
+        params.put("vnp_ReturnUrl", resolveReturnUrl(request));
         params.put("vnp_IpAddr", resolveClientIp(request));
         params.put("vnp_CreateDate", VNP_DATE_FORMAT.format(LocalDateTime.now()));
 
@@ -329,6 +332,35 @@ public class VnpayPaymentServiceImpl implements VnpayPaymentService {
         }
 
         return query.toString();
+    }
+
+    private String resolveReturnUrl(HttpServletRequest request) {
+        String configuredUrl = vnpayConfig.getReturnUrl();
+        if (configuredUrl != null && !configuredUrl.isBlank() && !configuredUrl.contains("localhost")) {
+            return configuredUrl;
+        }
+
+        String origin = request != null ? request.getHeader("Origin") : null;
+        if (origin == null || origin.isBlank() || origin.contains("localhost")) {
+            String referer = request != null ? request.getHeader("Referer") : null;
+            if (referer != null && !referer.isBlank() && !referer.contains("localhost")) {
+                try {
+                    java.net.URI uri = new java.net.URI(referer);
+                    origin = uri.getScheme() + "://" + uri.getAuthority();
+                } catch (Exception ignored) {}
+            }
+        }
+
+        if (origin != null && !origin.isBlank() && !origin.contains("localhost")) {
+            return origin.endsWith("/") ? origin.substring(0, origin.length() - 1) + "/payment/vnpay-return" : origin + "/payment/vnpay-return";
+        }
+
+        if (frontendUrl != null && !frontendUrl.isBlank() && !frontendUrl.contains("localhost")) {
+            String cleanFrontend = frontendUrl.endsWith("/") ? frontendUrl.substring(0, frontendUrl.length() - 1) : frontendUrl;
+            return cleanFrontend + "/payment/vnpay-return";
+        }
+
+        return configuredUrl != null ? configuredUrl : "http://localhost:5173/payment/vnpay-return";
     }
 
     private String hmacSha512(String key, String data) {
