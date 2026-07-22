@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Loader2, UserPlus, Check, X, Shield, Lock, Users, AlertTriangle } from "lucide-react";
 import { toast } from "react-hot-toast";
-import { jwtDecode } from "jwt-decode";
+import axiosClient from "@/api/axiosClient";
 
 export default function AcceptInvitationPage() {
   const [searchParams] = useSearchParams();
@@ -17,18 +17,14 @@ export default function AcceptInvitationPage() {
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const isLoggedIn = !!localStorage.getItem("token");
+  const isLoggedIn = localStorage.getItem("isLoggedIn") === "true";
   const [currentUserEmail, setCurrentUserEmail] = useState(null);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (token) {
-      try {
-        const decoded = jwtDecode(token);
-        setCurrentUserEmail(decoded?.sub || null);
-      } catch (e) {
-        console.error("Failed to decode token:", e);
-      }
+    if (isLoggedIn) {
+      axiosClient.get("/api/profile")
+        .then((res) => setCurrentUserEmail(res.data?.email || null))
+        .catch((e) => console.error("Failed to fetch profile email:", e));
     }
   }, [isLoggedIn]);
 

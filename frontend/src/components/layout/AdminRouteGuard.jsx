@@ -12,13 +12,14 @@ function getTokenRole(token) {
 
 export default function AdminRouteGuard() {
   const location = useLocation();
-  const token = localStorage.getItem("token");
+  const isLoggedIn = localStorage.getItem("isLoggedIn") === "true";
+  const userRole = localStorage.getItem("userRole");
 
-  if (!token) {
+  if (!isLoggedIn) {
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
-  if (getTokenRole(token) !== "ADMIN") {
+  if (userRole !== "ADMIN") {
     return <Navigate to="/home" replace />;
   }
 

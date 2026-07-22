@@ -82,8 +82,7 @@ export default function UserPage() {
   }, [userId]);
 
   const fetchUserFavorites = useCallback(async () => {
-    const token = localStorage.getItem("token");
-    if (!token) return;
+    if (localStorage.getItem("isLoggedIn") !== "true") return;
     try {
       const res = await axiosClient.get("/api/documents/favorites");
       if (Array.isArray(res.data)) {
@@ -97,8 +96,7 @@ export default function UserPage() {
   }, []);
 
   const handleToggleFavoriteClick = (doc) => {
-    const token = localStorage.getItem("token");
-    if (!token) {
+    if (localStorage.getItem("isLoggedIn") !== "true") {
       toast.error("Please log in to save documents!");
       return;
     }
@@ -164,8 +162,7 @@ export default function UserPage() {
 
   // Follow / Unfollow logic
   const handleFollowToggle = async () => {
-    const token = localStorage.getItem("token");
-    if (!token) {
+    if (localStorage.getItem("isLoggedIn") !== "true") {
       toast.error("Vui lòng đăng nhập để theo dõi người dùng này!");
       navigate("/login");
       return;
@@ -230,8 +227,7 @@ export default function UserPage() {
   };
 
   const handleModalFollowToggle = async (item, index) => {
-    const token = localStorage.getItem("token");
-    if (!token) {
+    if (localStorage.getItem("isLoggedIn") !== "true") {
       toast.error("Vui lòng đăng nhập!");
       navigate("/login");
       return;

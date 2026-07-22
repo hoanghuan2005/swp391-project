@@ -7,6 +7,8 @@ import com.example.keeper.systems.document.dto.response.DocumentResponse;
 import com.example.keeper.systems.document.entity.Document;
 import org.springframework.web.multipart.MultipartFile;
 
+import org.springframework.data.domain.Page;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -17,6 +19,8 @@ public interface DocumentService {
     Document uploadAndCreate(MultipartFile file, CreateDocumentRequest request);
 
     List<DocumentResponse> getAll();
+
+    Page<DocumentResponse> getPublicDocuments(int page, int size);
 
     List<DocumentResponse> getMyUploads(String email);
 

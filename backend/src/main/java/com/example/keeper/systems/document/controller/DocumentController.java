@@ -119,8 +119,15 @@ public class DocumentController {
     }
 
     @GetMapping
-    public List<DocumentResponse> getAll() {
-        return documentService.getAll();
+    public ResponseEntity<?> getAll(
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        if (page != null || size != null) {
+            int p = page != null ? page : 0;
+            int s = size != null ? size : 10;
+            return ResponseEntity.ok(documentService.getPublicDocuments(p, s));
+        }
+        return ResponseEntity.ok(documentService.getAll());
     }
 
     @GetMapping("/recent")

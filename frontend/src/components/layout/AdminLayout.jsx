@@ -23,14 +23,11 @@ export default function AdminLayout() {
     fullName: "",
     email: "",
     avatarUrl: "",
-    role: getTokenRole(localStorage.getItem("token")),
+    role: localStorage.getItem("userRole") || "",
   });
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    const role = getTokenRole(token);
-
-    if (!token) return;
+    if (localStorage.getItem("isLoggedIn") !== "true") return;
 
     let isMounted = true;
 

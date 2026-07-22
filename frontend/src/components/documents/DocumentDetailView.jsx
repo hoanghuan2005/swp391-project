@@ -72,8 +72,7 @@ export default function DocumentDetailView({
   const [uploadVersionOpen, setUploadVersionOpen] = useState(false);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) return;
+    if (localStorage.getItem("isLoggedIn") !== "true") return;
     axiosClient.get("/api/profile")
       .then((res) => {
         setCurrentUser(res.data);
@@ -121,8 +120,7 @@ export default function DocumentDetailView({
 
   useEffect(() => {
     const checkFavoriteStatus = async () => {
-      const token = localStorage.getItem("token");
-      if (!token || !documentId) return;
+      if (localStorage.getItem("isLoggedIn") !== "true" || !documentId) return;
       try {
         const res = await axiosClient.get("/api/documents/favorites");
         if (Array.isArray(res.data)) {
@@ -139,8 +137,7 @@ export default function DocumentDetailView({
   }, [documentId]);
 
   const handleToggleFavoriteClick = () => {
-    const token = localStorage.getItem("token");
-    if (!token) {
+    if (localStorage.getItem("isLoggedIn") !== "true") {
       toast.error("Please log in to save documents!");
       return;
     }
@@ -178,8 +175,7 @@ export default function DocumentDetailView({
   };
 
   const handleDownloadFile = async () => {
-    const token = localStorage.getItem("token");
-    if (!token) {
+    if (localStorage.getItem("isLoggedIn") !== "true") {
       toast.error("Please log in to download the document!");
       window.location.href = "/login";
       return;
@@ -239,8 +235,7 @@ export default function DocumentDetailView({
                 variant="outline"
                 className="rounded-xl text-[#f26522] border-[#f26522]/20 hover:bg-[#f26522] hover:text-white"
                 onClick={() => {
-                  const token = localStorage.getItem("token");
-                  if (!token) {
+                  if (localStorage.getItem("isLoggedIn") !== "true") {
                     toast.error("Please log in to save the document to your project!");
                     window.location.href = "/login";
                     return;
@@ -266,8 +261,7 @@ export default function DocumentDetailView({
                 variant="outline"
                 className="rounded-xl border-emerald-600/30 text-emerald-700 bg-emerald-50 hover:bg-emerald-100"
                 onClick={() => {
-                  const token = localStorage.getItem("token");
-                  if (!token) {
+                  if (localStorage.getItem("isLoggedIn") !== "true") {
                     toast.error("Please log in to upload a new version!");
                     window.location.href = "/login";
                     return;
@@ -288,8 +282,7 @@ export default function DocumentDetailView({
                   variant="outline"
                   className="rounded-xl text-red-500 border-red-200 hover:bg-red-50"
                   onClick={() => {
-                    const token = localStorage.getItem("token");
-                    if (!token) {
+                    if (localStorage.getItem("isLoggedIn") !== "true") {
                       toast.error("Please log in to report this document!");
                       window.location.href = "/login";
                       return;
@@ -457,8 +450,7 @@ export default function DocumentDetailView({
               size="sm"
               className="rounded-xl border-emerald-600/30 text-emerald-700 bg-emerald-50 hover:bg-emerald-100"
               onClick={() => {
-                const token = localStorage.getItem("token");
-                if (!token) {
+                if (localStorage.getItem("isLoggedIn") !== "true") {
                   toast.error("Please log in to upload a new version!");
                   window.location.href = "/login";
                   return;

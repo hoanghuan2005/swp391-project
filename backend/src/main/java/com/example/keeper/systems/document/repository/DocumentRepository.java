@@ -18,6 +18,8 @@ public interface DocumentRepository extends JpaRepository<Document, UUID> {
 
         Page<Document> findByCourseId(UUID courseId, Pageable pageable);
 
+        Page<Document> findByVisibilityOrderByCreatedAtDesc(Visibility visibility, Pageable pageable);
+
         List<Document> findByUploadedById(UUID uploadedById);
 
         List<Document> findByUploadedByIdOrderByCreatedAtDesc(UUID uploadedById, Pageable pageable);

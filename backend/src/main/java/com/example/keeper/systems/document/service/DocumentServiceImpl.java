@@ -385,6 +385,13 @@ public class DocumentServiceImpl implements DocumentService {
     }
 
     @Override
+    public org.springframework.data.domain.Page<DocumentResponse> getPublicDocuments(int page, int size) {
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(Math.max(page, 0), Math.max(size, 1));
+        org.springframework.data.domain.Page<Document> docPage = documentRepository.findByVisibilityOrderByCreatedAtDesc(Visibility.PUBLIC, pageable);
+        return docPage.map(this::mapToResponse);
+    }
+
+    @Override
     public List<DocumentResponse> getMyUploads(String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
