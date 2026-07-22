@@ -315,8 +315,7 @@ export default function Navbar({
   }, []);
 
   const fetchNotifications = useCallback(async () => {
-    const token = localStorage.getItem("token");
-    if (!token) return;
+    if (localStorage.getItem("isLoggedIn") !== "true") return;
     try {
       const res = await axiosClient.get("/api/notifications?page=0&size=5");
       setNotifications(res.data.content || []);
@@ -326,8 +325,7 @@ export default function Navbar({
   }, []);
 
   const fetchUnreadCount = useCallback(async () => {
-    const token = localStorage.getItem("token");
-    if (!token) return;
+    if (localStorage.getItem("isLoggedIn") !== "true") return;
     try {
       const res = await axiosClient.get("/api/notifications/unread-count");
       setUnreadCount(res.data.count);
@@ -340,17 +338,21 @@ export default function Navbar({
     fetchUnreadCount();
     fetchNotifications();
     try {
-      const token = localStorage.getItem("token");
-      if (token) {
-        const decoded = jwtDecode(token);
-        const name = decoded?.name || decoded?.sub || null;
-        if (name) {
-          setUserName(name);
-          setUserInitial(name.charAt(0).toUpperCase());
-        }
+      const savedName = localStorage.getItem("userName");
+      if (savedName) {
+        setUserName(savedName);
+        setUserInitial(savedName.charAt(0).toUpperCase());
+      } else if (localStorage.getItem("isLoggedIn") === "true") {
+        axiosClient.get("/api/profile").then((res) => {
+          if (res.data?.fullName) {
+            setUserName(res.data.fullName);
+            setUserInitial(res.data.fullName.charAt(0).toUpperCase());
+            localStorage.setItem("userName", res.data.fullName);
+          }
+        }).catch(() => {});
       }
     } catch (e) {
-      console.error("Token decode error", e);
+      console.error("Profile decode error", e);
     }
   }, [fetchUnreadCount, fetchNotifications]);
 
@@ -606,7 +608,7 @@ ${
         </div>
 
         {/* THÔNG BÁO VÀ NGƯỜI DÙNG */}
-        {localStorage.getItem("token") ? (
+        {localStorage.getItem("isLoggedIn") === "true" ? (
           <div className="flex items-center gap-4">
             <div className="relative">
               <Button
@@ -916,6 +918,8 @@ ${
 
 function getTokenRole() {
   try {
+    const role = localStorage.getItem("userRole");
+    if (role) return role;
     const token = localStorage.getItem("token");
     return token ? jwtDecode(token)?.role : null;
   } catch (error) {

@@ -11,6 +11,7 @@ export default function OAuth2Callback() {
     if (token || document.cookie.includes("accessToken")) {
       localStorage.removeItem("token");
       localStorage.removeItem("refreshToken");
+      localStorage.setItem("isLoggedIn", "true");
 
       const redirectUrl = localStorage.getItem("oauth2_redirect");
       if (redirectUrl) {

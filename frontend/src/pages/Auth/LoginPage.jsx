@@ -41,14 +41,16 @@ const LoginPage = () => {
         const { accessToken } = response.data;
 
         if (accessToken) {
-          // Clear any legacy localStorage tokens if present
           localStorage.removeItem("token");
           localStorage.removeItem("refreshToken");
+          localStorage.setItem("isLoggedIn", "true");
 
           try {
-            // Giải mã Access Token mới để check Role quyền hạn
             const decoded = jwtDecode(accessToken);
             const role = decoded.role;
+            const name = decoded?.name || decoded?.sub;
+            if (role) localStorage.setItem("userRole", role);
+            if (name) localStorage.setItem("userName", name);
 
             fireSuccessConfetti();
             setTimeout(() => {

@@ -53,7 +53,7 @@ export default function PricingModal({ isOpen, onClose }) {
   const [isStartingUpgrade, setIsStartingUpgrade] = useState(false);
   const { subscriptionTier, loading } = useAiUsage();
   const role = getTokenRole();
-  const isLoggedIn = !!localStorage.getItem("token");
+  const isLoggedIn = localStorage.getItem("isLoggedIn") === "true";
   const canUpgrade = role !== "ADMIN" && subscriptionTier === "FREE";
 
   const handleUpgrade = async () => {
@@ -172,6 +172,8 @@ export default function PricingModal({ isOpen, onClose }) {
 
 function getTokenRole() {
   try {
+    const role = localStorage.getItem("userRole");
+    if (role) return role;
     const token = localStorage.getItem("token");
     return token ? jwtDecode(token)?.role : null;
   } catch (error) {
