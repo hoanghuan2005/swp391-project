@@ -36,6 +36,9 @@ public class SecurityConfig {
     @Value("${app.cors.allowed-origins:http://localhost:5173,https://*.vercel.app}")
     private List<String> allowedOrigins;
 
+    @Value("${app.frontend.url:http://localhost:5173}")
+    private String frontendUrl;
+
     @Bean
     public SecurityFilterChain securityFilterChain(
             org.springframework.security.config.annotation.web.builders.HttpSecurity http)
@@ -173,9 +176,10 @@ public class SecurityConfig {
                             RefreshToken refreshToken = refreshTokenService
                                     .createRefreshToken(user.getId());
 
-                            String redirectUrl = "http://localhost:5173/oauth2/callback"
+                            String redirectUrl = frontendUrl + "/oauth2/callback"
                                     + "?token=" + accessToken
                                     + "&refreshToken=" + refreshToken.getToken();
+
 
                             response.sendRedirect(redirectUrl);
                         }))
