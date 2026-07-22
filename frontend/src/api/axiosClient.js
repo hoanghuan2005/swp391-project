@@ -7,19 +7,13 @@ export const backendBaseUrl = import.meta.env.VITE_API_URL
 const axiosClient = axios.create({
   baseURL: backendBaseUrl,
   timeout: 20000,
-  // TẠM TẮT DÒNG NÀY ĐỂ TRÁNH LỖI CORS 401
-  // withCredentials: true, 
+  withCredentials: true, 
   headers: {
     "Content-Type": "application/json",
   },
 });
 
 axiosClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-
   if (config.data instanceof FormData) {
     delete config.headers['Content-Type'];
   }
@@ -42,23 +36,11 @@ axiosClient.interceptors.response.use(
       originalRequest._retry = true;
 
       try {
-        const refreshToken = localStorage.getItem('refreshToken');
-
-        if (!refreshToken) {
-          throw new Error("Guest user accessing protected resource");
-        }
-
-        const res = await axios.post(`${backendBaseUrl}/api/auth/refresh-token`, {
-          refreshToken: refreshToken,
+        const res = await axios.post(`${backendBaseUrl}/api/auth/refresh-token`, {}, {
+          withCredentials: true,
         });
 
         if (res.status === 200) {
-          const { accessToken } = res.data;
-
-          localStorage.setItem("token", accessToken);
-
-          originalRequest.headers.Authorization = `Bearer ${accessToken}`;
-
           return axiosClient(originalRequest);
         }
       } catch (refreshError) {

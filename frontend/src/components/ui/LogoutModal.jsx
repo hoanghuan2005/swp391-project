@@ -4,16 +4,21 @@ import { LogOut } from "lucide-react";
 const LogoutModal = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
-  const handleLogout = () => {
-    // Clear all local storage entries on logout (including survey flags)
+  const handleLogout = async () => {
     try {
-      localStorage.clear();
+      const axiosClient = (await import("@/api/axiosClient")).default;
+      await axiosClient.post("/api/auth/logout");
     } catch (e) {
-      console.warn("Failed to clear localStorage on logout:", e);
+      console.warn("Logout API call error:", e);
+    } finally {
+      try {
+        localStorage.clear();
+      } catch (e) {
+        console.warn("Failed to clear localStorage on logout:", e);
+      }
+      onClose();
+      window.location.href = "/login";
     }
-
-    onClose();
-    window.location.href = "/login";
   };
 
   return (

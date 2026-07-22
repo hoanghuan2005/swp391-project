@@ -32,33 +32,33 @@ public class AuthController {
         return ResponseEntity.ok(result);
     }
 
-    // SỬA HÀM NÀY: Trả về Object JSON chứa cả 2 Token thay vì chỉ trả về 1 chuỗi
-    // String token trơn
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest request) {
         try {
-            // 1. Gọi hàm login cũ để lấy Access Token (chuỗi JWT)
             String accessToken = authService.login(request);
 
-            // Chốt chặn nếu tài khoản gõ sai mật khẩu/sai email (tránh lưu chữ lỗi vào
-            // localStorage)
             if ("Invalid email or password!".equals(accessToken) || "User not found!".equals(accessToken)) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(accessToken);
             }
 
-            // 2. Tìm User trong DB dựa vào Email đăng nhập để lấy ID tạo Refresh Token
             User user = userRepository.findByEmail(request.getEmail())
                     .orElseThrow(() -> new RuntimeException("User not found with email: " + request.getEmail()));
 
-            // 3. Tạo Refresh Token lưu xuống database
             RefreshToken refreshToken = refreshTokenService.createRefreshToken(user.getId());
 
-            // 4. Đóng gói cả 2 mã trả về cho Frontend dưới dạng JSON
+            org.springframework.http.ResponseCookie accessCookie = 
+                    com.example.keeper.util.CookieUtils.createAccessTokenCookie(accessToken, 86400);
+            org.springframework.http.ResponseCookie refreshCookie = 
+                    com.example.keeper.util.CookieUtils.createRefreshTokenCookie(refreshToken.getToken(), 604800);
+
             Map<String, String> response = new HashMap<>();
             response.put("accessToken", accessToken);
             response.put("refreshToken", refreshToken.getToken());
 
-            return ResponseEntity.ok(response);
+            return ResponseEntity.ok()
+                    .header(org.springframework.http.HttpHeaders.SET_COOKIE, accessCookie.toString())
+                    .header(org.springframework.http.HttpHeaders.SET_COOKIE, refreshCookie.toString())
+                    .body(response);
         } catch (RuntimeException ex) {
             String message = ex.getMessage() != null ? ex.getMessage() : "Login failed";
             HttpStatus status = message.contains("verify") ? HttpStatus.FORBIDDEN : HttpStatus.UNAUTHORIZED;
@@ -67,29 +67,61 @@ public class AuthController {
     }
 
     @PostMapping("/refresh-token")
-    public ResponseEntity<?> refreshToken(@RequestBody Map<String, String> request) {
-        String requestRefreshToken = request.get("refreshToken");
+    public ResponseEntity<?> refreshToken(
+            @RequestBody(required = false) Map<String, String> request,
+            jakarta.servlet.http.HttpServletRequest httpRequest) {
+
+        String requestRefreshToken = request != null ? request.get("refreshToken") : null;
+
+        if (requestRefreshToken == null || requestRefreshToken.isEmpty()) {
+            requestRefreshToken = com.example.keeper.util.CookieUtils.getCookieValue(httpRequest, com.example.keeper.util.CookieUtils.REFRESH_TOKEN_COOKIE_NAME);
+        }
 
         if (requestRefreshToken == null || requestRefreshToken.isEmpty()) {
             return ResponseEntity.badRequest().body("Refresh Token is missing!");
         }
 
+        final String tokenStr = requestRefreshToken;
+
         try {
-            return refreshTokenService.findByToken(requestRefreshToken)
+            return refreshTokenService.findByToken(tokenStr)
                     .map(refreshTokenService::verifyExpiration)
                     .map(RefreshToken::getUser)
                     .map(user -> {
                         String newAccessToken = jwtService.generateToken(user);
+                        org.springframework.http.ResponseCookie newAccessCookie = 
+                                com.example.keeper.util.CookieUtils.createAccessTokenCookie(newAccessToken, 86400);
 
                         Map<String, String> response = new HashMap<>();
                         response.put("accessToken", newAccessToken);
-                        response.put("refreshToken", requestRefreshToken);
-                        return ResponseEntity.ok(response);
+                        response.put("refreshToken", tokenStr);
+
+                        return ResponseEntity.ok()
+                                .header(org.springframework.http.HttpHeaders.SET_COOKIE, newAccessCookie.toString())
+                                .body(response);
                     })
                     .orElseThrow(() -> new RuntimeException("Refresh token is not in database!"));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
         }
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<?> logout(jakarta.servlet.http.HttpServletRequest httpRequest) {
+        String refreshTokenStr = com.example.keeper.util.CookieUtils.getCookieValue(httpRequest, com.example.keeper.util.CookieUtils.REFRESH_TOKEN_COOKIE_NAME);
+        if (refreshTokenStr != null && !refreshTokenStr.isEmpty()) {
+            refreshTokenService.findByToken(refreshTokenStr).ifPresent(token -> {
+                refreshTokenService.deleteByUser(token.getUser());
+            });
+        }
+
+        org.springframework.http.ResponseCookie cleanAccessCookie = com.example.keeper.util.CookieUtils.cleanAccessTokenCookie();
+        org.springframework.http.ResponseCookie cleanRefreshCookie = com.example.keeper.util.CookieUtils.cleanRefreshTokenCookie();
+
+        return ResponseEntity.ok()
+                .header(org.springframework.http.HttpHeaders.SET_COOKIE, cleanAccessCookie.toString())
+                .header(org.springframework.http.HttpHeaders.SET_COOKIE, cleanRefreshCookie.toString())
+                .body(Map.of("message", "Logged out successfully"));
     }
 
     @PostMapping("/forgot-password")

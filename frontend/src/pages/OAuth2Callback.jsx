@@ -7,14 +7,10 @@ export default function OAuth2Callback() {
 
   useEffect(() => {
     const token = params.get("token");
-    const refreshToken = params.get("refreshToken");
 
-    if (token) {
-      localStorage.setItem("token", token);
-
-      if (refreshToken) {
-        localStorage.setItem("refreshToken", refreshToken);
-      }
+    if (token || document.cookie.includes("accessToken")) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("refreshToken");
 
       const redirectUrl = localStorage.getItem("oauth2_redirect");
       if (redirectUrl) {
