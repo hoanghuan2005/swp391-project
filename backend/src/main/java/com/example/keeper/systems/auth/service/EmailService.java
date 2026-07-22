@@ -40,7 +40,9 @@ public class EmailService {
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("accept", "application/json");
             headers.set("api-key", cleanKey);
+
 
             Map<String, Object> body = new HashMap<>();
             body.put("sender", Map.of("name", senderName, "email", senderEmail != null ? senderEmail.trim() : ""));
