@@ -47,6 +47,9 @@ import {
   BookOpen,
   Search,
   Layers,
+  Lock,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 
 export default function ProfilePage() {
@@ -73,6 +76,16 @@ export default function ProfilePage() {
 
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState("");
+
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
 
   const [showSurvey, setShowSurvey] = useState(false);
 
@@ -160,13 +173,41 @@ export default function ProfilePage() {
     console.log("Profile Data:", profileData);
   }, [profileData]);
 
-  const handleSurveyClose = async (result) => {
+  const handleSurveyClose = () => {
     setShowSurvey(false);
+    localStorage.setItem("surveyCompleted", "true");
+    window.dispatchEvent(new Event("survey:completed"));
+  };
 
-    if (result?.completed) {
-      await loadProfileAndOptions();
+  const handleChangePasswordSubmit = async (e) => {
+    e.preventDefault();
+    if (!passwordData.currentPassword) {
+      toast.error("Please type your current password!");
+      return;
+    }
+    if (passwordData.newPassword.length < 6) {
+      toast.error("New password must contain at least 6 characters!");
+      return;
+    }
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      toast.error("New password doesn't match!");
+      return;
+    }
 
-      toast.success("Đã đồng bộ dữ liệu khảo sát vào hồ sơ 🎉");
+    try {
+      setIsChangingPassword(true);
+      const res = await axiosClient.put("/api/profile/change-password", passwordData);
+      toast.success(res.data?.message || "Password changed successfully!");
+      setPasswordData({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
+    } catch (error) {
+      const errMsg = error.response?.data?.message || "Change password failed!";
+      toast.error(errMsg);
+    } finally {
+      setIsChangingPassword(false);
     }
   };
 
@@ -253,11 +294,11 @@ export default function ProfilePage() {
 
       setSelectedFile(null);
 
-      toast.success("Cập nhật hồ sơ thành công 🎉");
+      toast.success("Profile updated successfully!");
     } catch (error) {
       console.error(error);
 
-      toast.error("Không thể cập nhật hồ sơ!");
+      toast.error("Cannot update profile!");
     } finally {
       setIsLoading(false);
     }
@@ -593,6 +634,92 @@ export default function ProfilePage() {
               </form>
             </CardContent>
           </Card>
+
+          {/* CHANGE PASSWORD CARD */}
+          <Card className="rounded-[24px] border-orange-100 shadow-sm mt-6">
+            <CardHeader>
+              <CardTitle className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                <Lock className="w-5 h-5 text-[#f26522]" />
+                Security & Password
+              </CardTitle>
+            </CardHeader>
+
+            <CardContent>
+              <form onSubmit={handleChangePasswordSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-slate-700">Current password</label>
+                  <div className="relative">
+                    <Input
+                      type={showCurrentPassword ? "text" : "password"}
+                      value={passwordData.currentPassword}
+                      onChange={(e) => setPasswordData((prev) => ({ ...prev, currentPassword: e.target.value }))}
+                      placeholder="••••••••"
+                      className="h-11 rounded-xl border-orange-100 pr-10 focus-visible:ring-[#f26522]"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowCurrentPassword((v) => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    >
+                      {showCurrentPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-slate-700">New password</label>
+                    <div className="relative">
+                      <Input
+                        type={showNewPassword ? "text" : "password"}
+                        value={passwordData.newPassword}
+                        onChange={(e) => setPasswordData((prev) => ({ ...prev, newPassword: e.target.value }))}
+                        placeholder="Tối thiểu 6 ký tự"
+                        className="h-11 rounded-xl border-orange-100 pr-10 focus-visible:ring-[#f26522]"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPassword((v) => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      >
+                        {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-slate-700">Confirm Password</label>
+                    <div className="relative">
+                      <Input
+                        type={showConfirmPassword ? "text" : "password"}
+                        value={passwordData.confirmPassword}
+                        onChange={(e) => setPasswordData((prev) => ({ ...prev, confirmPassword: e.target.value }))}
+                        placeholder="Nhập lại mật khẩu mới"
+                        className="h-11 rounded-xl border-orange-100 pr-10 focus-visible:ring-[#f26522]"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword((v) => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      >
+                        {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-2">
+                  <Button
+                    type="submit"
+                    disabled={isChangingPassword}
+                    className="h-10 px-6 rounded-xl bg-[#f26522] hover:bg-[#d9541a] text-white font-bold shadow-lg shadow-orange-200"
+                  >
+                    {isChangingPassword ? "Processing..." : "Update password"}
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
         </div>
       </div>
 
@@ -603,10 +730,10 @@ export default function ProfilePage() {
           <DialogHeader>
             <DialogTitle className="text-xl font-bold text-slate-800 flex items-center gap-2">
               <User className="w-5 h-5 text-[#f26522]" />
-              Xác nhận cập nhật
+              Verify update
             </DialogTitle>
             <DialogDescription className="text-slate-500 pt-2">
-              Bạn có chắc chắn muốn lưu các thay đổi đối với hồ sơ cá nhân của mình không?
+              Are you sure you want to save these changes to your profile?
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="mt-6 flex gap-3 sm:justify-end">
@@ -615,13 +742,13 @@ export default function ProfilePage() {
               onClick={() => setConfirmOpen(false)}
               className="rounded-xl"
             >
-              Hủy
+              Cancel
             </Button>
             <Button
               onClick={handleConfirmSave}
               className="rounded-xl bg-[#f26522] hover:bg-[#d95316] text-white font-semibold"
             >
-              Cập nhật
+              Update
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -82,6 +82,18 @@ public class UserFollowController {
         return ResponseEntity.ok(documents);
     }
 
+    @GetMapping("/profile/{userId}/quizzes")
+    public ResponseEntity<List<com.example.keeper.systems.ai_quiz.dto.response.QuizResponse>> getUserQuizzes(@PathVariable UUID userId) {
+        List<com.example.keeper.systems.ai_quiz.dto.response.QuizResponse> quizzes = userFollowService.getUserQuizzes(userId);
+        return ResponseEntity.ok(quizzes);
+    }
+
+    @GetMapping("/profile/{userId}/flashcards")
+    public ResponseEntity<List<com.example.keeper.systems.ai_flashcard.dto.FlashcardSetResponse>> getUserFlashcards(@PathVariable UUID userId) {
+        List<com.example.keeper.systems.ai_flashcard.dto.FlashcardSetResponse> flashcards = userFollowService.getUserFlashcards(userId);
+        return ResponseEntity.ok(flashcards);
+    }
+
     @GetMapping("/suggestions")
     public ResponseEntity<List<FollowerFollowingResponse>> getSuggestions(@RequestParam(defaultValue = "5") int limit) {
         String currentEmail = SecurityContextHolder.getContext().getAuthentication().getName();

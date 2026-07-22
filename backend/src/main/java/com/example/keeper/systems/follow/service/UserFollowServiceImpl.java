@@ -35,6 +35,10 @@ public class UserFollowServiceImpl implements UserFollowService {
     private final UserRepository userRepository;
     private final DocumentRepository documentRepository;
     private final NotificationService notificationService;
+    private final com.example.keeper.systems.ai_quiz.repository.QuizRepository quizRepository;
+    private final com.example.keeper.systems.ai_flashcard.repository.FlashcardSetRepository flashcardSetRepository;
+    private final com.example.keeper.systems.ai_flashcard.repository.FlashcardRepository flashcardRepository;
+    private final com.example.keeper.systems.course.repository.CourseRepository courseRepository;
 
     @Override
     @Transactional
@@ -223,6 +227,64 @@ public class UserFollowServiceImpl implements UserFollowService {
         return documentRepository.findByUploadedById(userId).stream()
                 .filter(doc -> doc.getVisibility() == com.example.keeper.systems.document.enums.Visibility.PUBLIC)
                 .map(this::mapToDocumentResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<com.example.keeper.systems.ai_quiz.dto.response.QuizResponse> getUserQuizzes(UUID userId) {
+        return quizRepository.findByOwnerId(userId).stream()
+                .filter(q -> "PUBLISHED".equalsIgnoreCase(q.getStatus()))
+                .map(q -> {
+                    String courseCode = null;
+                    if (q.getCourseId() != null) {
+                        courseCode = courseRepository.findById(q.getCourseId())
+                                .map(com.example.keeper.systems.course.entity.Course::getCode)
+                                .orElse(null);
+                    }
+                    return com.example.keeper.systems.ai_quiz.dto.response.QuizResponse.builder()
+                            .id(q.getId())
+                            .title(q.getTitle())
+                            .questions(q.getQuestions() != null ? q.getQuestions().stream()
+                                    .map(question -> com.example.keeper.systems.ai_quiz.dto.response.QuestionDTO.builder()
+                                            .id(question.getId())
+                                            .content(question.getContent())
+                                            .options(question.getOptions())
+                                            .correctAnswer(question.getCorrectAnswer())
+                                            .explanation(question.getExplanation())
+                                            .build())
+                                    .collect(Collectors.toList()) : List.of())
+                            .courseId(q.getCourseId())
+                            .documentCourseCode(courseCode)
+                            .ownerId(q.getOwner() != null ? q.getOwner().getId() : null)
+                            .build();
+                })
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<com.example.keeper.systems.ai_flashcard.dto.FlashcardSetResponse> getUserFlashcards(UUID userId) {
+        return flashcardSetRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
+                .filter(fs -> "PUBLISHED".equalsIgnoreCase(fs.getStatus()))
+                .map(fs -> {
+                    String courseCode = null;
+                    if (fs.getCourseId() != null) {
+                        courseCode = courseRepository.findById(fs.getCourseId())
+                                .map(com.example.keeper.systems.course.entity.Course::getCode)
+                                .orElse(null);
+                    }
+                    int cardCount = flashcardRepository.findByFlashcardSetId(fs.getId()).size();
+                    return com.example.keeper.systems.ai_flashcard.dto.FlashcardSetResponse.builder()
+                            .id(fs.getId())
+                            .title(fs.getTitle())
+                            .cards(cardCount)
+                            .courseId(fs.getCourseId())
+                            .documentCourseCode(courseCode)
+                            .status(fs.getStatus())
+                            .userId(fs.getUser() != null ? fs.getUser().getId() : null)
+                            .build();
+                })
                 .collect(Collectors.toList());
     }
 

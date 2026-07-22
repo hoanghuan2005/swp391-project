@@ -22,6 +22,7 @@ import {
   Shield,
   Users,
   Check,
+  Globe,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import axiosClient from "@/api/axiosClient";
@@ -178,6 +179,7 @@ export default function Navbar({
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifications, setNotifications] = useState([]);
   const [userName, setUserName] = useState("");
+  const [currentUserId, setCurrentUserId] = useState(() => localStorage.getItem("userId") || "");
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -344,6 +346,10 @@ export default function Navbar({
         setUserInitial(savedName.charAt(0).toUpperCase());
       } else if (localStorage.getItem("isLoggedIn") === "true") {
         axiosClient.get("/api/profile").then((res) => {
+          if (res.data?.id) {
+            setCurrentUserId(res.data.id);
+            localStorage.setItem("userId", res.data.id);
+          }
           if (res.data?.fullName) {
             setUserName(res.data.fullName);
             setUserInitial(res.data.fullName.charAt(0).toUpperCase());
@@ -773,10 +779,10 @@ ${
                     <User size={15} /> My Profile
                   </Link>
                   <Link
-                    to="/notifications"
+                    to={currentUserId ? `/users/${currentUserId}` : "/profile"}
                     className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 flex items-center gap-2"
                   >
-                    <Bell size={15} /> Notifications
+                    <Globe size={15} /> My Public Channel
                   </Link>
                   <Link
                     to="/my-library"
