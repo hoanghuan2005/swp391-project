@@ -16,13 +16,13 @@ import java.util.Map;
 @Slf4j
 public class EmailService {
 
-    @Value("${brevo.api.key:}")
+    @Value("${brevo.api.key:${BREVO_API_KEY:}}")
     private String brevoApiKey;
 
-    @Value("${brevo.sender.email:noreply@mindocu.app}")
+    @Value("${brevo.sender.email:${BREVO_SENDER_EMAIL:hoanghuan1005@gmail.com}}")
     private String senderEmail;
 
-    @Value("${brevo.sender.name:MinDoCu App}")
+    @Value("${brevo.sender.name:${BREVO_SENDER_NAME:MinDoCu App}}")
     private String senderName;
 
     @Value("${app.frontend.url:http://localhost:5173}")
@@ -37,11 +37,13 @@ public class EmailService {
             log.warn("Brevo API key not configured, skipping email to {}", to);
             return;
         }
+        log.info("Sending email to {}. Key len: {}, Key start: {}", to, cleanKey.length(), cleanKey.length() > 10 ? cleanKey.substring(0, 10) + "..." : cleanKey);
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             headers.set("accept", "application/json");
             headers.set("api-key", cleanKey);
+
 
 
             Map<String, Object> body = new HashMap<>();
