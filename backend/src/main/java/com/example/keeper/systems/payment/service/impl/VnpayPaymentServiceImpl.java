@@ -35,7 +35,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class VnpayPaymentServiceImpl implements VnpayPaymentService {
 
-    private static final long PRO_PRICE_VND = 10_000L;
+    private static final long PRO_PRICE_VND = 99_000L;
     private static final String VNP_VERSION = "2.1.0";
     private static final String VNP_COMMAND = "pay";
     private static final String VNP_CURRENCY = "VND";

@@ -10,6 +10,11 @@ export default function useAiUsage() {
   const [loading, setLoading] = useState(true);
 
   const refreshAiUsage = useCallback(async () => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      setLoading(false);
+      return null;
+    }
     try {
       setLoading(true);
       const usage = await getMyAiUsage();
@@ -25,6 +30,12 @@ export default function useAiUsage() {
 
   useEffect(() => {
     let active = true;
+
+    const token = localStorage.getItem("token");
+    if (!token) {
+      setLoading(false);
+      return;
+    }
 
     getMyAiUsage()
       .then((usage) => {

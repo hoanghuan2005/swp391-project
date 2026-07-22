@@ -308,4 +308,34 @@ public class DocumentController {
         documentService.reportDocument(id, request, email);
         return ResponseEntity.ok(java.util.Map.of("message", "Document reported successfully!"));
     }
+
+    // =========================
+    // TÍNH NĂNG: DOCUMENT VERSIONING (QUẢN LÝ PHIÊN BẢN)
+    // =========================
+
+    @PostMapping(value = "/{id}/versions", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> uploadNewVersion(
+            @PathVariable UUID id,
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "changelog", required = false) String changelog) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        var version = documentService.uploadNewVersion(id, file, changelog, email);
+        DocumentDetailResponse updatedDetail = documentService.getDetail(id, email);
+        return ResponseEntity.ok(updatedDetail);
+    }
+
+    @GetMapping("/{id}/versions")
+    public ResponseEntity<?> getDocumentVersions(@PathVariable UUID id) {
+        var versions = documentService.getDocumentVersions(id);
+        return ResponseEntity.ok(Map.of("data", versions));
+    }
+
+    @GetMapping("/{id}/versions/{versionId}/download")
+    public ResponseEntity<Map<String, String>> downloadDocumentVersion(
+            @PathVariable UUID id,
+            @PathVariable UUID versionId) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        String fileUrl = documentService.getDownloadUrlForVersion(id, versionId, email);
+        return ResponseEntity.ok(Map.of("downloadUrl", fileUrl));
+    }
 }

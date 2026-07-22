@@ -25,4 +25,7 @@ public interface DocumentChunkRepository extends JpaRepository<DocumentChunk, UU
 
     @Query(value = "SELECT * FROM document_chunks WHERE document_id IN :documentIds ORDER BY embedding <-> cast(:queryEmbedding as vector) LIMIT :limit", nativeQuery = true)
     List<DocumentChunk> findSimilarChunksByDocumentIds(@Param("documentIds") List<UUID> documentIds, @Param("queryEmbedding") String queryEmbedding, @Param("limit") int limit);
+
+    @Query(value = "SELECT dc.* FROM document_chunks dc JOIN documents d ON dc.document_id = d.id WHERE d.visibility = 'PUBLIC' ORDER BY dc.embedding <=> cast(:queryEmbedding as vector) LIMIT :limit", nativeQuery = true)
+    List<DocumentChunk> findSimilarPublicChunks(@Param("queryEmbedding") String queryEmbedding, @Param("limit") int limit);
 }

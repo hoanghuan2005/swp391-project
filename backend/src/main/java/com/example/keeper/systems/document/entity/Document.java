@@ -89,6 +89,9 @@ public class Document extends BaseEntity {
     @JoinTable(name = "document_tags", joinColumns = @JoinColumn(name = "document_id"), inverseJoinColumns = @JoinColumn(name = "tag_id"))
     private Set<Tag> tags = new HashSet<>();
 
+    @Column(name = "current_version_number")
+    private String currentVersionNumber = "v1.0";
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id")
     private Category category;
@@ -96,4 +99,9 @@ public class Document extends BaseEntity {
     @JsonIgnore
     @OneToMany(mappedBy = "document", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<DocumentReview> reviews = new HashSet<>();
+
+    @JsonIgnore
+    @OneToMany(mappedBy = "document", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("createdAt DESC")
+    private Set<DocumentVersion> versions = new HashSet<>();
 }

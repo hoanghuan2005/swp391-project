@@ -31,11 +31,16 @@ import {
   FolderPlus,
   ShieldAlert,
   Trash2,
+  GitBranch,
+  History,
+  Clock,
+  User as UserIcon,
 } from "lucide-react";
 import FilePreview from "@/components/documents/FilePreview";
 import { forceDownload } from "@/lib/downloadHelper";
-import { recordDocumentView, reportDocument } from "@/api/documentApi";
+import { recordDocumentView, reportDocument, downloadDocumentVersion } from "@/api/documentApi";
 import AddToProjectModal from "@/components/projects/AddToProjectModal";
+import UploadVersionDialog from "@/components/documents/UploadVersionDialog";
 
 const formatFileSize = (bytes) => {
   if (!bytes && bytes !== 0) return "-";
@@ -64,6 +69,7 @@ export default function DocumentDetailView({
   const [currentUser, setCurrentUser] = useState(null);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportReason, setReportReason] = useState("");
+  const [uploadVersionOpen, setUploadVersionOpen] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -257,6 +263,21 @@ export default function DocumentDetailView({
                 {isFavorited ? "Favorited" : "Favorite"}
               </Button>
               <Button
+                variant="outline"
+                className="rounded-xl border-emerald-600/30 text-emerald-700 bg-emerald-50 hover:bg-emerald-100"
+                onClick={() => {
+                  const token = localStorage.getItem("token");
+                  if (!token) {
+                    toast.error("Vui lòng đăng nhập để cập nhật phiên bản mới!");
+                    window.location.href = "/login";
+                    return;
+                  }
+                  setUploadVersionOpen(true);
+                }}
+              >
+                <GitBranch className="w-4 h-4 mr-2" /> Upload Version mới
+              </Button>
+              <Button
                 onClick={handleDownloadFile}
                 className="rounded-xl bg-[#f26522] text-white hover:bg-[#d95316] cursor-pointer"
               >
@@ -380,6 +401,12 @@ export default function DocumentDetailView({
                     <span className="font-medium">{formatFileSize(documentDetail.fileSize)}</span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
+                    <span className="text-slate-500">Version</span>
+                    <Badge className="bg-[#f26522] text-white text-xs font-semibold px-2 py-0.5">
+                      {documentDetail.currentVersionNumber || "v1.0"}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
                     <span className="text-slate-500">Uploaded</span>
                     <span className="font-medium flex items-center gap-1">
                       <Calendar className="w-3.5 h-3.5" />
@@ -412,10 +439,114 @@ export default function DocumentDetailView({
         </Card>
       </div>
 
+      {/* KHU VỰC HIỂN THỊ LỊCH SỬ PHIÊN BẢN (VERSION HISTORY) */}
+      {!loading && documentDetail?.versions && documentDetail.versions.length > 0 && (
+        <Card className="rounded-2xl border-slate-100 shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <div>
+              <CardTitle className="text-lg text-slate-700 flex items-center gap-2">
+                <History className="w-5 h-5 text-[#f26522]" />
+                Lịch sử phiên bản (Version History)
+              </CardTitle>
+              <CardDescription>
+                Các bản cập nhật và ghi chú sửa đổi của tài liệu này
+              </CardDescription>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-xl border-emerald-600/30 text-emerald-700 bg-emerald-50 hover:bg-emerald-100"
+              onClick={() => {
+                const token = localStorage.getItem("token");
+                if (!token) {
+                  toast.error("Vui lòng đăng nhập để cập nhật phiên bản mới!");
+                  window.location.href = "/login";
+                  return;
+                }
+                setUploadVersionOpen(true);
+              }}
+            >
+              <GitBranch className="w-4 h-4 mr-2" /> Upload Version mới
+            </Button>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <div className="divide-y divide-slate-100">
+              {documentDetail.versions.map((ver, idx) => (
+                <div key={ver.id || idx} className="py-3.5 flex flex-wrap items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <Badge className="bg-[#f26522] text-white text-xs font-semibold px-2.5 py-0.5 rounded-full">
+                        {ver.versionNumber || "v1.0"}
+                      </Badge>
+                      {idx === 0 && (
+                        <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px]">
+                          Bản mới nhất (Active)
+                        </Badge>
+                      )}
+                      <span className="text-sm font-semibold text-slate-800">
+                        {ver.originalFileName || documentDetail.title}
+                      </span>
+                      <span className="text-xs text-slate-400">
+                        ({formatFileSize(ver.fileSize)})
+                      </span>
+                    </div>
+
+                    {ver.changelog && (
+                      <p className="text-xs text-slate-600 bg-slate-50 p-2 rounded-lg border border-slate-100 mt-1.5 italic">
+                        "{ver.changelog}"
+                      </p>
+                    )}
+
+                    <div className="flex items-center gap-4 text-xs text-slate-400 pt-1">
+                      <span className="flex items-center gap-1">
+                        <UserIcon size={12} /> {ver.uploaderName || "N/A"}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Clock size={12} /> {new Date(ver.createdAt).toLocaleString("vi-VN")}
+                      </span>
+                    </div>
+                  </div>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="rounded-xl border-slate-200 hover:bg-slate-50 text-slate-700 text-xs"
+                    onClick={async () => {
+                      try {
+                        const res = await downloadDocumentVersion(documentId, ver.id);
+                        if (res?.downloadUrl) {
+                          await forceDownload(res.downloadUrl, ver.originalFileName || `document_${ver.versionNumber}`);
+                        }
+                      } catch (err) {
+                        toast.error("Tải phiên bản này thất bại!");
+                      }
+                    }}
+                  >
+                    <Download className="w-3.5 h-3.5 mr-1.5" /> Tải bản này
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* KHU VỰC HIỂN THỊ ĐÁNH GIÁ (REVIEWS) */}
       {!loading && documentId && (
         <DocumentReviews documentId={documentId} uploadedById={documentDetail?.uploadedBy?.id} />
       )}
+
+      <UploadVersionDialog
+        open={uploadVersionOpen}
+        onOpenChange={setUploadVersionOpen}
+        documentId={documentId}
+        documentTitle={documentDetail?.title}
+        onSuccess={(updatedDetail) => {
+          if (updatedDetail) {
+            setDocumentDetail(updatedDetail);
+          }
+        }}
+      />
 
       <AddToProjectModal
         open={addToProjectOpen}
