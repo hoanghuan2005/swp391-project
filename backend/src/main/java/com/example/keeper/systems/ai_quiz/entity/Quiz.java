@@ -48,4 +48,12 @@ public class Quiz extends BaseEntity {
 
     @OneToMany(mappedBy = "quiz", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Question> questions = new ArrayList<>();
+
+    @ManyToMany
+    @JoinTable(
+            name = "quiz_favorites",
+            joinColumns = @JoinColumn(name = "quiz_id"),
+            inverseJoinColumns = @JoinColumn(name = "user_id")
+    )
+    private java.util.Set<User> favoritedByUsers = new java.util.HashSet<>();
 }

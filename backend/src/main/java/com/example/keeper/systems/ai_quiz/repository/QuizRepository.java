@@ -15,4 +15,5 @@ public interface QuizRepository extends JpaRepository<Quiz, UUID> {
     List<Quiz> findByProjectId(UUID projectId);
     void deleteByProjectId(UUID projectId);
     List<Quiz> findByCourseIdAndStatus(UUID courseId, String status);
+    List<Quiz> findByFavoritedByUsersContains(com.example.keeper.systems.auth.entity.User user);
 }

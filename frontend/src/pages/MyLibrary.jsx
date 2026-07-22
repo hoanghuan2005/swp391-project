@@ -51,7 +51,8 @@ export default function MyLibrary() {
   const [createModalOpen, setCreateModalOpen] = useState(false);
 
   const [favoriteDocs, setFavoriteDocs] = useState([]);
-  const [favoriteFlashcards, setFavoriteFlashcards] = useState([]); // State mới cho Flashcard Yêu thích
+  const [favoriteFlashcards, setFavoriteFlashcards] = useState([]);
+  const [favoriteQuizzes, setFavoriteQuizzes] = useState([]);
   const [isFavoritesLoading, setIsFavoritesLoading] = useState(false);
 
   const [followedUsers, setFollowedUsers] = useState([]);
@@ -100,6 +101,15 @@ export default function MyLibrary() {
       setFavoriteFlashcards(response.data || []);
     } catch (error) {
       console.error("Error fetching favorite flashcards:", error);
+    }
+  }, []);
+
+  const fetchFavoriteQuizzes = useCallback(async () => {
+    try {
+      const response = await axiosClient.get("/api/quizzes/favorites");
+      setFavoriteQuizzes(response.data || []);
+    } catch (error) {
+      console.error("Error fetching favorite quizzes:", error);
     }
   }, []);
 
@@ -154,17 +164,18 @@ export default function MyLibrary() {
     fetchProjects();
     fetchFavoriteDocuments();
     fetchFavoriteFlashcards();
+    fetchFavoriteQuizzes();
     fetchFollowedUsers();
     fetchMyFlashcards();
     fetchMyQuizzes();
-  }, [fetchProjects, fetchFavoriteDocuments, fetchFavoriteFlashcards, fetchFollowedUsers, fetchMyFlashcards, fetchMyQuizzes]);
+  }, [fetchProjects, fetchFavoriteDocuments, fetchFavoriteFlashcards, fetchFavoriteQuizzes, fetchFollowedUsers, fetchMyFlashcards, fetchMyQuizzes]);
 
   const handleUnfollowUser = (userId, fullName) => {
     setDeleteTarget({
       id: userId,
       type: "UNFOLLOW",
       name: fullName,
-      description: `Bạn có chắc chắn muốn bỏ theo dõi ${fullName}?`
+      description: `Are you sure you want to unfollow ${fullName}?`
     });
     setDeleteDialogOpen(true);
   };
@@ -200,6 +211,17 @@ export default function MyLibrary() {
       setFavoriteFlashcards((prev) => prev.filter((fc) => fc.id !== id));
     } catch (error) {
       console.error("Failed to remove favorite flashcard:", error);
+      toast.error("Something went wrong");
+    }
+  };
+
+  const handleRemoveFavoriteQuiz = async (id) => {
+    try {
+      await axiosClient.post(`/api/quizzes/${id}/favorite`);
+      toast.success("Removed quiz from favorites");
+      setFavoriteQuizzes((prev) => prev.filter((q) => q.id !== id));
+    } catch (error) {
+      console.error("Failed to remove favorite quiz:", error);
       toast.error("Something went wrong");
     }
   };
@@ -270,8 +292,8 @@ export default function MyLibrary() {
       </div>
 
       <Tabs defaultValue="documents" className="w-full">
-        {/* Layout của TabsList chống vỡ hàng */}
-        <div className="w-full overflow-x-auto scrollbar-none bg-slate-100/70 p-1 rounded-2xl mb-8">
+        {/* Layout của TabsList vừa khít số lượng tab, không bị thừa phần bên phải */}
+        <div className="inline-flex w-fit overflow-x-auto scrollbar-none bg-slate-100/70 p-1 rounded-2xl mb-5">
           <TabsList className="bg-transparent p-0 h-11 flex w-max gap-1">
             <TabsTrigger
               value="documents"
@@ -506,7 +528,7 @@ export default function MyLibrary() {
                 <Skeleton key={i} className="h-72 w-full rounded-[20px]" />
               ))}
             </div>
-          ) : favoriteDocs.length === 0 && favoriteFlashcards.length === 0 ? (
+          ) : favoriteDocs.length === 0 && favoriteFlashcards.length === 0 && favoriteQuizzes.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-center bg-slate-50 rounded-[32px] border border-dashed border-slate-200">
               <div className="w-16 h-16 rounded-3xl bg-white shadow-sm flex items-center justify-center mb-4">
                 <Heart className="w-8 h-8 text-slate-300 fill-slate-100" />
@@ -515,7 +537,7 @@ export default function MyLibrary() {
                 No Favorites Bookmarked
               </h3>
               <p className="text-slate-500 max-w-sm text-sm">
-                Tap the heart button on public documents or flashcards to
+                Tap the heart button on public documents, flashcards, or quizzes to
                 review them instantly here.
               </p>
             </div>
@@ -663,6 +685,66 @@ export default function MyLibrary() {
                           >
                             <Link to={`/ai-tools/ai-flashcard?id=${fc.id}`}>
                               <Eye className="w-3.5 h-3.5 mr-1.5" /> Study
+                            </Link>
+                          </Button>
+                        </CardFooter>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* KHU VỰC HIỂN THỊ QUIZZES YÊU THÍCH */}
+              {favoriteQuizzes.length > 0 && (
+                <div>
+                  <h3 className="text-lg font-bold text-slate-700 mb-4 flex items-center gap-2">
+                    <ListChecks className="w-5 h-5 text-[#f26522]" /> Favorite Quizzes
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                    {favoriteQuizzes.map((quiz) => (
+                      <Card
+                        key={quiz.id}
+                        className="shadow-sm border-slate-100 hover:shadow-md transition-all group flex flex-col h-full rounded-[20px] overflow-hidden bg-white border border-1"
+                      >
+                        <CardContent className="p-4 flex-1 flex flex-col">
+                          <div className="relative w-full aspect-[4/3] bg-orange-50 rounded-xl mb-3 -mt-4 border border-orange-100 group-hover:border-[#f26522]/20 flex items-center justify-center text-orange-300">
+                            <ListChecks className="w-12 h-12 text-[#f26522] opacity-50" />
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleRemoveFavoriteQuiz(quiz.id);
+                              }}
+                              className="absolute top-2 right-2 w-8 h-8 rounded-full border shadow-sm backdrop-blur-sm transition-all duration-200 flex items-center justify-center cursor-pointer active:scale-90 hover:scale-105 z-10 bg-red-50 text-red-500 border-red-100"
+                            >
+                              <Heart className="w-4 h-4 fill-current" />
+                            </button>
+                          </div>
+                          <CardTitle
+                            className="text-[15px] mb-1 font-bold text-slate-800 line-clamp-1"
+                            title={quiz.title}
+                          >
+                            {quiz.title || "Untitled Quiz"}
+                          </CardTitle>
+                          <CardDescription className="text-xs text-slate-500 font-medium mb-3">
+                            {quiz.questions?.length || 0} Questions
+                          </CardDescription>
+                          <div className="text-[11px] text-slate-400 mt-auto flex justify-between items-center">
+                            <span>
+                              {new Date(quiz.createdAt).toLocaleDateString("en-GB")}
+                            </span>
+                            <span>Quiz</span>
+                          </div>
+                        </CardContent>
+                        <CardFooter className="-mt-3 px-4 py-3 flex gap-2">
+                          <Button
+                            asChild
+                            variant="secondary"
+                            className="w-full bg-[#f26522]/10 text-[#f26522] hover:bg-[#f26522] hover:text-white font-bold text-xs rounded-xl h-9"
+                          >
+                            <Link to={`/ai-tools/ai-quiz?id=${quiz.id}`}>
+                              <Eye className="w-3.5 h-3.5 mr-1.5" /> Take Quiz
                             </Link>
                           </Button>
                         </CardFooter>
@@ -839,10 +921,10 @@ export default function MyLibrary() {
                 <UserCheck2 className="w-8 h-8 text-slate-300" />
               </div>
               <h3 className="text-xl font-bold text-slate-800 mb-1">
-                Chưa theo dõi ai
+                Not following anyone yet
               </h3>
               <p className="text-slate-500 max-w-sm text-sm">
-                Theo dõi các nhà sáng tạo tài liệu hữu ích để nhận được thông báo mới nhất khi họ đăng tải tài liệu.
+                Follow content creators to get the latest updates when they publish new materials.
               </p>
             </div>
           ) : (
@@ -875,7 +957,7 @@ export default function MyLibrary() {
                         {user.fullName}
                       </h4>
                       <p className="text-xs text-slate-400 font-medium mt-1 mb-4 flex items-center gap-1.5 justify-center">
-                        <BookOpen className="w-3.5 h-3.5" /> {user.documentCount || 0} tài liệu
+                        <BookOpen className="w-3.5 h-3.5" /> {user.documentCount || 0} documents
                       </p>
                     </Link>
 
@@ -885,7 +967,7 @@ export default function MyLibrary() {
                       onClick={() => handleUnfollowUser(user.id, user.fullName)}
                       className="w-full rounded-xl border-slate-200 text-slate-600 hover:bg-red-50 hover:text-red-500 hover:border-red-100 font-semibold text-xs h-9 transition-all"
                     >
-                      Bỏ theo dõi
+                      Unfollow
                     </Button>
                   </div>
                 );
@@ -908,10 +990,10 @@ export default function MyLibrary() {
               <span className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center text-red-500">
                 <Trash2 className="w-5 h-5" />
               </span>
-              Xác nhận xóa
+              Confirm Delete
             </DialogTitle>
             <DialogDescription className="text-sm text-slate-500 mt-2">
-              {deleteTarget?.description || `Bạn có chắc chắn muốn xóa ${deleteTarget?.type?.toLowerCase() === "document" ? "tài liệu" : deleteTarget?.type?.toLowerCase() === "flashcard" ? "bộ flashcard" : "bài quiz"} "${deleteTarget?.name || deleteTarget?.title || ""}"? Hành động này không thể hoàn tác.`}
+              {deleteTarget?.description || `Are you sure you want to delete ${deleteTarget?.type?.toLowerCase() === "document" ? "document" : deleteTarget?.type?.toLowerCase() === "flashcard" ? "flashcard set" : "quiz"} "${deleteTarget?.name || deleteTarget?.title || ""}"? This action cannot be undone.`}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="mt-6 flex flex-col sm:flex-row gap-2 justify-end">
@@ -921,7 +1003,7 @@ export default function MyLibrary() {
               onClick={() => setDeleteDialogOpen(false)}
               className="rounded-xl border-slate-200 font-semibold cursor-pointer"
             >
-              Hủy
+              Cancel
             </Button>
             <Button
               disabled={isDeleting}
@@ -931,10 +1013,10 @@ export default function MyLibrary() {
               {isDeleting ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Đang xóa...
+                  Deleting...
                 </>
               ) : (
-                "Xóa"
+                "Delete"
               )}
             </Button>
           </DialogFooter>

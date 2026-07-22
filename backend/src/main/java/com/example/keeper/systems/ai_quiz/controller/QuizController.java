@@ -99,4 +99,17 @@ public class QuizController {
     public ResponseEntity<List<QuizResponse>> getCourseQuizzes(@PathVariable UUID courseId) {
         return ResponseEntity.ok(quizService.getCourseQuizzes(courseId));
     }
+
+    @GetMapping("/favorites")
+    public ResponseEntity<List<QuizResponse>> getMyFavoriteQuizzes() {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        return ResponseEntity.ok(quizService.getMyFavorites(email));
+    }
+
+    @PostMapping("/{id}/favorite")
+    public ResponseEntity<java.util.Map<String, Object>> toggleFavorite(@PathVariable UUID id) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        quizService.toggleFavorite(id, email);
+        return ResponseEntity.ok(java.util.Map.of("message", "Favorite status updated"));
+    }
 }

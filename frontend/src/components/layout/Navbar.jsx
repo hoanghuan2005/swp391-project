@@ -639,7 +639,7 @@ ${
                 >
                   <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                     <span className="font-extrabold text-sm text-slate-800">
-                      Thông báo
+                      Notifications
                     </span>
                     <button
                       onClick={async () => {
@@ -653,15 +653,15 @@ ${
                           console.error(err);
                         }
                       }}
-                      className="text-xs text-[#f26522] hover:text-[#d9581c] font-bold"
+                      className="text-xs text-[#f26522] hover:text-[#d9581c] font-bold cursor-pointer"
                     >
-                      Đọc tất cả
+                      Mark all as read
                     </button>
                   </div>
                   <div className="max-h-64 overflow-y-auto divide-y divide-slate-100">
                     {notifications.length === 0 ? (
                       <div className="p-6 text-center text-xs text-slate-400">
-                        Không có thông báo nào
+                        No notifications yet
                       </div>
                     ) : (
                       notifications.map((item) => (
@@ -742,7 +742,7 @@ ${
                     onClick={() => setIsNotificationOpen(false)}
                     className="block p-3 text-center text-xs font-bold text-[#f26522] hover:bg-slate-50 border-t border-slate-100 bg-slate-50/30"
                   >
-                    Xem tất cả thông báo
+                    View all notifications
                   </Link>
                 </div>
               )}

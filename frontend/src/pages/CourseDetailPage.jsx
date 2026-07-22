@@ -615,7 +615,7 @@ export default function CourseDetailPage() {
 
   const handleFollowToggle = async () => {
     if (localStorage.getItem("isLoggedIn") !== "true") {
-      alert("Vui lòng đăng nhập để theo dõi môn học!");
+      alert("Please log in to follow this course!");
       return;
     }
 
@@ -1066,8 +1066,8 @@ export default function CourseDetailPage() {
             {messages.filter((m) => !m.parentId).length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-center p-8">
                 <MessageSquare className="w-12 h-12 text-slate-300 mb-2" />
-                <p className="text-sm font-semibold text-slate-700">Chưa có cuộc hội thoại nào</p>
-                <p className="text-xs text-slate-400 mt-1">Gửi tin nhắn đầu tiên để bắt đầu thảo luận!</p>
+                <p className="text-sm font-semibold text-slate-700">No conversations yet</p>
+                <p className="text-xs text-slate-400 mt-1">Send the first message to start the discussion!</p>
               </div>
             ) : (
               messages.filter((m) => !m.parentId).map((msg) => renderMessageBubble(msg, false))
@@ -1080,7 +1080,7 @@ export default function CourseDetailPage() {
             {localStorage.getItem("isLoggedIn") === "true" ? (
               <form onSubmit={handleSendRootMessage} className="flex gap-2">
                 <Input
-                  placeholder="Đặt câu hỏi hoặc bắt đầu chủ đề thảo luận mới..."
+                  placeholder="Ask a question or start a new topic..."
                   value={chatMessage}
                   onChange={(e) => setChatMessage(e.target.value)}
                   disabled={!isChatConnected}
@@ -1096,7 +1096,7 @@ export default function CourseDetailPage() {
               </form>
             ) : (
               <div className="text-center py-2 text-sm font-semibold text-slate-500">
-                Vui lòng <Link to="/login" className="text-[#f66810] underline">đăng nhập</Link> để tham gia thảo luận.
+                Please <Link to="/login" className="text-[#f66810] underline">log in</Link> to join the discussion.
               </div>
             )}
           </div>

@@ -260,4 +260,31 @@ public class QuizServiceImpl implements QuizService {
                 .questions(questionDTOs)
                 .build();
     }
+
+    @Override
+    @Transactional
+    public void toggleFavorite(UUID quizId, String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        Quiz quiz = quizRepository.findById(quizId)
+                .orElseThrow(() -> new RuntimeException("Quiz not found"));
+
+        if (quiz.getFavoritedByUsers().contains(user)) {
+            quiz.getFavoritedByUsers().remove(user);
+        } else {
+            quiz.getFavoritedByUsers().add(user);
+        }
+        quizRepository.save(quiz);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<QuizResponse> getMyFavorites(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        List<Quiz> favoriteQuizzes = quizRepository.findByFavoritedByUsersContains(user);
+        return favoriteQuizzes.stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
 }

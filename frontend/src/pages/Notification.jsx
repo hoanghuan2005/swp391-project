@@ -114,30 +114,31 @@ export default function NotificationPage() {
   return (
     <div className="max-w-4xl mx-auto p-6">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-slate-800">Thông báo</h1>
+        <h1 className="text-2xl font-bold text-slate-800">Notifications</h1>
 
         <button
           onClick={handleMarkAllAsRead}
           className="
             px-4 py-2
             rounded-xl
-            bg-orange-500
-            hover:bg-orange-600
+            bg-[#f26522]
+            hover:bg-[#d95316]
             transition-colors
             text-white
             text-sm
             font-medium
             shadow-sm
+            cursor-pointer
           "
         >
-          Đánh dấu tất cả đã đọc
+          Mark all as read
         </button>
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
         {notifications.length === 0 ? (
           <div className="p-8 text-center text-slate-400 text-sm">
-            Không có thông báo nào
+            No notifications yet
           </div>
         ) : (
           notifications.map((item) => (
@@ -160,7 +161,7 @@ export default function NotificationPage() {
                 <div className="flex-1">
                   <div className="flex justify-between items-start">
                     <p className="text-sm font-semibold text-slate-800">
-                      {item.title || "Thông báo"}
+                      {item.title || "Notification"}
                     </p>
                     {!item.isRead && (
                       <span className="w-2.5 h-2.5 rounded-full bg-orange-500 block"></span>

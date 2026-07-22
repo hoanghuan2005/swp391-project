@@ -253,11 +253,11 @@ export default function ProfilePage() {
 
       setSelectedFile(null);
 
-      toast.success("Cập nhật hồ sơ thành công 🎉");
+      toast.success("Profile updated successfully 🎉");
     } catch (error) {
       console.error(error);
 
-      toast.error("Không thể cập nhật hồ sơ!");
+      toast.error("Failed to update profile!");
     } finally {
       setIsLoading(false);
     }
@@ -603,10 +603,10 @@ export default function ProfilePage() {
           <DialogHeader>
             <DialogTitle className="text-xl font-bold text-slate-800 flex items-center gap-2">
               <User className="w-5 h-5 text-[#f26522]" />
-              Xác nhận cập nhật
+              Confirm Update
             </DialogTitle>
             <DialogDescription className="text-slate-500 pt-2">
-              Bạn có chắc chắn muốn lưu các thay đổi đối với hồ sơ cá nhân của mình không?
+              Are you sure you want to save the changes to your profile?
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="mt-6 flex gap-3 sm:justify-end">
@@ -615,13 +615,13 @@ export default function ProfilePage() {
               onClick={() => setConfirmOpen(false)}
               className="rounded-xl"
             >
-              Hủy
+              Cancel
             </Button>
             <Button
               onClick={handleConfirmSave}
               className="rounded-xl bg-[#f26522] hover:bg-[#d95316] text-white font-semibold"
             >
-              Cập nhật
+              Update
             </Button>
           </DialogFooter>
         </DialogContent>

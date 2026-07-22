@@ -163,7 +163,7 @@ export default function UserPage() {
   // Follow / Unfollow logic
   const handleFollowToggle = async () => {
     if (localStorage.getItem("isLoggedIn") !== "true") {
-      toast.error("Vui lòng đăng nhập để theo dõi người dùng này!");
+      toast.error("Please log in to follow this user!");
       navigate("/login");
       return;
     }
@@ -192,7 +192,7 @@ export default function UserPage() {
       }
     } catch (error) {
       console.error("Follow action failed:", error);
-      toast.error(error.response?.data?.message || "Lỗi hệ thống");
+      toast.error(error.response?.data?.message || "System error");
     } finally {
       setIsFollowLoading(false);
     }
@@ -228,7 +228,7 @@ export default function UserPage() {
 
   const handleModalFollowToggle = async (item, index) => {
     if (localStorage.getItem("isLoggedIn") !== "true") {
-      toast.error("Vui lòng đăng nhập!");
+      toast.error("Please log in!");
       navigate("/login");
       return;
     }

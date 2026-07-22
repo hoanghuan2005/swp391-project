@@ -554,10 +554,10 @@ export default function ProjectWorkspacePage() {
               <span className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center text-red-500">
                 <Trash2 className="w-5 h-5" />
               </span>
-              Xác nhận gỡ bỏ
+              Confirm Removal
             </DialogTitle>
             <DialogDescription className="text-sm text-slate-500 mt-2">
-              Bạn có chắc chắn muốn gỡ bỏ tài liệu "{confirmTarget?.name}" khỏi workspace này? Hành động này không thể hoàn tác.
+              Are you sure you want to remove document "{confirmTarget?.name}" from this workspace? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="mt-6 flex flex-col sm:flex-row gap-2 justify-end">
@@ -567,7 +567,7 @@ export default function ProjectWorkspacePage() {
               onClick={() => setConfirmDialogOpen(false)}
               className="rounded-xl border-slate-200 font-semibold cursor-pointer"
             >
-              Hủy
+              Cancel
             </Button>
             <Button
               disabled={isConfirming}
@@ -577,10 +577,10 @@ export default function ProjectWorkspacePage() {
               {isConfirming ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Đang gỡ...
+                  Removing...
                 </>
               ) : (
-                "Xác nhận"
+                "Confirm"
               )}
             </Button>
           </DialogFooter>

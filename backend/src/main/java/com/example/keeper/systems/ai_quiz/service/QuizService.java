@@ -16,4 +16,6 @@ public interface QuizService {
     void deleteQuiz(UUID id, String userEmail);
     void publishQuiz(UUID id, UUID courseId, String visibility, String userEmail);
     List<QuizResponse> getCourseQuizzes(UUID courseId);
+    void toggleFavorite(UUID quizId, String userEmail);
+    List<QuizResponse> getMyFavorites(String userEmail);
 }
