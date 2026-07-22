@@ -17,7 +17,7 @@ export const fetchUploadedDocuments = async () => {
 };
 
 // ==========================================
-// THÊM 2 HÀM NÀY CHO TÍNH NĂNG ĐÁNH GIÁ (REVIEW)
+// ADDED FOR DOCUMENT REVIEWS FEATURE
 // ==========================================
 
 export const getDocumentReviews = async (documentId) => {
@@ -45,7 +45,7 @@ export const resolveDocumentReport = async (reportId, status) => {
 };
 
 // ==========================================
-// TÍNH NĂNG: DOCUMENT VERSIONING (QUẢN LÝ PHIÊN BẢN)
+// FEATURE: DOCUMENT VERSIONING
 // ==========================================
 
 export const uploadNewVersion = async (documentId, formData) => {

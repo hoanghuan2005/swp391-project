@@ -182,15 +182,14 @@ export default function WorkspaceOverviewPage() {
     const pId = projectId || (project && project.id);
     if (activeTab !== "chat" || !pId) return;
 
-    const tokenVal = localStorage.getItem("token");
-    if (!tokenVal) return;
+    if (localStorage.getItem("isLoggedIn") !== "true") return;
 
     const wsBaseUrl = backendBaseUrl
       .replace("http://", "ws://")
       .replace("https://", "wss://");
 
     const cleanWsBaseUrl = wsBaseUrl.endsWith("/") ? wsBaseUrl.slice(0, -1) : wsBaseUrl;
-    const wsUrl = `${cleanWsBaseUrl}/project-chat-ws/${pId}?token=${tokenVal}`;
+    const wsUrl = `${cleanWsBaseUrl}/project-chat-ws/${pId}`;
     console.log("Connecting to workspace chat WebSocket:", wsUrl);
     const ws = new WebSocket(wsUrl);
 

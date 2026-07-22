@@ -36,8 +36,7 @@ export default function DocumentReviews({ documentId, uploadedById }) {
     useEffect(() => {
         const fetchUserProfile = async () => {
             try {
-                const token = localStorage.getItem("token");
-                if (!token) return;
+                if (localStorage.getItem("isLoggedIn") !== "true") return;
                 const cachedId = localStorage.getItem("userId");
                 if (cachedId) {
                     setCurrentUserId(cachedId);

@@ -46,13 +46,10 @@ export default function AIFlashcardStudyPage() {
         setLoading(true);
         
         // 1. Fetch user profile
-        const token = localStorage.getItem("token");
-        let user = null;
-        if (token) {
+        if (localStorage.getItem("isLoggedIn") === "true") {
           try {
             const profileRes = await axiosClient.get("/api/profile");
-            user = profileRes.data;
-            setCurrentUser(user);
+            setCurrentUser(profileRes.data);
           } catch (e) {
             console.error("Failed to fetch profile", e);
           }

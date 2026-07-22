@@ -8,7 +8,7 @@ import { jwtDecode } from "jwt-decode";
 import { createVnpayPayment } from "@/api/paymentApi";
 
 export default function LandingPage() {
-  const isLoggedIn = !!localStorage.getItem("token");
+  const isLoggedIn = localStorage.getItem("isLoggedIn") === "true";
   const navigate = useNavigate();
   const [isStartingUpgrade, setIsStartingUpgrade] = useState(false);
   const { subscriptionTier, loading } = useAiUsage();
@@ -380,10 +380,10 @@ export default function LandingPage() {
 
 function getTokenRole() {
   try {
+    const role = localStorage.getItem("userRole");
+    if (role) return role;
     const token = localStorage.getItem("token");
-    if (!token) return null;
-    const decoded = jwtDecode(token);
-    return decoded?.role || null;
+    return token ? jwtDecode(token)?.role : null;
   } catch (error) {
     console.error("Invalid token:", error);
     return null;

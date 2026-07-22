@@ -72,8 +72,7 @@ export default function DocumentDetailView({
   const [uploadVersionOpen, setUploadVersionOpen] = useState(false);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) return;
+    if (localStorage.getItem("isLoggedIn") !== "true") return;
     axiosClient.get("/api/profile")
       .then((res) => {
         setCurrentUser(res.data);
@@ -121,8 +120,7 @@ export default function DocumentDetailView({
 
   useEffect(() => {
     const checkFavoriteStatus = async () => {
-      const token = localStorage.getItem("token");
-      if (!token || !documentId) return;
+      if (localStorage.getItem("isLoggedIn") !== "true" || !documentId) return;
       try {
         const res = await axiosClient.get("/api/documents/favorites");
         if (Array.isArray(res.data)) {
@@ -139,8 +137,7 @@ export default function DocumentDetailView({
   }, [documentId]);
 
   const handleToggleFavoriteClick = () => {
-    const token = localStorage.getItem("token");
-    if (!token) {
+    if (localStorage.getItem("isLoggedIn") !== "true") {
       toast.error("Please log in to save documents!");
       return;
     }
@@ -178,8 +175,7 @@ export default function DocumentDetailView({
   };
 
   const handleDownloadFile = async () => {
-    const token = localStorage.getItem("token");
-    if (!token) {
+    if (localStorage.getItem("isLoggedIn") !== "true") {
       toast.error("Please log in to download the document!");
       window.location.href = "/login";
       return;
@@ -239,8 +235,7 @@ export default function DocumentDetailView({
                 variant="outline"
                 className="rounded-xl text-[#f26522] border-[#f26522]/20 hover:bg-[#f26522] hover:text-white"
                 onClick={() => {
-                  const token = localStorage.getItem("token");
-                  if (!token) {
+                  if (localStorage.getItem("isLoggedIn") !== "true") {
                     toast.error("Please log in to save the document to your project!");
                     window.location.href = "/login";
                     return;
@@ -266,16 +261,15 @@ export default function DocumentDetailView({
                 variant="outline"
                 className="rounded-xl border-emerald-600/30 text-emerald-700 bg-emerald-50 hover:bg-emerald-100"
                 onClick={() => {
-                  const token = localStorage.getItem("token");
-                  if (!token) {
-                    toast.error("Vui lòng đăng nhập để cập nhật phiên bản mới!");
+                  if (localStorage.getItem("isLoggedIn") !== "true") {
+                    toast.error("Please log in to upload a new version!");
                     window.location.href = "/login";
                     return;
                   }
                   setUploadVersionOpen(true);
                 }}
               >
-                <GitBranch className="w-4 h-4 mr-2" /> Upload Version mới
+                <GitBranch className="w-4 h-4 mr-2" /> Upload New Version
               </Button>
               <Button
                 onClick={handleDownloadFile}
@@ -288,8 +282,7 @@ export default function DocumentDetailView({
                   variant="outline"
                   className="rounded-xl text-red-500 border-red-200 hover:bg-red-50"
                   onClick={() => {
-                    const token = localStorage.getItem("token");
-                    if (!token) {
+                    if (localStorage.getItem("isLoggedIn") !== "true") {
                       toast.error("Please log in to report this document!");
                       window.location.href = "/login";
                       return;
@@ -439,17 +432,17 @@ export default function DocumentDetailView({
         </Card>
       </div>
 
-      {/* KHU VỰC HIỂN THỊ LỊCH SỬ PHIÊN BẢN (VERSION HISTORY) */}
+      {/* VERSION HISTORY SECTION */}
       {!loading && documentDetail?.versions && documentDetail.versions.length > 0 && (
         <Card className="rounded-2xl border-slate-100 shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <div>
               <CardTitle className="text-lg text-slate-700 flex items-center gap-2">
                 <History className="w-5 h-5 text-[#f26522]" />
-                Lịch sử phiên bản (Version History)
+                Version History
               </CardTitle>
               <CardDescription>
-                Các bản cập nhật và ghi chú sửa đổi của tài liệu này
+                Revisions and changelog history for this document
               </CardDescription>
             </div>
             <Button
@@ -457,16 +450,15 @@ export default function DocumentDetailView({
               size="sm"
               className="rounded-xl border-emerald-600/30 text-emerald-700 bg-emerald-50 hover:bg-emerald-100"
               onClick={() => {
-                const token = localStorage.getItem("token");
-                if (!token) {
-                  toast.error("Vui lòng đăng nhập để cập nhật phiên bản mới!");
+                if (localStorage.getItem("isLoggedIn") !== "true") {
+                  toast.error("Please log in to upload a new version!");
                   window.location.href = "/login";
                   return;
                 }
                 setUploadVersionOpen(true);
               }}
             >
-              <GitBranch className="w-4 h-4 mr-2" /> Upload Version mới
+              <GitBranch className="w-4 h-4 mr-2" /> Upload New Version
             </Button>
           </CardHeader>
           <CardContent className="pt-4">
@@ -480,7 +472,7 @@ export default function DocumentDetailView({
                       </Badge>
                       {idx === 0 && (
                         <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px]">
-                          Bản mới nhất (Active)
+                          Latest (Active)
                         </Badge>
                       )}
                       <span className="text-sm font-semibold text-slate-800">
@@ -502,7 +494,7 @@ export default function DocumentDetailView({
                         <UserIcon size={12} /> {ver.uploaderName || "N/A"}
                       </span>
                       <span className="flex items-center gap-1">
-                        <Clock size={12} /> {new Date(ver.createdAt).toLocaleString("vi-VN")}
+                        <Clock size={12} /> {new Date(ver.createdAt).toLocaleString("en-US")}
                       </span>
                     </div>
                   </div>
@@ -518,11 +510,11 @@ export default function DocumentDetailView({
                           await forceDownload(res.downloadUrl, ver.originalFileName || `document_${ver.versionNumber}`);
                         }
                       } catch (err) {
-                        toast.error("Tải phiên bản này thất bại!");
+                        toast.error("Failed to download this version!");
                       }
                     }}
                   >
-                    <Download className="w-3.5 h-3.5 mr-1.5" /> Tải bản này
+                    <Download className="w-3.5 h-3.5 mr-1.5" /> Download version
                   </Button>
                 </div>
               ))}
@@ -531,7 +523,7 @@ export default function DocumentDetailView({
         </Card>
       )}
 
-      {/* KHU VỰC HIỂN THỊ ĐÁNH GIÁ (REVIEWS) */}
+      {/* REVIEWS SECTION */}
       {!loading && documentId && (
         <DocumentReviews documentId={documentId} uploadedById={documentDetail?.uploadedBy?.id} />
       )}

@@ -10,8 +10,7 @@ export default function useAiUsage() {
   const [loading, setLoading] = useState(true);
 
   const refreshAiUsage = useCallback(async () => {
-    const token = localStorage.getItem("token");
-    if (!token) {
+    if (localStorage.getItem("isLoggedIn") !== "true") {
       setLoading(false);
       return null;
     }
@@ -31,8 +30,7 @@ export default function useAiUsage() {
   useEffect(() => {
     let active = true;
 
-    const token = localStorage.getItem("token");
-    if (!token) {
+    if (localStorage.getItem("isLoggedIn") !== "true") {
       setLoading(false);
       return;
     }

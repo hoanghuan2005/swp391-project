@@ -43,12 +43,12 @@ export default function UploadVersionDialog({
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!selectedFile) {
-      toast.error("Vui lòng chọn file cập nhật");
+      toast.error("Please select a file to update");
       return;
     }
 
     setUploading(true);
-    const toastId = toast.loading("Đang tải lên phiên bản mới...");
+    const toastId = toast.loading("Uploading new version...");
 
     try {
       const formData = new FormData();
@@ -58,13 +58,13 @@ export default function UploadVersionDialog({
       }
 
       const response = await uploadNewVersion(documentId, formData);
-      toast.success("Cập nhật phiên bản mới thành công!", { id: toastId });
+      toast.success("New version uploaded successfully!", { id: toastId });
       onSuccess?.(response);
       handleClose();
     } catch (error) {
       console.error("Failed to upload version", error);
       toast.error(
-        error.response?.data?.message || "Cập nhật phiên bản mới thất bại!",
+        error.response?.data?.message || "Failed to upload new version!",
         { id: toastId }
       );
     } finally {
@@ -78,12 +78,12 @@ export default function UploadVersionDialog({
         <DialogHeader>
           <DialogTitle className="text-xl font-bold flex items-center gap-2">
             <GitBranch className="text-[#f26522]" size={22} />
-            Cập nhật phiên bản mới (Upload Version)
+            Upload New Version
           </DialogTitle>
           <DialogDescription>
-            Đăng bản sửa đổi/bổ sung cho tài liệu{" "}
+            Upload a revision or addendum for document{" "}
             <span className="font-semibold text-slate-800">
-              "{documentTitle || "Tài liệu"}"
+              "{documentTitle || "Document"}"
             </span>
           </DialogDescription>
         </DialogHeader>
@@ -92,7 +92,7 @@ export default function UploadVersionDialog({
           {/* File input */}
           <div className="space-y-1">
             <Label className="text-sm font-semibold text-slate-700">
-              File mới đính kèm <span className="text-red-500">*</span>
+              New attached file <span className="text-red-500">*</span>
             </Label>
             <div
               className="border-2 border-dashed border-slate-200 rounded-xl p-5 text-center hover:bg-slate-50 transition-colors cursor-pointer"
@@ -122,10 +122,10 @@ export default function UploadVersionDialog({
               ) : (
                 <>
                   <p className="text-sm font-medium text-slate-700">
-                    Bấm vào đây để chọn file mới
+                    Click here to choose a new file
                   </p>
                   <p className="text-xs text-slate-400 mt-1">
-                    Hỗ trợ các định dạng PDF, DOCX, PPTX...
+                    Supports PDF, DOCX, PPTX formats...
                   </p>
                 </>
               )}
@@ -135,10 +135,10 @@ export default function UploadVersionDialog({
           {/* Changelog */}
           <div className="space-y-1">
             <Label className="text-sm font-semibold text-slate-700">
-              Ghi chú thay đổi (Changelog)
+              Changelog notes
             </Label>
             <Textarea
-              placeholder="VD: Đã sửa lỗi chính tả chương 2, bổ sung thêm bài giải đề thi năm 2025..."
+              placeholder="e.g. Fixed typos in Chapter 2, added exam solutions for 2025..."
               value={changelog}
               onChange={(e) => setChangelog(e.target.value)}
               rows={3}
@@ -154,14 +154,14 @@ export default function UploadVersionDialog({
               disabled={uploading}
               className="rounded-xl"
             >
-              Hủy
+              Cancel
             </Button>
             <Button
               type="submit"
               disabled={!selectedFile || uploading}
               className="bg-[#f26522] hover:bg-[#d9531e] text-white rounded-xl"
             >
-              {uploading ? "Đang tải lên..." : "Tải lên Version mới"}
+              {uploading ? "Uploading..." : "Upload New Version"}
             </Button>
           </DialogFooter>
         </form>

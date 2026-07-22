@@ -66,6 +66,12 @@ export default function Homepage() {
   const [isRecLoading, setIsRecLoading] = useState(true);
   const [isSurveyCompleted, setIsSurveyCompleted] = useState(() => localStorage.getItem("surveyCompleted") === "true");
 
+  const [docPage, setDocPage] = useState(0);
+  const [docTotalPages, setDocTotalPages] = useState(1);
+
+  const [coursePage, setCoursePage] = useState(0);
+  const [courseTotalPages, setCourseTotalPages] = useState(1);
+
   const fetchRecommendations = useCallback(async () => {
     try {
       setIsRecLoading(true);
@@ -92,8 +98,7 @@ export default function Homepage() {
     targetUserId,
     isCurrentlyFollowing,
   ) => {
-    const token = localStorage.getItem("token");
-    if (!token) {
+    if (localStorage.getItem("isLoggedIn") !== "true") {
       toast.error("Please log in to follow creators!");
       return;
     }
@@ -123,8 +128,7 @@ export default function Homepage() {
 
   // Lấy danh sách các file đã thích sẵn để tô đỏ trái tim từ đầu (CHỈ GỌI KHI ĐÃ ĐĂNG NHẬP)
   const fetchUserFavorites = useCallback(async () => {
-    const token = localStorage.getItem("token");
-    if (!token) return; // Nếu chưa đăng nhập (Guest) thì không gọi API để tránh lỗi 401
+    if (localStorage.getItem("isLoggedIn") !== "true") return; // Nếu chưa đăng nhập (Guest) thì không gọi API để tránh lỗi 401
 
     try {
       const res = await axiosClient.get("/api/documents/favorites");
@@ -151,30 +155,43 @@ export default function Homepage() {
     });
   }, []);
 
-  const fetchCourses = useCallback(async () => {
+  const fetchCourses = useCallback(async (p = coursePage) => {
     try {
-      const response = await axiosClient.get("/api/courses");
+      const response = await axiosClient.get("/api/courses", {
+        params: { page: p, size: 8 },
+      });
       setCourses(response.data?.content || []);
+      setCourseTotalPages(response.data?.totalPages || 1);
     } catch (error) {
+      console.error("Failed to load courses:", error);
       setCourses([]);
     }
-  }, []);
+  }, [coursePage]);
 
   const fetchDocuments = useCallback(async (options = {}) => {
-    const { silent = false } = options;
+    const { silent = false, page = docPage } = options;
     try {
       if (!silent) setIsLoading(true);
-      const response = await axiosClient.get("/api/documents");
-      const publicDocs = (response.data || [])
-        .filter((doc) => doc.visibility === "PUBLIC")
-        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-      setDocuments(publicDocs);
+      const response = await axiosClient.get("/api/documents", {
+        params: { page, size: 10 },
+      });
+      if (response.data && response.data.content) {
+        setDocuments(response.data.content || []);
+        setDocTotalPages(response.data.totalPages || 1);
+      } else {
+        const publicDocs = (response.data || [])
+          .filter((doc) => doc.visibility === "PUBLIC")
+          .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        setDocuments(publicDocs);
+        setDocTotalPages(Math.ceil(publicDocs.length / 10) || 1);
+      }
     } catch (error) {
+      console.error("Failed to load documents:", error);
       setDocuments([]);
     } finally {
       if (!silent) setIsLoading(false);
     }
-  }, []);
+  }, [docPage]);
 
   useEffect(() => {
     fetchDocuments();
@@ -210,8 +227,7 @@ export default function Homepage() {
 
   // Xử lý toggle thả tim / bỏ thả tim thông minh (CHẶN KHI CHƯA ĐĂNG NHẬP)
   const handleToggleFavoriteClick = (doc) => {
-    const token = localStorage.getItem("token");
-    if (!token) {
+    if (localStorage.getItem("isLoggedIn") !== "true") {
       toast.error("Please log in to save documents!");
       return;
     }
@@ -264,6 +280,7 @@ export default function Homepage() {
       const url = res.data.downloadUrl;
       if (url) await forceDownload(url, title || "document");
     } catch (error) {
+      console.error("Download error:", error);
       alert("Error downloading document!");
     }
   };
@@ -302,6 +319,7 @@ export default function Homepage() {
           },
         ]);
       } catch (error) {
+        console.error("Homepage chat error:", error);
         setChatMessages((prev) => [
           ...prev,
           {
@@ -748,6 +766,57 @@ export default function Homepage() {
               })}
             </div>
           )}
+
+          {docTotalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 mt-8">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={docPage === 0}
+                onClick={() => {
+                  const nextP = docPage - 1;
+                  setDocPage(nextP);
+                  fetchDocuments({ page: nextP });
+                }}
+                className="rounded-xl border-slate-200 text-slate-600 hover:bg-slate-50 cursor-pointer disabled:opacity-50"
+              >
+                Previous
+              </Button>
+
+              {Array.from({ length: docTotalPages }).map((_, idx) => (
+                <Button
+                  key={idx}
+                  variant={docPage === idx ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    setDocPage(idx);
+                    fetchDocuments({ page: idx });
+                  }}
+                  className={`w-9 h-9 rounded-xl font-bold cursor-pointer transition-all ${
+                    docPage === idx
+                      ? "bg-[#f26522] text-white hover:bg-[#d9581c]"
+                      : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                  }`}
+                >
+                  {idx + 1}
+                </Button>
+              ))}
+
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={docPage >= docTotalPages - 1}
+                onClick={() => {
+                  const nextP = docPage + 1;
+                  setDocPage(nextP);
+                  fetchDocuments({ page: nextP });
+                }}
+                className="rounded-xl border-slate-200 text-slate-600 hover:bg-slate-50 cursor-pointer disabled:opacity-50"
+              >
+                Next
+              </Button>
+            </div>
+          )}
         </section>
 
         {/* SUGGESTED CREATORS SECTION */}
@@ -876,6 +945,57 @@ export default function Homepage() {
               <CourseCard key={course.id} course={course} />
             ))}
           </div>
+
+          {courseTotalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 mt-8">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={coursePage === 0}
+                onClick={() => {
+                  const nextP = coursePage - 1;
+                  setCoursePage(nextP);
+                  fetchCourses(nextP);
+                }}
+                className="rounded-xl border-slate-200 text-slate-600 hover:bg-slate-50 cursor-pointer disabled:opacity-50"
+              >
+                Previous
+              </Button>
+
+              {Array.from({ length: courseTotalPages }).map((_, idx) => (
+                <Button
+                  key={idx}
+                  variant={coursePage === idx ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    setCoursePage(idx);
+                    fetchCourses(idx);
+                  }}
+                  className={`w-9 h-9 rounded-xl font-bold cursor-pointer transition-all ${
+                    coursePage === idx
+                      ? "bg-[#f26522] text-white hover:bg-[#d9581c]"
+                      : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                  }`}
+                >
+                  {idx + 1}
+                </Button>
+              ))}
+
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={coursePage >= courseTotalPages - 1}
+                onClick={() => {
+                  const nextP = coursePage + 1;
+                  setCoursePage(nextP);
+                  fetchCourses(nextP);
+                }}
+                className="rounded-xl border-slate-200 text-slate-600 hover:bg-slate-50 cursor-pointer disabled:opacity-50"
+              >
+                Next
+              </Button>
+            </div>
+          )}
         </section>
       </main>
 

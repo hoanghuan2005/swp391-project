@@ -55,6 +55,7 @@ export default function UploadDocumentDialog({
   const [subjectNameOpen, setSubjectNameOpen] = useState(false);
 
   const [selectedFile, setSelectedFile] = useState(null);
+  const [title, setTitle] = useState("");
   const [visibility, setVisibility] = useState("PUBLIC");
   const [description, setDescription] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -138,6 +139,7 @@ export default function UploadDocumentDialog({
       // Reset state when dialog closes
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedFile(null);
+      setTitle("");
       setVisibility("PUBLIC");
       setDescription("");
 
@@ -219,6 +221,9 @@ export default function UploadDocumentDialog({
     const file = event.target.files?.[0];
     if (file) {
       setSelectedFile(file);
+      if (!title.trim() || (selectedFile && title === selectedFile.name)) {
+        setTitle(file.name);
+      }
       setUploadError("");
     }
   };
@@ -250,8 +255,9 @@ export default function UploadDocumentDialog({
       const uploadPromise = async () => {
         const formData = new FormData();
 
+        const finalTitle = title.trim() || selectedFile?.name || "";
         formData.append("file", selectedFile);
-        formData.append("title", selectedFile.name);
+        formData.append("title", finalTitle);
         formData.append("visibility", visibility);
 
         if (description.trim()) {
@@ -319,7 +325,7 @@ export default function UploadDocumentDialog({
 
       const normalizedDoc = {
         visibility: visibility,
-        title: selectedFile?.name,
+        title: title.trim() || selectedFile?.name,
         ...uploadedDoc?.data,
       };
 
@@ -358,6 +364,13 @@ export default function UploadDocumentDialog({
   const handleUploadDocument = async () => {
     if (!selectedFile) {
       const message = "Please select a file to upload.";
+      setUploadError(message);
+      toast.error(message);
+      return;
+    }
+
+    if (!title.trim()) {
+      const message = "Please enter a document title.";
       setUploadError(message);
       toast.error(message);
       return;
@@ -475,6 +488,20 @@ export default function UploadDocumentDialog({
                   onChange={handleFileSelect}
                 />
               </div>
+            </div>
+
+            {/* Document Title Input */}
+            <div className="space-y-1">
+              <Label className="flex items-center gap-2 text-slate-700 font-semibold">
+                <FileText size={16} className="text-[#f26522]" />
+                Document Title <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                placeholder="Enter document title..."
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="rounded-lg border-gray-300 focus-visible:ring-[#f26522] focus-visible:border-[#f26522]"
+              />
             </div>
 
             {/* school Input */}

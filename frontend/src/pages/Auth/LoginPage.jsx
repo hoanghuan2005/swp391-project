@@ -38,21 +38,19 @@ const LoginPage = () => {
 
       if (response.data) {
         // 💥 BÓC TÁCH: Lấy cặp bài trùng accessToken và refreshToken từ Object JSON mới của Backend
-        const { accessToken, refreshToken } = response.data;
+        const { accessToken } = response.data;
 
         if (accessToken) {
-          // Lưu cả 2 mã vào localStorage bảo mật
-          localStorage.setItem("token", accessToken);
-          if (refreshToken) {
-            localStorage.setItem("refreshToken", refreshToken);
-          } else {
-            localStorage.removeItem("refreshToken");
-          }
+          localStorage.removeItem("token");
+          localStorage.removeItem("refreshToken");
+          localStorage.setItem("isLoggedIn", "true");
 
           try {
-            // Giải mã Access Token mới để check Role quyền hạn
             const decoded = jwtDecode(accessToken);
             const role = decoded.role;
+            const name = decoded?.name || decoded?.sub;
+            if (role) localStorage.setItem("userRole", role);
+            if (name) localStorage.setItem("userName", name);
 
             fireSuccessConfetti();
             setTimeout(() => {

@@ -46,4 +46,8 @@ public class RefreshTokenService {
         }
         return token;
     }
+
+    public void deleteByUser(com.example.keeper.systems.auth.entity.User user) {
+        refreshTokenRepository.deleteByUser(user);
+    }
 }

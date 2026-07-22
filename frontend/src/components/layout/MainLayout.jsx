@@ -62,8 +62,7 @@ export default function MainLayout() {
       const surveySkipped = localStorage.getItem("surveySkipped") === "true";
 
       if (!surveyCompleted) {
-        const token = localStorage.getItem("token");
-        if (token) {
+        if (localStorage.getItem("isLoggedIn") === "true") {
           try {
             const res = await axiosClient.get("/api/profile");
             const pdata = res.data || {};

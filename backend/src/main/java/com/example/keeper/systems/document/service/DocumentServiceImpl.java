@@ -193,7 +193,7 @@ public class DocumentServiceImpl implements DocumentService {
         String currentUserEmail = getCurrentUserEmail();
 
         User user = userRepository.findByEmail(currentUserEmail)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy user đăng nhập!"));
+                .orElseThrow(() -> new RuntimeException("Authenticated user not found!"));
 
         Course course = resolveCourse(request);
 
@@ -385,6 +385,13 @@ public class DocumentServiceImpl implements DocumentService {
     }
 
     @Override
+    public org.springframework.data.domain.Page<DocumentResponse> getPublicDocuments(int page, int size) {
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(Math.max(page, 0), Math.max(size, 1));
+        org.springframework.data.domain.Page<Document> docPage = documentRepository.findByVisibilityOrderByCreatedAtDesc(Visibility.PUBLIC, pageable);
+        return docPage.map(this::mapToResponse);
+    }
+
+    @Override
     public List<DocumentResponse> getMyUploads(String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
@@ -494,11 +501,11 @@ public class DocumentServiceImpl implements DocumentService {
         List<DocumentResponse> resultList = new java.util.ArrayList<>();
         Set<UUID> addedIds = new HashSet<>();
 
-        // 1. TRIỂN KHAI VECTOR SEARCH (ƯU TIÊN HÀNG ĐẦU)
+        // 1. IMPLEMENT VECTOR SEARCH (TOP PRIORITY)
         try {
             StringBuilder contextText = new StringBuilder();
 
-            // Lấy ngữ cảnh từ 3 tài liệu gần nhất user vừa xem
+            // Get context from 3 most recent documents viewed by user
             if (user != null) {
                 var recentViews = documentViewRepository.findRecentDocuments(user.getId(), PageRequest.of(0, 3));
                 for (var view : recentViews) {
@@ -511,7 +518,7 @@ public class DocumentServiceImpl implements DocumentService {
                 }
             }
 
-            // Nếu chưa có lịch sử xem, dùng thông tin khảo sát
+            // If no viewing history, use survey data
             if (contextText.toString().trim().isEmpty()) {
                 if (majorName != null) contextText.append(majorName).append(" ");
                 if (schoolName != null) contextText.append(schoolName).append(" ");
@@ -545,7 +552,7 @@ public class DocumentServiceImpl implements DocumentService {
             log.warn("Vector search recommendation failed, falling back to SQL query. Error: {}", e.getMessage());
         }
 
-        // 2. FALLBACK 1: SQL QUERY (NẾU VECTOR SEARCH KHÔNG ĐỦ HÀNG)
+        // 2. FALLBACK 1: SQL QUERY (IF VECTOR SEARCH HAS NOT ENOUGH RESULTS)
         if (resultList.size() < limit) {
             boolean hasSurveyData = (schoolName != null && !schoolName.isBlank())
                     || (majorName != null && !majorName.isBlank())
@@ -568,7 +575,7 @@ public class DocumentServiceImpl implements DocumentService {
             }
         }
 
-        // 3. FALLBACK 2: TOP PUBLIC DOCUMENTS (NẾU VẪN CHƯA ĐỦ HÀNG)
+        // 3. FALLBACK 2: TOP PUBLIC DOCUMENTS (IF STILL NOT ENOUGH RESULTS)
         if (resultList.size() < limit) {
             List<Document> topDocs = documentRepository.findTopPublicDocuments(PageRequest.of(0, limit * 2));
             for (Document doc : topDocs) {
@@ -902,7 +909,7 @@ public class DocumentServiceImpl implements DocumentService {
         Document document = getById(id);
         checkDocumentAccess(document, email);
 
-        // Tăng số lượt tải lên 1
+        // Increment download count by 1
         int currentCount = document.getDownloadCount() != null ? document.getDownloadCount() : 0;
         document.setDownloadCount(currentCount + 1);
         documentRepository.save(document);
@@ -920,7 +927,7 @@ public class DocumentServiceImpl implements DocumentService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        // Trả về danh sách tài liệu mà user đã yêu thích
+        // Return list of favorited documents
         return user.getFavoriteDocuments().stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
@@ -933,7 +940,7 @@ public class DocumentServiceImpl implements DocumentService {
                 .orElseThrow(() -> new RuntimeException("User not found"));
         Document document = getById(documentId);
 
-        // Kiểm tra nếu đã thích thì xóa, chưa thích thì thêm vào
+        // Toggle favorite: remove if exists, otherwise add
         if (user.getFavoriteDocuments().contains(document)) {
             user.getFavoriteDocuments().remove(document);
         } else {
@@ -992,6 +999,9 @@ public class DocumentServiceImpl implements DocumentService {
         }
 
         // Update properties
+        if (request.getTitle() != null && !request.getTitle().trim().isEmpty()) {
+            document.setTitle(request.getTitle().trim());
+        }
         document.setDescription(request.getDescription());
         document.setVisibility(request.getVisibility());
 
@@ -1131,7 +1141,7 @@ public class DocumentServiceImpl implements DocumentService {
     }
 
     // =========================
-    // TÍNH NĂNG: DOCUMENT VERSIONING
+    // FEATURE: DOCUMENT VERSIONING
     // =========================
 
     @Override
@@ -1168,7 +1178,7 @@ public class DocumentServiceImpl implements DocumentService {
         newVersion.setResourceType(resourceType);
         newVersion.setOriginalFileName(originalFilename);
         newVersion.setFileSize(file.getSize());
-        newVersion.setChangelog(changelog != null && !changelog.isBlank() ? changelog.trim() : "Cập nhật phiên bản mới");
+        newVersion.setChangelog(changelog != null && !changelog.isBlank() ? changelog.trim() : "New version update");
         newVersion.setUploadedBy(uploader);
         DocumentVersion savedVersion = documentVersionRepository.save(newVersion);
 

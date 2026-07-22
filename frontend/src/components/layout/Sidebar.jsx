@@ -207,8 +207,8 @@ export default function Sidebar({ isOpen = true }) {
 
   // 🔥 LẤY DỮ LIỆU PROFILE & LẮNG NGHE SỰ KIỆN UPLOAD ĐỂ CẬP NHẬT SỐ LƯỢNG FILE
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) {
+    const isLoggedIn = localStorage.getItem("isLoggedIn") === "true";
+    if (!isLoggedIn) {
       setSidebarProfile({
         fullName: "Guest User",
         schoolCode: "Guest",
@@ -216,7 +216,6 @@ export default function Sidebar({ isOpen = true }) {
         uploads: 0,
         upvotes: 0,
       });
-      return;
     }
 
     const fetchSidebarProfile = async () => {
@@ -265,8 +264,7 @@ export default function Sidebar({ isOpen = true }) {
 
   // load danh sách course đã follow
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) {
+    if (localStorage.getItem("isLoggedIn") !== "true") {
       setFollowedCourses([]);
       return;
     }
@@ -332,8 +330,7 @@ export default function Sidebar({ isOpen = true }) {
   };
 
   const fetchWorkspaces = async () => {
-    const token = localStorage.getItem("token");
-    if (!token) {
+    if (localStorage.getItem("isLoggedIn") !== "true") {
       setWorkspaces([]);
       return;
     }
@@ -346,8 +343,7 @@ export default function Sidebar({ isOpen = true }) {
   };
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) {
+    if (localStorage.getItem("isLoggedIn") !== "true") {
       setWorkspaces([]);
       return;
     }
@@ -464,7 +460,7 @@ export default function Sidebar({ isOpen = true }) {
         <div
           className={cn("flex justify-center", isOpen ? "w-full" : "w-10 pt-4")}
         >
-          {!localStorage.getItem("token") ? (
+          {localStorage.getItem("isLoggedIn") !== "true" ? (
             isOpen ? (
               <Button
                 onClick={() => {
@@ -652,8 +648,7 @@ export default function Sidebar({ isOpen = true }) {
           <Button
             variant="ghost"
             onClick={() => {
-              const token = localStorage.getItem("token");
-              if (!token) {
+              if (localStorage.getItem("isLoggedIn") !== "true") {
                 alert("Vui lòng đăng nhập để thêm môn học!");
                 navigate("/login");
                 return;
@@ -683,8 +678,7 @@ export default function Sidebar({ isOpen = true }) {
           <Button
             variant="ghost"
             onClick={() => {
-              const token = localStorage.getItem("token");
-              if (!token) {
+              if (localStorage.getItem("isLoggedIn") !== "true") {
                 alert("Vui lòng đăng nhập để thêm Workspace!");
                 navigate("/login");
                 return;

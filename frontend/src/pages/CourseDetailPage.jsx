@@ -79,8 +79,7 @@ export default function CourseDetailPage() {
   // Fetch user profile for chat sender match
   useEffect(() => {
     const fetchProfile = async () => {
-      const token = localStorage.getItem("token");
-      if (token) {
+      if (localStorage.getItem("isLoggedIn") === "true") {
         try {
           const res = await axiosClient.get("/api/profile");
           setCurrentUser(res.data);
@@ -114,14 +113,13 @@ export default function CourseDetailPage() {
 
     fetchChatHistory();
 
-    const token = localStorage.getItem("token");
-    if (!token) return;
+    if (localStorage.getItem("isLoggedIn") !== "true") return;
 
     const wsBaseUrl = backendBaseUrl
       .replace("http://", "ws://")
       .replace("https://", "wss://");
 
-    const wsUrl = `${wsBaseUrl}/chat-ws/${id}?token=${token}`;
+    const wsUrl = `${wsBaseUrl}/chat-ws/${id}`;
     const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
@@ -421,8 +419,7 @@ export default function CourseDetailPage() {
   const [flashcardToLike, setFlashcardToLike] = useState(null);
 
   const fetchUserFavorites = useCallback(async () => {
-    const token = localStorage.getItem("token");
-    if (!token) return;
+    if (localStorage.getItem("isLoggedIn") !== "true") return;
     try {
       const res = await axiosClient.get("/api/documents/favorites");
       if (Array.isArray(res.data)) {
@@ -436,8 +433,7 @@ export default function CourseDetailPage() {
   }, []);
 
   const fetchUserFavoriteFlashcards = useCallback(async () => {
-    const token = localStorage.getItem("token");
-    if (!token) return;
+    if (localStorage.getItem("isLoggedIn") !== "true") return;
     try {
       const res = await axiosClient.get("/api/ai_flashcard/favorites");
       if (Array.isArray(res.data)) {
@@ -467,19 +463,19 @@ export default function CourseDetailPage() {
 
     try {
       setLoading(true);
-      const token = localStorage.getItem("token");
+      const isLoggedIn = localStorage.getItem("isLoggedIn") === "true";
 
       const [courseRes, docsRes, followStatusRes, quizzesRes, flashcardsRes] =
         await Promise.all([
           axiosClient.get(`/api/courses/${id}`),
           axiosClient.get(`/api/courses/${id}/documents`),
-          token
+          isLoggedIn
             ? axiosClient.get(`/api/courses/${id}/follow-status`)
             : Promise.resolve({ data: false }),
-          token
+          isLoggedIn
             ? axiosClient.get(`/api/quizzes/course/${id}`)
             : Promise.resolve({ data: [] }),
-          token
+          isLoggedIn
             ? axiosClient.get(`/api/ai_flashcard/course/${id}`)
             : Promise.resolve({ data: [] }),
         ]);
@@ -523,8 +519,7 @@ export default function CourseDetailPage() {
 
   // --- Favorite Documents Handlers ---
   const handleToggleFavoriteClick = (doc) => {
-    const token = localStorage.getItem("token");
-    if (!token) {
+    if (localStorage.getItem("isLoggedIn") !== "true") {
       toast.error("Please log in to save documents!");
       return;
     }
@@ -572,8 +567,7 @@ export default function CourseDetailPage() {
 
   // --- Favorite Flashcards Handlers ---
   const handleToggleFavoriteFlashcardClick = (fc) => {
-    const token = localStorage.getItem("token");
-    if (!token) {
+    if (localStorage.getItem("isLoggedIn") !== "true") {
       toast.error("Please log in to save flashcards!");
       return;
     }
@@ -620,8 +614,7 @@ export default function CourseDetailPage() {
   };
 
   const handleFollowToggle = async () => {
-    const token = localStorage.getItem("token");
-    if (!token) {
+    if (localStorage.getItem("isLoggedIn") !== "true") {
       alert("Vui lòng đăng nhập để theo dõi môn học!");
       return;
     }
@@ -1084,7 +1077,7 @@ export default function CourseDetailPage() {
 
           {/* Chat Input */}
           <div className="p-5 -mb-4 border-t border-slate-100 bg-white">
-            {localStorage.getItem("token") ? (
+            {localStorage.getItem("isLoggedIn") === "true" ? (
               <form onSubmit={handleSendRootMessage} className="flex gap-2">
                 <Input
                   placeholder="Đặt câu hỏi hoặc bắt đầu chủ đề thảo luận mới..."
