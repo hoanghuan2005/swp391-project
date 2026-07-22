@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.HashMap;
@@ -31,17 +32,18 @@ public class EmailService {
     private static final String BREVO_API_URL = "https://api.brevo.com/v3/smtp/email";
 
     private void sendEmail(String to, String subject, String textContent) {
-        if (brevoApiKey == null || brevoApiKey.isBlank()) {
+        String cleanKey = brevoApiKey != null ? brevoApiKey.trim() : "";
+        if (cleanKey.isBlank()) {
             log.warn("Brevo API key not configured, skipping email to {}", to);
             return;
         }
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.set("api-key", brevoApiKey);
+            headers.set("api-key", cleanKey);
 
             Map<String, Object> body = new HashMap<>();
-            body.put("sender", Map.of("name", senderName, "email", senderEmail));
+            body.put("sender", Map.of("name", senderName, "email", senderEmail != null ? senderEmail.trim() : ""));
             body.put("to", List.of(Map.of("email", to)));
             body.put("subject", subject);
             body.put("textContent", textContent);
@@ -54,10 +56,13 @@ public class EmailService {
             } else {
                 log.warn("Brevo returned status {} when sending to {}", response.getStatusCode(), to);
             }
+        } catch (HttpStatusCodeException e) {
+            log.warn("Could not send email to {}: {} - Response: {}", to, e.getMessage(), e.getResponseBodyAsString());
         } catch (Exception e) {
             log.warn("Could not send email to {}: {}", to, e.getMessage());
         }
     }
+
 
     @Async
     public void sendResetPasswordEmail(String to, String otp) {
