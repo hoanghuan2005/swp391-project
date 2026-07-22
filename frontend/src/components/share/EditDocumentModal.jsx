@@ -244,10 +244,16 @@ export default function EditDocumentModal({ open, documentId, onClose, onSuccess
       return;
     }
 
+    if (!title.trim()) {
+      toast.error("Please enter a document title");
+      return;
+    }
+
     setSubmitting(true);
     const courseCode = subjectQuery.split("-")[0]?.trim();
 
     const payload = {
+      title: title.trim(),
       description,
       visibility,
       categoryId: selectedCategory?.id || null,
@@ -278,7 +284,7 @@ export default function EditDocumentModal({ open, documentId, onClose, onSuccess
             <FileText className="w-5 h-5 text-[#f26522]" /> Edit Document
           </DialogTitle>
           <DialogDescription className="mt-1 text-sm text-slate-500">
-            Title is read-only. Edit description, course, tags, etc.
+            Edit title, description, course, tags, etc.
           </DialogDescription>
         </DialogHeader>
 
@@ -293,14 +299,16 @@ export default function EditDocumentModal({ open, documentId, onClose, onSuccess
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-5 py-4">
-            {/* Title (Read-only) */}
+            {/* Title */}
             <div className="space-y-2">
-              <Label className="text-slate-700 font-semibold">Title</Label>
+              <Label className="text-slate-700 font-semibold flex items-center gap-2">
+                Title <span className="text-red-500">*</span>
+              </Label>
               <Input
                 value={title}
-                readOnly
-                disabled
-                className="bg-slate-50 text-slate-500 rounded-xl border-slate-200 cursor-not-allowed h-11"
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Enter document title..."
+                className="rounded-xl border-slate-200 focus-visible:ring-[#f26522] focus-visible:border-[#f26522] h-11"
               />
             </div>
 

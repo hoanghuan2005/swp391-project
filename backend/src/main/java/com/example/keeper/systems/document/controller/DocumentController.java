@@ -166,7 +166,7 @@ public class DocumentController {
     }
 
     // =========================
-    // TÍNH NĂNG: FAVORITE (THẢ TIM) TÀI LIỆU
+    // FEATURE: FAVORITE DOCUMENT
     // =========================
 
     @GetMapping("/favorites")
@@ -174,7 +174,7 @@ public class DocumentController {
         String email = SecurityContextHolder.getContext()
                 .getAuthentication()
                 .getName();
-        // Gọi xuống service để lấy danh sách tài liệu user đã thích
+        // Call service to get list of favorited documents
         return documentService.getMyFavorites(email);
     }
 
@@ -183,13 +183,13 @@ public class DocumentController {
         String email = SecurityContextHolder.getContext()
                 .getAuthentication()
                 .getName();
-        // Gọi xuống service để Thêm/Xóa tim
+        // Call service to toggle favorite
         documentService.toggleFavorite(id, email);
-        return ResponseEntity.ok(Map.of("message", "Đã cập nhật trạng thái yêu thích"));
+        return ResponseEntity.ok(Map.of("message", "Favorite status updated"));
     }
 
     // =========================
-    // API CHO AI FLASHCARD & KHÁC
+    // API FOR AI FLASHCARD & OTHERS
     // =========================
 
     @GetMapping("/my-documents")
@@ -239,7 +239,7 @@ public class DocumentController {
         return ResponseEntity.noContent().build();
     }
 
-    // API tải tài liệu
+    // Download document API
     @GetMapping("/{id}/download")
     public ResponseEntity<Map<String, String>> downloadDocument(
             @PathVariable UUID id) {
@@ -310,7 +310,7 @@ public class DocumentController {
     }
 
     // =========================
-    // TÍNH NĂNG: DOCUMENT VERSIONING (QUẢN LÝ PHIÊN BẢN)
+    // FEATURE: DOCUMENT VERSIONING
     // =========================
 
     @PostMapping(value = "/{id}/versions", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

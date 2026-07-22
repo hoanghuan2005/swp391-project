@@ -10,6 +10,7 @@ import java.util.UUID;
 @Getter
 @Setter
 public class UpdateDocumentRequest {
+    private String title;
     private String description;
     private Visibility visibility;
     private UUID categoryId;
