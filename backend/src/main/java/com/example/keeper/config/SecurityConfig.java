@@ -7,6 +7,7 @@ import com.example.keeper.systems.auth.repository.UserRepository;
 import com.example.keeper.systems.auth.service.JwtService;
 import com.example.keeper.systems.auth.service.RefreshTokenService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -25,7 +26,9 @@ import java.util.List;
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor
+@Slf4j
 public class SecurityConfig {
+
 
     private final JwtAuthenticationFilter jwtAuthFilter;
     private final JwtService jwtService;
@@ -152,43 +155,56 @@ public class SecurityConfig {
 
                 .oauth2Login(oauth -> oauth
                         .successHandler((request, response, authentication) -> {
+                            try {
+                                OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
+                                String email = oAuth2User.getAttribute("email");
 
-                            OAuth2User oAuth2User = (OAuth2User) authentication
-                                    .getPrincipal();
+                                User user = userRepository.findByEmail(email).orElseGet(() -> {
+                                    User newUser = new User();
+                                    String name = oAuth2User.getAttribute("name");
+                                    String baseUsername = (name != null && !name.isBlank())
+                                            ? name.replaceAll("\\s+", "_")
+                                            : (email != null ? email.split("@")[0] : "user");
 
-                            String email = oAuth2User.getAttribute("email");
+                                    String finalUsername = baseUsername;
+                                    int suffix = 1;
+                                    while (userRepository.findByUsername(finalUsername).isPresent()) {
+                                        finalUsername = baseUsername + "_" + suffix++;
+                                    }
 
-                            User user = userRepository.findByEmail(email).orElseGet(() -> {
-                                User newUser = new User();
-                                String name = oAuth2User.getAttribute("name");
-                                String username = (name != null && !name.isBlank())
-                                        ? name.replaceAll("\\s+", "_")
-                                        : email.split("@")[0];
-                                newUser.setUsername(username);
-                                newUser.setEmail(email);
-                                newUser.setPassword(
-                                        new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder()
-                                                .encode(java.util.UUID
-                                                        .randomUUID()
-                                                        .toString()));
-                                newUser.setEmailVerified(true);
-                                roleRepository.findByName("STUDENT")
-                                        .ifPresent(newUser::setRole);
-                                userRepository.save(newUser);
-                                return newUser;
-                            });
+                                    newUser.setUsername(finalUsername);
+                                    newUser.setEmail(email);
+                                    newUser.setPassword(
+                                            new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder()
+                                                    .encode(java.util.UUID.randomUUID().toString()));
+                                    newUser.setEmailVerified(true);
+                                    roleRepository.findByName("STUDENT")
+                                            .ifPresent(newUser::setRole);
+                                    return userRepository.save(newUser);
+                                });
 
-                            String accessToken = jwtService.generateToken(user);
-                            RefreshToken refreshToken = refreshTokenService
-                                    .createRefreshToken(user.getId());
+                                String accessToken = jwtService.generateToken(user);
+                                RefreshToken refreshToken = refreshTokenService
+                                        .createRefreshToken(user.getId());
 
-                            String redirectUrl = frontendUrl + "/oauth2/callback"
-                                    + "?token=" + accessToken
-                                    + "&refreshToken=" + refreshToken.getToken();
+                                String cleanFrontend = frontendUrl.endsWith("/") ? frontendUrl.substring(0, frontendUrl.length() - 1) : frontendUrl;
+                                String redirectUrl = cleanFrontend + "/oauth2/callback"
+                                        + "?token=" + accessToken
+                                        + "&refreshToken=" + refreshToken.getToken();
 
-
-                            response.sendRedirect(redirectUrl);
+                                response.sendRedirect(redirectUrl);
+                            } catch (Exception e) {
+                                log.error("Error in OAuth2 success handler: ", e);
+                                String cleanFrontend = frontendUrl.endsWith("/") ? frontendUrl.substring(0, frontendUrl.length() - 1) : frontendUrl;
+                                response.sendRedirect(cleanFrontend + "/login?error=" + java.net.URLEncoder.encode(e.getMessage() != null ? e.getMessage() : "OAuth2 Error", java.nio.charset.StandardCharsets.UTF_8));
+                            }
+                        })
+                        .failureHandler((request, response, exception) -> {
+                            log.error("OAuth2 Authentication Failed: ", exception);
+                            String cleanFrontend = frontendUrl.endsWith("/") ? frontendUrl.substring(0, frontendUrl.length() - 1) : frontendUrl;
+                            response.sendRedirect(cleanFrontend + "/login?error=" + java.net.URLEncoder.encode(exception.getMessage() != null ? exception.getMessage() : "OAuth2 Auth Failed", java.nio.charset.StandardCharsets.UTF_8));
                         }))
+
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
