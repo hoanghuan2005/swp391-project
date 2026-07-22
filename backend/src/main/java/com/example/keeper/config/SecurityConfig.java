@@ -40,7 +40,13 @@ public class SecurityConfig {
     private String frontendUrl;
 
     @Bean
+    public org.springframework.web.filter.ForwardedHeaderFilter forwardedHeaderFilter() {
+        return new org.springframework.web.filter.ForwardedHeaderFilter();
+    }
+
+    @Bean
     public SecurityFilterChain securityFilterChain(
+
             org.springframework.security.config.annotation.web.builders.HttpSecurity http)
             throws Exception {
 
