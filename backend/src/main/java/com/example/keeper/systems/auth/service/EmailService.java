@@ -37,14 +37,13 @@ public class EmailService {
             log.warn("Brevo API key not configured, skipping email to {}", to);
             return;
         }
-        log.info("Sending email to {}. Key len: {}, Key start: {}", to, cleanKey.length(), cleanKey.length() > 10 ? cleanKey.substring(0, 10) + "..." : cleanKey);
+        log.info("Sending email to {}. Key len: {}, Key start: {}", to, cleanKey.length(),
+                cleanKey.length() > 10 ? cleanKey.substring(0, 10) + "..." : cleanKey);
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             headers.set("accept", "application/json");
             headers.set("api-key", cleanKey);
-
-
 
             Map<String, Object> body = new HashMap<>();
             body.put("sender", Map.of("name", senderName, "email", senderEmail != null ? senderEmail.trim() : ""));
@@ -66,7 +65,6 @@ public class EmailService {
             log.warn("Could not send email to {}: {}", to, e.getMessage());
         }
     }
-
 
     @Async
     public void sendResetPasswordEmail(String to, String otp) {
