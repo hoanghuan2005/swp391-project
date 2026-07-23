@@ -8,7 +8,9 @@ import {
   Sparkles,
   Heart,
   Layers,
+  Download,
 } from "lucide-react";
+import ExportModal from "@/components/modals/ExportModal";
 import { toast } from "react-hot-toast"; // Đã thêm import toast
 import axiosClient from "@/api/axiosClient";
 import useDocuments from "@/hooks/useDocuments";
@@ -93,7 +95,7 @@ export default function AIFlashcardGenerator({ contextData }) {
   
   // State Like Flashcard
   const [isLiked, setIsLiked] = useState(false);
-
+  const [exportModalOpen, setExportModalOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [setToDelete, setSetToDelete] = useState(null);
 
@@ -625,6 +627,14 @@ export default function AIFlashcardGenerator({ contextData }) {
                             <Button
                               variant="outline"
                               className="rounded-full border-orange-200 hover:bg-orange-50 h-9 px-4 text-sm cursor-pointer"
+                              onClick={() => setExportModalOpen(true)}
+                            >
+                              <Download className="w-4 h-4 mr-1.5 text-[#f26522]" /> Export
+                            </Button>
+
+                            <Button
+                              variant="outline"
+                              className="rounded-full border-orange-200 hover:bg-orange-50 h-9 px-4 text-sm cursor-pointer"
                               onClick={handleSaveDraft}
                               disabled={isSaving || !selectedFlashcardSet?.id}
                             >
@@ -949,6 +959,16 @@ export default function AIFlashcardGenerator({ contextData }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ExportModal
+        open={exportModalOpen}
+        onOpenChange={setExportModalOpen}
+        type="flashcard"
+        data={{
+          title: activeSetTitle || selectedFlashcardSet?.title || "Flashcard Set",
+          flashcards: flashcards,
+        }}
+      />
     </div>
   );
 }

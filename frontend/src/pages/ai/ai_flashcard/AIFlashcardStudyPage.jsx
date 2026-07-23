@@ -8,6 +8,7 @@ import {
   RotateCcw,
   Heart,
   Layers,
+  Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getFlashcardSet } from "@/api/flashcardApi";
@@ -15,6 +16,7 @@ import { toast } from "react-hot-toast";
 import FlashcardItem from "./FlashcardItem";
 import axiosClient from "@/api/axiosClient";
 import useStudyTimer from "@/hooks/useStudyTimer";
+import ExportModal from "@/components/modals/ExportModal";
 
 const formatSessionTime = (seconds) => {
   const h = Math.floor(seconds / 3600);
@@ -39,6 +41,7 @@ export default function AIFlashcardStudyPage() {
   const [isCompleted, setIsCompleted] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
+  const [exportModalOpen, setExportModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchProfileAndSet = async () => {
@@ -220,16 +223,25 @@ export default function AIFlashcardStudyPage() {
                   </div>
                 </div>
 
-                <Button
-                  variant="outline"
-                  className={`rounded-full border-orange-200 h-10 px-4 text-sm transition-all cursor-pointer self-start sm:self-auto ${
-                    isLiked ? "bg-red-50 hover:bg-red-100 border-red-100 text-red-500" : "hover:bg-orange-50 text-slate-600"
-                  }`}
-                  onClick={handleLikeFlashcard}
-                >
-                  <Heart className={`w-4 h-4 mr-1.5 ${isLiked ? "fill-current text-red-500" : "text-slate-550"}`} />
-                  {isLiked ? "Favorited" : "Favorite"}
-                </Button>
+                <div className="flex items-center gap-2 self-start sm:self-auto">
+                  <Button
+                    variant="outline"
+                    className="rounded-full border-orange-200 hover:bg-orange-50 h-10 px-4 text-sm transition-all cursor-pointer"
+                    onClick={() => setExportModalOpen(true)}
+                  >
+                    <Download className="w-4 h-4 mr-1.5 text-[#f26522]" /> Export
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className={`rounded-full border-orange-200 h-10 px-4 text-sm transition-all cursor-pointer ${
+                      isLiked ? "bg-red-50 hover:bg-red-100 border-red-100 text-red-500" : "hover:bg-orange-50 text-slate-600"
+                    }`}
+                    onClick={handleLikeFlashcard}
+                  >
+                    <Heart className={`w-4 h-4 mr-1.5 ${isLiked ? "fill-current text-red-500" : "text-slate-550"}`} />
+                    {isLiked ? "Favorited" : "Favorite"}
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
@@ -303,6 +315,13 @@ export default function AIFlashcardStudyPage() {
           )}
         </div>
       </div>
+
+      <ExportModal
+        open={exportModalOpen}
+        onOpenChange={setExportModalOpen}
+        type="flashcard"
+        data={flashcardSet}
+      />
     </div>
   );
 }

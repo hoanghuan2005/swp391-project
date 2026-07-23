@@ -9,7 +9,9 @@ import {
   XCircle,
   RotateCcw,
   AlertCircle,
+  Download,
 } from "lucide-react";
+import ExportModal from "@/components/modals/ExportModal";
 import useStudyTimer from "@/hooks/useStudyTimer";
 
 const formatSessionTime = (seconds) => {
@@ -109,6 +111,7 @@ export default function AIQuizGenerator() {
   };
   const [viewMode, setViewMode] = useState(VIEW_MODE.GENERATE);
   const [selectedQuiz, setSelectedQuiz] = useState(null);
+  const [exportModalOpen, setExportModalOpen] = useState(false);
   const [publishDialogOpen, setPublishDialogOpen] = useState(false);
   const [publishConfirmOpen, setPublishConfirmOpen] = useState(false);
   const [courses, setCourses] = useState([]);
@@ -681,6 +684,14 @@ export default function AIQuizGenerator() {
                           <Button
                             variant="outline"
                             className="rounded-full border-orange-200 hover:bg-orange-50 h-9 px-4 text-sm cursor-pointer"
+                            onClick={() => setExportModalOpen(true)}
+                          >
+                            <Download className="w-4 h-4 mr-1.5 text-[#f26522]" /> Export
+                          </Button>
+
+                          <Button
+                            variant="outline"
+                            className="rounded-full border-orange-200 hover:bg-orange-50 h-9 px-4 text-sm cursor-pointer"
                             onClick={handleSaveDraft}
                             disabled={isSaving}
                           >
@@ -1138,6 +1149,13 @@ export default function AIQuizGenerator() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ExportModal
+        open={exportModalOpen}
+        onOpenChange={setExportModalOpen}
+        type="quiz"
+        data={selectedQuiz}
+      />
     </div>
   );
 }

@@ -8,9 +8,11 @@ import {
   Loader2, 
   Lightbulb,
   Trophy,
-  AlertCircle
+  AlertCircle,
+  Download
 } from "lucide-react";
 import { toast } from "react-hot-toast";
+import ExportModal from "@/components/modals/ExportModal";
 
 import { getQuizById } from "@/api/quizApi";
 import { Button } from "@/components/ui/button";
@@ -27,6 +29,7 @@ export default function QuizPage() {
   const [answers, setAnswers] = useState({});
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [score, setScore] = useState(0);
+  const [exportModalOpen, setExportModalOpen] = useState(false);
 
   const fetchQuiz = useCallback(async () => {
     try {
@@ -101,12 +104,22 @@ export default function QuizPage() {
     <div className="p-6 max-w-4xl mx-auto space-y-8 pb-20">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <Button asChild variant="ghost" className="rounded-xl text-slate-500 hover:bg-slate-100">
+        <Button asChild variant="ghost" className="rounded-xl text-[#f26522] hover:bg-orange-50 font-medium">
           <Link to="/my-library"><ArrowLeft className="mr-2 h-4 w-4" /> Exit Quiz</Link>
         </Button>
-        <Badge variant="outline" className="bg-pink-50 text-pink-500 border-pink-100 px-3 py-1 font-bold rounded-full">
-          <BrainCircuit className="w-3.5 h-3.5 mr-1.5" /> AI Generated
-        </Badge>
+
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            className="rounded-full border-slate-200 hover:bg-slate-50 h-9 px-4 text-sm font-medium cursor-pointer"
+            onClick={() => setExportModalOpen(true)}
+          >
+            <Download className="w-4 h-4 mr-1.5 text-[#f26522]" /> Export
+          </Button>
+          <Badge variant="outline" className="bg-pink-50 text-pink-500 border-pink-100 px-3 py-1 font-bold rounded-full">
+            <BrainCircuit className="w-3.5 h-3.5 mr-1.5" /> AI Generated
+          </Badge>
+        </div>
       </div>
 
       {/* Hero Card */}
@@ -254,6 +267,13 @@ export default function QuizPage() {
           </div>
         )}
       </div>
+
+      <ExportModal
+        open={exportModalOpen}
+        onOpenChange={setExportModalOpen}
+        type="quiz"
+        data={quiz}
+      />
     </div>
   );
 }

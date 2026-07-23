@@ -8,12 +8,14 @@ import {
   BrainCircuit,
   RotateCcw,
   Heart,
+  Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getQuizById } from "@/api/quizApi";
 import { toast } from "react-hot-toast";
 import axiosClient from "@/api/axiosClient";
 import useStudyTimer from "@/hooks/useStudyTimer";
+import ExportModal from "@/components/modals/ExportModal";
 
 const formatSessionTime = (seconds) => {
   const h = Math.floor(seconds / 3600);
@@ -38,6 +40,7 @@ export default function AIQuizTakePage() {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [score, setScore] = useState(0);
   const [currentUser, setCurrentUser] = useState(null);
+  const [exportModalOpen, setExportModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchProfileAndQuiz = async () => {
@@ -217,25 +220,43 @@ export default function AIQuizTakePage() {
                   </div>
 
                   {isSubmitted ? (
-                    <div className="text-center px-8 py-4 bg-white/80 rounded-[20px] border border-orange-200 shadow-sm animate-in zoom-in duration-300 shrink-0 self-start md:self-auto">
-                      <p className="text-xs font-bold text-[#f26522] uppercase tracking-widest mb-1">
-                        Final Score
-                      </p>
-                      <p className="text-4xl font-black text-[#f26522]">
-                        {score}{" "}
-                        <span className="text-xl text-[#f26522]/60 font-bold">
-                          / {totalQuestions}
-                        </span>
-                      </p>
+                    <div className="flex items-center gap-3 self-start md:self-auto">
+                      <Button
+                        variant="outline"
+                        className="rounded-full border-orange-200 hover:bg-orange-50 h-10 px-4 text-sm cursor-pointer"
+                        onClick={() => setExportModalOpen(true)}
+                      >
+                        <Download className="w-4 h-4 mr-1.5 text-[#f26522]" /> Export
+                      </Button>
+                      <div className="text-center px-8 py-4 bg-white/80 rounded-[20px] border border-orange-200 shadow-sm animate-in zoom-in duration-300 shrink-0">
+                        <p className="text-xs font-bold text-[#f26522] uppercase tracking-widest mb-1">
+                          Final Score
+                        </p>
+                        <p className="text-4xl font-black text-[#f26522]">
+                          {score}{" "}
+                          <span className="text-xl text-[#f26522]/60 font-bold">
+                            / {totalQuestions}
+                          </span>
+                        </p>
+                      </div>
                     </div>
                   ) : (
-                    <Button
-                      variant="outline"
-                      className="rounded-full border-orange-200 hover:bg-orange-50 h-10 px-4 text-sm cursor-pointer self-start md:self-auto"
-                      onClick={() => toast.success("Quiz bookmarked!")}
-                    >
-                      <Heart className="w-4 h-4 mr-1.5 text-slate-550 hover:text-red-500" /> Bookmark
-                    </Button>
+                    <div className="flex items-center gap-2 self-start md:self-auto">
+                      <Button
+                        variant="outline"
+                        className="rounded-full border-orange-200 hover:bg-orange-50 h-10 px-4 text-sm cursor-pointer"
+                        onClick={() => setExportModalOpen(true)}
+                      >
+                        <Download className="w-4 h-4 mr-1.5 text-[#f26522]" /> Export
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="rounded-full border-orange-200 hover:bg-orange-50 h-10 px-4 text-sm cursor-pointer"
+                        onClick={() => toast.success("Quiz bookmarked!")}
+                      >
+                        <Heart className="w-4 h-4 mr-1.5 text-slate-550 hover:text-red-500" /> Bookmark
+                      </Button>
+                    </div>
                   )}
                 </div>
               </div>
@@ -360,6 +381,13 @@ export default function AIQuizTakePage() {
           </div>
         )}
       </div>
+
+      <ExportModal
+        open={exportModalOpen}
+        onOpenChange={setExportModalOpen}
+        type="quiz"
+        data={quiz}
+      />
     </div>
   );
 }
