@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { ArrowRight, BookOpen, BrainCircuit, Users, CheckCircle2, Sparkles, BookMarked, ShieldCheck, Loader2, Check } from "lucide-react";
 import studyImage from '../assets/picture-study.png';
 import useAiUsage from "@/hooks/useAiUsage";
-import { jwtDecode } from "jwt-decode";
 import { createVnpayPayment } from "@/api/paymentApi";
 
 export default function LandingPage() {
@@ -360,9 +359,7 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
-      </div>
-
-      {/* Footer */}
+        {/* Footer */}
       <footer className="bg-white border-t border-slate-100 py-12 text-slate-400 text-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row justify-between items-center gap-6">
           <div className="flex items-center gap-2 font-bold text-slate-800">
@@ -374,18 +371,11 @@ export default function LandingPage() {
           </div>
         </div>
       </footer>
+      </div>
     </div>
   );
 }
 
 function getTokenRole() {
-  try {
-    const role = localStorage.getItem("userRole");
-    if (role) return role;
-    const token = localStorage.getItem("token");
-    return token ? jwtDecode(token)?.role : null;
-  } catch (error) {
-    console.error("Invalid token:", error);
-    return null;
-  }
+  return localStorage.getItem("userRole") || null;
 }

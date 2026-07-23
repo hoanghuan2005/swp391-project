@@ -1,22 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { Outlet } from "react-router-dom";
-import { jwtDecode } from "jwt-decode";
 import AdminSidebar from "./AdminSidebar";
 import AdminNavbar from "./AdminNavbar";
 import LogoutModal from "@/components/ui/LogoutModal";
 import axiosClient from "@/api/axiosClient";
 
-function getTokenRole(token) {
-  try {
-    return token ? jwtDecode(token)?.role || "" : "";
-  } catch (error) {
-    console.error("Invalid admin token:", error);
-    return "";
-  }
-}
-
 export default function AdminLayout() {
-  // Quản lý trạng thái đóng/mở sidebar ngay tại Layout (Chuẩn Vercel Practices)
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState({
@@ -41,7 +30,7 @@ export default function AdminLayout() {
             fullName: profile.fullName || "",
             email: profile.email || "",
             avatarUrl: profile.avatarUrl || "",
-            role,
+            role: localStorage.getItem("userRole") || "",
           });
         }
       } catch (error) {

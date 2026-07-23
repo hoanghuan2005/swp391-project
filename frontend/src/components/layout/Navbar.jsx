@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { jwtDecode } from "jwt-decode";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -923,27 +922,13 @@ ${
 }
 
 function getTokenRole() {
-  try {
-    const role = localStorage.getItem("userRole");
-    if (role) return role;
-    const token = localStorage.getItem("token");
-    return token ? jwtDecode(token)?.role : null;
-  } catch (error) {
-    console.error("Invalid token:", error);
-    return null;
-  }
+  return localStorage.getItem("userRole") || null;
 }
 
 function getTokenInitial() {
-  try {
-    const token = localStorage.getItem("token");
-    if (!token) return "H";
-
-    const decoded = jwtDecode(token);
-    const name = decoded?.name || decoded?.sub || null;
-    return name ? name.charAt(0).toUpperCase() : "H";
-  } catch (error) {
-    console.error("Invalid token:", error);
-    return "H";
+  const userName = localStorage.getItem("userName");
+  if (userName && userName.length > 0) {
+    return userName.charAt(0).toUpperCase();
   }
+  return "H";
 }

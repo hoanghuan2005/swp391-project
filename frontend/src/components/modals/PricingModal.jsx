@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import { jwtDecode } from "jwt-decode";
 import { Loader2, Sparkles, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createVnpayPayment } from "@/api/paymentApi";
@@ -171,13 +170,5 @@ export default function PricingModal({ isOpen, onClose }) {
 }
 
 function getTokenRole() {
-  try {
-    const role = localStorage.getItem("userRole");
-    if (role) return role;
-    const token = localStorage.getItem("token");
-    return token ? jwtDecode(token)?.role : null;
-  } catch (error) {
-    console.error("Invalid token:", error);
-    return null;
-  }
+  return localStorage.getItem("userRole") || null;
 }

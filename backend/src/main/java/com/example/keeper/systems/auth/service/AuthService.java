@@ -44,23 +44,23 @@ public class AuthService {
         return "User registered successfully. OTP sent!";
     }
 
-    public String login(LoginRequest request) {
+    public User login(LoginRequest request) {
         User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new RuntimeException("User not found!"));
+                .orElseThrow(() -> new org.springframework.security.authentication.BadCredentialsException("Invalid email or password!"));
 
         if (user.isBanned()) {
             throw new RuntimeException("Your account has been banned by the Admin.");
         }
 
         if (!user.isEmailVerified()) {
-            throw new RuntimeException("Please verify your account before logging in.");
+            throw new IllegalStateException("USER_UNVERIFIED");
         }
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            return "Invalid email or password!";
+            throw new org.springframework.security.authentication.BadCredentialsException("Invalid email or password!");
         }
 
-        return jwtService.generateToken(user);
+        return user;
     }
 
     public String forgotPassword(String email) {
