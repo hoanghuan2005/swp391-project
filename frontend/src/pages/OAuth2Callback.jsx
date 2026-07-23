@@ -8,7 +8,7 @@ export default function OAuth2Callback() {
   useEffect(() => {
     const token = params.get("token");
 
-    if (token || document.cookie.includes("accessToken")) {
+    if (token || localStorage.getItem("isLoggedIn") === "true" || params.get("refreshToken")) {
       localStorage.removeItem("token");
       localStorage.removeItem("refreshToken");
       localStorage.setItem("isLoggedIn", "true");

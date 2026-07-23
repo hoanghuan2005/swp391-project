@@ -24,6 +24,9 @@ public class AuthController {
     @org.springframework.beans.factory.annotation.Value("${app.cookie.secure:false}")
     private boolean cookieSecure;
 
+    @org.springframework.beans.factory.annotation.Value("${app.cookie.same-site:Lax}")
+    private String cookieSameSite;
+
     private final AuthService authService;
     private final RefreshTokenService refreshTokenService;
     private final UserRepository userRepository;
@@ -43,9 +46,9 @@ public class AuthController {
             RefreshToken refreshToken = refreshTokenService.createRefreshToken(user.getId());
 
             org.springframework.http.ResponseCookie accessCookie = 
-                    com.example.keeper.util.CookieUtils.createAccessTokenCookie(accessToken, 86400, cookieSecure);
+                    com.example.keeper.util.CookieUtils.createAccessTokenCookie(accessToken, 86400, cookieSecure, cookieSameSite);
             org.springframework.http.ResponseCookie refreshCookie = 
-                    com.example.keeper.util.CookieUtils.createRefreshTokenCookie(refreshToken.getToken(), 604800, cookieSecure);
+                    com.example.keeper.util.CookieUtils.createRefreshTokenCookie(refreshToken.getToken(), 604800, cookieSecure, cookieSameSite);
 
             Map<String, String> response = new HashMap<>();
             response.put("name", user.getUsername());
@@ -93,7 +96,7 @@ public class AuthController {
                     .map(user -> {
                         String newAccessToken = jwtService.generateToken(user);
                         org.springframework.http.ResponseCookie newAccessCookie = 
-                                com.example.keeper.util.CookieUtils.createAccessTokenCookie(newAccessToken, 86400, cookieSecure);
+                                com.example.keeper.util.CookieUtils.createAccessTokenCookie(newAccessToken, 86400, cookieSecure, cookieSameSite);
 
                         return ResponseEntity.ok()
                                 .header(org.springframework.http.HttpHeaders.SET_COOKIE, newAccessCookie.toString())
@@ -114,8 +117,8 @@ public class AuthController {
             });
         }
 
-        org.springframework.http.ResponseCookie cleanAccessCookie = com.example.keeper.util.CookieUtils.cleanAccessTokenCookie(cookieSecure);
-        org.springframework.http.ResponseCookie cleanRefreshCookie = com.example.keeper.util.CookieUtils.cleanRefreshTokenCookie(cookieSecure);
+        org.springframework.http.ResponseCookie cleanAccessCookie = com.example.keeper.util.CookieUtils.cleanAccessTokenCookie(cookieSecure, cookieSameSite);
+        org.springframework.http.ResponseCookie cleanRefreshCookie = com.example.keeper.util.CookieUtils.cleanRefreshTokenCookie(cookieSecure, cookieSameSite);
 
         return ResponseEntity.ok()
                 .header(org.springframework.http.HttpHeaders.SET_COOKIE, cleanAccessCookie.toString())
