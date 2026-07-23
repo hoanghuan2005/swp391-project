@@ -1169,6 +1169,11 @@ public class DocumentServiceImpl implements DocumentService {
             extension = originalFilename.substring(originalFilename.lastIndexOf('.') + 1).toLowerCase();
         }
 
+        boolean isOwner = document.getUploadedBy() != null && document.getUploadedBy().getId().equals(uploader.getId());
+        com.example.keeper.systems.document.enums.VersionStatus versionStatus = isOwner ?
+                com.example.keeper.systems.document.enums.VersionStatus.APPROVED :
+                com.example.keeper.systems.document.enums.VersionStatus.PENDING_APPROVAL;
+
         DocumentVersion newVersion = new DocumentVersion();
         newVersion.setDocument(document);
         newVersion.setVersionNumber(newVersionStr);
@@ -1179,46 +1184,67 @@ public class DocumentServiceImpl implements DocumentService {
         newVersion.setOriginalFileName(originalFilename);
         newVersion.setFileSize(file.getSize());
         newVersion.setChangelog(changelog != null && !changelog.isBlank() ? changelog.trim() : "New version update");
+        newVersion.setStatus(versionStatus);
         newVersion.setUploadedBy(uploader);
         DocumentVersion savedVersion = documentVersionRepository.save(newVersion);
 
-        // Update Document active file fields
-        document.setFileUrl(fileUrl);
-        document.setCloudinaryPublicId(publicId);
-        document.setMimeType(uploadResult.getMimeType());
-        document.setFileSize(file.getSize());
-        document.setResourceType(resourceType);
-        document.setOriginalFileName(originalFilename);
-        document.setCurrentVersionNumber(newVersionStr);
-        document.setPreviewUrl(fileStorageService.generatePreviewUrl(publicId, resourceType, extension));
-        document.setDownloadUrl(fileStorageService.generateDownloadUrl(publicId, resourceType, extension));
+        if (isOwner) {
+            // Update Document active file fields directly only if uploaded by owner
+            document.setFileUrl(fileUrl);
+            document.setCloudinaryPublicId(publicId);
+            document.setMimeType(uploadResult.getMimeType());
+            document.setFileSize(file.getSize());
+            document.setResourceType(resourceType);
+            document.setOriginalFileName(originalFilename);
+            document.setCurrentVersionNumber(newVersionStr);
+            document.setPreviewUrl(fileStorageService.generatePreviewUrl(publicId, resourceType, extension));
+            document.setDownloadUrl(fileStorageService.generateDownloadUrl(publicId, resourceType, extension));
 
-        AiParseStatus parseStatus = resolveAiParseStatus(file);
-        document.setAiParseStatus(parseStatus);
+            AiParseStatus parseStatus = resolveAiParseStatus(file);
+            document.setAiParseStatus(parseStatus);
 
-        byte[] fileBytes = null;
-        String parserFilename = file.getOriginalFilename();
-        String parserContentType = file.getContentType();
-        if (parseStatus == AiParseStatus.PENDING) {
-            try {
-                fileBytes = file.getBytes();
-            } catch (IOException e) {
-                log.warn("Failed to copy document bytes for async parsing version: {}", e.getMessage());
-                document.setAiParseStatus(AiParseStatus.FAILED);
+            byte[] fileBytes = null;
+            String parserFilename = file.getOriginalFilename();
+            String parserContentType = file.getContentType();
+            if (parseStatus == AiParseStatus.PENDING) {
+                try {
+                    fileBytes = file.getBytes();
+                } catch (IOException e) {
+                    log.warn("Failed to copy document bytes for async parsing version: {}", e.getMessage());
+                    document.setAiParseStatus(AiParseStatus.FAILED);
+                }
             }
-        }
 
-        Document savedDoc = documentRepository.save(document);
+            Document savedDoc = documentRepository.save(document);
 
-        if (savedDoc.getAiParseStatus() == AiParseStatus.PENDING && fileBytes != null) {
-            byte[] stableBytes = fileBytes;
-            java.util.concurrent.CompletableFuture.runAsync(() -> {
-                boolean parsed = documentParserService.parseAndChunkDocument(stableBytes, parserFilename, parserContentType, savedDoc.getId());
-                documentRepository.findById(savedDoc.getId()).ifPresent(d -> {
-                    d.setAiParseStatus(parsed ? AiParseStatus.READY : AiParseStatus.FAILED);
-                    documentRepository.save(d);
+            if (savedDoc.getAiParseStatus() == AiParseStatus.PENDING && fileBytes != null) {
+                byte[] stableBytes = fileBytes;
+                java.util.concurrent.CompletableFuture.runAsync(() -> {
+                    boolean parsed = documentParserService.parseAndChunkDocument(stableBytes, parserFilename, parserContentType, savedDoc.getId());
+                    documentRepository.findById(savedDoc.getId()).ifPresent(d -> {
+                        d.setAiParseStatus(parsed ? AiParseStatus.READY : AiParseStatus.FAILED);
+                        documentRepository.save(d);
+                    });
                 });
-            });
+            }
+        } else {
+            // Non-owner upload: Notify Owner A that version is pending approval
+            if (document.getUploadedBy() != null) {
+                try {
+                    String uploaderName = uploader.getUsername() != null ? uploader.getUsername() : uploader.getEmail();
+                    notificationService.createNotification(
+                            document.getUploadedBy(),
+                            uploader,
+                            com.example.keeper.systems.notification.enums.NotificationType.DOCUMENT_VERSION_PENDING,
+                            "New Version Pending Approval",
+                            uploaderName + " uploaded a new version (" + newVersionStr + ") for your document: " + document.getTitle(),
+                            document.getId(),
+                            com.example.keeper.systems.notification.enums.ReferenceType.DOCUMENT
+                    );
+                } catch (Exception e) {
+                    log.error("Failed to notify document owner about pending version", e);
+                }
+            }
         }
 
         return savedVersion;
@@ -1237,6 +1263,8 @@ public class DocumentServiceImpl implements DocumentService {
                         .fileSize(v.getFileSize())
                         .mimeType(v.getMimeType())
                         .changelog(v.getChangelog())
+                        .status(v.getStatus())
+                        .rejectionReason(v.getRejectionReason())
                         .uploaderId(v.getUploadedBy() != null ? v.getUploadedBy().getId() : null)
                         .uploaderName(v.getUploadedBy() != null ? (v.getUploadedBy().getUsername() != null ? v.getUploadedBy().getUsername() : v.getUploadedBy().getEmail()) : "N/A")
                         .createdAt(v.getCreatedAt())
@@ -1270,5 +1298,146 @@ public class DocumentServiceImpl implements DocumentService {
         }
 
         return version.getFileUrl();
+    }
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional
+    public DocumentVersionResponse approveVersion(UUID documentId, UUID versionId, String email) {
+        User currentUser = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        Document document = getById(documentId);
+
+        boolean isOwner = document.getUploadedBy() != null && document.getUploadedBy().getId().equals(currentUser.getId());
+        boolean isAdmin = currentUser.getRole() != null && "ADMIN".equalsIgnoreCase(currentUser.getRole().getName());
+
+        if (!isOwner && !isAdmin) {
+            throw new org.springframework.security.access.AccessDeniedException("Only the document owner can approve version updates.");
+        }
+
+        DocumentVersion version = documentVersionRepository.findById(versionId)
+                .orElseThrow(() -> new RuntimeException("Version not found"));
+
+        if (!version.getDocument().getId().equals(documentId)) {
+            throw new IllegalArgumentException("Version does not belong to specified document");
+        }
+
+        version.setStatus(com.example.keeper.systems.document.enums.VersionStatus.APPROVED);
+        version.setRejectionReason(null);
+        DocumentVersion savedVersion = documentVersionRepository.save(version);
+
+        // Update Document active file fields
+        String extension = "";
+        if (version.getOriginalFileName() != null && version.getOriginalFileName().contains(".")) {
+            extension = version.getOriginalFileName().substring(version.getOriginalFileName().lastIndexOf('.') + 1).toLowerCase();
+        }
+
+        document.setFileUrl(version.getFileUrl());
+        document.setCloudinaryPublicId(version.getCloudinaryPublicId());
+        document.setMimeType(version.getMimeType());
+        document.setFileSize(version.getFileSize());
+        document.setResourceType(version.getResourceType());
+        document.setOriginalFileName(version.getOriginalFileName());
+        document.setCurrentVersionNumber(version.getVersionNumber());
+        if (version.getCloudinaryPublicId() != null) {
+            document.setPreviewUrl(fileStorageService.generatePreviewUrl(version.getCloudinaryPublicId(), version.getResourceType(), extension));
+            document.setDownloadUrl(fileStorageService.generateDownloadUrl(version.getCloudinaryPublicId(), version.getResourceType(), extension));
+        }
+        documentRepository.save(document);
+
+        // Notify version uploader
+        if (version.getUploadedBy() != null && !version.getUploadedBy().getId().equals(currentUser.getId())) {
+            try {
+                notificationService.createNotification(
+                        version.getUploadedBy(),
+                        currentUser,
+                        com.example.keeper.systems.notification.enums.NotificationType.DOCUMENT_VERSION_APPROVED,
+                        "Version Approved",
+                        "Your version " + version.getVersionNumber() + " for document '" + document.getTitle() + "' has been approved!",
+                        document.getId(),
+                        com.example.keeper.systems.notification.enums.ReferenceType.DOCUMENT
+                );
+            } catch (Exception e) {
+                log.error("Failed to notify uploader about approved version", e);
+            }
+        }
+
+        return DocumentVersionResponse.builder()
+                .id(savedVersion.getId())
+                .documentId(savedVersion.getDocument().getId())
+                .versionNumber(savedVersion.getVersionNumber())
+                .fileUrl(savedVersion.getFileUrl())
+                .originalFileName(savedVersion.getOriginalFileName())
+                .fileSize(savedVersion.getFileSize())
+                .mimeType(savedVersion.getMimeType())
+                .changelog(savedVersion.getChangelog())
+                .status(savedVersion.getStatus())
+                .rejectionReason(savedVersion.getRejectionReason())
+                .uploaderId(savedVersion.getUploadedBy() != null ? savedVersion.getUploadedBy().getId() : null)
+                .uploaderName(savedVersion.getUploadedBy() != null ? (savedVersion.getUploadedBy().getUsername() != null ? savedVersion.getUploadedBy().getUsername() : savedVersion.getUploadedBy().getEmail()) : "N/A")
+                .createdAt(savedVersion.getCreatedAt())
+                .build();
+    }
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional
+    public DocumentVersionResponse rejectVersion(UUID documentId, UUID versionId, String reason, String email) {
+        User currentUser = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        Document document = getById(documentId);
+
+        boolean isOwner = document.getUploadedBy() != null && document.getUploadedBy().getId().equals(currentUser.getId());
+        boolean isAdmin = currentUser.getRole() != null && "ADMIN".equalsIgnoreCase(currentUser.getRole().getName());
+
+        if (!isOwner && !isAdmin) {
+            throw new org.springframework.security.access.AccessDeniedException("Only the document owner can reject version updates.");
+        }
+
+        DocumentVersion version = documentVersionRepository.findById(versionId)
+                .orElseThrow(() -> new RuntimeException("Version not found"));
+
+        if (!version.getDocument().getId().equals(documentId)) {
+            throw new IllegalArgumentException("Version does not belong to specified document");
+        }
+
+        version.setStatus(com.example.keeper.systems.document.enums.VersionStatus.REJECTED);
+        version.setRejectionReason(reason != null ? reason.trim() : null);
+        DocumentVersion savedVersion = documentVersionRepository.save(version);
+
+        // Notify version uploader
+        if (version.getUploadedBy() != null && !version.getUploadedBy().getId().equals(currentUser.getId())) {
+            try {
+                String msg = "Your version " + version.getVersionNumber() + " for document '" + document.getTitle() + "' was rejected";
+                if (reason != null && !reason.isBlank()) {
+                    msg += ": " + reason.trim();
+                }
+                notificationService.createNotification(
+                        version.getUploadedBy(),
+                        currentUser,
+                        com.example.keeper.systems.notification.enums.NotificationType.DOCUMENT_VERSION_REJECTED,
+                        "Version Rejected",
+                        msg,
+                        document.getId(),
+                        com.example.keeper.systems.notification.enums.ReferenceType.DOCUMENT
+                );
+            } catch (Exception e) {
+                log.error("Failed to notify uploader about rejected version", e);
+            }
+        }
+
+        return DocumentVersionResponse.builder()
+                .id(savedVersion.getId())
+                .documentId(savedVersion.getDocument().getId())
+                .versionNumber(savedVersion.getVersionNumber())
+                .fileUrl(savedVersion.getFileUrl())
+                .originalFileName(savedVersion.getOriginalFileName())
+                .fileSize(savedVersion.getFileSize())
+                .mimeType(savedVersion.getMimeType())
+                .changelog(savedVersion.getChangelog())
+                .status(savedVersion.getStatus())
+                .rejectionReason(savedVersion.getRejectionReason())
+                .uploaderId(savedVersion.getUploadedBy() != null ? savedVersion.getUploadedBy().getId() : null)
+                .uploaderName(savedVersion.getUploadedBy() != null ? (savedVersion.getUploadedBy().getUsername() != null ? savedVersion.getUploadedBy().getUsername() : savedVersion.getUploadedBy().getEmail()) : "N/A")
+                .createdAt(savedVersion.getCreatedAt())
+                .build();
     }
 }

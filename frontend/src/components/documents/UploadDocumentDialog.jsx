@@ -245,7 +245,9 @@ export default function UploadDocumentDialog({
     return null;
   };
 
-  const executeUpload = async (uploadedById) => {
+  const [suggestedTitle, setSuggestedTitle] = useState("");
+
+  const executeUpload = async (uploadedById, overrideTitle) => {
     setUploading(true);
     setUploadError("");
     const toastId = toast.loading("Uploading document...");
@@ -255,7 +257,7 @@ export default function UploadDocumentDialog({
       const uploadPromise = async () => {
         const formData = new FormData();
 
-        const finalTitle = title.trim() || selectedFile?.name || "";
+        const finalTitle = overrideTitle?.trim() || title.trim() || selectedFile?.name || "";
         formData.append("file", selectedFile);
         formData.append("title", finalTitle);
         formData.append("visibility", visibility);
@@ -421,6 +423,12 @@ export default function UploadDocumentDialog({
         `/api/documents/check-duplicate?fileName=${encodeURIComponent(selectedFile.name)}&fileSize=${selectedFile.size}`
       );
       if (duplicateRes.data?.isDuplicate) {
+        let baseTitle = title.trim() || selectedFile?.name || "Document";
+        let autoTitle = baseTitle;
+        if (!/\(\d+\)$/.test(autoTitle)) {
+          autoTitle = `${autoTitle} (1)`;
+        }
+        setSuggestedTitle(autoTitle);
         setDuplicateConfirmOpen(true);
         return;
       }
@@ -718,19 +726,75 @@ export default function UploadDocumentDialog({
               {uploading ? "Uploading..." : "Upload"}
             </Button>
           </DialogFooter>
-          <ConfirmModal
-            open={duplicateConfirmOpen}
-            title="Duplicate Document Detected"
-            message={`Document "${selectedFile?.name}" with the same file size already exists in your library. Do you still want to upload it as a new document? (If you wish to upload it as a new version v2.0, please open the document details page and click 'Upload New Version').`}
-            onConfirm={async () => {
-              setDuplicateConfirmOpen(false);
-              const uploadedById = await resolveUploadedById();
-              await executeUpload(uploadedById);
-            }}
-            onCancel={() => {
-              setDuplicateConfirmOpen(false);
-            }}
-          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Duplicate Document Options Dialog */}
+      <Dialog open={duplicateConfirmOpen} onOpenChange={setDuplicateConfirmOpen}>
+        <DialogContent className="sm:max-w-md rounded-2xl p-6">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-slate-800 flex items-center gap-2">
+              <FileText className="text-[#f26522]" size={22} />
+              Duplicate Document Detected
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500">
+              A file named <span className="font-semibold text-slate-700">"{selectedFile?.name}"</span> with the same size already exists in your library.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-3">
+            {/* Separate Document Option */}
+            <div className="p-3.5 border border-slate-200 rounded-xl bg-slate-50/80 space-y-2">
+              <Label className="text-xs font-bold text-slate-700 block">
+                Option 1: Upload as a Separate New Document
+              </Label>
+              <p className="text-[11px] text-slate-500">
+                Specify a unique title to avoid confusion:
+              </p>
+              <Input
+                value={suggestedTitle}
+                onChange={(e) => setSuggestedTitle(e.target.value)}
+                className="rounded-lg h-9 text-xs bg-white border-slate-300"
+                placeholder="Enter unique document title..."
+              />
+              <Button
+                size="sm"
+                className="w-full bg-[#f26522] hover:bg-[#f44d00] text-white text-xs font-bold rounded-lg h-8.5 mt-1"
+                onClick={async () => {
+                  if (!suggestedTitle.trim()) {
+                    toast.error("Please enter a valid title!");
+                    return;
+                  }
+                  setDuplicateConfirmOpen(false);
+                  setTitle(suggestedTitle.trim());
+                  const uploadedById = await resolveUploadedById();
+                  await executeUpload(uploadedById, suggestedTitle.trim());
+                }}
+              >
+                Upload as New Document
+              </Button>
+            </div>
+
+            {/* Hint for New Version */}
+            <div className="p-3 border border-amber-200 rounded-xl bg-amber-50/50">
+              <p className="text-[11px] text-amber-800 font-medium">
+                💡 <span className="font-semibold">Want to upload this as a new version (v2.0)?</span>
+                <br />
+                Open the existing document from your library and click <span className="font-semibold text-amber-900">'Upload New Version'</span>.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full rounded-xl text-xs border-slate-200"
+              onClick={() => setDuplicateConfirmOpen(false)}
+            >
+              Cancel Upload
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
       <QuotaExceededDialog

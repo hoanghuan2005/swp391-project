@@ -345,4 +345,24 @@ public class DocumentController {
         String fileUrl = documentService.getDownloadUrlForVersion(id, versionId, email);
         return ResponseEntity.ok(Map.of("downloadUrl", fileUrl));
     }
+
+    @PostMapping("/{id}/versions/{versionId}/approve")
+    public ResponseEntity<?> approveVersion(
+            @PathVariable UUID id,
+            @PathVariable UUID versionId) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        var approvedVersion = documentService.approveVersion(id, versionId, email);
+        return ResponseEntity.ok(approvedVersion);
+    }
+
+    @PostMapping("/{id}/versions/{versionId}/reject")
+    public ResponseEntity<?> rejectVersion(
+            @PathVariable UUID id,
+            @PathVariable UUID versionId,
+            @RequestBody(required = false) Map<String, String> body) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        String reason = body != null ? body.get("reason") : null;
+        var rejectedVersion = documentService.rejectVersion(id, versionId, reason, email);
+        return ResponseEntity.ok(rejectedVersion);
+    }
 }

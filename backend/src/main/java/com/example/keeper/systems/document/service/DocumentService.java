@@ -64,4 +64,8 @@ public interface DocumentService {
     List<com.example.keeper.systems.document.dto.response.DocumentVersionResponse> getDocumentVersions(UUID documentId);
 
     String getDownloadUrlForVersion(UUID documentId, UUID versionId, String email);
+
+    com.example.keeper.systems.document.dto.response.DocumentVersionResponse approveVersion(UUID documentId, UUID versionId, String email);
+
+    com.example.keeper.systems.document.dto.response.DocumentVersionResponse rejectVersion(UUID documentId, UUID versionId, String reason, String email);
 }

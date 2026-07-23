@@ -192,24 +192,24 @@ export default function DocumentDetailView({
     }
   };
 
-  useEffect(() => {
-    const loadDetail = async () => {
-      try {
-        setLoading(true);
-        const response = await axiosClient.get(fetchUrl);
-        setDocumentDetail(response.data);
-        if (response.data?.title) {
-          document.title = `Mindocu | ${response.data.title}`;
-        }
-        if (documentId) recordDocumentView(documentId).catch(console.error);
-      } catch (error) {
-        console.error("Failed to load document detail:", error);
-      } finally {
-        setLoading(false);
+  const fetchDetail = async () => {
+    try {
+      setLoading(true);
+      const response = await axiosClient.get(fetchUrl);
+      setDocumentDetail(response.data);
+      if (response.data?.title) {
+        document.title = `Mindocu | ${response.data.title}`;
       }
-    };
+      if (documentId) recordDocumentView(documentId).catch(console.error);
+    } catch (error) {
+      console.error("Failed to load document detail:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    if (documentId && fetchUrl) loadDetail();
+  useEffect(() => {
+    if (documentId && fetchUrl) fetchDetail();
   }, [documentId, fetchUrl]);
 
   const previewUrl = documentDetail?.previewUrl || documentDetail?.fileUrl;
@@ -258,9 +258,9 @@ export default function DocumentDetailView({
                 <History className="w-4 h-4 mr-1 text-[#f26522]" />
                 Version History
                 {documentDetail?.versions && documentDetail.versions.length > 0 && (
-                  <Badge className="ml-1.5 bg-[#f26522]/10 text-[#f26522] border-none text-[10px] px-1.5 py-0.2 hover:bg-[#f26522]/20 font-semibold">
+                  <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-[#f26522]/15 text-[#f26522] text-[11px] font-bold">
                     {documentDetail.versions.length}
-                  </Badge>
+                  </span>
                 )}
               </Button>
               <Button
@@ -469,6 +469,8 @@ export default function DocumentDetailView({
         versions={documentDetail?.versions || []}
         documentTitle={documentDetail?.title}
         documentId={documentId}
+        isOwner={isOwnDocument}
+        onRefresh={fetchDetail}
         onUploadNewVersion={() => {
           if (localStorage.getItem("isLoggedIn") !== "true") {
             toast.error("Please log in to upload a new version!");

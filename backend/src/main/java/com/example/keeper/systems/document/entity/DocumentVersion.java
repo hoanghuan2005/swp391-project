@@ -9,6 +9,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import com.example.keeper.systems.document.enums.VersionStatus;
+
 @Getter
 @Setter
 @Entity
@@ -45,6 +47,13 @@ public class DocumentVersion extends BaseEntity {
 
     @Column(name = "changelog", columnDefinition = "TEXT")
     private String changelog;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false)
+    private VersionStatus status = VersionStatus.APPROVED;
+
+    @Column(name = "rejection_reason", columnDefinition = "TEXT")
+    private String rejectionReason;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "uploaded_by", nullable = false)

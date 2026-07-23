@@ -72,3 +72,18 @@ export const downloadDocumentVersion = async (documentId, versionId) => {
   );
   return response.data;
 };
+
+export const approveDocumentVersion = async (documentId, versionId) => {
+  const response = await axiosClient.post(
+    `/api/documents/${documentId}/versions/${versionId}/approve`
+  );
+  return response.data;
+};
+
+export const rejectDocumentVersion = async (documentId, versionId, reason) => {
+  const response = await axiosClient.post(
+    `/api/documents/${documentId}/versions/${versionId}/reject`,
+    { reason }
+  );
+  return response.data;
+};

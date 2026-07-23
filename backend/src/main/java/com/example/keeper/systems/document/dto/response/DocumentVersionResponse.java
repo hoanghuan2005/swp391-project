@@ -5,6 +5,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import com.example.keeper.systems.document.enums.VersionStatus;
+
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -21,6 +23,8 @@ public class DocumentVersionResponse {
     private Long fileSize;
     private String mimeType;
     private String changelog;
+    private VersionStatus status;
+    private String rejectionReason;
     private UUID uploaderId;
     private String uploaderName;
     private LocalDateTime createdAt;
