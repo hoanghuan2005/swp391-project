@@ -7,11 +7,15 @@ export default function OAuth2Callback() {
 
   useEffect(() => {
     const token = params.get("token");
+    const name = params.get("name");
+    const role = params.get("role");
 
     if (token || localStorage.getItem("isLoggedIn") === "true" || params.get("refreshToken")) {
       localStorage.removeItem("token");
       localStorage.removeItem("refreshToken");
       localStorage.setItem("isLoggedIn", "true");
+      if (name) localStorage.setItem("userName", name);
+      if (role) localStorage.setItem("userRole", role);
 
       const redirectUrl = localStorage.getItem("oauth2_redirect");
       if (redirectUrl) {

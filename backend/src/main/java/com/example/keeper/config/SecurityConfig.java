@@ -23,6 +23,11 @@ import org.springframework.web.cors.*;
 
 import java.util.List;
 
+import com.example.keeper.util.CookieUtils;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
+import org.springframework.beans.factory.annotation.Value;
+
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor
@@ -41,6 +46,12 @@ public class SecurityConfig {
 
     @Value("${app.frontend.url:http://localhost:5173}")
     private String frontendUrl;
+
+    @Value("${app.cookie.secure:false}")
+    private boolean cookieSecure;
+
+    @Value("${app.cookie.same-site:Lax}")
+    private String cookieSameSite;
 
     @Bean
     public org.springframework.web.filter.ForwardedHeaderFilter forwardedHeaderFilter() {
@@ -187,10 +198,21 @@ public class SecurityConfig {
                                 RefreshToken refreshToken = refreshTokenService
                                         .createRefreshToken(user.getId());
 
+                                ResponseCookie accessCookie = CookieUtils
+                                        .createAccessTokenCookie(accessToken, 86400, cookieSecure, cookieSameSite);
+                                ResponseCookie refreshCookie = CookieUtils
+                                        .createRefreshTokenCookie(refreshToken.getToken(), 604800, cookieSecure, cookieSameSite);
+
+                                response.addHeader(HttpHeaders.SET_COOKIE, accessCookie.toString());
+                                response.addHeader(HttpHeaders.SET_COOKIE, refreshCookie.toString());
+
                                 String cleanFrontend = frontendUrl.endsWith("/") ? frontendUrl.substring(0, frontendUrl.length() - 1) : frontendUrl;
+                                String roleName = user.getRole() != null ? user.getRole().getName() : "USER";
                                 String redirectUrl = cleanFrontend + "/oauth2/callback"
                                         + "?token=" + accessToken
-                                        + "&refreshToken=" + refreshToken.getToken();
+                                        + "&refreshToken=" + refreshToken.getToken()
+                                        + "&name=" + java.net.URLEncoder.encode(user.getUsername(), java.nio.charset.StandardCharsets.UTF_8)
+                                        + "&role=" + java.net.URLEncoder.encode(roleName, java.nio.charset.StandardCharsets.UTF_8);
 
                                 response.sendRedirect(redirectUrl);
                             } catch (Exception e) {
