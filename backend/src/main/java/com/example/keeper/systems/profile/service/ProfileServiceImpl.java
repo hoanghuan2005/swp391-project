@@ -22,6 +22,8 @@ import com.example.keeper.systems.school.repository.SchoolRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 
+import org.springframework.security.crypto.password.PasswordEncoder;
+
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -32,6 +34,30 @@ public class ProfileServiceImpl implements ProfileService {
     private final LanguageRepository languageRepository;
     private final SchoolRepository schoolRepository;
     private final DocumentRepository documentRepository;
+    private final PasswordEncoder passwordEncoder;
+
+    @Override
+    public void changePassword(UUID userId, com.example.keeper.systems.profile.dto.request.ChangePasswordRequest request) {
+        if (request.getCurrentPassword() == null || request.getCurrentPassword().isBlank()) {
+            throw new RuntimeException("Current password is required");
+        }
+        if (request.getNewPassword() == null || request.getNewPassword().length() < 6) {
+            throw new RuntimeException("New password must be at least 6 characters long");
+        }
+        if (!request.getNewPassword().equals(request.getConfirmPassword())) {
+            throw new RuntimeException("New passwords do not match");
+        }
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (user.getPassword() != null && !passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
+            throw new RuntimeException("Current password is incorrect");
+        }
+
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+    }
 
     @Override
     public ProfileResponse getProfile(UUID userId) {

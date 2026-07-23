@@ -987,7 +987,7 @@ export default function CourseDetailPage() {
         <section className="mt-10">
           <div className="flex flex-col mb-6">
             <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2.5">
-              <Layers className="w-6 h-6 text-blue-500" />
+              <Layers className="w-6 h-6 text-[#f26522]" />
               <span>Published Flashcards</span>
             </h2>
             <p className="text-sm text-slate-500 mt-1">
@@ -998,10 +998,10 @@ export default function CourseDetailPage() {
             {flashcards.map((fc) => (
               <Card
                 key={fc.id}
-                className="shadow-sm border-blue-100 hover:shadow-md transition-all group flex flex-col h-full rounded-[20px] overflow-hidden bg-gradient-to-b from-[#f7faff] to-white"
+                className="shadow-sm border-orange-100 hover:shadow-md transition-all group flex flex-col h-full rounded-[20px] overflow-hidden bg-white"
               >
                 <CardContent className="p-4 flex-1 flex flex-col">
-                  <div className="w-full aspect-[4/3] bg-blue-50 rounded-xl mb-3 -mt-4 border border-blue-100 flex items-center justify-center text-blue-500">
+                  <div className="w-full aspect-[4/3] bg-orange-50 rounded-xl mb-3 -mt-4 border border-orange-100 flex items-center justify-center text-[#f26522]">
                     <BookOpen className="w-12 h-12 opacity-50" />
                   </div>
                   <CardTitle
@@ -1010,7 +1010,7 @@ export default function CourseDetailPage() {
                   >
                     {fc.title}
                   </CardTitle>
-                  <CardDescription className="text-xs text-blue-500 font-medium mb-3 flex items-center gap-1.5">
+                  <CardDescription className="text-xs text-[#f26522] font-medium mb-3 flex items-center gap-1.5">
                     {fc.cards || 0} Cards
                   </CardDescription>
                 </CardContent>
@@ -1028,7 +1028,7 @@ export default function CourseDetailPage() {
                   </Button>
                   <Button
                     asChild
-                    className="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-semibold text-xs rounded-xl h-9 cursor-pointer"
+                    className="flex-1 bg-[#f26522] hover:bg-[#d9581c] text-white font-semibold text-xs rounded-xl h-9 cursor-pointer"
                   >
                     <Link to={fc.ownerId === currentUser?.id ? `/ai-tools/ai-flashcard?id=${fc.id}&mode=study` : `/flashcard/${fc.id}`}>Study Now</Link>
                   </Button>

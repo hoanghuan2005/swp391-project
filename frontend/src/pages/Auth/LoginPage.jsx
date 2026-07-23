@@ -2,8 +2,6 @@ import React, { useState } from "react";
 import { Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import confetti from "canvas-confetti";
-import { jwtDecode } from "jwt-decode";
-
 import axiosClient, { backendBaseUrl } from "../../api/axiosClient";
 import backgroundImage from "../../assets/picture-study.png";
 
@@ -26,7 +24,6 @@ const LoginPage = () => {
   const [searchParams] = useSearchParams();
   const redirectUrl = searchParams.get("redirect");
 
-  // HÀM XỬ LÝ ĐĂNG NHẬP THƯỜNG (CẬP NHẬT REFRESH TOKEN)
   const handleLogin = async (e) => {
     e.preventDefault();
     setIsLoading(true);
@@ -37,52 +34,38 @@ const LoginPage = () => {
       });
 
       if (response.data) {
-        // 💥 BÓC TÁCH: Lấy cặp bài trùng accessToken và refreshToken từ Object JSON mới của Backend
-        const { accessToken } = response.data;
+        const { name, role } = response.data;
 
-        if (accessToken) {
-          localStorage.removeItem("token");
-          localStorage.removeItem("refreshToken");
-          localStorage.setItem("isLoggedIn", "true");
+        localStorage.removeItem("token");
+        localStorage.removeItem("refreshToken");
+        localStorage.setItem("isLoggedIn", "true");
+        if (role) localStorage.setItem("userRole", role);
+        if (name) localStorage.setItem("userName", name);
 
-          try {
-            const decoded = jwtDecode(accessToken);
-            const role = decoded.role;
-            const name = decoded?.name || decoded?.sub;
-            if (role) localStorage.setItem("userRole", role);
-            if (name) localStorage.setItem("userName", name);
-
-            fireSuccessConfetti();
-            setTimeout(() => {
-              if (role === "ADMIN") {
-                navigate("/admin/dashboard");
-              } else {
-                navigate(redirectUrl ? decodeURIComponent(redirectUrl) : "/home");
-              }
-            }, 1500);
-          } catch (e) {
-            console.error("Token decode error", e);
-            navigate("/home");
+        fireSuccessConfetti();
+        setTimeout(() => {
+          if (role === "ADMIN") {
+            navigate("/admin/dashboard");
+          } else {
+            navigate(redirectUrl ? decodeURIComponent(redirectUrl) : "/home");
           }
-        }
+        }, 1500);
       }
     } catch (error) {
-      // Vì Backend mới đã quăng Http Status 401 khi gõ sai tài khoản, lỗi sẽ tự nhảy vào block catch này
-      const errorMsg = error.response?.data || error.message;
-      console.error("Login error detail:", errorMsg);
+      const errorData = error.response?.data;
+      const status = error.response?.status;
+      const errorCode = typeof errorData === "object" ? errorData?.code : errorData;
+      const errorMessage = typeof errorData === "object" ? errorData?.message : (errorData || error.message);
 
-      const messageText = typeof errorMsg === "string" ? errorMsg : "";
-      if (messageText.toLowerCase().includes("verify")) {
+      console.error("Login error detail:", errorData || error.message);
+
+      if (status === 403 && (errorCode === "USER_UNVERIFIED" || errorMessage?.includes("USER_UNVERIFIED"))) {
         alert("Tài khoản chưa xác thực. Vui lòng nhập OTP đã gửi qua email.");
         navigate("/verify-account", { state: { email, mode: "signup" } });
         return;
       }
 
-      // Hiện thông báo đẹp đẽ cho người dùng thay vì nuốt trọn cục chữ lỗi lưu vào máy
-      alert(
-        "Đăng nhập thất bại: " +
-          (messageText || "Sai tài khoản hoặc mật khẩu!"),
-      );
+      alert("Login failed: " + (errorMessage || "Wrong account or password!"));
     } finally {
       setIsLoading(false);
     }

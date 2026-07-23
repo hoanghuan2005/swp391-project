@@ -9,4 +9,6 @@ public interface ProfileService {
     ProfileResponse getProfile(UUID userId);
 
     ProfileResponse updateProfile(UUID userId, ProfileUpdateRequest request);
+
+    void changePassword(UUID userId, com.example.keeper.systems.profile.dto.request.ChangePasswordRequest request);
 }

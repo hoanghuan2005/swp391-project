@@ -46,4 +46,24 @@ public class ProfileController {
 
         return ResponseEntity.ok(profileService.updateProfile(user.getId(), request));
     }
+
+    @PutMapping("/change-password")
+    public ResponseEntity<?> changePassword(
+            @RequestBody com.example.keeper.systems.profile.dto.request.ChangePasswordRequest request) {
+
+        String email = (String) SecurityContextHolder
+                .getContext()
+                .getAuthentication()
+                .getPrincipal();
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        try {
+            profileService.changePassword(user.getId(), request);
+            return ResponseEntity.ok(java.util.Map.of("message", "Password changed successfully!"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(java.util.Map.of("message", e.getMessage()));
+        }
+    }
 }

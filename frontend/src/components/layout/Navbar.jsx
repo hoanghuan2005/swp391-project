@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { jwtDecode } from "jwt-decode";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,6 +21,7 @@ import {
   Shield,
   Users,
   Check,
+  Globe,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import axiosClient from "@/api/axiosClient";
@@ -178,6 +178,7 @@ export default function Navbar({
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifications, setNotifications] = useState([]);
   const [userName, setUserName] = useState("");
+  const [currentUserId, setCurrentUserId] = useState(() => localStorage.getItem("userId") || "");
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -344,6 +345,10 @@ export default function Navbar({
         setUserInitial(savedName.charAt(0).toUpperCase());
       } else if (localStorage.getItem("isLoggedIn") === "true") {
         axiosClient.get("/api/profile").then((res) => {
+          if (res.data?.id) {
+            setCurrentUserId(res.data.id);
+            localStorage.setItem("userId", res.data.id);
+          }
           if (res.data?.fullName) {
             setUserName(res.data.fullName);
             setUserInitial(res.data.fullName.charAt(0).toUpperCase());
@@ -773,10 +778,10 @@ ${
                     <User size={15} /> My Profile
                   </Link>
                   <Link
-                    to="/notifications"
+                    to={currentUserId ? `/users/${currentUserId}` : "/profile"}
                     className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 flex items-center gap-2"
                   >
-                    <Bell size={15} /> Notifications
+                    <Globe size={15} /> My Public Channel
                   </Link>
                   <Link
                     to="/my-library"
@@ -917,27 +922,13 @@ ${
 }
 
 function getTokenRole() {
-  try {
-    const role = localStorage.getItem("userRole");
-    if (role) return role;
-    const token = localStorage.getItem("token");
-    return token ? jwtDecode(token)?.role : null;
-  } catch (error) {
-    console.error("Invalid token:", error);
-    return null;
-  }
+  return localStorage.getItem("userRole") || null;
 }
 
 function getTokenInitial() {
-  try {
-    const token = localStorage.getItem("token");
-    if (!token) return "H";
-
-    const decoded = jwtDecode(token);
-    const name = decoded?.name || decoded?.sub || null;
-    return name ? name.charAt(0).toUpperCase() : "H";
-  } catch (error) {
-    console.error("Invalid token:", error);
-    return "H";
+  const userName = localStorage.getItem("userName");
+  if (userName && userName.length > 0) {
+    return userName.charAt(0).toUpperCase();
   }
+  return "H";
 }

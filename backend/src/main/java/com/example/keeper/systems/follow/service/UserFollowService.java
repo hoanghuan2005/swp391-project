@@ -17,4 +17,6 @@ public interface UserFollowService {
     UserProfileSummaryResponse getUserProfileSummary(UUID userId, String currentEmail);
     List<FollowerFollowingResponse> getSuggestions(int limit, String currentEmail);
     List<DocumentResponse> getUserDocuments(UUID userId);
+    List<com.example.keeper.systems.ai_quiz.dto.response.QuizResponse> getUserQuizzes(UUID userId);
+    List<com.example.keeper.systems.ai_flashcard.dto.FlashcardSetResponse> getUserFlashcards(UUID userId);
 }

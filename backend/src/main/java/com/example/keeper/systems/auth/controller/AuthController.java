@@ -21,6 +21,9 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class AuthController {
 
+    @org.springframework.beans.factory.annotation.Value("${app.cookie.secure:false}")
+    private boolean cookieSecure;
+
     private final AuthService authService;
     private final RefreshTokenService refreshTokenService;
     private final UserRepository userRepository;
@@ -35,34 +38,34 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest request) {
         try {
-            String accessToken = authService.login(request);
-
-            if ("Invalid email or password!".equals(accessToken) || "User not found!".equals(accessToken)) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(accessToken);
-            }
-
-            User user = userRepository.findByEmail(request.getEmail())
-                    .orElseThrow(() -> new RuntimeException("User not found with email: " + request.getEmail()));
-
+            User user = authService.login(request);
+            String accessToken = jwtService.generateToken(user);
             RefreshToken refreshToken = refreshTokenService.createRefreshToken(user.getId());
 
             org.springframework.http.ResponseCookie accessCookie = 
-                    com.example.keeper.util.CookieUtils.createAccessTokenCookie(accessToken, 86400);
+                    com.example.keeper.util.CookieUtils.createAccessTokenCookie(accessToken, 86400, cookieSecure);
             org.springframework.http.ResponseCookie refreshCookie = 
-                    com.example.keeper.util.CookieUtils.createRefreshTokenCookie(refreshToken.getToken(), 604800);
+                    com.example.keeper.util.CookieUtils.createRefreshTokenCookie(refreshToken.getToken(), 604800, cookieSecure);
 
             Map<String, String> response = new HashMap<>();
-            response.put("accessToken", accessToken);
-            response.put("refreshToken", refreshToken.getToken());
+            response.put("name", user.getUsername());
+            response.put("role", user.getRole() != null ? user.getRole().getName() : "USER");
+            response.put("email", user.getEmail());
 
             return ResponseEntity.ok()
                     .header(org.springframework.http.HttpHeaders.SET_COOKIE, accessCookie.toString())
                     .header(org.springframework.http.HttpHeaders.SET_COOKIE, refreshCookie.toString())
                     .body(response);
-        } catch (RuntimeException ex) {
+        } catch (org.springframework.security.authentication.BadCredentialsException ex) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("code", "UNAUTHORIZED", "message", ex.getMessage()));
+        } catch (IllegalStateException ex) {
+            if ("USER_UNVERIFIED".equals(ex.getMessage())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("code", "USER_UNVERIFIED", "message", "Please verify your account before logging in."));
+            }
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("code", "BAD_REQUEST", "message", ex.getMessage()));
+        } catch (Exception ex) {
             String message = ex.getMessage() != null ? ex.getMessage() : "Login failed";
-            HttpStatus status = message.contains("verify") ? HttpStatus.FORBIDDEN : HttpStatus.UNAUTHORIZED;
-            return ResponseEntity.status(status).body(message);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("code", "LOGIN_FAILED", "message", message));
         }
     }
 
@@ -90,15 +93,11 @@ public class AuthController {
                     .map(user -> {
                         String newAccessToken = jwtService.generateToken(user);
                         org.springframework.http.ResponseCookie newAccessCookie = 
-                                com.example.keeper.util.CookieUtils.createAccessTokenCookie(newAccessToken, 86400);
-
-                        Map<String, String> response = new HashMap<>();
-                        response.put("accessToken", newAccessToken);
-                        response.put("refreshToken", tokenStr);
+                                com.example.keeper.util.CookieUtils.createAccessTokenCookie(newAccessToken, 86400, cookieSecure);
 
                         return ResponseEntity.ok()
                                 .header(org.springframework.http.HttpHeaders.SET_COOKIE, newAccessCookie.toString())
-                                .body(response);
+                                .body(Map.of("message", "Token refreshed successfully"));
                     })
                     .orElseThrow(() -> new RuntimeException("Refresh token is not in database!"));
         } catch (Exception e) {
@@ -115,8 +114,8 @@ public class AuthController {
             });
         }
 
-        org.springframework.http.ResponseCookie cleanAccessCookie = com.example.keeper.util.CookieUtils.cleanAccessTokenCookie();
-        org.springframework.http.ResponseCookie cleanRefreshCookie = com.example.keeper.util.CookieUtils.cleanRefreshTokenCookie();
+        org.springframework.http.ResponseCookie cleanAccessCookie = com.example.keeper.util.CookieUtils.cleanAccessTokenCookie(cookieSecure);
+        org.springframework.http.ResponseCookie cleanRefreshCookie = com.example.keeper.util.CookieUtils.cleanRefreshTokenCookie(cookieSecure);
 
         return ResponseEntity.ok()
                 .header(org.springframework.http.HttpHeaders.SET_COOKIE, cleanAccessCookie.toString())
