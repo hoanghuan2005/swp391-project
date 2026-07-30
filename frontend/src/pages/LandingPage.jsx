@@ -62,9 +62,9 @@ export default function LandingPage() {
 
           <div className="flex items-center gap-4">
             {isLoggedIn ? (
-              <Link to="/home">
+              <Link to={role === "ADMIN" ? "/admin/dashboard" : "/home"}>
                 <Button className="rounded-full bg-[#f26522] hover:bg-[#f26522]/90 text-white font-bold px-6 shadow-md transition-transform hover:scale-[1.02]">
-                  Go to Home
+                  {role === "ADMIN" ? "Go to Dashboard" : "Go to Home"}
                 </Button>
               </Link>
             ) : (

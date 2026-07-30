@@ -366,18 +366,24 @@ export default function DocumentListPage() {
 
                         <TableCell className="text-right pr-4">
                           <div className="flex justify-end gap-2">
-                            {/* Nút Sửa (Edit - Chỉ hiển thị nếu tài liệu của chính Admin) */}
-                            {currentAdmin?.id && doc.uploadedBy?.id && doc.uploadedBy.id === currentAdmin.id && (
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={() => setEditingDocId(doc.id)}
-                                className="h-8 w-8 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg cursor-pointer transition-colors"
-                                title="Edit Document"
-                              >
-                                <Pencil className="w-4 h-4" />
-                              </Button>
-                            )}
+                            {/* Nút Sửa (Edit - Hiển thị nếu là tài liệu của chính Admin HOẶC của User/Student, ngoại trừ Admin khác) */}
+                            {(() => {
+                              const isOwnDocument = currentAdmin?.id && doc.uploadedBy?.id && doc.uploadedBy.id === currentAdmin.id;
+                              const isUploaderAdmin = doc.uploadedBy?.roleName?.toUpperCase() === "ADMIN" || doc.uploadedBy?.roleName?.toUpperCase() === "ROLE_ADMIN";
+                              const canEditByAdmin = isOwnDocument || !isUploaderAdmin;
+
+                              return canEditByAdmin ? (
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={() => setEditingDocId(doc.id)}
+                                  className="h-8 w-8 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg cursor-pointer transition-colors"
+                                  title="Edit Document"
+                                >
+                                  <Pencil className="w-4 h-4" />
+                                </Button>
+                              ) : null;
+                            })()}
 
                             {/* Nút Xóa (Delete) */}
                             <Button
