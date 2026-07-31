@@ -37,6 +37,7 @@ public class DocumentResponse {
         private UUID id;
         private String username;
         private String email;
+        private String roleName;
     }
 
     @Data

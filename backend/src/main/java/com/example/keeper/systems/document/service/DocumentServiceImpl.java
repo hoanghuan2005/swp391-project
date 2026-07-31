@@ -740,6 +740,8 @@ public class DocumentServiceImpl implements DocumentService {
                                 .id(document.getUploadedBy().getId())
                                 .username(document.getUploadedBy().getUsername())
                                 .email(document.getUploadedBy().getEmail())
+                                .roleName(document.getUploadedBy().getRole() == null ? null
+                                        : document.getUploadedBy().getRole().getName())
                                 .build())
                 .fileType(resolveFileType(document))
                 .resourceType(resourceType)
@@ -1023,7 +1025,14 @@ public class DocumentServiceImpl implements DocumentService {
         boolean isOwner = document.getUploadedBy() != null &&
                 document.getUploadedBy().getId().equals(user.getId());
 
-        if (!isOwner && !isAdmin) {
+        boolean uploaderIsAdmin = document.getUploadedBy() != null &&
+                document.getUploadedBy().getRole() != null &&
+                (document.getUploadedBy().getRole().getName().equalsIgnoreCase("ADMIN") ||
+                        document.getUploadedBy().getRole().getName().equalsIgnoreCase("ROLE_ADMIN"));
+
+        boolean canEdit = isOwner || (isAdmin && !uploaderIsAdmin);
+
+        if (!canEdit) {
             throw new RuntimeException("Bạn không có quyền chỉnh sửa tài liệu này!");
         }
 
