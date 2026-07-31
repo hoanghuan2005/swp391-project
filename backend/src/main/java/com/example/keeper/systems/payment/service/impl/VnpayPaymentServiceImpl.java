@@ -59,7 +59,7 @@ public class VnpayPaymentServiceImpl implements VnpayPaymentService {
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         String txnRef = generateTxnRef();
-        String orderInfo = "Upgrade_StudyMate_AI_account_to_PRO";
+        String orderInfo = "Upgrade_MinDocu_AI_account_to_PRO";
 
         PaymentTransaction transaction = new PaymentTransaction();
         transaction.setUser(user);

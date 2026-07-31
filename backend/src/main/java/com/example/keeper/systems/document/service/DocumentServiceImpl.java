@@ -36,6 +36,7 @@ import com.example.keeper.systems.document.entity.DocumentVersion;
 import com.example.keeper.systems.document.repository.DocumentVersionRepository;
 import com.example.keeper.systems.ai_ask.service.EmbeddingService;
 import com.example.keeper.systems.ai_ask.entity.DocumentChunk;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
@@ -590,7 +591,7 @@ public class DocumentServiceImpl implements DocumentService {
     }
 
     @Override
-    @org.springframework.transaction.annotation.Transactional
+    @Transactional
     public Document delete(UUID id, String email) {
 
         Document document = getById(id);
@@ -954,23 +955,51 @@ public class DocumentServiceImpl implements DocumentService {
         try {
             if (document.getUploadedBy() == null)
                 return;
-            UUID creatorId = document.getUploadedBy().getId();
-            String creatorName = document.getUploadedBy().getUsername() != null
-                    ? document.getUploadedBy().getUsername()
-                    : document.getUploadedBy().getEmail();
+            User uploader = document.getUploadedBy();
+            UUID creatorId = uploader.getId();
+            String creatorName = uploader.getUsername() != null
+                    ? uploader.getUsername()
+                    : uploader.getEmail();
 
+            Set<UUID> notifiedUserIds = new HashSet<>();
+            notifiedUserIds.add(creatorId); // Exclude uploader from self-notification
+
+            // 1. Notify users following the document creator
             List<com.example.keeper.systems.follow.entity.UserFollow> followers = userFollowRepository
                     .findByFollowingId(creatorId);
 
             for (com.example.keeper.systems.follow.entity.UserFollow follow : followers) {
-                notificationService.createNotification(
-                        follow.getFollower(),
-                        document.getUploadedBy(),
-                        com.example.keeper.systems.notification.enums.NotificationType.NEW_DOCUMENT,
-                        "New Document Uploaded",
-                        creatorName + " uploaded a new document: " + document.getTitle(),
-                        document.getId(),
-                        com.example.keeper.systems.notification.enums.ReferenceType.DOCUMENT);
+                User follower = follow.getFollower();
+                if (follower != null && notifiedUserIds.add(follower.getId())) {
+                    notificationService.createNotification(
+                            follower,
+                            uploader,
+                            com.example.keeper.systems.notification.enums.NotificationType.NEW_DOCUMENT,
+                            "New Document Uploaded",
+                            creatorName + " uploaded a new document: " + document.getTitle(),
+                            document.getId(),
+                            com.example.keeper.systems.notification.enums.ReferenceType.DOCUMENT);
+                }
+            }
+
+            // 2. Notify users following the Course (if document is linked to a course)
+            if (document.getCourse() != null) {
+                Course course = document.getCourse();
+                List<User> courseFollowers = userRepository.findUsersByFollowedCourseId(course.getId());
+                String courseLabel = course.getCode() != null ? course.getCode() : course.getName();
+
+                for (User follower : courseFollowers) {
+                    if (follower != null && notifiedUserIds.add(follower.getId())) {
+                        notificationService.createNotification(
+                                follower,
+                                uploader,
+                                com.example.keeper.systems.notification.enums.NotificationType.NEW_DOCUMENT,
+                                "New Document in Followed Course",
+                                "New document '" + document.getTitle() + "' was uploaded in course " + courseLabel,
+                                document.getId(),
+                                com.example.keeper.systems.notification.enums.ReferenceType.DOCUMENT);
+                    }
+                }
             }
         } catch (Exception e) {
             log.error("Failed to notify followers for new document upload", e);

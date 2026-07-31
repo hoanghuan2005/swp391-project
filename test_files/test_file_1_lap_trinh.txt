@@ -1,0 +1,16 @@
+==================================================
+TÀI LIỆU 1: GIÁO TRÌNH LẬP TRÌNH JAVA SPRING BOOT & REACT
+Chuyên ngành: Công nghệ thông tin
+Trường: Đại học FPT
+==================================================
+
+1. TỔNG QUAN HỆ THỐNG (KEEPER APP)
+- Backend: Java 17, Spring Boot, Spring Security JWT.
+- Database: PostgreSQL với extension pgvector hỗ trợ AI RAG.
+- Frontend: ReactJS, TailwindCSS, Vite.
+
+2. CÁC TÍNH NĂNG AI NỔI BẬT:
+- Hỏi đáp tài liệu thông minh (AI Chat RAG System).
+- Tự động tạo bài thi Trắc nghiệm (AI Quiz Generator).
+- Tự động bóc tách khái niệm tạo Thẻ ghi nhớ (AI Flashcard Generator).
+- Phân tích và tạo Sơ đồ tư duy (AI Mindmap Generator).

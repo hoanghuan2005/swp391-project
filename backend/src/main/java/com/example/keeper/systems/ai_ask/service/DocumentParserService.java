@@ -27,6 +27,13 @@ import java.nio.charset.StandardCharsets;
 @Service
 @RequiredArgsConstructor
 public class DocumentParserService {
+    private final DocumentChunkRepository documentChunkRepository;
+    private final EmbeddingService embeddingService;
+    private final DocumentRepository documentRepository;
+
+    private static final int CHUNK_SIZE = 1500; // max characters per chunk
+    private static final int MAX_EXTRACTED_CHARACTERS = 150_000;
+    private static final int MAX_CHUNKS = 100;
 
     public String parseTextOnly(MultipartFile file) {
         if (file == null || file.isEmpty()) {
@@ -53,13 +60,6 @@ public class DocumentParserService {
         }
     }
 
-    private final DocumentChunkRepository documentChunkRepository;
-    private final EmbeddingService embeddingService;
-    private final DocumentRepository documentRepository;
-
-    private static final int CHUNK_SIZE = 1500; // max characters per chunk
-    private static final int MAX_EXTRACTED_CHARACTERS = 150_000;
-    private static final int MAX_CHUNKS = 100;
 
     public boolean parseAndChunkDocument(byte[] fileBytes, String originalFilename, String contentType, UUID documentId) {
         if (fileBytes == null || fileBytes.length == 0) {

@@ -446,7 +446,7 @@ export default function AskAIPage() {
               <Sparkles className="w-8 h-8 text-[#f26522]" />
             </div>
             <h3 className="text-lg font-bold text-slate-800 mb-2">
-              StudyMate AI Workspace
+              MinDocu AI Workspace
             </h3>
             <p className="text-xs text-slate-500 leading-relaxed mb-6">
               Upload or select a course document from the sidebar to ask

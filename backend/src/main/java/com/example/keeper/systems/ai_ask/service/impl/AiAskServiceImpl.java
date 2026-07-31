@@ -94,7 +94,7 @@ public class AiAskServiceImpl implements AiAskService {
         }
 
         StringBuilder prompt = new StringBuilder();
-        prompt.append("You are StudyMate AI, a helpful study assistant.\n");
+        prompt.append("You are MinDocu AI, a helpful study assistant.\n");
         List<AskAIResponse.SourceReference> sources = new ArrayList<>();
 
         boolean isProjectRequest = (request.getShareToken() != null && !request.getShareToken().isBlank())
@@ -150,7 +150,7 @@ public class AiAskServiceImpl implements AiAskService {
         DocumentDiscoveryService.DiscoveryResult discovery = documentDiscoveryService.discover(message);
         List<Document> matchedDocuments = discovery.documents();
 
-        prompt.append("You are StudyMate AI on the homepage. ")
+        prompt.append("You are MinDocu AI on the homepage. ")
                 .append("You are a friendly conversational study assistant focused on helping students find useful documents.\n");
         prompt.append("Respond naturally in the same language as the user's latest message.\n");
 

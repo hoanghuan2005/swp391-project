@@ -30,6 +30,7 @@ import { askAi, createAiConversation } from "@/api/aiApi";
 import RecentDocuments from "@/components/documents/RecentDocuments";
 import UploadDocumentDialog from "@/components/documents/UploadDocumentDialog";
 import CourseCard from "@/components/ui/CourseCard";
+import PublicWorkspacesSection from "@/components/projects/PublicWorkspacesSection";
 import ChatInterface from "@/components/chat/ChatInterface";
 import { toast } from "react-hot-toast";
 import {
@@ -45,7 +46,7 @@ const HOMEPAGE_WELCOME_MESSAGE = {
   id: "homepage-welcome",
   role: "ASSISTANT",
   content:
-    "Hi, I am StudyMate AI. Ask me about study planning, document discovery, or any topic you are learning.",
+    "Hi, I am MinDocu AI. Ask me about study planning, document discovery, or any topic you are learning.",
 };
 
 const DEFAULT_FILTER_DATA = { school: "", major: "", course: "", category: "" };
@@ -917,6 +918,9 @@ export default function Homepage() {
           )}
         </section>
 
+        {/* PUBLIC WORKSPACES SECTION */}
+        <PublicWorkspacesSection searchQuery={searchQuery} />
+
         {/* COURSES SECTION */}
         <section className="mb-12">
           <div className="flex items-center justify-between mb-6">
@@ -1009,7 +1013,7 @@ export default function Homepage() {
           <div className="h-[min(620px,calc(100vh-7rem))] w-[min(calc(100vw-2rem),420px)] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
             <ChatInterface
               title="Homepage Chat"
-              subtitle="Authenticated StudyMate AI"
+              subtitle="Authenticated MinDocu AI"
               messages={chatMessages}
               isSending={isChatSending}
               onSendMessage={handleSendChatMessage}

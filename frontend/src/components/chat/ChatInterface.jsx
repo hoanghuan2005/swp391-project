@@ -94,7 +94,7 @@ export default function ChatInterface({
                     {!isUser && (
                       <div className="flex items-center gap-1.5 mb-1.5 text-[#f26522] text-xs font-bold uppercase tracking-wider">
                         <Bot className="w-4 h-4" />
-                        StudyMate AI
+                        MinDocu AI
                       </div>
                     )}
                     <div className="whitespace-pre-wrap leading-relaxed text-[13px] font-medium">
@@ -135,7 +135,7 @@ export default function ChatInterface({
                 <div className="bg-white border border-slate-200 rounded-2xl rounded-bl-sm px-4 py-3 flex items-center gap-3 shadow-sm">
                   <Loader2 className="w-4 h-4 animate-spin text-[#f26522]" />
                   <span className="text-xs text-slate-500 font-semibold">
-                    StudyMate AI is analyzing...
+                    MinDocu AI is analyzing...
                   </span>
                 </div>
               </MotionDiv>

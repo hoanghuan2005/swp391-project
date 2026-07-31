@@ -1,0 +1,9 @@
+==================================================
+TÀI LIỆU 3: BẢNG TỪ VỰNG TIẾNG ANH CHUYÊN NGÀNH CNTT (ENGLISH FOR IT)
+==================================================
+
+1. Authentication /ɔːˌθentɪˈkeɪʃn/: Xác thực người dùng (Ví dụ: Login, Token, Password).
+2. Authorization /ˌɔːθəraɪˈzeɪʃn/: Phân quyền truy cập (Ví dụ: Admin, User, Guest).
+3. Database Indexing /ˈdeɪtəbeɪs ˈɪndeksɪŋ/: Đánh chỉ mục cơ sở dữ liệu để tăng tốc độ truy vấn.
+4. Vector Embedding /ˈvektə ɪmˈbedɪŋ/: Biểu diễn ngữ nghĩa văn bản dưới dạng dãy số nhiều chiều trong AI.
+5. Asynchronous Processing /eɪˈsɪŋkrənəs ˈprəʊsesɪŋ/: Xử lý bất đồng bộ (chạy ngầm không làm tắc nghẽn giao diện).

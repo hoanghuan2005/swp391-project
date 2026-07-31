@@ -189,7 +189,9 @@ export default function WorkspaceOverviewPage() {
       .replace("https://", "wss://");
 
     const cleanWsBaseUrl = wsBaseUrl.endsWith("/") ? wsBaseUrl.slice(0, -1) : wsBaseUrl;
-    const wsUrl = `${cleanWsBaseUrl}/project-chat-ws/${pId}`;
+    const tokenStr = localStorage.getItem("token");
+    const queryParam = tokenStr ? `?token=${encodeURIComponent(tokenStr)}` : "";
+    const wsUrl = `${cleanWsBaseUrl}/project-chat-ws/${pId}${queryParam}`;
     console.log("Connecting to workspace chat WebSocket:", wsUrl);
     const ws = new WebSocket(wsUrl);
 

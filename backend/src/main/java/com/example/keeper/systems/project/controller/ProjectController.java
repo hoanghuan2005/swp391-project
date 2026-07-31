@@ -4,6 +4,7 @@ import com.example.keeper.systems.project.dto.request.CreateProjectRequest;
 import com.example.keeper.systems.project.dto.response.ProjectDetailResponse;
 import com.example.keeper.systems.project.service.ProjectService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
@@ -18,6 +19,14 @@ import java.util.UUID;
 public class ProjectController {
 
     private final ProjectService projectService;
+
+    @GetMapping("/public")
+    public ResponseEntity<Page<ProjectDetailResponse>> getPublicProjects(
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "6") int size) {
+        return ResponseEntity.ok(projectService.getPublicProjects(search, page, size));
+    }
 
     @PostMapping
     public ProjectDetailResponse create(@RequestBody CreateProjectRequest request) {

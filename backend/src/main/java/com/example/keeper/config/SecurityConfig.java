@@ -125,6 +125,7 @@ public class SecurityConfig {
                                                                 "/api/tags",
                                                                 "/api/tags/**",
 
+                                                                "/api/projects/public",
                                                                 "/api/projects/shared/**",
                                                                 "/api/projects/invitations/*",
                                                                 "/api/payments/vnpay/confirm-return",

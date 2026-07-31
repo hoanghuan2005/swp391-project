@@ -113,13 +113,14 @@ export default function CourseDetailPage() {
 
     fetchChatHistory();
 
-    if (localStorage.getItem("isLoggedIn") !== "true") return;
-
     const wsBaseUrl = backendBaseUrl
       .replace("http://", "ws://")
       .replace("https://", "wss://");
 
-    const wsUrl = `${wsBaseUrl}/chat-ws/${id}`;
+    const cleanWsBaseUrl = wsBaseUrl.endsWith("/") ? wsBaseUrl.slice(0, -1) : wsBaseUrl;
+    const tokenStr = localStorage.getItem("token");
+    const queryParam = tokenStr ? `?token=${encodeURIComponent(tokenStr)}` : "";
+    const wsUrl = `${cleanWsBaseUrl}/chat-ws/${id}${queryParam}`;
     const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {

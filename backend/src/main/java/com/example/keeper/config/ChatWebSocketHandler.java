@@ -187,13 +187,29 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
 
     private String getToken(WebSocketSession session) {
         URI uri = session.getUri();
-        if (uri == null) return null;
-        String query = uri.getQuery();
-        if (query == null) return null;
-        for (String param : query.split("&")) {
-            String[] pair = param.split("=");
-            if (pair.length > 1 && "token".equalsIgnoreCase(pair[0])) {
-                return pair[1];
+        if (uri != null && uri.getQuery() != null) {
+            for (String param : uri.getQuery().split("&")) {
+                String[] pair = param.split("=");
+                if (pair.length > 1 && "token".equalsIgnoreCase(pair[0])) {
+                    return pair[1];
+                }
+            }
+        }
+
+        // Fallback: Check handshake cookie header
+        List<String> cookieHeaders = session.getHandshakeHeaders().get("cookie");
+        if (cookieHeaders != null) {
+            for (String header : cookieHeaders) {
+                String[] cookies = header.split(";");
+                for (String cookie : cookies) {
+                    String[] pair = cookie.trim().split("=");
+                    if (pair.length > 1) {
+                        String name = pair[0].trim();
+                        if ("accessToken".equalsIgnoreCase(name) || "token".equalsIgnoreCase(name) || "access_token".equalsIgnoreCase(name)) {
+                            return pair[1].trim();
+                        }
+                    }
+                }
             }
         }
         return null;

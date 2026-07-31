@@ -21,4 +21,7 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     long countByIsBannedValue(@Param("banned") boolean banned);
 
     long countBySubscriptionTier(SubscriptionTier subscriptionTier);
+
+    @Query("SELECT u FROM User u JOIN u.followedCourses c WHERE c.id = :courseId")
+    java.util.List<User> findUsersByFollowedCourseId(@Param("courseId") UUID courseId);
 }

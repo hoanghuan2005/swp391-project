@@ -88,3 +88,8 @@ export const getMyInvitationStatus = async (projectId) => {
   return response.data;
 };
 
+export const getPublicProjects = async (params = {}) => {
+  const response = await axiosClient.get("/api/projects/public", { params });
+  return response.data;
+};
+

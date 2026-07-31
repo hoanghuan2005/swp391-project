@@ -22,6 +22,10 @@ import com.example.keeper.systems.project.repository.ProjectMemberRepository;
 import com.example.keeper.systems.project.repository.ProjectRepository;
 import com.example.keeper.systems.project.service.ProjectService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -104,19 +108,45 @@ public class ProjectServiceImpl implements ProjectService {
         project.getDocuments().add(document);
         Project savedProject = projectRepository.save(project);
 
-        // Notify other members
-        List<ProjectMember> members = projectMemberRepository.findByProjectId(projectId);
-        for (ProjectMember pm : members) {
-            if (!pm.getUser().getId().equals(user.getId())) {
+        // Notify workspace owner and other members
+        String uploaderName = user.getUsername() != null ? user.getUsername() : user.getEmail();
+        Set<UUID> notifiedUserIds = new HashSet<>();
+        notifiedUserIds.add(user.getId()); // Exclude uploader from self-notification
+
+        // 1. Notify Owner if not uploader
+        if (project.getOwner() != null && notifiedUserIds.add(project.getOwner().getId())) {
+            try {
                 notificationService.createNotification(
-                        pm.getUser(),
+                        project.getOwner(),
                         user,
                         NotificationType.WORKSPACE_DOCUMENT_ADDED,
-                        "Document Added",
-                        "A new document \"" + document.getTitle() + "\" was added to workspace \"" + project.getName() + "\".",
+                        "New Document in Workspace",
+                        uploaderName + " added document \"" + document.getTitle() + "\" to workspace \"" + project.getName() + "\".",
                         project.getId(),
                         ReferenceType.WORKSPACE
                 );
+            } catch (Exception e) {
+                // Ignore log error
+            }
+        }
+
+        // 2. Notify all other Workspace Members
+        List<ProjectMember> members = projectMemberRepository.findByProjectId(projectId);
+        for (ProjectMember pm : members) {
+            if (pm.getUser() != null && notifiedUserIds.add(pm.getUser().getId())) {
+                try {
+                    notificationService.createNotification(
+                            pm.getUser(),
+                            user,
+                            NotificationType.WORKSPACE_DOCUMENT_ADDED,
+                            "New Document in Workspace",
+                            uploaderName + " added document \"" + document.getTitle() + "\" to workspace \"" + project.getName() + "\".",
+                            project.getId(),
+                            ReferenceType.WORKSPACE
+                    );
+                } catch (Exception e) {
+                    // Ignore log error
+                }
             }
         }
 
@@ -642,5 +672,18 @@ public class ProjectServiceImpl implements ProjectService {
                         "inviterName", inviterName
                 )
         );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<ProjectDetailResponse> getPublicProjects(String search, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<Project> projectsPage;
+        if (search != null && !search.trim().isEmpty()) {
+            projectsPage = projectRepository.searchPublicProjects(ProjectVisibility.PUBLIC, search.trim(), pageable);
+        } else {
+            projectsPage = projectRepository.findByVisibility(ProjectVisibility.PUBLIC, pageable);
+        }
+        return projectsPage.map(p -> mapToResponse(p, null));
     }
 }

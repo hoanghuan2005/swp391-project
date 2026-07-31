@@ -177,7 +177,9 @@ export default function ProjectWorkspacePage() {
       .replace("https://", "wss://");
 
     const cleanWsBaseUrl = wsBaseUrl.endsWith("/") ? wsBaseUrl.slice(0, -1) : wsBaseUrl;
-    const wsUrl = `${cleanWsBaseUrl}/project-chat-ws/${projectId}`;
+    const tokenStr = localStorage.getItem("token");
+    const queryParam = tokenStr ? `?token=${encodeURIComponent(tokenStr)}` : "";
+    const wsUrl = `${cleanWsBaseUrl}/project-chat-ws/${projectId}${queryParam}`;
     console.log("Connecting to workspace chat WebSocket:", wsUrl);
     const ws = new WebSocket(wsUrl);
 
@@ -453,30 +455,6 @@ export default function ProjectWorkspacePage() {
             showUploadButton={false}
             isDisabled={hasFailedOrUnsupportedSelected}
             alertComponent={documentAlertBoard}
-            rightElement={
-              <div className="flex bg-slate-100 p-0.5 rounded-full select-none shrink-0 border border-slate-200/50">
-                <button
-                  onClick={() => setChatMode("ai")}
-                  className={`px-3 py-1 text-xs font-bold rounded-full transition-all cursor-pointer border-none ${
-                    chatMode === "ai"
-                      ? "bg-white text-slate-800 shadow-xs"
-                      : "text-slate-500 hover:text-slate-800 bg-transparent"
-                  }`}
-                >
-                  AI Assistant
-                </button>
-                <button
-                  onClick={() => setChatMode("group")}
-                  className={`px-3 py-1 text-xs font-bold rounded-full transition-all cursor-pointer border-none ${
-                    chatMode === "group"
-                      ? "bg-white text-slate-800 shadow-xs"
-                      : "text-slate-500 hover:text-slate-800 bg-transparent"
-                  }`}
-                >
-                  Group Chat
-                </button>
-              </div>
-            }
             emptyStateComponent={
               <div className="h-full flex flex-col items-center justify-center text-center p-8 max-w-lg mx-auto">
                 <div className="w-16 h-16 rounded-3xl bg-[#f26522]/10 flex items-center justify-center mb-4">
@@ -519,30 +497,6 @@ export default function ProjectWorkspacePage() {
             currentUser={currentUser}
             onSendMessage={handleSendGroupMessage}
             onToggleReaction={handleToggleGroupReaction}
-            rightElement={
-              <div className="flex bg-slate-100 p-0.5 rounded-full select-none shrink-0 border border-slate-200/50">
-                <button
-                  onClick={() => setChatMode("ai")}
-                  className={`px-3 py-1 text-xs font-bold rounded-full transition-all cursor-pointer border-none ${
-                    chatMode === "ai"
-                      ? "bg-white text-slate-800 shadow-xs"
-                      : "text-slate-500 hover:text-slate-800 bg-transparent"
-                  }`}
-                >
-                  AI Assistant
-                </button>
-                <button
-                  onClick={() => setChatMode("group")}
-                  className={`px-3 py-1 text-xs font-bold rounded-full transition-all cursor-pointer border-none ${
-                    chatMode === "group"
-                      ? "bg-white text-slate-800 shadow-xs"
-                      : "text-slate-500 hover:text-slate-800 bg-transparent"
-                  }`}
-                >
-                  Group Chat
-                </button>
-              </div>
-            }
           />
         )}
       </div>

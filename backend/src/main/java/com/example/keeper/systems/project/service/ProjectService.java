@@ -3,6 +3,7 @@ package com.example.keeper.systems.project.service;
 import com.example.keeper.systems.project.dto.request.CreateProjectRequest;
 import com.example.keeper.systems.project.dto.response.ProjectDetailResponse;
 import com.example.keeper.systems.project.entity.ProjectInvitation;
+import org.springframework.data.domain.Page;
 
 import java.util.List;
 import java.util.UUID;
@@ -15,6 +16,7 @@ public interface ProjectService {
     ProjectDetailResponse getByShareToken(String token);
     List<ProjectDetailResponse> getMyProjects(String userEmail);
     ProjectDetailResponse getById(UUID id, String userEmail);
+    Page<ProjectDetailResponse> getPublicProjects(String search, int page, int size);
 
     // Workspace Sharing & Collaboration
     ProjectDetailResponse updateVisibility(UUID projectId, String visibility, String userEmail);

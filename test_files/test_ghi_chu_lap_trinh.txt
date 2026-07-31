@@ -1,0 +1,4 @@
+Bài 1: Tổng quan về Kỹ thuật Phần mềm (Software Engineering)
+Lập trình Web nâng cao với Java Spring Boot và ReactJS.
+Tài liệu ôn tập môn SWP391 - Đồ án tốt nghiệp CNTT.
+Nội dung bao gồm: Authentication JWT, PostgreSQL pgvector, AI RAG System.
