@@ -88,8 +88,34 @@ export const getMyInvitationStatus = async (projectId) => {
   return response.data;
 };
 
+export const requestToJoinProject = async (projectId) => {
+  const response = await axiosClient.post(`/api/projects/${projectId}/request-join`);
+  return response.data;
+};
+
+export const requestToJoinByShareToken = async (token) => {
+  const response = await axiosClient.post(`/api/projects/shared/${token}/request-join`);
+  return response.data;
+};
+
+export const approveMemberRequest = async (projectId, userId) => {
+  const response = await axiosClient.put(`/api/projects/${projectId}/members/${userId}/approve`);
+  return response.data;
+};
+
+export const rejectMemberRequest = async (projectId, userId) => {
+  const response = await axiosClient.delete(`/api/projects/${projectId}/members/${userId}/reject`);
+  return response.data;
+};
+
+export const leaveProject = async (projectId) => {
+  const response = await axiosClient.delete(`/api/projects/${projectId}/leave`);
+  return response.data;
+};
+
 export const getPublicProjects = async (params = {}) => {
   const response = await axiosClient.get("/api/projects/public", { params });
   return response.data;
 };
+
 

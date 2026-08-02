@@ -17,6 +17,7 @@ public class ProjectDetailResponse {
     private UUID ownerId;
     private String visibility;
     private String currentUserRole;
+    private String currentUserStatus;
     private List<MemberInfo> members;
     private LocalDateTime createdAt;
     private List<DocumentInfo> documents;
@@ -28,6 +29,7 @@ public class ProjectDetailResponse {
         private String username;
         private String email;
         private String role;
+        private String status;
         private String avatarUrl;
     }
 

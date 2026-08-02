@@ -54,6 +54,8 @@ public class AiAskServiceImpl implements AiAskService {
     private final AiMessageRepository messageRepository;
     private final DocumentChunkRepository documentChunkRepository;
     private final ProjectRepository projectRepository;
+    private final com.example.keeper.systems.project.repository.ProjectMemberRepository projectMemberRepository;
+    private final com.example.keeper.systems.auth.repository.UserRepository userRepository;
     private final DocumentRepository documentRepository;
     private final DocumentDiscoveryService documentDiscoveryService;
     private final GroqService groqService;
@@ -502,13 +504,37 @@ public class AiAskServiceImpl implements AiAskService {
     }
 
     private Project resolveProject(AskAIRequest request) {
+        Project project;
         if (request.getShareToken() != null && !request.getShareToken().isBlank()) {
-            return projectRepository.findByShareToken(request.getShareToken())
+            project = projectRepository.findByShareToken(request.getShareToken())
                     .orElseThrow(() -> new RuntimeException("Project not found or invalid shared link"));
+        } else {
+            project = projectRepository.findById(request.getProjectId())
+                    .orElseThrow(() -> new RuntimeException("Project not found"));
         }
 
-        return projectRepository.findById(request.getProjectId())
-                .orElseThrow(() -> new RuntimeException("Project not found"));
+        // Security Guard: Check authenticated user active membership / ownership
+        String email = SecurityContextHolder.getContext().getAuthentication() != null ?
+                SecurityContextHolder.getContext().getAuthentication().getName() : null;
+
+        if (email == null || "anonymousUser".equals(email)) {
+            throw new org.springframework.security.access.AccessDeniedException("Access denied. Please log in to use workspace AI features.");
+        }
+
+        com.example.keeper.systems.auth.entity.User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new org.springframework.security.access.AccessDeniedException("User not found"));
+
+        boolean isOwner = project.getOwner().getId().equals(user.getId());
+        boolean isActiveMember = projectMemberRepository
+                .findByProjectIdAndUserId(project.getId(), user.getId())
+                .map(m -> m.getStatus() == com.example.keeper.systems.project.entity.ProjectMemberStatus.ACTIVE)
+                .orElse(false);
+
+        if (!isOwner && !isActiveMember) {
+            throw new org.springframework.security.access.AccessDeniedException("Access denied. Only active members of this workspace can use AI features.");
+        }
+
+        return project;
     }
 
     private void ensureReadyForAi(Document document) {

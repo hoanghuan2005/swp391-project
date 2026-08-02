@@ -170,7 +170,7 @@ export default function WorkspaceGroupChat({
                   userReactionType ? "text-[#f66810]" : "text-slate-500 hover:text-slate-800"
                 }`}
               >
-                {userReactionType ? `${REACTION_EMOJIS[userReactionType]} ${userReactionType.toLowerCase()}` : "Thích"}
+                {userReactionType ? `${REACTION_EMOJIS[userReactionType]} ${userReactionType.toLowerCase()}` : "Like"}
               </button>
 
               {activeReactionPicker === msg.id && (
@@ -203,7 +203,7 @@ export default function WorkspaceGroupChat({
                   onClick={() => handleReplyClick(msg.id)}
                   className="font-bold text-slate-500 hover:text-slate-800 transition-colors hover:underline cursor-pointer"
                 >
-                  Phản hồi
+                  Reply
                 </button>
               </>
             )}

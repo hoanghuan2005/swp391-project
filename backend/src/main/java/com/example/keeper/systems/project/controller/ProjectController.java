@@ -9,6 +9,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import jakarta.validation.Valid;
+
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -29,7 +31,7 @@ public class ProjectController {
     }
 
     @PostMapping
-    public ProjectDetailResponse create(@RequestBody CreateProjectRequest request) {
+    public ProjectDetailResponse create(@Valid @RequestBody CreateProjectRequest request) {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         return projectService.create(request, email);
     }
@@ -73,6 +75,12 @@ public class ProjectController {
     @GetMapping("/shared/{token}")
     public ProjectDetailResponse getSharedProject(@PathVariable String token) {
         return projectService.getByShareToken(token);
+    }
+
+    @PostMapping("/shared/{token}/join")
+    public ProjectDetailResponse joinByShareToken(@PathVariable String token) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        return projectService.joinByShareToken(token, email);
     }
 
     // Workspace Visibility Updates
@@ -149,6 +157,43 @@ public class ProjectController {
             @PathVariable UUID userId) {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         projectService.removeMember(projectId, userId, email);
+        return ResponseEntity.ok().build();
+    }
+
+    @DeleteMapping("/{projectId}/leave")
+    public ResponseEntity<Void> leaveProject(@PathVariable UUID projectId) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        projectService.leaveProject(projectId, email);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{projectId}/request-join")
+    public ProjectDetailResponse requestToJoinProject(@PathVariable UUID projectId) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        return projectService.requestToJoinProject(projectId, email);
+    }
+
+    @PostMapping("/shared/{token}/request-join")
+    public ProjectDetailResponse requestToJoinByShareToken(@PathVariable String token) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        return projectService.requestToJoinByShareToken(token, email);
+    }
+
+    @PutMapping("/{projectId}/members/{userId}/approve")
+    public ResponseEntity<Void> approveMemberRequest(
+            @PathVariable UUID projectId,
+            @PathVariable UUID userId) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        projectService.approveMemberRequest(projectId, userId, email);
+        return ResponseEntity.ok().build();
+    }
+
+    @DeleteMapping("/{projectId}/members/{userId}/reject")
+    public ResponseEntity<Void> rejectMemberRequest(
+            @PathVariable UUID projectId,
+            @PathVariable UUID userId) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        projectService.rejectMemberRequest(projectId, userId, email);
         return ResponseEntity.ok().build();
     }
 

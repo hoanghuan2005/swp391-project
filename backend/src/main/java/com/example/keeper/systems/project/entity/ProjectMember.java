@@ -13,7 +13,9 @@ import lombok.Setter;
 @Entity
 @NoArgsConstructor
 @AllArgsConstructor
-@Table(name = "project_members")
+@Table(name = "project_members", uniqueConstraints = {
+    @UniqueConstraint(columnNames = {"project_id", "user_id"})
+})
 public class ProjectMember extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -27,4 +29,8 @@ public class ProjectMember extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private ProjectRole role;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private ProjectMemberStatus status = ProjectMemberStatus.ACTIVE;
 }

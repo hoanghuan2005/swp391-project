@@ -42,7 +42,7 @@ export default function CreateProjectModal({ open, onOpenChange, onSuccess }) {
       navigate(`/workspace/${newProject.id}`);
     } catch (error) {
       console.error("Failed to create project:", error);
-      toast.error("Failed to create workspace. Please try again.");
+      toast.error(error.response?.data?.message || "Failed to create workspace. Please try again.");
     } finally {
       setIsSending(false);
     }
