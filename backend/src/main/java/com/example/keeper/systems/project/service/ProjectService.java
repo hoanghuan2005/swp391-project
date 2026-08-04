@@ -26,6 +26,12 @@ public interface ProjectService {
     void rejectInvitation(String token, String userEmail);
     void changeMemberRole(UUID projectId, UUID userId, String role, String userEmail);
     void removeMember(UUID projectId, UUID userId, String userEmail);
+    void leaveProject(UUID projectId, String userEmail);
+    ProjectDetailResponse joinByShareToken(String shareToken, String userEmail);
+    ProjectDetailResponse requestToJoinProject(UUID projectId, String userEmail);
+    ProjectDetailResponse requestToJoinByShareToken(String shareToken, String userEmail);
+    void approveMemberRequest(UUID projectId, UUID memberUserId, String userEmail);
+    void rejectMemberRequest(UUID projectId, UUID memberUserId, String userEmail);
     ProjectInvitation verifyInvitationToken(String token);
     java.util.Map<String, Object> getMyInvitationStatus(UUID projectId, String userEmail);
 }

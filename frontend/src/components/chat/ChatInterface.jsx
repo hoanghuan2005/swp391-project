@@ -1,9 +1,58 @@
 import React, { useRef, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bot, Send, Loader2, Plus, Sparkles, FileText } from "lucide-react";
+import { Bot, Send, Loader2, Plus, Sparkles, FileText, Info } from "lucide-react";
+import CitationModal from "@/components/citation/CitationModal";
 
 const MotionDiv = motion.div;
+
+const renderMessageWithCitations = (content, sources, onCitationClick) => {
+  if (!content) return null;
+  if (!sources || sources.length === 0) return content;
+
+  const citationRegex = /\[(\d+)\]/g;
+  const parts = [];
+  let lastIndex = 0;
+  let match;
+
+  while ((match = citationRegex.exec(content)) !== null) {
+    const matchIndex = match.index;
+    const sourceNum = parseInt(match[1], 10);
+    const source = sources.find(
+      (s) => s.index === sourceNum || s.index === Number(sourceNum),
+    );
+
+    if (matchIndex > lastIndex) {
+      parts.push(content.substring(lastIndex, matchIndex));
+    }
+
+    if (source) {
+      parts.push(
+        <button
+          key={`cite-${matchIndex}`}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onCitationClick(source);
+          }}
+          title={`Click to view source [${sourceNum}]: ${source.title}`}
+          className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 mx-0.5 text-[10px] font-extrabold text-[#f26522] bg-orange-100/90 border border-orange-200 rounded-md hover:bg-[#f26522] hover:text-white transition-all cursor-pointer shadow-2xs align-middle"
+        >
+          {sourceNum}
+        </button>,
+      );
+    } else {
+      parts.push(match[0]);
+    }
+
+    lastIndex = citationRegex.lastIndex;
+  }
+
+  if (lastIndex < content.length) {
+    parts.push(content.substring(lastIndex));
+  }
+
+  return parts;
+};
 
 export default function ChatInterface({
   title,
@@ -19,9 +68,12 @@ export default function ChatInterface({
   contextBadgeComponent,
   rightElement,
   isDisabled = false,
-  alertComponent = null
+  alertComponent = null,
+  onPreviewDocument = null,
 }) {
   const [input, setInput] = useState("");
+  const [selectedCitation, setSelectedCitation] = useState(null);
+  const [citationModalOpen, setCitationModalOpen] = useState(false);
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
@@ -32,6 +84,11 @@ export default function ChatInterface({
     if (!input.trim() || isSending || isDisabled) return;
     onSendMessage(input.trim());
     setInput("");
+  };
+
+  const handleCitationClick = (source) => {
+    setSelectedCitation(source);
+    setCitationModalOpen(true);
   };
 
   return (
@@ -98,25 +155,33 @@ export default function ChatInterface({
                       </div>
                     )}
                     <div className="whitespace-pre-wrap leading-relaxed text-[13px] font-medium">
-                      {msg.content}
+                      {isUser
+                        ? msg.content
+                        : renderMessageWithCitations(
+                            msg.content,
+                            sources,
+                            handleCitationClick,
+                          )}
                     </div>
                     {shouldShowSources ? (
                       <div className="mt-3 border-t border-slate-100 pt-2">
                         <div className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                          Sources
+                          Sources & Excerpts
                         </div>
                         <div className="flex flex-wrap gap-1.5">
-                          {sources.map((source) => (
-                            <Link
-                              key={source.documentId}
-                              to={`/documents/${source.documentId}`}
-                              className="inline-flex max-w-full items-center gap-1 rounded-lg border border-orange-100 bg-orange-50 px-2 py-1 text-[11px] font-semibold text-[#f26522] hover:border-[#f26522]/30 hover:bg-orange-100"
+                          {sources.map((source, idx) => (
+                            <button
+                              key={source.documentId ? `${source.documentId}-${idx}` : idx}
+                              onClick={() => handleCitationClick(source)}
+                              className="inline-flex max-w-full items-center gap-1 rounded-lg border border-orange-100 bg-orange-50 px-2 py-1 text-[11px] font-semibold text-[#f26522] hover:border-[#f26522]/30 hover:bg-orange-100 transition-all cursor-pointer"
                             >
                               <FileText className="h-3 w-3 shrink-0" />
                               <span className="truncate">
+                                {source.index ? `[${source.index}] ` : ""}
                                 {source.title || "Document"}
                               </span>
-                            </Link>
+                              <Info className="h-3 w-3 shrink-0 opacity-60 ml-0.5" />
+                            </button>
                           ))}
                         </div>
                       </div>
@@ -186,6 +251,14 @@ export default function ChatInterface({
           {contextBadgeComponent}
         </div>
       </div>
+
+      {/* CITATION VERIFICATION MODAL */}
+      <CitationModal
+        citation={selectedCitation}
+        open={citationModalOpen}
+        onOpenChange={setCitationModalOpen}
+        onPreviewDocument={onPreviewDocument}
+      />
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { Loader2, Sparkles, CheckSquare, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -28,6 +28,10 @@ import ChatInterface from "@/components/chat/ChatInterface";
 import AISidebar from "@/components/ai-sidebar/sidebar/AISidebar";
 import WorkspaceGroupChat from "@/components/chat/WorkspaceGroupChat";
 import axiosClient, { backendBaseUrl } from "@/api/axiosClient";
+import useAiUsage from "@/hooks/useAiUsage";
+import { isAiQuotaExceeded } from "@/api/aiUsageApi";
+import QuotaExceededDialog from "@/components/quota/QuotaExceededDialog";
+import DocumentPreviewModal from "@/components/documents/DocumentPreviewModal";
 
 const welcomeMessage = {
   id: "initial",
@@ -38,12 +42,26 @@ const welcomeMessage = {
 
 export default function ProjectWorkspacePage() {
   const { projectId, token } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
   const [messages, setMessages] = useState([welcomeMessage]);
 
   const [isSending, setIsSending] = useState(false);
   const isSharedView = !!token;
+
+  const { refreshAiUsage } = useAiUsage();
+  const [quotaDialog, setQuotaDialog] = useState({
+    open: false,
+    type: "AI",
+    message: "",
+  });
+  const [previewModalState, setPreviewModalState] = useState({
+    open: false,
+    documentId: null,
+    title: "",
+  });
+
 
   // Group Chat States
   const [chatMode, setChatMode] = useState("ai"); // "ai" or "group"
@@ -272,13 +290,23 @@ export default function ProjectWorkspacePage() {
       setActiveConversation({ id: "main", title: project.name });
       setMessages([welcomeMessage]);
       setSelectedDocs([]);
+      setSearchParams({}, { replace: true });
       return;
     }
 
     try {
-      await createWorkspaceConversation();
+      const newConversation = await createWorkspaceConversation();
       setMessages([welcomeMessage]);
       setSelectedDocs([]);
+      setSearchParams({ chat: newConversation.id }, { replace: true });
+      try {
+        localStorage.setItem(
+          LOCAL_STORAGE_KEY,
+          JSON.stringify({ docIds: [], chatId: newConversation.id }),
+        );
+      } catch (e) {
+        console.warn("Failed to update localStorage on new conversation:", e);
+      }
     } catch (error) {
       console.error("Failed to create workspace chat:", error);
       toast.error("Failed to create new chat");
@@ -315,8 +343,8 @@ export default function ProjectWorkspacePage() {
       const currentConversation = token
         ? null
         : activeConversation || (await createWorkspaceConversation());
-      const documentIdsToSend =
-        selectedDocs.length > 0 ? selectedDocs.map((d) => d.id) : null;
+      const validDocIds = selectedDocs.filter((d) => d && d.id).map((d) => d.id);
+      const documentIdsToSend = validDocIds.length > 0 ? validDocIds : null;
 
       const payload = {
         conversationId: currentConversation?.id || null,
@@ -339,21 +367,128 @@ export default function ProjectWorkspacePage() {
           sources: response.sources || [],
         },
       ]);
+
+      if (!token && project?.id) {
+        try {
+          const savedConversations = (await getAiConversations({ projectId: project.id })) || [];
+          setConversations(savedConversations);
+          if (currentConversation) {
+            const refreshedConv = savedConversations.find((c) => c.id === currentConversation.id);
+            if (refreshedConv) setActiveConversation(refreshedConv);
+          }
+        } catch {
+          // ignore
+        }
+      }
     } catch (error) {
       console.error("AI Ask failed:", error);
-      toast.error("AI Assistant is currently unavailable");
+      if (isAiQuotaExceeded(error)) {
+        setQuotaDialog({
+          open: true,
+          type: "AI",
+          message: error.response?.data?.message,
+        });
+        await refreshAiUsage();
+      } else if (error.code === "ECONNABORTED" || error.message?.includes("timeout")) {
+        toast.error("Phản hồi AI bị quá giờ (timeout). Vui lòng thử lại!");
+      } else {
+        toast.error("AI Assistant is currently unavailable");
+      }
     } finally {
       setIsSending(false);
     }
   };
 
-  // Toggle selection logic for multiple documents
+  const LOCAL_STORAGE_KEY = `swp391_workspace_ai_state_${projectId || token || "default"}`;
+  const restoredRef = useRef(false);
+
+  // Sync state to URL params and LocalStorage
+  useEffect(() => {
+    const docIdsParam = selectedDocs.map((d) => d.id).join(",");
+    const chatParam = activeConversation?.id || "";
+
+    const newParams = {};
+    if (docIdsParam) newParams.docs = docIdsParam;
+    if (chatParam) newParams.chat = chatParam;
+
+    setSearchParams(newParams, { replace: true });
+
+    try {
+      localStorage.setItem(
+        LOCAL_STORAGE_KEY,
+        JSON.stringify({
+          docIds: selectedDocs.map((d) => d.id),
+          chatId: activeConversation?.id || null,
+        }),
+      );
+    } catch (e) {
+      console.warn("Failed to write workspace state to localStorage:", e);
+    }
+  }, [selectedDocs, activeConversation, setSearchParams, LOCAL_STORAGE_KEY]);
+
+  // Restore state on mount (URL params > LocalStorage fallback)
+  useEffect(() => {
+    if (restoredRef.current) return;
+    if (!project || (conversations.length === 0 && !token)) return;
+
+    restoredRef.current = true;
+
+    const urlDocsParam = searchParams.get("docs");
+    const urlChatParam = searchParams.get("chat");
+
+    let docIdsToRestore = [];
+    let chatIdToRestore = null;
+
+    if (urlDocsParam || urlChatParam) {
+      if (urlDocsParam) docIdsToRestore = urlDocsParam.split(",").filter(Boolean);
+      if (urlChatParam) chatIdToRestore = urlChatParam;
+    } else {
+      try {
+        const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed.docIds)) docIdsToRestore = parsed.docIds;
+          if (parsed.chatId) chatIdToRestore = parsed.chatId;
+        }
+      } catch (e) {
+        console.warn("Failed to read workspace state from localStorage:", e);
+      }
+    }
+
+    if (docIdsToRestore.length > 0 && project.documents) {
+      const matchedDocs = project.documents.filter((d) => docIdsToRestore.includes(d.id));
+      if (matchedDocs.length > 0) {
+        setSelectedDocs(matchedDocs.slice(0, 5));
+      }
+    }
+
+    if (chatIdToRestore && conversations.length > 0) {
+      const matchedConv = conversations.find((c) => c.id === chatIdToRestore);
+      if (matchedConv) {
+        handleSelectConversation(matchedConv);
+      }
+    }
+  }, [project, conversations, searchParams, token, handleSelectConversation, LOCAL_STORAGE_KEY]);
+
+  const handlePreviewDocument = (documentId, title) => {
+    setPreviewModalState({
+      open: true,
+      documentId,
+      title: title || "Document Preview",
+    });
+  };
+
+  // Toggle selection logic for multiple documents (Max 5 documents)
   const handleSelectDocument = (doc) => {
     setSelectedDocs((prevSelected) => {
       const isAlreadySelected = prevSelected.find((d) => d.id === doc.id);
       if (isAlreadySelected) {
         return prevSelected.filter((d) => d.id !== doc.id); // Remove if already checked
       } else {
+        if (prevSelected.length >= 5) {
+          toast.error("Bạn chỉ được chọn tối đa 5 tài liệu trọng tâm / Maximum 5 documents allowed.");
+          return prevSelected;
+        }
         return [...prevSelected, doc]; // Add if unchecked
       }
     });
@@ -434,7 +569,7 @@ export default function ProjectWorkspacePage() {
         onSelectItem={handleSelectConversation}
         onSelectDocument={handleSelectDocument}
         onDeleteDocument={isSharedView ? null : handleDeleteDocument}
-        onCreate={handleCreateNewConversation}
+        onCreate={() => handleCreateNewConversation()}
         searchDocQuery={searchDocQuery}
         setSearchDocQuery={setSearchDocQuery}
         fileInputRef={fileInputRef}
@@ -486,6 +621,7 @@ export default function ProjectWorkspacePage() {
                 </div>
               )
             }
+            onPreviewDocument={handlePreviewDocument}
           />
         ) : (
           <WorkspaceGroupChat
@@ -500,6 +636,14 @@ export default function ProjectWorkspacePage() {
           />
         )}
       </div>
+
+      <DocumentPreviewModal
+        documentId={previewModalState.documentId}
+        open={previewModalState.open}
+        onOpenChange={(open) =>
+          setPreviewModalState((current) => ({ ...current, open }))
+        }
+      />
 
       <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
         <DialogContent className="sm:max-w-[425px] rounded-3xl bg-white border border-slate-100 shadow-xl p-6">
@@ -540,6 +684,15 @@ export default function ProjectWorkspacePage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <QuotaExceededDialog
+        open={quotaDialog.open}
+        onOpenChange={(open) =>
+          setQuotaDialog((current) => ({ ...current, open }))
+        }
+        type={quotaDialog.type}
+        message={quotaDialog.message}
+      />
     </div>
   );
 }
+

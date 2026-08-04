@@ -25,7 +25,11 @@ import {
   Eye,
   ChevronDown,
   Lock,
-  MessageSquare
+  MessageSquare,
+  Clock,
+  UserCheck,
+  X,
+  RefreshCw
 } from "lucide-react";
 import {
   Dialog,
@@ -43,7 +47,12 @@ import {
   updateProjectInfo,
   inviteMember,
   changeMemberRole,
-  removeMember
+  removeMember,
+  leaveProject,
+  requestToJoinProject,
+  requestToJoinByShareToken,
+  approveMemberRequest,
+  rejectMemberRequest
 } from "@/api/projectApi";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -114,6 +123,15 @@ export default function WorkspaceOverviewPage() {
   const [groupSocket, setGroupSocket] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
 
+  // Derived role checks (Declared before useEffect hooks to avoid TDZ ReferenceError)
+  const currentUserRole = project?.currentUserRole;
+  const currentUserStatus = project?.currentUserStatus;
+  const isOwner = currentUserRole === "OWNER";
+  const isActiveMember = isOwner || currentUserStatus === "ACTIVE";
+  const isPendingMember = currentUserStatus === "PENDING";
+  const canEditInfo = isOwner || (currentUserRole === "EDITOR" && isActiveMember);
+  const canModifyDocs = isOwner || (currentUserRole === "EDITOR" && isActiveMember);
+
   const fetchProject = useCallback(async (silent = false) => {
     try {
       if (!silent) setLoading(true);
@@ -145,6 +163,19 @@ export default function WorkspaceOverviewPage() {
     return () => clearInterval(intervalId);
   }, [fetchProject]);
 
+  // Fast 5-second polling when user is waiting for approval (PENDING state)
+  useEffect(() => {
+    if (!isPendingMember) return;
+
+    const intervalId = setInterval(() => {
+      if (document.visibilityState === "visible") {
+        fetchProject(true);
+      }
+    }, 5000); // Check every 5 seconds while PENDING
+
+    return () => clearInterval(intervalId);
+  }, [isPendingMember, fetchProject]);
+
   // Fetch current user details for the group chat bubbles
   useEffect(() => {
     const fetchProfile = async () => {
@@ -158,10 +189,12 @@ export default function WorkspaceOverviewPage() {
     fetchProfile();
   }, []);
 
-  // Fetch group chat history
+
+
+  // Load initial group chat history (Active members only)
   useEffect(() => {
     const pId = projectId || (project && project.id);
-    if (activeTab !== "chat" || !pId) return;
+    if (activeTab !== "chat" || !pId || !isActiveMember) return;
 
     const fetchGroupChatHistory = async () => {
       try {
@@ -175,12 +208,12 @@ export default function WorkspaceOverviewPage() {
     };
 
     fetchGroupChatHistory();
-  }, [activeTab, projectId, project]);
+  }, [activeTab, projectId, project, isActiveMember]);
 
-  // Connect to Group Chat WebSocket
+  // Connect to Group Chat WebSocket (Active members only)
   useEffect(() => {
     const pId = projectId || (project && project.id);
-    if (activeTab !== "chat" || !pId) return;
+    if (activeTab !== "chat" || !pId || !isActiveMember) return;
 
     if (localStorage.getItem("isLoggedIn") !== "true") return;
 
@@ -229,7 +262,7 @@ export default function WorkspaceOverviewPage() {
       ws.close();
       setIsGroupChatConnected(false);
     };
-  }, [activeTab, projectId, project]);
+  }, [activeTab, projectId, project, isActiveMember]);
 
   const handleSendGroupMessage = (content, parentId = null) => {
     if (!content.trim() || !groupSocket || groupSocket.readyState !== WebSocket.OPEN) return;
@@ -255,11 +288,7 @@ export default function WorkspaceOverviewPage() {
     groupSocket.send(payload);
   };
 
-  // Derived role checks
-  const currentUserRole = project?.currentUserRole;
-  const isOwner = currentUserRole === "OWNER";
-  const canEditInfo = currentUserRole === "OWNER" || currentUserRole === "EDITOR";
-  const canModifyDocs = currentUserRole === "OWNER" || currentUserRole === "EDITOR";
+
 
   const handleRemoveDocument = (documentId, title) => {
     if (isSharedView) return;
@@ -367,8 +396,59 @@ export default function WorkspaceOverviewPage() {
     }
   };
 
+  const [joining, setJoining] = useState(false);
+
+  const handleRequestToJoin = async () => {
+    try {
+      setJoining(true);
+      let resData = null;
+      if (token) {
+        resData = await requestToJoinByShareToken(token);
+      } else if (projectId || project?.id) {
+        resData = await requestToJoinProject(projectId || project?.id);
+      }
+      toast.success("Join request sent! Waiting for workspace owner approval.");
+      if (resData) {
+        setProject(resData);
+      }
+      fetchProject(true);
+    } catch (error) {
+      console.error(error);
+      toast.error(error.response?.data?.message || "Failed to send join request");
+    } finally {
+      setJoining(false);
+    }
+  };
+
+  const handleApproveMember = async (userId) => {
+    try {
+      await approveMemberRequest(project.id, userId);
+      toast.success("Member join request approved!");
+      fetchProject(true);
+    } catch (error) {
+      console.error(error);
+      toast.error(error.response?.data?.message || "Failed to approve request");
+    }
+  };
+
+  const handleRejectMember = async (userId) => {
+    try {
+      await rejectMemberRequest(project.id, userId);
+      toast.success("Member join request declined.");
+      fetchProject(true);
+    } catch (error) {
+      console.error(error);
+      toast.error(error.response?.data?.message || "Failed to decline request");
+    }
+  };
+
   const handleRemoveMember = (userId, memberName) => {
     setConfirmTarget({ type: "REMOVE_MEMBER", id: userId, name: memberName });
+    setConfirmDialogOpen(true);
+  };
+
+  const handleLeaveWorkspaceClick = () => {
+    setConfirmTarget({ type: "LEAVE_WORKSPACE", id: project?.id, name: project?.name });
     setConfirmDialogOpen(true);
   };
 
@@ -384,6 +464,10 @@ export default function WorkspaceOverviewPage() {
         await removeMember(project.id, confirmTarget.id);
         toast.success("Member removed from workspace");
         fetchProject(true);
+      } else if (confirmTarget.type === "LEAVE_WORKSPACE") {
+        await leaveProject(project.id);
+        toast.success("You have left the workspace");
+        navigate("/home");
       }
     } catch (error) {
       console.error(`Failed to perform action ${confirmTarget.type}:`, error);
@@ -445,8 +529,8 @@ export default function WorkspaceOverviewPage() {
                 </span>
               </div>
 
-              {/* Members Button at the top-right corner */}
-              {currentUserRole && (
+              {/* Members Button / Badge at top-right */}
+              {isActiveMember ? (
                 <button
                   onClick={() => setIsMembersOpen(true)}
                   className="flex items-center gap-1.5 px-4.5 py-2 rounded-full border border-orange-200/80 bg-white hover:bg-orange-50 text-slate-700 text-xs font-bold shadow-sm transition-all cursor-pointer"
@@ -454,6 +538,11 @@ export default function WorkspaceOverviewPage() {
                   <Users className="w-4 h-4 text-[#f66810]" />
                   <span>Members ({project?.members?.length || 0})</span>
                 </button>
+              ) : (
+                <div className="flex items-center gap-1.5 px-4 py-2 rounded-full border border-slate-200 bg-slate-50 text-slate-500 text-xs font-semibold shadow-xs select-none" title="Workspace member count">
+                  <Users className="w-4 h-4 text-slate-400" />
+                  <span>{project?.members?.length || 0} Members</span>
+                </div>
               )}
             </div>
 
@@ -535,7 +624,31 @@ export default function WorkspaceOverviewPage() {
               <div className="flex flex-col items-center gap-3 w-full xl:w-auto justify-start xl:justify-end shrink-0 pt-2 xl:pt-0">
                 
                 <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto justify-start xl:justify-end shrink-0 pt-2 xl:pt-0">
-                  {currentUserRole && (
+                  {!isActiveMember && (
+                    <>
+                      {isPendingMember ? (
+                        <span className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-amber-50 text-amber-700 border border-amber-200 text-xs font-bold shadow-xs">
+                          <Clock className="w-4 h-4 text-amber-500 animate-pulse" />
+                          Pending Approval
+                        </span>
+                      ) : (
+                        <Button
+                          onClick={handleRequestToJoin}
+                          disabled={joining}
+                          className="rounded-2xl bg-[#f66810] hover:bg-[#de5b0b] text-white h-11 px-5 text-sm font-bold shadow-md shadow-orange-500/15 flex items-center cursor-pointer transition-all border-none"
+                        >
+                          {joining ? (
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          ) : (
+                            <UserPlus className="w-4 h-4 mr-2" />
+                          )}
+                          Request to Join
+                        </Button>
+                      )}
+                    </>
+                  )}
+
+                  {isActiveMember && (
                     <>
                       {/* Share Button */}
                       <Button
@@ -581,7 +694,7 @@ export default function WorkspaceOverviewPage() {
                   )}
 
                   {/* AI Workspace Button */}
-                  {(!isSharedView || project?.visibility === "LINK_SHARED" || project?.visibility === "PUBLIC") && (
+                  {isActiveMember && (
                     <Button
                       onClick={handleNavigateToAI}
                       className="rounded-2xl bg-[#f66810] hover:bg-[#de5b0b] text-white h-11 px-5 text-sm font-bold shadow-md shadow-orange-500/15 flex items-center cursor-pointer transition-all"
@@ -742,18 +855,62 @@ export default function WorkspaceOverviewPage() {
           </TabsContent>
 
           <TabsContent value="chat" className="mt-0">
-            <div className="rounded-[28px] border border-orange-100 shadow-sm bg-white overflow-hidden flex flex-col h-[650px]">
-              <WorkspaceGroupChat
-                projectId={projectId || (project && project.id)}
-                title="Phòng thảo luận Workspace"
-                subtitle="Trò chuyện thời gian thực cùng bạn bè trong workspace"
-                messages={groupMessages}
-                isChatConnected={isGroupChatConnected}
-                currentUser={currentUser}
-                onSendMessage={handleSendGroupMessage}
-                onToggleReaction={handleToggleGroupReaction}
-              />
-            </div>
+            {isActiveMember ? (
+              <div className="rounded-[28px] border border-orange-100 shadow-sm bg-white overflow-hidden flex flex-col h-[650px]">
+                <WorkspaceGroupChat
+                  projectId={projectId || (project && project.id)}
+                  title="Workspace Chatroom"
+                  subtitle="Real-time conversation with members in workspace"
+                  messages={groupMessages}
+                  isChatConnected={isGroupChatConnected}
+                  currentUser={currentUser}
+                  onSendMessage={handleSendGroupMessage}
+                  onToggleReaction={handleToggleGroupReaction}
+                />
+              </div>
+            ) : (
+              <div className="rounded-[28px] border border-dashed border-slate-200 bg-slate-50/70 p-12 text-center flex flex-col items-center justify-center min-h-[500px]">
+                <div className="w-16 h-16 rounded-3xl bg-orange-100/80 flex items-center justify-center text-[#f66810] mb-4 shadow-sm border border-orange-200/50">
+                  <Lock className="w-8 h-8" />
+                </div>
+                <h3 className="text-xl font-extrabold text-slate-800 tracking-tight">Q&A Chat Room Restricted</h3>
+                <p className="text-sm text-slate-500 max-w-md mt-2 leading-relaxed">
+                  Real-time discussions and Q&A chat are strictly available to Active Members of this workspace.
+                </p>
+                {isPendingMember ? (
+                  <div className="mt-6 flex flex-col items-center gap-3">
+                    <div className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-amber-50 text-amber-700 border border-amber-200 text-xs font-bold shadow-xs">
+                      <Clock className="w-4 h-4 text-amber-500 animate-pulse" />
+                      Your join request is currently pending workspace owner approval.
+                    </div>
+                    <Button
+                      variant="outline"
+                      onClick={async () => {
+                        toast.info("Checking approval status...");
+                        await fetchProject(true);
+                      }}
+                      className="rounded-2xl border-amber-200/80 bg-white hover:bg-amber-50 text-amber-700 text-xs font-bold h-9 px-4 shadow-sm flex items-center gap-2 cursor-pointer"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      Check Status Again
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    onClick={handleRequestToJoin}
+                    disabled={joining}
+                    className="mt-6 rounded-2xl bg-[#f66810] hover:bg-[#de5b0b] text-white h-11 px-6 text-sm font-bold shadow-md shadow-orange-500/15 cursor-pointer border-none"
+                  >
+                    {joining ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <UserPlus className="w-4 h-4 mr-2" />
+                    )}
+                    Request to Join Workspace
+                  </Button>
+                )}
+              </div>
+            )}
           </TabsContent>
         </Tabs>
       </div>
@@ -997,72 +1154,142 @@ export default function WorkspaceOverviewPage() {
                 </p>
 
                 <div className="mt-6">
-                  <ScrollArea className="max-h-[350px] pr-2">
-                    <div className="space-y-4">
-                      {project?.members?.map((member) => (
-                        <div key={member.userId} className="flex items-center justify-between p-3 rounded-2xl border border-slate-100/80 bg-slate-50/50 hover:bg-slate-50 transition-colors">
-                          <div className="flex items-center gap-3 min-w-0">
-                            {member.avatarUrl ? (
-                              <img src={member.avatarUrl} alt={member.username} className="w-10 h-10 rounded-full object-cover border border-slate-200 shadow-sm" />
-                            ) : (
-                              <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center font-bold text-[#f66810] border border-orange-200">
-                                {(member.username || member.email || "M").charAt(0).toUpperCase()}
+                  <ScrollArea className="max-h-[380px] pr-2">
+                    {/* 1. Pending Join Requests Section (Owner Only) */}
+                    {isOwner && project?.members?.filter(m => m.status === "PENDING").length > 0 && (
+                      <div className="mb-6">
+                        <h4 className="text-xs font-bold text-amber-600 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                          <Clock className="w-4 h-4 text-amber-500" />
+                          Pending Join Requests ({project.members.filter(m => m.status === "PENDING").length})
+                        </h4>
+                        <div className="space-y-2.5">
+                          {project.members.filter(m => m.status === "PENDING").map((member) => (
+                            <div key={member.userId} className="flex items-center justify-between p-3 rounded-2xl border border-amber-200/80 bg-amber-50/50">
+                              <div className="flex items-center gap-3 min-w-0">
+                                {member.avatarUrl ? (
+                                  <img src={member.avatarUrl} alt={member.username} className="w-9 h-9 rounded-full object-cover border border-amber-200 shadow-xs" />
+                                ) : (
+                                  <div className="w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center font-bold text-amber-600 text-xs border border-amber-200">
+                                    {(member.username || member.email || "M").charAt(0).toUpperCase()}
+                                  </div>
+                                )}
+                                <div className="min-w-0">
+                                  <p className="font-semibold text-slate-800 text-xs truncate">
+                                    {member.username || "Anonymous User"}
+                                  </p>
+                                  <p className="text-[11px] text-slate-500 truncate">
+                                    {member.email}
+                                  </p>
+                                </div>
                               </div>
-                            )}
-                            <div className="min-w-0">
-                              <p className="font-semibold text-slate-800 text-sm truncate">
-                                {member.username || "Anonymous Collaborator"}
-                              </p>
-                              <p className="text-xs text-slate-500 truncate">
-                                {member.email}
-                              </p>
+
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <Button
+                                  onClick={() => handleApproveMember(member.userId)}
+                                  className="h-8 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs border-none cursor-pointer flex items-center gap-1"
+                                >
+                                  <UserCheck className="w-3.5 h-3.5" />
+                                  Approve
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  onClick={() => handleRejectMember(member.userId)}
+                                  className="h-8 px-2.5 rounded-xl border-red-200 bg-red-50 text-red-600 hover:bg-red-100 text-xs font-bold shadow-xs border-none cursor-pointer flex items-center gap-1"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                  Decline
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 2. Active Members List */}
+                    <div>
+                      {isOwner && project?.members?.filter(m => m.status === "PENDING").length > 0 && (
+                        <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">
+                          Active Members ({project.members.filter(m => m.status !== "PENDING").length})
+                        </h4>
+                      )}
+                      <div className="space-y-3">
+                        {project?.members?.filter(m => m.status !== "PENDING").map((member) => (
+                          <div key={member.userId} className="flex items-center justify-between p-3 rounded-2xl border border-slate-100/80 bg-slate-50/50 hover:bg-slate-50 transition-colors">
+                            <div className="flex items-center gap-3 min-w-0">
+                              {member.avatarUrl ? (
+                                <img src={member.avatarUrl} alt={member.username} className="w-10 h-10 rounded-full object-cover border border-slate-200 shadow-sm" />
+                              ) : (
+                                <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center font-bold text-[#f66810] border border-orange-200">
+                                  {(member.username || member.email || "M").charAt(0).toUpperCase()}
+                                </div>
+                              )}
+                              <div className="min-w-0">
+                                <p className="font-semibold text-slate-800 text-sm truncate">
+                                  {member.username || "Anonymous Collaborator"}
+                                </p>
+                                <p className="text-xs text-slate-500 truncate">
+                                  {member.email}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2 shrink-0">
+                              {isOwner && member.role !== "OWNER" ? (
+                                <>
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button
+                                        variant="outline"
+                                        className="h-9 px-3 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-1.5 justify-between min-w-[85px] shadow-sm cursor-pointer"
+                                      >
+                                        <span>{member.role === "EDITOR" ? "Editor" : "Viewer"}</span>
+                                        <ChevronDown className="w-3 h-3 text-slate-400" />
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="w-28 rounded-xl border-orange-100 bg-white text-slate-750 shadow-xl p-1.5 z-[100]">
+                                      <DropdownMenuItem
+                                        onClick={() => handleChangeRole(member.userId, "EDITOR")}
+                                        className="cursor-pointer rounded-lg hover:bg-orange-50 hover:text-[#f66810] font-semibold transition-colors p-2 text-xs"
+                                      >
+                                        Editor
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem
+                                        onClick={() => handleChangeRole(member.userId, "VIEWER")}
+                                        className="cursor-pointer rounded-lg hover:bg-orange-50 hover:text-[#f66810] font-semibold transition-colors p-2 text-xs mt-0.5"
+                                      >
+                                        Viewer
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                  <button
+                                    onClick={() => handleRemoveMember(member.userId, member.username || member.email)}
+                                    className="w-9 h-9 flex items-center justify-center rounded-xl bg-red-50 text-red-500 hover:bg-red-100 transition-colors border-0 cursor-pointer"
+                                    title="Remove collaborator"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </>
+                              ) : (
+                                <div className="flex items-center gap-2">
+                                  <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-orange-100/75 text-[#f66810]">
+                                    {member.role}
+                                  </span>
+                                  {!isOwner && member.email === currentUser?.email && (
+                                    <button
+                                      onClick={handleLeaveWorkspaceClick}
+                                      className="px-3 py-1 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 text-xs font-bold transition-colors border-0 cursor-pointer"
+                                      title="Leave this workspace"
+                                    >
+                                      Leave
+                                    </button>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           </div>
-
-                          <div className="flex items-center gap-2 shrink-0">
-                            {isOwner && member.role !== "OWNER" ? (
-                              <>
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <Button
-                                      variant="outline"
-                                      className="h-9 px-3 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-1.5 justify-between min-w-[85px] shadow-sm cursor-pointer"
-                                    >
-                                      <span>{member.role === "EDITOR" ? "Editor" : "Viewer"}</span>
-                                      <ChevronDown className="w-3 h-3 text-slate-400" />
-                                    </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end" className="w-28 rounded-xl border-orange-100 bg-white text-slate-750 shadow-xl p-1.5 z-[100]">
-                                    <DropdownMenuItem
-                                      onClick={() => handleChangeRole(member.userId, "EDITOR")}
-                                      className="cursor-pointer rounded-lg hover:bg-orange-50 hover:text-[#f66810] font-semibold transition-colors p-2 text-xs"
-                                    >
-                                      Editor
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem
-                                      onClick={() => handleChangeRole(member.userId, "VIEWER")}
-                                      className="cursor-pointer rounded-lg hover:bg-orange-50 hover:text-[#f66810] font-semibold transition-colors p-2 text-xs mt-0.5"
-                                    >
-                                      Viewer
-                                    </DropdownMenuItem>
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                                <button
-                                  onClick={() => handleRemoveMember(member.userId, member.username || member.email)}
-                                  className="w-9 h-9 flex items-center justify-center rounded-xl bg-red-50 text-red-500 hover:bg-red-100 transition-colors border-0 cursor-pointer"
-                                  title="Remove collaborator"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              </>
-                            ) : (
-                              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-orange-100/75 text-[#f66810]">
-                                {member.role}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
                   </ScrollArea>
                 </div>

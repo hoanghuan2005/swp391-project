@@ -3,10 +3,14 @@ package com.example.keeper.config;
 import com.example.keeper.systems.auth.entity.User;
 import com.example.keeper.systems.auth.repository.UserRepository;
 import com.example.keeper.systems.auth.service.JwtService;
+import com.example.keeper.systems.project.entity.Project;
 import com.example.keeper.systems.project.entity.ProjectChatMessage;
 import com.example.keeper.systems.project.entity.ProjectChatReaction;
+import com.example.keeper.systems.project.entity.ProjectMemberStatus;
 import com.example.keeper.systems.project.repository.ProjectChatMessageRepository;
 import com.example.keeper.systems.project.repository.ProjectChatReactionRepository;
+import com.example.keeper.systems.project.repository.ProjectMemberRepository;
+import com.example.keeper.systems.project.repository.ProjectRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +32,8 @@ public class ProjectChatWebSocketHandler extends TextWebSocketHandler {
     private final UserRepository userRepository;
     private final ProjectChatMessageRepository chatMessageRepository;
     private final ProjectChatReactionRepository chatReactionRepository;
+    private final ProjectRepository projectRepository;
+    private final ProjectMemberRepository projectMemberRepository;
     private final ObjectMapper objectMapper = new ObjectMapper()
             .registerModule(new JavaTimeModule())
             .configure(com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false);
@@ -44,6 +50,28 @@ public class ProjectChatWebSocketHandler extends TextWebSocketHandler {
         }
 
         UUID projectId = getProjectId(session);
+        if (projectId == null) {
+            session.close(CloseStatus.BAD_DATA.withReason("Invalid Project ID"));
+            return;
+        }
+
+        Project project = projectRepository.findById(projectId).orElse(null);
+        if (project == null) {
+            session.close(CloseStatus.BAD_DATA.withReason("Workspace not found"));
+            return;
+        }
+
+        boolean isOwner = project.getOwner().getId().equals(user.getId());
+        boolean isActiveMember = projectMemberRepository
+                .findByProjectIdAndUserId(projectId, user.getId())
+                .map(m -> m.getStatus() == ProjectMemberStatus.ACTIVE)
+                .orElse(false);
+
+        if (!isOwner && !isActiveMember) {
+            session.close(CloseStatus.POLICY_VIOLATION.withReason("Access Denied: Only active workspace members can join chat"));
+            return;
+        }
+
         projectSessions.computeIfAbsent(projectId, k -> new CopyOnWriteArraySet<>()).add(session);
         
         session.getAttributes().put("user", user);

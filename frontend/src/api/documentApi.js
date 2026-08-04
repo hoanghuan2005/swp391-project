@@ -7,6 +7,11 @@ export const getRecentDocuments = async (limit = 10) => {
   return response.data;
 };
 
+export const getDocument = async (documentId) => {
+  const response = await axiosClient.get(`/api/documents/${documentId}`);
+  return response.data;
+};
+
 export const recordDocumentView = async (documentId) => {
   await axiosClient.post(`/api/documents/${documentId}/view`);
 };

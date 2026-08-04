@@ -14,6 +14,7 @@ import com.example.keeper.systems.project.dto.response.ProjectDetailResponse;
 import com.example.keeper.systems.project.entity.Project;
 import com.example.keeper.systems.project.entity.ProjectInvitation;
 import com.example.keeper.systems.project.entity.ProjectMember;
+import com.example.keeper.systems.project.entity.ProjectMemberStatus;
 import com.example.keeper.systems.project.entity.ProjectRole;
 import com.example.keeper.systems.project.entity.ProjectVisibility;
 import com.example.keeper.systems.project.exception.ProjectQuotaExceededException;
@@ -22,6 +23,7 @@ import com.example.keeper.systems.project.repository.ProjectMemberRepository;
 import com.example.keeper.systems.project.repository.ProjectRepository;
 import com.example.keeper.systems.project.service.ProjectService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -33,6 +35,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ProjectServiceImpl implements ProjectService {
@@ -94,6 +97,7 @@ public class ProjectServiceImpl implements ProjectService {
         ownerMember.setProject(savedProject);
         ownerMember.setUser(user);
         ownerMember.setRole(ProjectRole.OWNER);
+        ownerMember.setStatus(ProjectMemberStatus.ACTIVE);
         projectMemberRepository.save(ownerMember);
 
         return mapToResponse(savedProject, user);
@@ -193,19 +197,23 @@ public class ProjectServiceImpl implements ProjectService {
         Project savedProject = projectRepository.save(project);
 
         // Notify other members
-        List<ProjectMember> members = projectMemberRepository.findByProjectId(projectId);
-        for (ProjectMember pm : members) {
-            if (!pm.getUser().getId().equals(user.getId())) {
-                notificationService.createNotification(
-                        pm.getUser(),
-                        user,
-                        NotificationType.WORKSPACE_DOCUMENT_DELETED,
-                        "Document Removed",
-                        "Document \"" + document.getTitle() + "\" was removed from workspace \"" + project.getName() + "\".",
-                        project.getId(),
-                        ReferenceType.WORKSPACE
-                );
+        try {
+            List<ProjectMember> members = projectMemberRepository.findByProjectId(projectId);
+            for (ProjectMember pm : members) {
+                if (!pm.getUser().getId().equals(user.getId())) {
+                    notificationService.createNotification(
+                            pm.getUser(),
+                            user,
+                            NotificationType.WORKSPACE_DOCUMENT_DELETED,
+                            "Document Removed",
+                            "Document \"" + document.getTitle() + "\" was removed from workspace \"" + project.getName() + "\".",
+                            project.getId(),
+                            ReferenceType.WORKSPACE
+                    );
+                }
             }
+        } catch (Exception e) {
+            log.error("Failed to send notification for document deletion in project: " + projectId, e);
         }
 
         return mapToResponse(savedProject, user);
@@ -243,12 +251,12 @@ public class ProjectServiceImpl implements ProjectService {
     @Transactional(readOnly = true)
     public ProjectDetailResponse getByShareToken(String token) {
         Project project = projectRepository.findByShareToken(token)
-                .orElseThrow(() -> new RuntimeException("Project not found or invalid link"));
-        
-        if (project.getVisibility() != ProjectVisibility.LINK_SHARED) {
-            throw new RuntimeException("This link-shared workspace is currently set to private or public.");
+                .orElseThrow(() -> new IllegalArgumentException("Project not found or invalid share token"));
+
+        if (project.getVisibility() == ProjectVisibility.PRIVATE) {
+            throw new IllegalArgumentException("Private workspace cannot be accessed via share link");
         }
-        
+
         return mapToResponse(project, null);
     }
 
@@ -282,11 +290,15 @@ public class ProjectServiceImpl implements ProjectService {
 
         if (project.getVisibility() == ProjectVisibility.PRIVATE) {
             if (!isOwner && !isMember) {
-                throw new RuntimeException("Access denied. This workspace is private.");
+                throw new org.springframework.security.access.AccessDeniedException("Access denied. This workspace is private.");
+            }
+        } else if (project.getVisibility() == ProjectVisibility.LINK_SHARED) {
+            if (!isOwner && !isMember) {
+                throw new org.springframework.security.access.AccessDeniedException("Access denied. Link-shared workspace must be accessed via share link.");
             }
         } else if (project.getVisibility() == ProjectVisibility.PUBLIC) {
             if (currentUser == null) {
-                throw new RuntimeException("Access denied. Please log in to view public workspaces.");
+                throw new org.springframework.security.access.AccessDeniedException("Access denied. Please log in to view public workspaces.");
             }
         }
 
@@ -459,6 +471,7 @@ public class ProjectServiceImpl implements ProjectService {
         member.setProject(invitation.getProject());
         member.setUser(user);
         member.setRole(invitation.getRole());
+        member.setStatus(ProjectMemberStatus.ACTIVE);
         projectMemberRepository.save(member);
 
         invitation.setStatus("ACCEPTED");
@@ -598,13 +611,17 @@ public class ProjectServiceImpl implements ProjectService {
                 .collect(Collectors.toList());
 
         String userRole = null;
+        String userStatus = null;
         if (currentUser != null) {
             if (project.getOwner().getId().equals(currentUser.getId())) {
                 userRole = ProjectRole.OWNER.name();
+                userStatus = ProjectMemberStatus.ACTIVE.name();
             } else {
-                userRole = projectMemberRepository.findByProjectIdAndUserId(project.getId(), currentUser.getId())
-                        .map(pm -> pm.getRole().name())
-                        .orElse(null);
+                Optional<ProjectMember> pmOpt = projectMemberRepository.findByProjectIdAndUserId(project.getId(), currentUser.getId());
+                if (pmOpt.isPresent()) {
+                    userRole = pmOpt.get().getRole().name();
+                    userStatus = pmOpt.get().getStatus() != null ? pmOpt.get().getStatus().name() : ProjectMemberStatus.ACTIVE.name();
+                }
             }
         }
 
@@ -617,6 +634,7 @@ public class ProjectServiceImpl implements ProjectService {
                         .username(pm.getUser().getUsername())
                         .email(pm.getUser().getEmail())
                         .role(pm.getRole().name())
+                        .status(pm.getStatus() != null ? pm.getStatus().name() : ProjectMemberStatus.ACTIVE.name())
                         .avatarUrl(pm.getUser().getAvatarUrl())
                         .build())
                 .collect(Collectors.toList());
@@ -626,6 +644,7 @@ public class ProjectServiceImpl implements ProjectService {
                     .username(project.getOwner().getUsername())
                     .email(project.getOwner().getEmail())
                     .role(ProjectRole.OWNER.name())
+                    .status(ProjectMemberStatus.ACTIVE.name())
                     .avatarUrl(project.getOwner().getAvatarUrl())
                     .build());
         }
@@ -637,10 +656,11 @@ public class ProjectServiceImpl implements ProjectService {
                 .shareToken(project.getShareToken())
                 .ownerId(project.getOwner().getId())
                 .createdAt(project.getCreatedAt())
-                .documents(docInfos)
-                .visibility(project.getVisibility().name())
+                .visibility(project.getVisibility() == null ? null : project.getVisibility().name())
                 .currentUserRole(userRole)
+                .currentUserStatus(userStatus)
                 .members(memberInfos)
+                .documents(docInfos)
                 .build();
     }
 
@@ -700,5 +720,183 @@ public class ProjectServiceImpl implements ProjectService {
             projectsPage = projectRepository.findByVisibility(ProjectVisibility.PUBLIC, pageable);
         }
         return projectsPage.map(p -> mapToResponse(p, null));
+    }
+
+    @Override
+    @Transactional
+    public void leaveProject(UUID projectId, String userEmail) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new RuntimeException("Project not found"));
+
+        if (project.getOwner().getId().equals(user.getId())) {
+            throw new IllegalArgumentException("Workspace owner cannot leave. Transfer ownership or delete the workspace.");
+        }
+
+        ProjectMember member = projectMemberRepository.findByProjectIdAndUserId(projectId, user.getId())
+                .orElseThrow(() -> new IllegalArgumentException("You are not a member of this workspace"));
+
+        projectMemberRepository.delete(member);
+
+        try {
+            notificationService.createNotification(
+                    project.getOwner(),
+                    user,
+                    NotificationType.WORKSPACE_UPDATED,
+                    "Member Left Workspace",
+                    (user.getUsername() != null ? user.getUsername() : user.getEmail()) + " left workspace \"" + project.getName() + "\".",
+                    project.getId(),
+                    ReferenceType.WORKSPACE
+            );
+        } catch (Exception e) {
+            log.error("Failed to send notification for member left workspace", e);
+        }
+    }
+
+    @Override
+    @Transactional
+    public ProjectDetailResponse joinByShareToken(String shareToken, String userEmail) {
+        return requestToJoinByShareToken(shareToken, userEmail);
+    }
+
+    @Override
+    @Transactional
+    public ProjectDetailResponse requestToJoinProject(UUID projectId, String userEmail) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new RuntimeException("Project not found"));
+
+        return processJoinRequest(project, user);
+    }
+
+    @Override
+    @Transactional
+    public ProjectDetailResponse requestToJoinByShareToken(String shareToken, String userEmail) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        Project project = projectRepository.findByShareToken(shareToken)
+                .orElseThrow(() -> new IllegalArgumentException("Invalid workspace share token"));
+
+        if (project.getVisibility() == ProjectVisibility.PRIVATE) {
+            throw new IllegalArgumentException("Private workspace cannot be accessed via share link");
+        }
+
+        return processJoinRequest(project, user);
+    }
+
+    private ProjectDetailResponse processJoinRequest(Project project, User user) {
+        if (project.getOwner().getId().equals(user.getId())) {
+            return mapToResponse(project, user);
+        }
+
+        // Anti-Spam Check (Double-click / Duplicate prevention - BUG-15)
+        Optional<ProjectMember> existingOpt = projectMemberRepository.findByProjectIdAndUserId(project.getId(), user.getId());
+        if (existingOpt.isPresent()) {
+            ProjectMember existing = existingOpt.get();
+            if (existing.getStatus() == ProjectMemberStatus.ACTIVE) {
+                throw new IllegalArgumentException("You are already an active member of this workspace");
+            } else if (existing.getStatus() == ProjectMemberStatus.PENDING) {
+                throw new IllegalArgumentException("Your join request is already pending approval by the workspace owner");
+            } else {
+                // If previously REJECTED, update to PENDING for re-request
+                existing.setStatus(ProjectMemberStatus.PENDING);
+                projectMemberRepository.save(existing);
+            }
+        } else {
+            ProjectMember newMember = new ProjectMember();
+            newMember.setProject(project);
+            newMember.setUser(user);
+            newMember.setRole(ProjectRole.VIEWER);
+            newMember.setStatus(ProjectMemberStatus.PENDING);
+            projectMemberRepository.save(newMember);
+        }
+
+        try {
+            notificationService.createNotification(
+                    project.getOwner(),
+                    user,
+                    NotificationType.WORKSPACE_INVITED,
+                    "Join Request Pending",
+                    (user.getUsername() != null ? user.getUsername() : user.getEmail()) + " requested to join workspace \"" + project.getName() + "\".",
+                    project.getId(),
+                    ReferenceType.WORKSPACE
+            );
+        } catch (Exception e) {
+            log.error("Failed to send join request notification to owner", e);
+        }
+
+        return mapToResponse(project, user);
+    }
+
+    @Override
+    @Transactional
+    public void approveMemberRequest(UUID projectId, UUID memberUserId, String userEmail) {
+        User owner = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new RuntimeException("Project not found"));
+
+        if (!project.getOwner().getId().equals(owner.getId())) {
+            throw new IllegalArgumentException("Only the workspace owner can approve join requests");
+        }
+
+        ProjectMember member = projectMemberRepository.findByProjectIdAndUserId(projectId, memberUserId)
+                .orElseThrow(() -> new IllegalArgumentException("Join request not found"));
+
+        member.setStatus(ProjectMemberStatus.ACTIVE);
+        projectMemberRepository.save(member);
+
+        try {
+            notificationService.createNotification(
+                    member.getUser(),
+                    owner,
+                    NotificationType.WORKSPACE_MEMBER_JOINED,
+                    "Join Request Approved",
+                    "Your request to join workspace \"" + project.getName() + "\" was approved!",
+                    project.getId(),
+                    ReferenceType.WORKSPACE
+            );
+        } catch (Exception e) {
+            log.error("Failed to send approval notification to member", e);
+        }
+    }
+
+    @Override
+    @Transactional
+    public void rejectMemberRequest(UUID projectId, UUID memberUserId, String userEmail) {
+        User owner = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new RuntimeException("Project not found"));
+
+        if (!project.getOwner().getId().equals(owner.getId())) {
+            throw new IllegalArgumentException("Only the workspace owner can reject join requests");
+        }
+
+        ProjectMember member = projectMemberRepository.findByProjectIdAndUserId(projectId, memberUserId)
+                .orElseThrow(() -> new IllegalArgumentException("Join request not found"));
+
+        projectMemberRepository.delete(member);
+
+        try {
+            notificationService.createNotification(
+                    member.getUser(),
+                    owner,
+                    NotificationType.WORKSPACE_UPDATED,
+                    "Join Request Declined",
+                    "Your request to join workspace \"" + project.getName() + "\" was declined.",
+                    project.getId(),
+                    ReferenceType.WORKSPACE
+            );
+        } catch (Exception e) {
+            log.error("Failed to send rejection notification to member", e);
+        }
     }
 }

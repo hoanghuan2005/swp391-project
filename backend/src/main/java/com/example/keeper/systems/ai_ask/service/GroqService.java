@@ -9,4 +9,11 @@ public interface GroqService {
             String userPrompt,
             double temperature
     );
-}
+
+    String generateContent(
+            String systemPrompt,
+            String userPrompt,
+            double temperature,
+            int maxTokens
+    );
+}
