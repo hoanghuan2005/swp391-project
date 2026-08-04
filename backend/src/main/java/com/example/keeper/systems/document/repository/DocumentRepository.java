@@ -16,6 +16,8 @@ import java.util.UUID;
 
 public interface DocumentRepository extends JpaRepository<Document, UUID> {
 
+        List<Document> findByOriginalFileNameIgnoreCase(String originalFileName);
+
         Page<Document> findByCourseId(UUID courseId, Pageable pageable);
 
         Page<Document> findByVisibilityOrderByCreatedAtDesc(Visibility visibility, Pageable pageable);

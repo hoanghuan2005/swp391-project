@@ -15,6 +15,8 @@ import com.example.keeper.systems.document.enums.AiParseStatus;
 import com.example.keeper.systems.document.repository.DocumentRepository;
 import com.example.keeper.systems.project.entity.Project;
 import com.example.keeper.systems.project.repository.ProjectRepository;
+import com.example.keeper.systems.project.repository.ProjectMemberRepository;
+import com.example.keeper.systems.document.enums.Visibility;
 import com.example.keeper.systems.ai_quiz.dto.request.QuizRequest;
 import com.example.keeper.systems.ai_quiz.dto.response.QuestionDTO;
 import com.example.keeper.systems.ai_quiz.dto.response.QuizResponse;
@@ -42,6 +44,7 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
     private final QuizRepository quizRepository;
     private final DocumentChunkRepository documentChunkRepository;
     private final ProjectRepository projectRepository;
+    private final ProjectMemberRepository projectMemberRepository;
     private final DocumentRepository documentRepository;
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
@@ -62,6 +65,16 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
         if (!isAdmin && request.getQuestionCount() != null && request.getQuestionCount() > maxQuestions) {
             request.setQuestionCount(maxQuestions);
             log.info("Clamped quiz question count to {} for tier {}", maxQuestions, user.getSubscriptionTier());
+        }
+        // Enforce document/project access check
+        if (request.getDocumentId() != null) {
+            Document document = documentRepository.findById(request.getDocumentId())
+                    .orElseThrow(() -> new RuntimeException("Document not found"));
+            checkDocumentAccess(document, user);
+        } else if (request.getProjectId() != null) {
+            Project project = projectRepository.findById(request.getProjectId())
+                    .orElseThrow(() -> new RuntimeException("Project not found"));
+            checkProjectAccess(project, user);
         }
 
         String context = "";
@@ -416,5 +429,35 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
         private List<String> options;
         private String correctAnswer;
         private String explanation;
+    }
+
+    private void checkDocumentAccess(Document document, User user) {
+        if (document.getVisibility() == Visibility.PRIVATE) {
+            if (document.getUploadedBy().getId().equals(user.getId())) {
+                return;
+            }
+
+            boolean isAdmin = user.getRole() != null && "ADMIN".equalsIgnoreCase(user.getRole().getName());
+            if (isAdmin) {
+                return;
+            }
+
+            boolean hasAccess = projectRepository.hasUserAccessToDocumentThroughProjects(document.getId(), user.getId());
+            if (!hasAccess) {
+                throw new org.springframework.security.access.AccessDeniedException("Access denied. You do not have access to this private document.");
+            }
+        }
+    }
+
+    private void checkProjectAccess(Project project, User user) {
+        boolean isAdmin = user.getRole() != null && "ADMIN".equalsIgnoreCase(user.getRole().getName());
+        if (isAdmin) {
+            return;
+        }
+        boolean isProjectOwner = project.getOwner().getId().equals(user.getId());
+        boolean isProjectMember = projectMemberRepository.existsByProjectIdAndUserId(project.getId(), user.getId());
+        if (!isProjectOwner && !isProjectMember) {
+            throw new org.springframework.security.access.AccessDeniedException("You do not have access to this project.");
+        }
     }
 }

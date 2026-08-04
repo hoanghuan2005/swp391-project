@@ -150,7 +150,9 @@ public class AiFlashcardService {
 
         if (!isOwner && !isAdmin) {
             boolean hasAccess = false;
-            if (set.getDocument() != null) {
+            if ("PUBLIC".equalsIgnoreCase(set.getVisibility()) || "PUBLISHED".equalsIgnoreCase(set.getStatus())) {
+                hasAccess = true;
+            } else if (set.getDocument() != null) {
                 Document doc = set.getDocument();
                 if (doc.getVisibility() == Visibility.PUBLIC || doc.getUploadedBy().getId().equals(user.getId())) {
                     hasAccess = true;
@@ -237,6 +239,11 @@ public class AiFlashcardService {
 
     @Transactional
     public FlashcardSetResponse generateFlashcards(MultipartFile file, String text, String email) throws Exception {
+        // Check quota first to avoid parsing files if user has exceeded their quota
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        aiUsageService.checkQuota(user.getEmail());
+
         String content = text != null ? text : "";
         Document linkedDocument = null;
 
@@ -251,11 +258,8 @@ public class AiFlashcardService {
                 content += new String(file.getBytes());
             }
 
-            linkedDocument = documentRepository.findAll().stream()
-                    .filter(doc -> doc.getOriginalFileName() != null &&
-                            doc.getOriginalFileName().equalsIgnoreCase(file.getOriginalFilename()))
-                    .findFirst()
-                    .orElse(null);
+            List<Document> matchingDocs = documentRepository.findByOriginalFileNameIgnoreCase(file.getOriginalFilename());
+            linkedDocument = matchingDocs.isEmpty() ? null : matchingDocs.get(0);
         }
 
         if (content == null || content.trim().isEmpty()) {
@@ -269,9 +273,12 @@ public class AiFlashcardService {
 
     @Transactional
     public FlashcardSetResponse generateFlashcardsFromDocument(UUID documentId, String email) throws Exception {
-        documentParserService.ensureChunksExist(documentId);
         Document document = documentRepository.findById(documentId)
                 .orElseThrow(() -> new RuntimeException("Document not found"));
+
+        checkDocumentAccess(document, email);
+
+        documentParserService.ensureChunksExist(documentId);
 
         if (document.getAiParseStatus() == AiParseStatus.PENDING) {
             throw new RuntimeException("Document is still being processed for AI. Please try again shortly.");
@@ -400,6 +407,9 @@ public class AiFlashcardService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
+        // Validate that the user has permission to access the set before toggling favorite
+        getSetDetailsById(setId, email);
+
         FlashcardSet flashcardSet = flashcardSetRepository.findById(setId)
                 .orElseThrow(() -> new RuntimeException("Flashcard set not found"));
 
@@ -467,5 +477,28 @@ public class AiFlashcardService {
         set.setTitle(newTitle.trim());
         flashcardSetRepository.save(set);
         return getSetDetailsById(setId);
+    }
+
+    private void checkDocumentAccess(Document document, String email) {
+        if (document.getVisibility() == Visibility.PRIVATE) {
+            if (email == null || "anonymousUser".equals(email)) {
+                throw new org.springframework.security.access.AccessDeniedException("Access denied. Please log in.");
+            }
+            User user = userRepository.findByEmail(email)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+
+            if (document.getUploadedBy().getId().equals(user.getId())) {
+                return;
+            }
+
+            if (user.getRole() != null && "ADMIN".equalsIgnoreCase(user.getRole().getName())) {
+                return;
+            }
+
+            boolean hasAccess = projectRepository.hasUserAccessToDocumentThroughProjects(document.getId(), user.getId());
+            if (!hasAccess) {
+                throw new org.springframework.security.access.AccessDeniedException("Access denied. You do not have access to this private document.");
+            }
+        }
     }
 }

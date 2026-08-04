@@ -53,7 +53,8 @@ public class AiFlashcardController {
 
     @GetMapping("/sets/{id}")
     public ResponseEntity<FlashcardSetResponse> getFlashcardSetDetails(@PathVariable UUID id) {
-        FlashcardSetResponse setDetails = aiFlashcardService.getSetDetailsById(id);
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        FlashcardSetResponse setDetails = aiFlashcardService.getSetDetailsById(id, email);
         return ResponseEntity.ok(setDetails);
     }
 

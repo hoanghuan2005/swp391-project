@@ -63,7 +63,9 @@ public class QuizServiceImpl implements QuizService {
 
         if (!isOwner && !isAdmin) {
             boolean hasAccess = false;
-            if (quiz.getDocumentId() != null) {
+            if ("PUBLIC".equalsIgnoreCase(quiz.getVisibility()) || "PUBLISHED".equalsIgnoreCase(quiz.getStatus())) {
+                hasAccess = true;
+            } else if (quiz.getDocumentId() != null) {
                 Document doc = documentRepository.findById(quiz.getDocumentId()).orElse(null);
                 if (doc != null) {
                     if (doc.getVisibility() == Visibility.PUBLIC || doc.getUploadedBy().getId().equals(user.getId())) {
@@ -266,6 +268,10 @@ public class QuizServiceImpl implements QuizService {
     public void toggleFavorite(UUID quizId, String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
+
+        // Enforce visibility/access checks before favoriting
+        getQuizById(quizId, email);
+
         Quiz quiz = quizRepository.findById(quizId)
                 .orElseThrow(() -> new RuntimeException("Quiz not found"));
 

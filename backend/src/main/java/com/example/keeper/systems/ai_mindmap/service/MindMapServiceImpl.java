@@ -22,6 +22,8 @@ import java.util.List;
 import java.util.UUID;
 import org.springframework.web.multipart.MultipartFile;
 import com.example.keeper.systems.ai_ask.service.DocumentParserService;
+import com.example.keeper.systems.project.repository.ProjectRepository;
+import com.example.keeper.systems.document.enums.Visibility;
 
 @Service
 @RequiredArgsConstructor
@@ -35,9 +37,15 @@ public class MindMapServiceImpl implements MindMapService {
     private final DocumentRepository documentRepository;
     private final UserRepository userRepository;
     private final DocumentParserService documentParserService;
+    private final ProjectRepository projectRepository;
 
     @Override
-    public MindMapResponse generate(UUID documentId) {
+    @org.springframework.transaction.annotation.Transactional
+    public MindMapResponse generate(UUID documentId, String email) {
+        Document document = documentRepository.findById(documentId)
+                .orElseThrow(() -> new RuntimeException("Document not found"));
+
+        checkDocumentAccess(document, email);
 
         List<DocumentChunk> chunks =
                 documentChunkRepository.findByDocumentId(documentId);
@@ -52,10 +60,6 @@ public class MindMapServiceImpl implements MindMapService {
 
         String prompt = buildMindMapPrompt(content);
 
-        String email = SecurityContextHolder.getContext()
-                .getAuthentication()
-                .getName();
-
         aiUsageService.checkQuota(email);
 
         String aiResponse =
@@ -68,17 +72,13 @@ public class MindMapServiceImpl implements MindMapService {
         aiUsageService.recordUsage(email, AiUsageFeature.MINDMAP_GENERATION);
 
         String title = "Mindmap: Generated MindMap";
-        try {
-            String docTitle = documentRepository.findById(documentId)
-                    .map(Document::getTitle)
-                    .orElse("Generated MindMap");
+        if (document.getTitle() != null) {
+            String docTitle = document.getTitle();
             if (docTitle.startsWith("Mindmap: ")) {
                 title = docTitle;
             } else {
                 title = "Mindmap: " + docTitle;
             }
-        } catch (Exception e) {
-            // ignore
         }
 
         User user = userRepository.findByEmail(email).orElse(null);
@@ -155,20 +155,42 @@ public class MindMapServiceImpl implements MindMapService {
     }
 
     @Override
-    public MindMapResponse getByDocument(UUID documentId) {
-
+    public MindMapResponse getByDocument(UUID documentId, String email) {
         MindMap mindMap =
                 mindMapRepository.findByDocumentId(documentId)
                         .orElseThrow(() ->
                                 new RuntimeException("MindMap not found"));
 
+        checkMindMapAccess(mindMap, email);
+
         return mapToResponse(mindMap);
     }
 
     @Override
-    public void delete(UUID id) {
+    @org.springframework.transaction.annotation.Transactional
+    public void delete(UUID id, String email) {
+        MindMap mindMap = mindMapRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("MindMap not found"));
 
-        mindMapRepository.deleteById(id);
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        boolean isAdmin = user.getRole() != null && "ADMIN".equalsIgnoreCase(user.getRole().getName());
+
+        if (!isAdmin) {
+            if (mindMap.getUser() != null) {
+                if (!mindMap.getUser().getId().equals(user.getId())) {
+                    throw new org.springframework.security.access.AccessDeniedException("You do not have permission to delete this mindmap.");
+                }
+            } else if (mindMap.getDocumentId() != null) {
+                Document doc = documentRepository.findById(mindMap.getDocumentId()).orElse(null);
+                if (doc != null && !doc.getUploadedBy().getId().equals(user.getId())) {
+                    throw new org.springframework.security.access.AccessDeniedException("You do not have permission to delete this mindmap.");
+                }
+            }
+        }
+
+        mindMapRepository.delete(mindMap);
     }
 
     private String buildMindMapPrompt(String content) {
@@ -244,12 +266,12 @@ public class MindMapServiceImpl implements MindMapService {
 
         if (mindMap.getUser() != null) {
             if (!mindMap.getUser().getId().equals(user.getId())) {
-                throw new RuntimeException("You do not have permission to rename this mindmap");
+                throw new org.springframework.security.access.AccessDeniedException("You do not have permission to rename this mindmap");
             }
         } else {
             Document doc = documentRepository.findById(mindMap.getDocumentId()).orElse(null);
             if (doc != null && !doc.getUploadedBy().getId().equals(user.getId())) {
-                throw new RuntimeException("You do not have permission to rename this mindmap");
+                throw new org.springframework.security.access.AccessDeniedException("You do not have permission to rename this mindmap");
             }
         }
 
@@ -275,5 +297,48 @@ public class MindMapServiceImpl implements MindMapService {
                 .createdAt(mindMap.getCreatedAt())
                 .updatedAt(mindMap.getUpdatedAt())
                 .build();
+    }
+
+    private void checkDocumentAccess(Document document, String email) {
+        if (document.getVisibility() == Visibility.PRIVATE) {
+            if (email == null || "anonymousUser".equals(email)) {
+                throw new org.springframework.security.access.AccessDeniedException("Access denied. Please log in.");
+            }
+            User user = userRepository.findByEmail(email)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+
+            if (document.getUploadedBy().getId().equals(user.getId())) {
+                return;
+            }
+
+            if (user.getRole() != null && "ADMIN".equalsIgnoreCase(user.getRole().getName())) {
+                return;
+            }
+
+            boolean hasAccess = projectRepository.hasUserAccessToDocumentThroughProjects(document.getId(), user.getId());
+            if (!hasAccess) {
+                throw new org.springframework.security.access.AccessDeniedException("Access denied. You do not have access to this private document.");
+            }
+        }
+    }
+
+    private void checkMindMapAccess(MindMap mindMap, String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        boolean isAdmin = user.getRole() != null && "ADMIN".equalsIgnoreCase(user.getRole().getName());
+        if (isAdmin) {
+            return;
+        }
+
+        if (mindMap.getUser() != null) {
+            if (!mindMap.getUser().getId().equals(user.getId())) {
+                throw new org.springframework.security.access.AccessDeniedException("You do not have permission to access this mindmap.");
+            }
+        } else if (mindMap.getDocumentId() != null) {
+            Document doc = documentRepository.findById(mindMap.getDocumentId()).orElse(null);
+            if (doc != null) {
+                checkDocumentAccess(doc, email);
+            }
+        }
     }
 }

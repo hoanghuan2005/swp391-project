@@ -67,6 +67,15 @@ public class GlobalExceptionHandler {
                                                 "message", ex.getMessage()));
         }
 
+        @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+        public ResponseEntity<Map<String, Object>> handleAccessDeniedException(
+                        org.springframework.security.access.AccessDeniedException ex) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                                .body(Map.of(
+                                                "code", "FORBIDDEN",
+                                                "message", ex.getMessage()));
+        }
+
         @ExceptionHandler(Exception.class)
         public ResponseEntity<Map<String, Object>> handleAllExceptions(Exception ex) {
                 ex.printStackTrace(); // Logs the stack trace to the console

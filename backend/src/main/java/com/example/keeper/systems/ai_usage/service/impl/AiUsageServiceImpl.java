@@ -18,7 +18,6 @@ import java.time.LocalDateTime;
 @RequiredArgsConstructor
 public class AiUsageServiceImpl implements AiUsageService {
 
-
     private static final long FREE_DAILY_LIMIT = 5;
 
     private final UserRepository userRepository;
@@ -36,8 +35,7 @@ public class AiUsageServiceImpl implements AiUsageService {
 
         if (used >= FREE_DAILY_LIMIT) {
             throw new AiQuotaExceededException(
-                    "Daily AI request limit reached."
-            );
+                    "Daily AI request limit reached.");
         }
     }
 

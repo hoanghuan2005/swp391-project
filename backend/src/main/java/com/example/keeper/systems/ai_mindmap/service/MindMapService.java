@@ -9,13 +9,13 @@ import org.springframework.web.multipart.MultipartFile;
 
 public interface MindMapService {
 
-    MindMapResponse generate(UUID documentId);
+    MindMapResponse generate(UUID documentId, String email);
 
     MindMapResponse generateFromFile(MultipartFile file, String text, String title);
 
-    MindMapResponse getByDocument(UUID documentId);
+    MindMapResponse getByDocument(UUID documentId, String email);
 
-    void delete(UUID mindMapId);
+    void delete(UUID mindMapId, String email);
 
     MindMapResponse renameMindMap(UUID id, String newTitle, String userEmail);
 

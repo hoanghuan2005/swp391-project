@@ -29,9 +29,9 @@ public class MindMapController {
     public ResponseEntity<MindMapResponse> generate(
             @RequestBody GenerateMindMapRequest request
     ) {
-
+        String email = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
         return ResponseEntity.ok(
-                mindMapService.generate(request.getDocumentId())
+                mindMapService.generate(request.getDocumentId(), email)
         );
     }
 
@@ -50,9 +50,9 @@ public class MindMapController {
     public ResponseEntity<MindMapResponse> getByDocument(
             @PathVariable UUID documentId
     ) {
-
+        String email = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
         return ResponseEntity.ok(
-                mindMapService.getByDocument(documentId)
+                mindMapService.getByDocument(documentId, email)
         );
     }
 
@@ -60,8 +60,8 @@ public class MindMapController {
     public ResponseEntity<Void> delete(
             @PathVariable UUID mindMapId
     ) {
-
-        mindMapService.delete(mindMapId);
+        String email = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+        mindMapService.delete(mindMapId, email);
 
         return ResponseEntity.ok().build();
     }
