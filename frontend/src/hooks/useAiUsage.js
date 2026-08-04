@@ -35,23 +35,36 @@ export default function useAiUsage() {
       return;
     }
 
-    getMyAiUsage()
-      .then((usage) => {
-        if (active) {
-          setAiUsage(usage);
-        }
-      })
-      .catch((error) => {
-        console.error("Failed to load AI usage:", error);
-      })
-      .finally(() => {
-        if (active) {
-          setLoading(false);
-        }
-      });
+    const fetchUsage = () => {
+      getMyAiUsage()
+        .then((usage) => {
+          if (active) {
+            setAiUsage(usage);
+          }
+        })
+        .catch((error) => {
+          console.error("Failed to load AI usage:", error);
+        })
+        .finally(() => {
+          if (active) {
+            setLoading(false);
+          }
+        });
+    };
+
+    fetchUsage();
+
+    const handleUpdate = () => {
+      fetchUsage();
+    };
+
+    window.addEventListener("subscription-success", handleUpdate);
+    window.addEventListener("subscription:updated", handleUpdate);
 
     return () => {
       active = false;
+      window.removeEventListener("subscription-success", handleUpdate);
+      window.removeEventListener("subscription:updated", handleUpdate);
     };
   }, []);
 
@@ -61,4 +74,3 @@ export default function useAiUsage() {
     refreshAiUsage,
   };
 }
-

@@ -486,6 +486,7 @@ export default function AskAIPage() {
         }
         type={quotaDialog.type}
         message={quotaDialog.message}
+        fileSize={quotaDialog.fileSize}
       />
 
       <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>

@@ -128,6 +128,7 @@ public class SecurityConfig {
                                                                 "/api/projects/public",
                                                                 "/api/projects/shared/**",
                                                                 "/api/projects/invitations/*",
+                                                                "/api/subscription/plans",
                                                                 "/api/payments/vnpay/confirm-return",
 //                                                                "/api/ai/shared/ask",
                                                                 

@@ -94,12 +94,16 @@ public class DocumentServiceImpl implements DocumentService {
     public Document uploadAndCreate(MultipartFile file, CreateDocumentRequest request) {
         documentQuotaService.validateUpload(getCurrentUserEmail(), file.getSize());
 
-        FileUploadResult uploadResult = fileStorageService.uploadFile(file, "documents");
+        Document document = buildDocument(request);
+        User u = document.getUploadedBy();
+        String folder = (u != null && u.getId() != null)
+                ? "swp391/users/" + u.getId() + "/documents"
+                : "swp391/documents";
+
+        FileUploadResult uploadResult = fileStorageService.uploadFile(file, folder);
         String fileUrl = uploadResult.getSecureUrl();
         String publicId = uploadResult.getPublicId();
         String resourceType = uploadResult.getResourceType();
-
-        Document document = buildDocument(request);
 
         document.setFileUrl(fileUrl);
         document.setCloudinaryPublicId(publicId);
@@ -818,7 +822,9 @@ public class DocumentServiceImpl implements DocumentService {
         }
 
         String lower = filename.toLowerCase();
-        if (lower.endsWith(".pdf") || lower.endsWith(".docx") || lower.endsWith(".pptx")) {
+        if (lower.endsWith(".pdf") || lower.endsWith(".docx") || lower.endsWith(".doc") 
+                || lower.endsWith(".pptx") || lower.endsWith(".ppt")
+                || lower.endsWith(".txt") || lower.endsWith(".csv") || lower.endsWith(".md") || lower.endsWith(".json")) {
             return AiParseStatus.PENDING;
         }
 

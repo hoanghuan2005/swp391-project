@@ -10,10 +10,7 @@ import com.example.keeper.systems.ai_ask.enums.MessageRole;
 import com.example.keeper.systems.ai_ask.repository.AiConversationRepository;
 import com.example.keeper.systems.ai_ask.repository.AiMessageRepository;
 import com.example.keeper.systems.ai_ask.repository.DocumentChunkRepository;
-import com.example.keeper.systems.ai_ask.service.AiAskService;
-import com.example.keeper.systems.ai_ask.service.ConversationService;
-import com.example.keeper.systems.ai_ask.service.GroqService;
-import com.example.keeper.systems.ai_ask.service.EmbeddingService;
+import com.example.keeper.systems.ai_ask.service.*;
 import com.example.keeper.systems.document.entity.Document;
 import com.example.keeper.systems.document.enums.AiParseStatus;
 import com.example.keeper.systems.document.repository.DocumentRepository;
@@ -59,6 +56,7 @@ public class AiAskServiceImpl implements AiAskService {
     private final GroqService groqService;
     private final EmbeddingService embeddingService;
     private final AiUsageService aiUsageService;
+    private final DocumentParserService documentParserService;
 
     @Override
     @Transactional
@@ -280,6 +278,11 @@ public class AiAskServiceImpl implements AiAskService {
                 }
 
                 if (doc.getAiParseStatus() != AiParseStatus.READY) {
+                    documentParserService.ensureChunksExist(doc.getId());
+                    doc = documentRepository.findById(doc.getId()).orElse(doc);
+                }
+
+                if (doc.getAiParseStatus() != AiParseStatus.READY) {
                     prompt.append("\n[Skipped Document: ")
                             .append(doc.getTitle())
                             .append(" - aiParseStatus: ")
@@ -447,6 +450,21 @@ public class AiAskServiceImpl implements AiAskService {
 
         Document document = documentRepository.findById(docId)
                 .orElseThrow(() -> new RuntimeException("Document not found"));
+
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        User user = userRepository.findByEmail(email).orElse(null);
+        if (user != null) {
+            boolean isOwner = document.getUploadedBy() != null && document.getUploadedBy().getId().equals(user.getId());
+            boolean isAdmin = user.getRole() != null && "ADMIN".equalsIgnoreCase(user.getRole().getName());
+            boolean isPublic = document.getVisibility() == com.example.keeper.systems.document.enums.Visibility.PUBLIC;
+            if (!isOwner && !isAdmin && !isPublic) {
+                boolean hasProjectAccess = projectRepository.hasUserAccessToDocumentThroughProjects(document.getId(), user.getId());
+                if (!hasProjectAccess) {
+                    throw new org.springframework.security.access.AccessDeniedException("You do not have permission to access this document.");
+                }
+            }
+        }
+
         ensureReadyForAi(document);
 
         List<DocumentChunk> chunks;
@@ -512,6 +530,11 @@ public class AiAskServiceImpl implements AiAskService {
     }
 
     private void ensureReadyForAi(Document document) {
+        if (document.getAiParseStatus() != AiParseStatus.READY) {
+            documentParserService.ensureChunksExist(document.getId());
+            document = documentRepository.findById(document.getId()).orElse(document);
+        }
+
         AiParseStatus status = document.getAiParseStatus();
         if (status == AiParseStatus.PENDING) {
             throw new RuntimeException("Document is still being processed for AI. Please try again shortly.");

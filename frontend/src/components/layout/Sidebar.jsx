@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import axiosClient from "@/api/axiosClient";
 import { cn } from "@/lib/utils";
 import CreateProjectModal from "@/components/projects/CreateProjectModal";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -40,6 +41,7 @@ import {
 } from "lucide-react";
 import UploadDocumentDialog from "@/components/documents/UploadDocumentDialog";
 import useAiUsage from "@/hooks/useAiUsage";
+import StorageProgressBar from "@/components/storage/StorageProgressBar";
 
 function NavItem({ to, icon: Icon, label, isOpen, pathname }) {
   const isActive = pathname === to || (to === "/" && pathname === "/");
@@ -254,11 +256,15 @@ export default function Sidebar({ isOpen = true }) {
     // Lắng nghe sự kiện từ các component khác
     window.addEventListener("documents:uploaded", handleDocumentUploaded);
     window.addEventListener("survey:completed", handleSurveyCompleted);
+    window.addEventListener("subscription-success", fetchSidebarProfile);
+    window.addEventListener("subscription:updated", fetchSidebarProfile);
 
     // Cleanup event khi component unmount
     return () => {
       window.removeEventListener("documents:uploaded", handleDocumentUploaded);
       window.removeEventListener("survey:completed", handleSurveyCompleted);
+      window.removeEventListener("subscription-success", fetchSidebarProfile);
+      window.removeEventListener("subscription:updated", fetchSidebarProfile);
     };
   }, []);
 
@@ -381,30 +387,30 @@ export default function Sidebar({ isOpen = true }) {
   return (
     <aside
       className={cn(
-        "h-[calc(100vh-68px)] overflow-y-auto pb-10 bg-white [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] border-r border-gray-100 transition-all duration-300 ease-in-out shadow-sm",
+        "h-[calc(100vh-68px)] overflow-y-auto pb-3 bg-white [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] border-r border-gray-100 transition-all duration-300 ease-in-out shadow-sm",
         isOpen ? "w-[280px] px-3 pt-3" : "w-[72px] px-2 pt-3",
         "hidden lg:block shrink-0",
       )}
     >
-      {/* User Profile Block */}
-      <div
-        className={cn(
-          "mb-6 mt-2 flex flex-col items-center",
-          isOpen ? "px-2" : "",
-        )}
-      >
+        {/* User Profile Block */}
         <div
           className={cn(
-            "flex items-center w-full",
-            isOpen ? "justify-start gap-4 mb-5" : "justify-center",
+            "mb-6 mt-2 flex flex-col items-center",
+            isOpen ? "px-2" : "",
           )}
         >
+          <div
+            className={cn(
+              "flex items-center w-full",
+              isOpen ? "justify-start gap-4 mb-5" : "justify-center",
+            )}
+          >
           <div className={cn(
             "h-[42px] w-[42px] shrink-0 rounded-full bg-[#f26522] text-white flex items-center justify-center font-bold text-lg shadow-sm uppercase transition-all",
             subscriptionTier === "PRO" && "ring-2 ring-yellow-400 ring-offset-2 shadow-[0_0_8px_rgba(250,204,21,0.6)]"
           )}>
-            {sidebarProfile.fullName.charAt(0)}
-          </div>
+              {sidebarProfile.fullName.charAt(0)}
+            </div>
           <div
             className={cn(
               "overflow-hidden transition-all duration-300 whitespace-nowrap",
@@ -426,8 +432,8 @@ export default function Sidebar({ isOpen = true }) {
         {/* Stats */}
         <div
           className={cn(
-            "flex items-center justify-between text-center w-full overflow-hidden whitespace-nowrap transition-all duration-300",
-            isOpen ? "h-[50px] opacity-100 px-2 mb-4" : "h-0 opacity-0 m-0",
+            "flex items-center justify-around text-center w-full overflow-hidden whitespace-nowrap transition-all duration-300",
+            isOpen ? "h-[50px] opacity-100 px-6 mb-4" : "h-0 opacity-0 m-0",
           )}
         >
           <div className="flex flex-col items-center">
@@ -444,14 +450,6 @@ export default function Sidebar({ isOpen = true }) {
             </div>
             <div className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide">
               Uploads
-            </div>
-          </div>
-          <div className="flex flex-col items-center">
-            <div className="text-base font-extrabold text-slate-800">
-              {sidebarProfile.upvotes}
-            </div>
-            <div className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide">
-              Upvotes
             </div>
           </div>
         </div>
@@ -649,7 +647,7 @@ export default function Sidebar({ isOpen = true }) {
             variant="ghost"
             onClick={() => {
               if (localStorage.getItem("isLoggedIn") !== "true") {
-                alert("Vui lòng đăng nhập để thêm môn học!");
+                toast.warning("Please log in to add courses!");
                 navigate("/login");
                 return;
               }
@@ -679,7 +677,7 @@ export default function Sidebar({ isOpen = true }) {
             variant="ghost"
             onClick={() => {
               if (localStorage.getItem("isLoggedIn") !== "true") {
-                alert("Vui lòng đăng nhập để thêm Workspace!");
+                toast.warning("Please log in to add workspaces!");
                 navigate("/login");
                 return;
               }
@@ -705,6 +703,11 @@ export default function Sidebar({ isOpen = true }) {
           }}
         />
       </nav>
+
+      {/* Storage Progress Bar (Fixed at Bottom of Sidebar) */}
+      <div className="sticky bottom-0 bg-white pt-2 border-t border-slate-100 z-20">
+        <StorageProgressBar isOpen={isOpen} />
+      </div>
 
       {/* Course Library Dialog */}
       <Dialog open={courseLibraryOpen} onOpenChange={setCourseLibraryOpen}>

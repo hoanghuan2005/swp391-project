@@ -12,9 +12,14 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface DocumentRepository extends JpaRepository<Document, UUID> {
+
+        Optional<Document> findFirstByUploadedByIdAndOriginalFileNameIgnoreCase(UUID uploadedById, String originalFileName);
+
+        Optional<Document> findFirstByOriginalFileNameIgnoreCase(String originalFileName);
 
         Page<Document> findByCourseId(UUID courseId, Pageable pageable);
 

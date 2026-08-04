@@ -271,15 +271,15 @@ export default function LandingPage() {
                   </li>
                   <li className="flex items-start gap-2.5 text-sm text-slate-600 font-semibold">
                     <Check className="h-5 w-5 text-green-500 shrink-0" strokeWidth={3} />
-                    <span>Join up to 5 workspaces</span>
-                  </li>
-                  <li className="flex items-start gap-2.5 text-sm text-slate-600 font-semibold">
-                    <Check className="h-5 w-5 text-green-500 shrink-0" strokeWidth={3} />
                     <span>10MB max file size</span>
                   </li>
                   <li className="flex items-start gap-2.5 text-sm text-slate-600 font-semibold">
                     <Check className="h-5 w-5 text-green-500 shrink-0" strokeWidth={3} />
-                    <span>20 total documents</span>
+                    <span>100MB total storage capacity</span>
+                  </li>
+                  <li className="flex items-start gap-2.5 text-sm text-slate-600 font-semibold">
+                    <Check className="h-5 w-5 text-green-500 shrink-0" strokeWidth={3} />
+                    <span>3 document uploads per day</span>
                   </li>
                 </ul>
               </div>
@@ -293,9 +293,11 @@ export default function LandingPage() {
 
             {/* Pro Plan */}
             <div className="bg-white p-8 rounded-xl border-2 border-orange-500 shadow-md flex flex-col justify-between transition-all duration-300 relative scale-[1.01] md:scale-105">
-              <span className="absolute -top-3.5 right-8 bg-gradient-to-r from-orange-500 to-amber-500 text-white text-[11px] font-extrabold px-3 py-1.5 rounded-full shadow-sm tracking-wider uppercase">
-                Popular
-              </span>
+              {(!isLoggedIn || subscriptionTier !== "PRO") && (
+                <span className="absolute -top-3.5 right-8 bg-gradient-to-r from-orange-500 to-amber-500 text-white text-[11px] font-extrabold px-3 py-1.5 rounded-full shadow-sm tracking-wider uppercase">
+                  Popular
+                </span>
+              )}
               <div>
                 <div className="flex items-center gap-2">
                   <h3 className="text-2xl font-black text-slate-800">Pro</h3>
@@ -329,7 +331,11 @@ export default function LandingPage() {
                   </li>
                   <li className="flex items-start gap-2.5 text-sm text-slate-600 font-semibold">
                     <Check className="h-5 w-5 text-green-500 shrink-0" strokeWidth={3} />
-                    <span>Unlimited documents</span>
+                    <span>1GB total storage capacity</span>
+                  </li>
+                  <li className="flex items-start gap-2.5 text-sm text-slate-600 font-semibold">
+                    <Check className="h-5 w-5 text-green-500 shrink-0" strokeWidth={3} />
+                    <span>Unlimited document uploads</span>
                   </li>
                   <li className="flex items-start gap-2.5 text-sm text-slate-600 font-semibold">
                     <Check className="h-5 w-5 text-green-500 shrink-0" strokeWidth={3} />

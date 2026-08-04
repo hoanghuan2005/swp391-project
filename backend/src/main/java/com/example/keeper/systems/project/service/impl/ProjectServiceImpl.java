@@ -1,6 +1,6 @@
 package com.example.keeper.systems.project.service.impl;
 
-import com.example.keeper.systems.auth.config.TierLimitsConfig;
+import com.example.keeper.systems.auth.repository.SubscriptionPlanRepository;
 import com.example.keeper.systems.auth.entity.User;
 import com.example.keeper.systems.auth.repository.UserRepository;
 import com.example.keeper.systems.auth.service.EmailService;
@@ -43,8 +43,23 @@ public class ProjectServiceImpl implements ProjectService {
     private final com.example.keeper.systems.ai_quiz.repository.QuizRepository quizRepository;
     private final ProjectMemberRepository projectMemberRepository;
     private final ProjectInvitationRepository projectInvitationRepository;
+    private final SubscriptionPlanRepository subscriptionPlanRepository;
     private final EmailService emailService;
     private final NotificationService notificationService;
+
+    private int getMaxOwnedProjects(User user) {
+        String tierCode = user.getSubscriptionTier() != null ? user.getSubscriptionTier().name() : "FREE";
+        return subscriptionPlanRepository.findByCodeAndIsActiveTrue(tierCode)
+                .map(p -> p.getMaxOwnedProjects() != null ? p.getMaxOwnedProjects() : (tierCode.equalsIgnoreCase("PRO") ? -1 : 3))
+                .orElse(tierCode.equalsIgnoreCase("PRO") ? -1 : 3);
+    }
+
+    private int getMaxJoinedProjects(User user) {
+        String tierCode = user.getSubscriptionTier() != null ? user.getSubscriptionTier().name() : "FREE";
+        return subscriptionPlanRepository.findByCodeAndIsActiveTrue(tierCode)
+                .map(p -> p.getMaxJoinedProjects() != null ? p.getMaxJoinedProjects() : (tierCode.equalsIgnoreCase("PRO") ? -1 : 5))
+                .orElse(tierCode.equalsIgnoreCase("PRO") ? -1 : 5);
+    }
 
     @Override
     @Transactional
@@ -55,8 +70,8 @@ public class ProjectServiceImpl implements ProjectService {
         // Enforce tier-based project creation limit
         boolean isAdmin = user.getRole() != null && "ADMIN".equals(user.getRole().getName());
         if (!isAdmin) {
-            int maxOwned = TierLimitsConfig.getMaxOwnedProjects(user.getSubscriptionTier());
-            if (!TierLimitsConfig.isUnlimited(maxOwned)) {
+            int maxOwned = getMaxOwnedProjects(user);
+            if (maxOwned >= 0) {
                 long currentCount = projectRepository.countByOwnerId(user.getId());
                 if (currentCount >= maxOwned) {
                     throw new ProjectQuotaExceededException(
@@ -430,8 +445,8 @@ public class ProjectServiceImpl implements ProjectService {
         // Enforce tier-based joined project limit
         boolean isAdmin = user.getRole() != null && "ADMIN".equals(user.getRole().getName());
         if (!isAdmin) {
-            int maxJoined = TierLimitsConfig.getMaxJoinedProjects(user.getSubscriptionTier());
-            if (!TierLimitsConfig.isUnlimited(maxJoined)) {
+            int maxJoined = getMaxJoinedProjects(user);
+            if (maxJoined >= 0) {
                 long currentCount = projectMemberRepository.countByUserId(user.getId());
                 if (currentCount >= maxJoined) {
                     throw new ProjectQuotaExceededException(

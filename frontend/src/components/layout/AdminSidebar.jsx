@@ -141,6 +141,13 @@ export default function AdminSidebar({ isOpen = true }) {
           pathname={location.pathname}
         />
         <AdminNavItem
+          to="/admin/plans"
+          icon={Layers}
+          label="Subscription Plans"
+          isOpen={isOpen}
+          pathname={location.pathname}
+        />
+        <AdminNavItem
           to="/admin/ai-usages"
           icon={Brain}
           label="AI Usages"

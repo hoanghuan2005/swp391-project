@@ -1,0 +1,80 @@
+package com.example.keeper.systems.auth.controller;
+
+import com.example.keeper.systems.auth.entity.SubscriptionPlan;
+import com.example.keeper.systems.auth.repository.SubscriptionPlanRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.UUID;
+
+@RestController
+@RequestMapping("/api/admin/subscription-plans")
+@RequiredArgsConstructor
+public class AdminSubscriptionPlanController {
+
+    private final SubscriptionPlanRepository subscriptionPlanRepository;
+
+    @GetMapping
+    public ResponseEntity<List<SubscriptionPlan>> getAllPlans() {
+        return ResponseEntity.ok(subscriptionPlanRepository.findAll());
+    }
+
+    @PostMapping
+    public ResponseEntity<SubscriptionPlan> createPlan(@RequestBody SubscriptionPlan plan) {
+        if (plan.getCode() != null) {
+            plan.setCode(plan.getCode().toUpperCase().trim());
+        }
+        SubscriptionPlan saved = subscriptionPlanRepository.save(plan);
+        return ResponseEntity.ok(saved);
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<SubscriptionPlan> updatePlan(
+            @PathVariable UUID id,
+            @RequestBody SubscriptionPlan updateData) {
+
+        SubscriptionPlan plan = subscriptionPlanRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Subscription plan not found: " + id));
+
+        if (updateData.getName() != null) plan.setName(updateData.getName());
+        if (updateData.getPriceVnd() != null) plan.setPriceVnd(updateData.getPriceVnd());
+        if (updateData.getMaxFileSizeBytes() != null) plan.setMaxFileSizeBytes(updateData.getMaxFileSizeBytes());
+        if (updateData.getTotalStorageBytes() != null) plan.setTotalStorageBytes(updateData.getTotalStorageBytes());
+        if (updateData.getDailyUploadLimit() != null) plan.setDailyUploadLimit(updateData.getDailyUploadLimit());
+        if (updateData.getTotalDocumentLimit() != null) plan.setTotalDocumentLimit(updateData.getTotalDocumentLimit());
+        if (updateData.getDailyAiLimit() != null) plan.setDailyAiLimit(updateData.getDailyAiLimit());
+        if (updateData.getMaxFlashcardsPerGeneration() != null) plan.setMaxFlashcardsPerGeneration(updateData.getMaxFlashcardsPerGeneration());
+        if (updateData.getMaxQuizQuestionsPerGeneration() != null) plan.setMaxQuizQuestionsPerGeneration(updateData.getMaxQuizQuestionsPerGeneration());
+        if (updateData.getMaxOwnedProjects() != null) plan.setMaxOwnedProjects(updateData.getMaxOwnedProjects());
+        if (updateData.getMaxJoinedProjects() != null) plan.setMaxJoinedProjects(updateData.getMaxJoinedProjects());
+        plan.setIsActive(updateData.getIsActive());
+
+        SubscriptionPlan updated = subscriptionPlanRepository.save(plan);
+        return ResponseEntity.ok(updated);
+    }
+
+    @PatchMapping("/{id}/toggle")
+    public ResponseEntity<SubscriptionPlan> togglePlanStatus(@PathVariable UUID id) {
+        SubscriptionPlan plan = subscriptionPlanRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Subscription plan not found: " + id));
+
+        plan.setIsActive(!plan.getIsActive());
+        SubscriptionPlan updated = subscriptionPlanRepository.save(plan);
+        return ResponseEntity.ok(updated);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deletePlan(@PathVariable UUID id) {
+        SubscriptionPlan plan = subscriptionPlanRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Subscription plan not found: " + id));
+
+        if ("FREE".equalsIgnoreCase(plan.getCode()) || "PRO".equalsIgnoreCase(plan.getCode())) {
+            throw new IllegalArgumentException("Core system plans (FREE, PRO) cannot be deleted. You can toggle them to Inactive instead.");
+        }
+
+        subscriptionPlanRepository.delete(plan);
+        return ResponseEntity.noContent().build();
+    }
+}

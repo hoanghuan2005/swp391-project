@@ -137,10 +137,16 @@
 			<version>3.0.2</version>
 		</dependency>
 
-		<!-- Apache POI for DOCX parsing -->
+		<!-- Apache POI for DOCX and PPTX parsing -->
 		<dependency>
 			<groupId>org.apache.poi</groupId>
 			<artifactId>poi-ooxml</artifactId>
+			<version>5.2.5</version>
+		</dependency>
+		<!-- Apache POI Scratchpad for legacy PPT and DOC parsing -->
+		<dependency>
+			<groupId>org.apache.poi</groupId>
+			<artifactId>poi-scratchpad</artifactId>
 			<version>5.2.5</version>
 		</dependency>
 		<dependency>

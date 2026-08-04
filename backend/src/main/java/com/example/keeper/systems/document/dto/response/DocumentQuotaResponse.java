@@ -13,4 +13,7 @@ public class DocumentQuotaResponse {
     private long totalDocuments;
     private long totalDocumentLimit;
     private long maxFileSizeBytes;
+    private long usedStorageBytes;
+    private long maxStorageBytes;
 }
+

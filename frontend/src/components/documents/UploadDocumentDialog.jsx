@@ -296,6 +296,7 @@ export default function UploadDocumentDialog({
             headers: {
               "Content-Type": "multipart/form-data",
             },
+            timeout: 180000,
           },
         );
 
@@ -351,6 +352,7 @@ export default function UploadDocumentDialog({
             ? "FILE_SIZE"
             : "DOCUMENT",
           message,
+          fileSize: selectedFile?.size,
         });
         await refreshDocumentQuota();
         return;
@@ -397,6 +399,7 @@ export default function UploadDocumentDialog({
         open: true,
         type: "FILE_SIZE",
         message: `Maximum file size for your plan is ${maxFileSizeMb}MB.`,
+        fileSize: selectedFile.size,
       });
       return;
     }
@@ -804,6 +807,7 @@ export default function UploadDocumentDialog({
         }
         type={quotaDialog.type}
         message={quotaDialog.message}
+        fileSize={quotaDialog.fileSize}
       />
     </>
   );

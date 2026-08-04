@@ -21,7 +21,7 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.web.multipart.MultipartFile;
-import com.example.keeper.systems.ai_ask.service.DocumentParserService;
+import com.example.keeper.systems.project.repository.ProjectRepository;
 
 @Service
 @RequiredArgsConstructor
@@ -35,9 +35,32 @@ public class MindMapServiceImpl implements MindMapService {
     private final DocumentRepository documentRepository;
     private final UserRepository userRepository;
     private final DocumentParserService documentParserService;
+    private final ProjectRepository projectRepository;
 
     @Override
     public MindMapResponse generate(UUID documentId) {
+        String email = SecurityContextHolder.getContext()
+                .getAuthentication()
+                .getName();
+
+        aiUsageService.checkQuota(email);
+
+        User user = userRepository.findByEmail(email).orElse(null);
+        Document document = documentRepository.findById(documentId)
+                .orElseThrow(() -> new RuntimeException("Document not found"));
+
+        if (user != null) {
+            boolean isOwner = document.getUploadedBy() != null && document.getUploadedBy().getId().equals(user.getId());
+            boolean isAdmin = user.getRole() != null && "ADMIN".equalsIgnoreCase(user.getRole().getName());
+            boolean isPublic = document.getVisibility() == com.example.keeper.systems.document.enums.Visibility.PUBLIC;
+
+            if (!isOwner && !isAdmin && !isPublic) {
+                boolean hasProjectAccess = projectRepository.hasUserAccessToDocumentThroughProjects(document.getId(), user.getId());
+                if (!hasProjectAccess) {
+                    throw new org.springframework.security.access.AccessDeniedException("You do not have permission to access this document.");
+                }
+            }
+        }
 
         List<DocumentChunk> chunks =
                 documentChunkRepository.findByDocumentId(documentId);
@@ -52,12 +75,6 @@ public class MindMapServiceImpl implements MindMapService {
 
         String prompt = buildMindMapPrompt(content);
 
-        String email = SecurityContextHolder.getContext()
-                .getAuthentication()
-                .getName();
-
-        aiUsageService.checkQuota(email);
-
         String aiResponse =
                 groqService.generateContent(prompt);
 
@@ -69,9 +86,7 @@ public class MindMapServiceImpl implements MindMapService {
 
         String title = "Mindmap: Generated MindMap";
         try {
-            String docTitle = documentRepository.findById(documentId)
-                    .map(Document::getTitle)
-                    .orElse("Generated MindMap");
+            String docTitle = document.getTitle() != null ? document.getTitle() : "Generated MindMap";
             if (docTitle.startsWith("Mindmap: ")) {
                 title = docTitle;
             } else {
@@ -80,8 +95,6 @@ public class MindMapServiceImpl implements MindMapService {
         } catch (Exception e) {
             // ignore
         }
-
-        User user = userRepository.findByEmail(email).orElse(null);
 
         MindMap mindMap = MindMap.builder()
                 .documentId(documentId)
@@ -99,6 +112,12 @@ public class MindMapServiceImpl implements MindMapService {
     @Override
     @org.springframework.transaction.annotation.Transactional
     public MindMapResponse generateFromFile(MultipartFile file, String text, String title) {
+        String email = SecurityContextHolder.getContext()
+                .getAuthentication()
+                .getName();
+
+        aiUsageService.checkQuota(email);
+
         String content = "";
         if (file != null && !file.isEmpty()) {
             content = documentParserService.parseTextOnly(file);
@@ -115,12 +134,6 @@ public class MindMapServiceImpl implements MindMapService {
         }
 
         String prompt = buildMindMapPrompt(content);
-
-        String email = SecurityContextHolder.getContext()
-                .getAuthentication()
-                .getName();
-
-        aiUsageService.checkQuota(email);
 
         String aiResponse =
                 groqService.generateContent(prompt);

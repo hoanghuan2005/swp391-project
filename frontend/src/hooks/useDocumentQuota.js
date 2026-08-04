@@ -8,6 +8,8 @@ const DEFAULT_QUOTA = {
   totalDocuments: null,
   totalDocumentLimit: null,
   maxFileSizeBytes: null,
+  usedStorageBytes: 0,
+  maxStorageBytes: null,
 };
 
 export default function useDocumentQuota() {
@@ -31,23 +33,36 @@ export default function useDocumentQuota() {
   useEffect(() => {
     let active = true;
 
-    getMyDocumentQuota()
-      .then((quota) => {
-        if (active) {
-          setDocumentQuota(quota);
-        }
-      })
-      .catch((error) => {
-        console.error("Failed to load document quota:", error);
-      })
-      .finally(() => {
-        if (active) {
-          setLoading(false);
-        }
-      });
+    const fetchQuota = () => {
+      getMyDocumentQuota()
+        .then((quota) => {
+          if (active) {
+            setDocumentQuota(quota);
+          }
+        })
+        .catch((error) => {
+          console.error("Failed to load document quota:", error);
+        })
+        .finally(() => {
+          if (active) {
+            setLoading(false);
+          }
+        });
+    };
+
+    fetchQuota();
+
+    const handleUpdate = () => {
+      fetchQuota();
+    };
+
+    window.addEventListener("subscription-success", handleUpdate);
+    window.addEventListener("subscription:updated", handleUpdate);
 
     return () => {
       active = false;
+      window.removeEventListener("subscription-success", handleUpdate);
+      window.removeEventListener("subscription:updated", handleUpdate);
     };
   }, []);
 

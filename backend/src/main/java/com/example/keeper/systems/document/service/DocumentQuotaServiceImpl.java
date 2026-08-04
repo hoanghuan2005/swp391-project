@@ -1,7 +1,8 @@
 package com.example.keeper.systems.document.service;
 
+import com.example.keeper.systems.auth.entity.SubscriptionPlan;
 import com.example.keeper.systems.auth.entity.User;
-import com.example.keeper.systems.auth.enums.SubscriptionTier;
+import com.example.keeper.systems.auth.repository.SubscriptionPlanRepository;
 import com.example.keeper.systems.auth.repository.UserRepository;
 import com.example.keeper.systems.document.dto.response.DocumentQuotaResponse;
 import com.example.keeper.systems.document.exception.DocumentQuotaExceededException;
@@ -16,14 +17,11 @@ import java.time.LocalDateTime;
 @RequiredArgsConstructor
 public class DocumentQuotaServiceImpl implements DocumentQuotaService {
 
-    private static final long FREE_DAILY_UPLOAD_LIMIT = 3;
-    private static final long FREE_TOTAL_DOCUMENT_LIMIT = 20;
-    private static final long FREE_MAX_FILE_SIZE = 10L * 1024 * 1024;
-    private static final long PRO_MAX_FILE_SIZE = 50L * 1024 * 1024;
     private static final long UNLIMITED = -1;
 
     private final UserRepository userRepository;
     private final DocumentRepository documentRepository;
+    private final SubscriptionPlanRepository subscriptionPlanRepository;
 
     @Override
     public void validateUpload(String email, long fileSize) {
@@ -32,17 +30,25 @@ public class DocumentQuotaServiceImpl implements DocumentQuotaService {
             return;
         }
 
-        long maxFileSize = getMaxFileSize(user);
+        SubscriptionPlan plan = getPlanForUser(user);
 
+        long maxFileSize = plan.getMaxFileSizeBytes();
         if (fileSize > maxFileSize) {
             throw new DocumentQuotaExceededException(
                     "Maximum document file size is " + toMegabytes(maxFileSize) + "MB for your subscription tier.");
         }
 
-        validateDocumentCount(user);
+        long usedStorage = getUsedStorage(user);
+        long maxStorage = plan.getTotalStorageBytes();
+        if (maxStorage != UNLIMITED && (usedStorage + fileSize > maxStorage)) {
+            throw new DocumentQuotaExceededException(
+                    "Total storage limit (" + toMegabytes(maxStorage) + "MB) exceeded.");
+        }
 
-        if (user.getSubscriptionTier() == SubscriptionTier.FREE
-                && getUploadsToday(user) >= FREE_DAILY_UPLOAD_LIMIT) {
+        validateDocumentCount(user, plan);
+
+        long dailyLimit = plan.getDailyUploadLimit();
+        if (dailyLimit != UNLIMITED && getUploadsToday(user) >= dailyLimit) {
             throw new DocumentQuotaExceededException("Daily document upload limit reached.");
         }
     }
@@ -53,29 +59,41 @@ public class DocumentQuotaServiceImpl implements DocumentQuotaService {
         if (isAdmin(user)) {
             return;
         }
-        validateDocumentCount(user);
+        SubscriptionPlan plan = getPlanForUser(user);
+        validateDocumentCount(user, plan);
     }
 
     @Override
     public DocumentQuotaResponse getQuota(String email) {
         User user = findUser(email);
-        boolean pro = isAdmin(user) || user.getSubscriptionTier() == SubscriptionTier.PRO;
+        boolean admin = isAdmin(user);
+
+        SubscriptionPlan plan = getPlanForUser(user);
+
+        long usedStorage = getUsedStorage(user);
 
         return DocumentQuotaResponse.builder()
-                .subscriptionTier(user.getSubscriptionTier().name())
+                .subscriptionTier(user.getSubscriptionTier() != null ? user.getSubscriptionTier().name() : "FREE")
                 .uploadsToday(getUploadsToday(user))
-                .dailyUploadLimit(pro ? UNLIMITED : FREE_DAILY_UPLOAD_LIMIT)
+                .dailyUploadLimit(admin ? UNLIMITED : plan.getDailyUploadLimit())
                 .totalDocuments(documentRepository.countByUploadedById(user.getId()))
-                .totalDocumentLimit(pro ? UNLIMITED : FREE_TOTAL_DOCUMENT_LIMIT)
-                .maxFileSizeBytes(getMaxFileSize(user))
+                .totalDocumentLimit(admin ? UNLIMITED : plan.getTotalDocumentLimit())
+                .maxFileSizeBytes(admin ? 10L * 1024 * 1024 : plan.getMaxFileSizeBytes())
+                .usedStorageBytes(usedStorage)
+                .maxStorageBytes(admin ? UNLIMITED : plan.getTotalStorageBytes())
                 .build();
     }
 
-    private void validateDocumentCount(User user) {
-        if (user.getSubscriptionTier() == SubscriptionTier.FREE
-                && documentRepository.countByUploadedById(user.getId()) >= FREE_TOTAL_DOCUMENT_LIMIT) {
+    private void validateDocumentCount(User user, SubscriptionPlan plan) {
+        long docLimit = plan.getTotalDocumentLimit();
+        if (docLimit != UNLIMITED && documentRepository.countByUploadedById(user.getId()) >= docLimit) {
             throw new DocumentQuotaExceededException("Total document limit reached.");
         }
+    }
+
+    private long getUsedStorage(User user) {
+        Long sum = documentRepository.sumFileSizeByUploadedById(user.getId());
+        return sum != null ? sum : 0L;
     }
 
     private long getUploadsToday(User user) {
@@ -89,10 +107,20 @@ public class DocumentQuotaServiceImpl implements DocumentQuotaService {
                 end);
     }
 
-    private long getMaxFileSize(User user) {
-        return (isAdmin(user) || user.getSubscriptionTier() == SubscriptionTier.PRO)
-                ? PRO_MAX_FILE_SIZE
-                : FREE_MAX_FILE_SIZE;
+    private SubscriptionPlan getPlanForUser(User user) {
+        String tierCode = user.getSubscriptionTier() != null ? user.getSubscriptionTier().name() : "FREE";
+        return subscriptionPlanRepository.findByCodeAndIsActiveTrue(tierCode)
+                .orElseGet(() -> subscriptionPlanRepository.findByCode("FREE")
+                        .orElse(SubscriptionPlan.builder()
+                                .code("FREE")
+                                .name("Gói Miễn Phí")
+                                .priceVnd(0L)
+                                .maxFileSizeBytes(5L * 1024 * 1024)
+                                .totalStorageBytes(100L * 1024 * 1024)
+                                .dailyUploadLimit(3L)
+                                .totalDocumentLimit(20L)
+                                .isActive(true)
+                                .build()));
     }
 
     private long toMegabytes(long bytes) {

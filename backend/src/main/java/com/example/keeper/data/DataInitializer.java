@@ -46,6 +46,7 @@ public class DataInitializer implements CommandLineRunner {
         private final jakarta.persistence.EntityManager entityManager;
         private final com.example.keeper.systems.major.repository.MajorRepository majorRepository;
         private final com.example.keeper.systems.document.repository.DocumentRepository documentRepository;
+        private final com.example.keeper.systems.auth.repository.SubscriptionPlanRepository subscriptionPlanRepository;
 
         @Override
         @jakarta.transaction.Transactional
@@ -57,6 +58,46 @@ public class DataInitializer implements CommandLineRunner {
                                         .executeUpdate();
                 } catch (Exception e) {
                         System.err.println("Failed to drop unique constraint: " + e.getMessage());
+                }
+
+                /*
+                 * =========================
+                 * SUBSCRIPTION PLAN
+                 * =========================
+                 */
+                if (subscriptionPlanRepository.count() == 0) {
+                        subscriptionPlanRepository.saveAll(List.of(
+                                         com.example.keeper.systems.auth.entity.SubscriptionPlan.builder()
+                                                        .code("FREE")
+                                                        .name("Free Plan")
+                                                        .priceVnd(0L)
+                                                        .maxFileSizeBytes(5L * 1024 * 1024)
+                                                        .totalStorageBytes(100L * 1024 * 1024)
+                                                        .dailyUploadLimit(3L)
+                                                        .totalDocumentLimit(20L)
+                                                        .dailyAiLimit(5L)
+                                                        .maxFlashcardsPerGeneration(15)
+                                                        .maxQuizQuestionsPerGeneration(20)
+                                                        .maxOwnedProjects(3)
+                                                        .maxJoinedProjects(5)
+                                                        .isActive(true)
+                                                        .build(),
+                                        com.example.keeper.systems.auth.entity.SubscriptionPlan.builder()
+                                                        .code("PRO")
+                                                        .name("Pro Plan")
+                                                        .priceVnd(99000L)
+                                                        .maxFileSizeBytes(10L * 1024 * 1024)
+                                                        .totalStorageBytes(1024L * 1024 * 1024)
+                                                        .dailyUploadLimit(-1L)
+                                                        .totalDocumentLimit(-1L)
+                                                        .dailyAiLimit(-1L)
+                                                        .maxFlashcardsPerGeneration(-1)
+                                                        .maxQuizQuestionsPerGeneration(50)
+                                                        .maxOwnedProjects(-1)
+                                                        .maxJoinedProjects(-1)
+                                                        .isActive(true)
+                                                        .build()));
+                        System.out.println("Seeded subscription plans");
                 }
 
                 /*

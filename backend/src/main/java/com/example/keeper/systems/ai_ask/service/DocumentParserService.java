@@ -8,6 +8,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
+import org.apache.poi.hslf.usermodel.HSLFSlideShow;
+import org.apache.poi.sl.extractor.SlideShowExtractor;
 import org.apache.poi.xslf.extractor.XSLFExtractor;
 import org.apache.poi.xslf.usermodel.XMLSlideShow;
 import org.apache.poi.xwpf.extractor.XWPFWordExtractor;
@@ -49,8 +51,12 @@ public class DocumentParserService {
                 return extractPdfText(file.getBytes());
             } else if (filename.endsWith(".docx")) {
                 return extractDocxText(inputStream);
+            } else if (filename.endsWith(".doc")) {
+                return extractDocText(inputStream);
             } else if (filename.endsWith(".pptx")) {
                 return extractPptxText(inputStream);
+            } else if (filename.endsWith(".ppt")) {
+                return extractPptText(inputStream);
             } else {
                 return new String(file.getBytes(), StandardCharsets.UTF_8);
             }
@@ -85,8 +91,14 @@ public class DocumentParserService {
                 fullText = extractPdfText(fileBytes);
             } else if (filename.endsWith(".docx")) {
                 fullText = extractDocxText(inputStream);
+            } else if (filename.endsWith(".doc")) {
+                fullText = extractDocText(inputStream);
             } else if (filename.endsWith(".pptx")) {
                 fullText = extractPptxText(inputStream);
+            } else if (filename.endsWith(".ppt")) {
+                fullText = extractPptText(inputStream);
+            } else if (filename.endsWith(".txt") || filename.endsWith(".csv") || filename.endsWith(".md") || filename.endsWith(".json")) {
+                fullText = new String(fileBytes, StandardCharsets.UTF_8);
             } else {
                 log.info("Unsupported file type for AI parsing: {}, contentType: {}", filename, contentType);
                 return false;
@@ -138,9 +150,23 @@ public class DocumentParserService {
         }
     }
 
+    private String extractDocText(InputStream inputStream) throws Exception {
+        try (org.apache.poi.hwpf.HWPFDocument document = new org.apache.poi.hwpf.HWPFDocument(inputStream);
+             org.apache.poi.hwpf.extractor.WordExtractor extractor = new org.apache.poi.hwpf.extractor.WordExtractor(document)) {
+            return extractor.getText();
+        }
+    }
+
     private String extractPptxText(InputStream inputStream) throws Exception {
         try (XMLSlideShow slideShow = new XMLSlideShow(inputStream);
              XSLFExtractor extractor = new XSLFExtractor(slideShow)) {
+            return extractor.getText();
+        }
+    }
+
+    private String extractPptText(InputStream inputStream) throws Exception {
+        try (HSLFSlideShow slideShow = new HSLFSlideShow(inputStream);
+             SlideShowExtractor extractor = new SlideShowExtractor(slideShow)) {
             return extractor.getText();
         }
     }
@@ -227,8 +253,12 @@ public class DocumentParserService {
                         filename += ".pdf";
                     } else if ("application/vnd.openxmlformats-officedocument.wordprocessingml.document".equalsIgnoreCase(document.getMimeType())) {
                         filename += ".docx";
+                    } else if ("application/msword".equalsIgnoreCase(document.getMimeType())) {
+                        filename += ".doc";
                     } else if ("application/vnd.openxmlformats-officedocument.presentationml.presentation".equalsIgnoreCase(document.getMimeType())) {
                         filename += ".pptx";
+                    } else if ("application/vnd.ms-powerpoint".equalsIgnoreCase(document.getMimeType())) {
+                        filename += ".ppt";
                     }
                 }
                 

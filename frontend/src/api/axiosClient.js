@@ -6,7 +6,7 @@ export const backendBaseUrl = import.meta.env.VITE_API_URL
 
 const axiosClient = axios.create({
   baseURL: backendBaseUrl,
-  timeout: 20000,
+  timeout: 120000,
   withCredentials: true, 
   headers: {
     "Content-Type": "application/json",

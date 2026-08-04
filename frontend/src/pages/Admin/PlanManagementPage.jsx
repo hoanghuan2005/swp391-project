@@ -1,0 +1,543 @@
+import React, { useEffect, useState } from "react";
+import axiosClient from "@/api/axiosClient";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Layers, Plus, Edit2, HardDrive, FileUp, Sparkles, RefreshCw, Trash2 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { toast } from "sonner";
+
+function bytesToMB(bytes) {
+  if (bytes === null || bytes === undefined || bytes === -1) return "Unlimited";
+  return Math.round(bytes / (1024 * 1024)) + " MB";
+}
+
+function formatVND(amount) {
+  if (!amount || amount === 0) return "0 đ";
+  return new Intl.NumberFormat("vi-VN").format(amount) + " đ";
+}
+
+export default function PlanManagementPage() {
+  const [plans, setPlans] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingPlan, setEditingPlan] = useState(null);
+
+  // Delete modal state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletingPlan, setDeletingPlan] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  const [formData, setFormData] = useState({
+    code: "",
+    name: "",
+    priceVnd: 0,
+    maxFileMb: 10,
+    totalStorageMb: 100,
+    dailyUploadLimit: 3,
+    totalDocumentLimit: 20,
+    dailyAiLimit: 5,
+    maxFlashcardsPerGen: 15,
+    maxQuizQuestionsPerGen: 20,
+    maxOwnedProjects: 3,
+    maxJoinedProjects: 5,
+    isActive: true,
+  });
+
+  const fetchPlans = async () => {
+    try {
+      setLoading(true);
+      const res = await axiosClient.get("/api/admin/subscription-plans");
+      setPlans(res.data || []);
+    } catch (err) {
+      console.error("Failed to load plans:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPlans();
+  }, []);
+
+  const handleOpenModal = (plan = null) => {
+    if (plan) {
+      const activeState = plan.isActive !== undefined ? plan.isActive : (plan.active !== undefined ? plan.active : true);
+      setEditingPlan(plan);
+      setFormData({
+        code: plan.code || "",
+        name: plan.name || "",
+        priceVnd: plan.priceVnd || 0,
+        maxFileMb: plan.maxFileSizeBytes ? Math.round(plan.maxFileSizeBytes / (1024 * 1024)) : 10,
+        totalStorageMb: plan.totalStorageBytes ? Math.round(plan.totalStorageBytes / (1024 * 1024)) : 100,
+        dailyUploadLimit: plan.dailyUploadLimit ?? 3,
+        totalDocumentLimit: plan.totalDocumentLimit ?? 20,
+        dailyAiLimit: plan.dailyAiLimit ?? (plan.code === "PRO" ? -1 : 5),
+        maxFlashcardsPerGen: plan.maxFlashcardsPerGeneration ?? (plan.code === "PRO" ? -1 : 15),
+        maxQuizQuestionsPerGen: plan.maxQuizQuestionsPerGeneration ?? (plan.code === "PRO" ? 50 : 20),
+        maxOwnedProjects: plan.maxOwnedProjects ?? (plan.code === "PRO" ? -1 : 3),
+        maxJoinedProjects: plan.maxJoinedProjects ?? (plan.code === "PRO" ? -1 : 5),
+        isActive: activeState,
+      });
+    } else {
+      setEditingPlan(null);
+      setFormData({
+        code: "",
+        name: "",
+        priceVnd: 0,
+        maxFileMb: 10,
+        totalStorageMb: 100,
+        dailyUploadLimit: 3,
+        totalDocumentLimit: 20,
+        dailyAiLimit: 5,
+        maxFlashcardsPerGen: 15,
+        maxQuizQuestionsPerGen: 20,
+        maxOwnedProjects: 3,
+        maxJoinedProjects: 5,
+        isActive: true,
+      });
+    }
+    setModalOpen(true);
+  };
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    try {
+      const payload = {
+        code: formData.code,
+        name: formData.name,
+        priceVnd: Number(formData.priceVnd),
+        maxFileSizeBytes: Number(formData.maxFileMb) * 1024 * 1024,
+        totalStorageBytes: Number(formData.totalStorageMb) * 1024 * 1024,
+        dailyUploadLimit: Number(formData.dailyUploadLimit),
+        totalDocumentLimit: Number(formData.totalDocumentLimit),
+        dailyAiLimit: Number(formData.dailyAiLimit),
+        maxFlashcardsPerGeneration: Number(formData.maxFlashcardsPerGen),
+        maxQuizQuestionsPerGeneration: Number(formData.maxQuizQuestionsPerGen),
+        maxOwnedProjects: Number(formData.maxOwnedProjects),
+        maxJoinedProjects: Number(formData.maxJoinedProjects),
+        isActive: formData.isActive,
+      };
+
+      if (editingPlan) {
+        await axiosClient.put(`/api/admin/subscription-plans/${editingPlan.id}`, payload);
+      } else {
+        await axiosClient.post("/api/admin/subscription-plans", payload);
+      }
+
+      setModalOpen(false);
+      toast.success(editingPlan ? "Subscription plan updated successfully!" : "New subscription plan created!");
+      fetchPlans();
+    } catch (err) {
+      console.error("Failed to save plan:", err);
+      toast.error("Error saving subscription plan: " + (err.response?.data?.message || err.message));
+    }
+  };
+
+  const handleToggleStatus = async (id) => {
+    try {
+      await axiosClient.patch(`/api/admin/subscription-plans/${id}/toggle`);
+      toast.success("Plan status updated!");
+      fetchPlans();
+    } catch (err) {
+      console.error("Failed to toggle plan status:", err);
+      toast.error("Failed to update plan status.");
+    }
+  };
+
+  const handleOpenDeleteDialog = (plan) => {
+    if (plan.code === "FREE" || plan.code === "PRO") {
+      toast.warning("Core system plans (FREE, PRO) cannot be deleted. You can set them to Inactive instead.");
+      return;
+    }
+    setDeletingPlan(plan);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deletingPlan) return;
+    try {
+      setDeleteLoading(true);
+      await axiosClient.delete(`/api/admin/subscription-plans/${deletingPlan.id}`);
+      toast.success("Subscription plan deleted successfully!");
+      setDeleteDialogOpen(false);
+      setDeletingPlan(null);
+      fetchPlans();
+    } catch (err) {
+      console.error("Failed to delete plan:", err);
+      toast.error("Error deleting plan: " + (err.response?.data?.message || err.message));
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-50 text-[#f26522]">
+              <Layers className="h-5 w-5" aria-hidden="true" />
+            </div>
+            <h1 className="text-3xl font-bold tracking-tight text-slate-800">
+              Subscription Plans Management
+            </h1>
+          </div>
+          <p className="mt-2 text-sm font-medium text-slate-500">
+            Configure storage capacity, AI limits, file sizes, and workspace quotas for each plan.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            onClick={fetchPlans}
+            className="rounded-xl border-slate-200 hover:bg-slate-50 cursor-pointer font-bold"
+          >
+            <RefreshCw className="w-4 h-4 mr-2" /> Refresh
+          </Button>
+          <Button
+            onClick={() => handleOpenModal()}
+            className="rounded-xl bg-[#f26522] hover:bg-[#d95316] text-white font-bold cursor-pointer shadow-md shadow-orange-500/20"
+          >
+            <Plus className="w-4 h-4 mr-2" /> Add New Plan
+          </Button>
+        </div>
+      </div>
+
+      {/* Plan Cards Directory Container */}
+      <Card className="rounded-2xl border-slate-100 shadow-sm">
+        <CardContent className="p-6 space-y-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between w-full pb-2 border-b border-slate-100">
+            <h4 className="text-lg font-bold text-slate-700 whitespace-nowrap">Subscription plans directory</h4>
+          </div>
+
+          {loading ? (
+            <div className="text-center py-12 text-slate-500 font-medium">Loading subscription plans...</div>
+          ) : plans.length === 0 ? (
+            <div className="text-center py-12 text-slate-500 font-medium">No subscription plans found. Click Add New Plan to create one!</div>
+          ) : (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 pt-2">
+              {plans.map((plan) => {
+                const active = plan.isActive !== undefined ? plan.isActive : (plan.active !== undefined ? plan.active : true);
+                const isPro = plan.code === "PRO";
+                const isCorePlan = plan.code === "FREE" || plan.code === "PRO";
+
+                return (
+                  <div
+                    key={plan.id}
+                    className={`relative flex flex-col justify-between rounded-3xl p-6 bg-white border transition-all duration-300 ${
+                      isPro ? "border-orange-300 shadow-lg shadow-orange-500/5" : "border-slate-200/80 shadow-sm"
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-center justify-between mb-4">
+                        <Badge variant="outline" className={`font-black text-xs px-3 py-1 rounded-full ${isPro ? "bg-orange-50 text-[#f26522] border-orange-200" : "bg-slate-100 text-slate-600 border-slate-200"}`}>
+                          {plan.code}
+                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-xs font-bold ${active ? "text-emerald-600" : "text-slate-400"}`}>
+                            {active ? "Active" : "Inactive"}
+                          </span>
+                          <Switch checked={active} onCheckedChange={() => handleToggleStatus(plan.id)} />
+                        </div>
+                      </div>
+
+                      <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                        {plan.name} {isPro && <Sparkles className="w-4 h-4 text-amber-500 fill-amber-500" />}
+                      </h3>
+                      <div className="mt-2 text-2xl font-black text-[#f26522]">
+                        {formatVND(plan.priceVnd)} <span className="text-xs font-normal text-slate-400">/ month</span>
+                      </div>
+
+                      <div className="my-6 space-y-2.5 pt-4 border-t border-slate-100">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-slate-500 font-medium flex items-center gap-1.5">
+                            <FileUp className="w-4 h-4 text-slate-400" /> Max File Size:
+                          </span>
+                          <span className="font-bold text-slate-700">{bytesToMB(plan.maxFileSizeBytes)}</span>
+                        </div>
+
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-slate-500 font-medium flex items-center gap-1.5">
+                            <HardDrive className="w-4 h-4 text-slate-400" /> Total Storage:
+                          </span>
+                          <span className="font-bold text-slate-700">{bytesToMB(plan.totalStorageBytes)}</span>
+                        </div>
+
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-slate-500 font-medium">Daily Uploads:</span>
+                          <span className="font-bold text-slate-700">
+                            {plan.dailyUploadLimit === -1 ? "Unlimited" : `${plan.dailyUploadLimit} uploads`}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-slate-500 font-medium">Daily AI Requests:</span>
+                          <span className="font-bold text-slate-700">
+                            {plan.dailyAiLimit === -1 ? "Unlimited" : `${plan.dailyAiLimit ?? 5} requests`}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-slate-500 font-medium">Flashcards / Gen:</span>
+                          <span className="font-bold text-slate-700">
+                            {plan.maxFlashcardsPerGeneration === -1 ? "Unlimited" : `${plan.maxFlashcardsPerGeneration ?? 15} cards`}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-slate-500 font-medium">Quiz Questions / Gen:</span>
+                          <span className="font-bold text-slate-700">
+                            {plan.maxQuizQuestionsPerGeneration === -1 ? "Unlimited" : `${plan.maxQuizQuestionsPerGeneration ?? 20} questions`}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-slate-500 font-medium">Owned Workspaces:</span>
+                          <span className="font-bold text-slate-700">
+                            {plan.maxOwnedProjects === -1 ? "Unlimited" : `${plan.maxOwnedProjects ?? 3} workspaces`}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 mt-4">
+                      <Button
+                        onClick={() => handleOpenModal(plan)}
+                        variant="outline"
+                        className="flex-1 rounded-xl border-slate-200 hover:bg-slate-50 font-bold text-xs cursor-pointer"
+                      >
+                        <Edit2 className="w-3.5 h-3.5 mr-2 text-slate-500" /> Configure Plan Limits
+                      </Button>
+                      <Button
+                        onClick={() => handleOpenDeleteDialog(plan)}
+                        disabled={isCorePlan}
+                        title={isCorePlan ? "Core plans (FREE, PRO) cannot be deleted" : "Delete Plan"}
+                        variant="outline"
+                        className={`rounded-xl px-3 border-slate-200 font-bold text-xs cursor-pointer ${
+                          isCorePlan
+                            ? "opacity-40 cursor-not-allowed bg-slate-50 text-slate-400"
+                            : "hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 text-slate-500"
+                        }`}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Delete Confirmation Modal */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent className="sm:max-w-md rounded-3xl p-6 bg-white">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-slate-800">
+              Delete Subscription Plan
+            </DialogTitle>
+            <DialogDescription className="text-slate-500 text-sm mt-1">
+              Are you sure you want to delete <strong className="text-slate-800">{deletingPlan?.name} ({deletingPlan?.code})</strong>? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="pt-4 gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setDeleteDialogOpen(false)}
+              className="rounded-xl font-bold"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleConfirmDelete}
+              disabled={deleteLoading}
+              className="rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold"
+            >
+              {deleteLoading ? "Deleting..." : "Delete Plan"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit / Create Modal */}
+      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+        <DialogContent className="sm:max-w-lg rounded-3xl p-6 bg-white max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-slate-800">
+              {editingPlan ? `Configure ${editingPlan.code} Plan` : "Create New Subscription Plan"}
+            </DialogTitle>
+          </DialogHeader>
+
+          <form onSubmit={handleSave} className="space-y-4 py-2">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-bold text-slate-600">Plan Code</label>
+                <Input
+                  disabled={!!editingPlan}
+                  value={formData.code}
+                  onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
+                  placeholder="FREE, PRO, STUDENT..."
+                  className="mt-1 rounded-xl uppercase"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-600">Plan Name</label>
+                <Input
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="Free Plan, Pro Plan..."
+                  className="mt-1 rounded-xl"
+                  required
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-slate-600">Price (VND)</label>
+              <Input
+                type="number"
+                value={formData.priceVnd}
+                onChange={(e) => setFormData({ ...formData, priceVnd: e.target.value })}
+                placeholder="0"
+                className="mt-1 rounded-xl"
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-bold text-slate-600">Max File Size (MB)</label>
+                <Input
+                  type="number"
+                  value={formData.maxFileMb}
+                  onChange={(e) => setFormData({ ...formData, maxFileMb: e.target.value })}
+                  placeholder="10"
+                  className="mt-1 rounded-xl"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-600">Total Storage (MB)</label>
+                <Input
+                  type="number"
+                  value={formData.totalStorageMb}
+                  onChange={(e) => setFormData({ ...formData, totalStorageMb: e.target.value })}
+                  placeholder="100"
+                  className="mt-1 rounded-xl"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-bold text-slate-600">Daily Uploads (-1 = Unlimited)</label>
+                <Input
+                  type="number"
+                  value={formData.dailyUploadLimit}
+                  onChange={(e) => setFormData({ ...formData, dailyUploadLimit: e.target.value })}
+                  className="mt-1 rounded-xl"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-600">Daily AI Requests (-1 = Unlimited)</label>
+                <Input
+                  type="number"
+                  value={formData.dailyAiLimit}
+                  onChange={(e) => setFormData({ ...formData, dailyAiLimit: e.target.value })}
+                  className="mt-1 rounded-xl"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-bold text-slate-600">Flashcards / Gen (-1 = Unlimited)</label>
+                <Input
+                  type="number"
+                  value={formData.maxFlashcardsPerGen}
+                  onChange={(e) => setFormData({ ...formData, maxFlashcardsPerGen: e.target.value })}
+                  className="mt-1 rounded-xl"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-600">Quiz Questions / Gen (-1 = Unlimited)</label>
+                <Input
+                  type="number"
+                  value={formData.maxQuizQuestionsPerGen}
+                  onChange={(e) => setFormData({ ...formData, maxQuizQuestionsPerGen: e.target.value })}
+                  className="mt-1 rounded-xl"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-bold text-slate-600">Owned Workspaces (-1 = Unlimited)</label>
+                <Input
+                  type="number"
+                  value={formData.maxOwnedProjects}
+                  onChange={(e) => setFormData({ ...formData, maxOwnedProjects: e.target.value })}
+                  className="mt-1 rounded-xl"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-600">Joined Workspaces (-1 = Unlimited)</label>
+                <Input
+                  type="number"
+                  value={formData.maxJoinedProjects}
+                  onChange={(e) => setFormData({ ...formData, maxJoinedProjects: e.target.value })}
+                  className="mt-1 rounded-xl"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-2">
+              <span className="text-xs font-bold text-slate-600">Activate Plan</span>
+              <Switch
+                checked={formData.isActive}
+                onCheckedChange={(checked) => setFormData({ ...formData, isActive: checked })}
+              />
+            </div>
+
+            <DialogFooter className="pt-4 gap-2">
+              <Button type="button" variant="outline" onClick={() => setModalOpen(false)} className="rounded-xl font-bold">
+                Cancel
+              </Button>
+              <Button type="submit" className="rounded-xl bg-[#f26522] hover:bg-[#d95316] text-white font-bold">
+                Save Changes
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

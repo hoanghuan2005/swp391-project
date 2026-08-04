@@ -37,7 +37,9 @@ public class FileStorageService {
                             "resource_type", resourceType,
                             "use_filename", true,
                             "unique_filename", false,
-                            "overwrite", false));
+                            "overwrite", false
+                    )
+            );
 
             return FileUploadResult.builder()
                     .publicId(uploadResult.get("public_id").toString())
@@ -117,7 +119,7 @@ public class FileStorageService {
 
     public String detectResourceType(String contentType) {
         if (contentType == null || contentType.isBlank()) {
-            return "raw";
+            return "auto";
         }
 
         if (contentType.startsWith("image/")) {
@@ -128,7 +130,7 @@ public class FileStorageService {
             return "video";
         }
 
-        return "raw";
+        return "auto";
     }
 
     public String sanitizeFileName(String fileName) {

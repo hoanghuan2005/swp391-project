@@ -28,6 +28,7 @@ import CourseDetailPage from "./pages/CourseDetailPage";
 import CatalogCoursesPage from "./pages/Admin/CatalogCoursesPage";
 import TransactionListPage from "./pages/Admin/TransactionListPage";
 import AiUsageListPage from "./pages/Admin/AiUsageListPage";
+import PlanManagementPage from "./pages/Admin/PlanManagementPage";
 import AskAIPage from "./pages/ai/ai_ask/AskAIPage";
 import ProjectWorkspacePage from "./pages/workspace/ProjectWorkspacePage";
 import AIFlashcard from "./pages/ai/ai_flashcard/AIFlashcard";
@@ -153,6 +154,7 @@ function App() {
             <Route path="/admin/reports" element={<ReportListPage />} />
             <Route path="/admin/payments" element={<TransactionListPage />} />
             <Route path="/admin/ai-usages" element={<AiUsageListPage />} />
+            <Route path="/admin/plans" element={<PlanManagementPage />} />
             <Route path="/admin/courses" element={<CatalogCoursesPage />} />
             <Route
               path="/admin/catalog/schools"

@@ -1080,6 +1080,7 @@ export default function AIQuizGenerator() {
         }
         type={quotaDialog.type}
         message={quotaDialog.message}
+        fileSize={quotaDialog.fileSize}
       />
 
       {/* Delete Confirmation Dialog */}

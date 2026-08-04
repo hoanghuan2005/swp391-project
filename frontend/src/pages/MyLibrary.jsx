@@ -16,6 +16,7 @@ import {
   Eye,
   UserCheck2,
   Loader2,
+  Crown,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -43,9 +44,18 @@ import { forceDownload } from "@/lib/downloadHelper";
 import EditDocumentModal from "@/components/share/EditDocumentModal";
 import { getFileExtension } from "@/lib/utils";
 import { toast } from "sonner";
+import StorageProgressBar from "@/components/storage/StorageProgressBar";
+import useAiUsage from "@/hooks/useAiUsage";
+import PricingModal from "@/components/modals/PricingModal";
 
 export default function MyLibrary() {
   const { documents, setDocuments, loading: isLoading, refreshDocuments } = useDocuments();
+  const { subscriptionTier, refreshAiUsage } = useAiUsage();
+  const isPro = subscriptionTier === "PRO";
+
+  const [pricingModalOpen, setPricingModalOpen] = useState(false);
+  const [confirmCancelOpen, setConfirmCancelOpen] = useState(false);
+  const [isCanceling, setIsCanceling] = useState(false);
   const [projects, setProjects] = useState([]);
   const [isProjectsLoading, setIsProjectsLoading] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -279,64 +289,93 @@ export default function MyLibrary() {
     }
   };
 
+  const handleCancelSubscription = async () => {
+    try {
+      setIsCanceling(true);
+      const res = await axiosClient.post("/api/subscription/cancel");
+      if (res.data?.success || res.status === 200) {
+        toast.success("Successfully cancelled Pro subscription. Account reverted to Free Tier.");
+        setConfirmCancelOpen(false);
+        if (refreshAiUsage) refreshAiUsage();
+        window.dispatchEvent(new CustomEvent("subscription-success"));
+      }
+    } catch (error) {
+      console.error("Failed to cancel subscription:", error);
+      toast.error(error.response?.data?.message || "Failed to cancel subscription. Please try again.");
+    } finally {
+      setIsCanceling(false);
+    }
+  };
+
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-8">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-slate-800 tracking-tight">
-          My Library
-        </h1>
-        <p className="text-slate-500 text-sm mt-1">
-          Manage your uploaded materials, study workspaces, and saved favorites.
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-800 tracking-tight">
+            My Library
+          </h1>
+          <p className="text-slate-500 text-sm mt-1">
+            Manage your uploaded materials, study workspaces, and saved favorites.
+          </p>
+        </div>
+        <div className="w-full sm:w-80">
+          <StorageProgressBar isOpen={true} />
+        </div>
       </div>
 
       <Tabs defaultValue="documents" className="w-full">
-        {/* Layout của TabsList vừa khít số lượng tab, không bị thừa phần bên phải */}
-        <div className="inline-flex w-fit overflow-x-auto scrollbar-none bg-slate-100/70 p-1 rounded-2xl mb-5">
-          <TabsList className="bg-transparent p-0 h-11 flex w-max gap-1">
+        {/* Responsive, balanced tab bar */}
+        <div className="w-full overflow-x-auto scrollbar-none bg-slate-100/70 p-1.5 rounded-2xl mb-6">
+          <TabsList className="bg-transparent p-0 h-auto flex flex-nowrap w-full justify-start md:justify-between gap-1">
             <TabsTrigger
               value="documents"
-              className="rounded-xl px-5 py-2 data-[state=active]:bg-white data-[state=active]:shadow-sm font-bold text-slate-600 data-[state=active]:text-slate-900 text-sm transition-all whitespace-nowrap"
+              className="rounded-xl px-3.5 py-2 data-[state=active]:bg-white data-[state=active]:shadow-sm font-bold text-slate-600 data-[state=active]:text-slate-900 text-xs md:text-sm transition-all whitespace-nowrap"
             >
-              <FileText className="w-4 h-4 mr-2 text-[#f26522] inline-block" />{" "}
+              <FileText className="w-4 h-4 mr-1.5 text-[#f26522] inline-block" />{" "}
               My Uploads
             </TabsTrigger>
             <TabsTrigger
               value="projects"
-              className="rounded-xl px-5 py-2 data-[state=active]:bg-white data-[state=active]:shadow-sm font-bold text-slate-600 data-[state=active]:text-slate-900 text-sm transition-all whitespace-nowrap"
+              className="rounded-xl px-3.5 py-2 data-[state=active]:bg-white data-[state=active]:shadow-sm font-bold text-slate-600 data-[state=active]:text-slate-900 text-xs md:text-sm transition-all whitespace-nowrap"
             >
-              <LayoutDashboard className="w-4 h-4 mr-2 text-[#f26522] inline-block" />{" "}
-              My Workspaces
+              <LayoutDashboard className="w-4 h-4 mr-1.5 text-[#f26522] inline-block" />{" "}
+              Workspaces
             </TabsTrigger>
-
             <TabsTrigger
               value="favorites"
-              className="rounded-xl px-5 py-2 data-[state=active]:bg-white data-[state=active]:shadow-sm font-bold text-slate-600 data-[state=active]:text-slate-900 text-sm transition-all whitespace-nowrap"
+              className="rounded-xl px-3.5 py-2 data-[state=active]:bg-white data-[state=active]:shadow-sm font-bold text-slate-600 data-[state=active]:text-slate-900 text-xs md:text-sm transition-all whitespace-nowrap"
             >
-              <Heart className="w-4 h-4 mr-2 text-red-500 fill-red-500 inline-block" />{" "}
-              My Favorites
+              <Heart className="w-4 h-4 mr-1.5 text-red-500 fill-red-500 inline-block" />{" "}
+              Favorites
             </TabsTrigger>
             <TabsTrigger
               value="flashcards"
-              className="rounded-xl px-5 py-2 data-[state=active]:bg-white data-[state=active]:shadow-sm font-bold text-slate-600 data-[state=active]:text-slate-900 text-sm transition-all whitespace-nowrap"
+              className="rounded-xl px-3.5 py-2 data-[state=active]:bg-white data-[state=active]:shadow-sm font-bold text-slate-600 data-[state=active]:text-slate-900 text-xs md:text-sm transition-all whitespace-nowrap"
             >
-              <Layers className="w-4 h-4 mr-2 text-[#f26522] inline-block" /> My
+              <Layers className="w-4 h-4 mr-1.5 text-[#f26522] inline-block" />{" "}
               Flashcards
             </TabsTrigger>
             <TabsTrigger
               value="quizzes"
-              className="rounded-xl px-5 py-2 data-[state=active]:bg-white data-[state=active]:shadow-sm font-bold text-slate-600 data-[state=active]:text-slate-900 text-sm transition-all whitespace-nowrap"
+              className="rounded-xl px-3.5 py-2 data-[state=active]:bg-white data-[state=active]:shadow-sm font-bold text-slate-600 data-[state=active]:text-slate-900 text-xs md:text-sm transition-all whitespace-nowrap"
             >
-              <ListChecks className="w-4 h-4 mr-2 text-[#f26522] inline-block" />{" "}
-              My Quizzes
+              <ListChecks className="w-4 h-4 mr-1.5 text-[#f26522] inline-block" />{" "}
+              Quizzes
             </TabsTrigger>
             <TabsTrigger
               value="followed"
-              className="rounded-xl px-5 py-2 data-[state=active]:bg-white data-[state=active]:shadow-sm font-bold text-slate-600 data-[state=active]:text-slate-900 text-sm transition-all whitespace-nowrap"
+              className="rounded-xl px-3.5 py-2 data-[state=active]:bg-white data-[state=active]:shadow-sm font-bold text-slate-600 data-[state=active]:text-slate-900 text-xs md:text-sm transition-all whitespace-nowrap"
             >
-              <UserCheck2 className="w-4 h-4 mr-2 text-[#f26522] inline-block" />{" "}
-              My Followed
+              <UserCheck2 className="w-4 h-4 mr-1.5 text-[#f26522] inline-block" />{" "}
+              Following
+            </TabsTrigger>
+            <TabsTrigger
+              value="subscription"
+              className="rounded-xl px-3.5 py-2 data-[state=active]:bg-white data-[state=active]:shadow-sm font-bold text-slate-600 data-[state=active]:text-slate-900 text-xs md:text-sm transition-all whitespace-nowrap"
+            >
+              <Crown className="w-4 h-4 mr-1.5 text-amber-500 fill-amber-400 inline-block" />{" "}
+              Subscription
             </TabsTrigger>
           </TabsList>
         </div>
@@ -975,7 +1014,135 @@ export default function MyLibrary() {
             </div>
           )}
         </TabsContent>
+
+        {/* SUBSCRIPTION CONTENT */}
+        <TabsContent value="subscription" className="mt-0">
+          <div className="bg-white rounded-3xl p-8 border border-slate-200/80 shadow-sm max-w-4xl space-y-6">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-6">
+              <div className="flex items-center gap-4">
+                <div className={`p-3.5 rounded-2xl flex items-center justify-center ${isPro ? "bg-orange-100/60 border border-orange-200/80 text-[#f26522]" : "bg-slate-50 border border-slate-200/80"}`}>
+                  <Crown className={`w-8 h-8 ${isPro ? "fill-amber-500 text-amber-500" : "text-slate-400"}`} />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-2xl font-black text-slate-800">
+                      {isPro ? "Pro Subscription" : "Free Subscription"}
+                    </h2>
+                    {isPro ? (
+                      <span className="inline-flex items-center gap-1.5 text-xs font-extrabold px-3 py-1 rounded-full bg-orange-100/80 text-[#f26522] border border-orange-200/80 uppercase tracking-wider shadow-2xs">
+                        <Crown className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
+                        PRO
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-xs font-extrabold px-3 py-1 rounded-full bg-slate-100 text-slate-600 border border-slate-200 uppercase tracking-wider">
+                        FREE
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1">
+                    {isPro ? "You currently enjoy all premium features and maximum storage capacity." : "Upgrade to Pro to unlock 1GB storage and unlimited AI requests."}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Details Grid */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 py-2">
+              <div className="p-4 bg-slate-50/80 rounded-2xl border border-slate-100">
+                <div className="text-xs text-slate-400 font-semibold">Max File Size</div>
+                <div className="text-lg font-black text-slate-800 mt-1">{isPro ? "10 MB" : "5 MB"}</div>
+              </div>
+              <div className="p-4 bg-slate-50/80 rounded-2xl border border-slate-100">
+                <div className="text-xs text-slate-400 font-semibold">Total Storage</div>
+                <div className="text-lg font-black text-slate-800 mt-1">{isPro ? "1.0 GB" : "100 MB"}</div>
+              </div>
+              <div className="p-4 bg-slate-50/80 rounded-2xl border border-slate-100">
+                <div className="text-xs text-slate-400 font-semibold">Daily Uploads</div>
+                <div className="text-lg font-black text-slate-800 mt-1">{isPro ? "Unlimited" : "3 per day"}</div>
+              </div>
+              <div className="p-4 bg-slate-50/80 rounded-2xl border border-slate-100">
+                <div className="text-xs text-slate-400 font-semibold">AI Requests</div>
+                <div className="text-lg font-black text-slate-800 mt-1">{isPro ? "Unlimited" : "5 per day"}</div>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="pt-4 flex flex-wrap items-center justify-between gap-4 border-t border-slate-100">
+              {isPro ? (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={() => setConfirmCancelOpen(true)}
+                    className="rounded-xl border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700 font-bold cursor-pointer text-xs py-2.5"
+                  >
+                    Cancel Subscription
+                  </Button>
+                  <Button
+                    onClick={() => setPricingModalOpen(true)}
+                    variant="outline"
+                    className="rounded-xl border-slate-200 text-slate-700 hover:bg-slate-50 font-bold cursor-pointer text-xs py-2.5"
+                  >
+                    Compare All Plans
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button
+                    onClick={() => setPricingModalOpen(true)}
+                    className="rounded-xl bg-[#f26522] hover:bg-[#d95316] text-white font-bold cursor-pointer shadow-md shadow-orange-500/20 text-xs py-2.5"
+                  >
+                    <Crown className="w-4 h-4 mr-2 fill-amber-300 text-amber-300" /> Upgrade to Pro
+                  </Button>
+                  <Button
+                    onClick={() => setPricingModalOpen(true)}
+                    variant="outline"
+                    className="rounded-xl border-slate-200 text-slate-700 hover:bg-slate-50 font-bold cursor-pointer text-xs py-2.5"
+                  >
+                    Explore Plan Features
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+        </TabsContent>
       </Tabs>
+
+      <PricingModal
+        open={pricingModalOpen}
+        onOpenChange={setPricingModalOpen}
+      />
+
+      <Dialog open={confirmCancelOpen} onOpenChange={setConfirmCancelOpen}>
+        <DialogContent className="sm:max-w-md rounded-3xl p-6 bg-white">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-extrabold text-slate-800">
+              Cancel Pro Subscription?
+            </DialogTitle>
+            <DialogDescription className="text-slate-500 text-sm mt-2 leading-relaxed">
+              Are you sure you want to cancel your <strong>Pro Subscription</strong>? Your account will revert to the <strong>Free Tier</strong> with a 5MB max file limit and 100MB storage capacity.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 mt-2">
+            <Button
+              variant="outline"
+              disabled={isCanceling}
+              onClick={() => setConfirmCancelOpen(false)}
+              className="rounded-xl font-bold cursor-pointer"
+            >
+              Keep Pro Plan
+            </Button>
+            <Button
+              disabled={isCanceling}
+              onClick={handleCancelSubscription}
+              className="rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold cursor-pointer"
+            >
+              {isCanceling ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+              Confirm Cancellation
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <CreateProjectModal
         open={createModalOpen}

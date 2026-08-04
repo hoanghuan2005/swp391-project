@@ -1008,6 +1008,7 @@ function AIMindMapPageInner() {
         }
         type={quotaDialog.type}
         message={quotaDialog.message}
+        fileSize={quotaDialog.fileSize}
       />
 
       {/* Delete Confirmation Dialog */}

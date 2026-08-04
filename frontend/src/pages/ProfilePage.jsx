@@ -3,6 +3,7 @@ import axiosClient from "@/api/axiosClient";
 import Survey from "@/pages/Survey";
 import useAiUsage from "@/hooks/useAiUsage";
 import { toast } from "sonner";
+import MySubscriptionModal from "@/components/modals/MySubscriptionModal";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -108,6 +109,7 @@ export default function ProfilePage() {
   }, [profileData.schoolName, schoolOptions]);
 
   const { subscriptionTier, loading: aiUsageLoading } = useAiUsage();
+  const [subModalOpen, setSubModalOpen] = useState(false);
 
   const loadProfileAndOptions = async () => {
     try {
@@ -354,10 +356,19 @@ export default function ProfilePage() {
                 {profileData.fullName}
               </h2>
 
-              <div className="mt-2 px-3 py-1 rounded-full bg-orange-100 text-[#f26522] text-xs font-bold flex items-center gap-1">
-                <Award size={12} />
+              <button
+                type="button"
+                onClick={() => setSubModalOpen(true)}
+                title="View active subscription details"
+                className={`mt-2 px-3.5 py-1.5 rounded-full text-xs font-extrabold flex items-center gap-1.5 transition-all cursor-pointer hover:scale-105 shadow-xs ${
+                  subscriptionTier === "PRO"
+                    ? "bg-[#fff0e5] text-[#f26522] border border-orange-200 hover:bg-[#ffe1cc]"
+                    : "bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200"
+                }`}
+              >
+                <Award size={14} className={subscriptionTier === "PRO" ? "text-[#f26522]" : "text-slate-500"} />
                 {aiUsageLoading ? "Loading..." : `${subscriptionTier} Plan`}
-              </div>
+              </button>
 
               <p className="text-sm text-slate-500 mt-3">
                 {profileData.schoolName || "No School Selected"}
@@ -753,6 +764,8 @@ export default function ProfilePage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <MySubscriptionModal open={subModalOpen} onOpenChange={setSubModalOpen} />
     </div>
   );
 }

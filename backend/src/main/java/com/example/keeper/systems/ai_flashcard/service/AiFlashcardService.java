@@ -15,7 +15,7 @@ import com.example.keeper.systems.ai_flashcard.repository.FlashcardRepository;
 import com.example.keeper.systems.ai_flashcard.repository.FlashcardSetRepository;
 import com.example.keeper.systems.ai_usage.service.AiUsageService;
 import com.example.keeper.systems.ai_usage.enums.AiUsageFeature;
-import com.example.keeper.systems.auth.config.TierLimitsConfig;
+import com.example.keeper.systems.auth.repository.SubscriptionPlanRepository;
 import com.example.keeper.systems.auth.entity.User;
 import com.example.keeper.systems.auth.repository.UserRepository;
 import com.example.keeper.systems.document.entity.Document;
@@ -62,6 +62,14 @@ public class AiFlashcardService {
     private final AiUsageService aiUsageService;
     private final DocumentParserService documentParserService;
     private final ProjectRepository projectRepository;
+    private final SubscriptionPlanRepository subscriptionPlanRepository;
+
+    private int getMaxFlashcards(User user) {
+        String tierCode = user.getSubscriptionTier() != null ? user.getSubscriptionTier().name() : "FREE";
+        return subscriptionPlanRepository.findByCodeAndIsActiveTrue(tierCode)
+                .map(p -> p.getMaxFlashcardsPerGeneration() != null ? p.getMaxFlashcardsPerGeneration() : (tierCode.equalsIgnoreCase("PRO") ? -1 : 15))
+                .orElse(tierCode.equalsIgnoreCase("PRO") ? -1 : 15);
+    }
 
     // Helper method to map entities to FlashcardSetResponse
     private FlashcardSetResponse mapToFlashcardSetResponse(FlashcardSet set) {
@@ -150,9 +158,11 @@ public class AiFlashcardService {
 
         if (!isOwner && !isAdmin) {
             boolean hasAccess = false;
-            if (set.getDocument() != null) {
+            if ("PUBLISHED".equalsIgnoreCase(set.getStatus()) || "PUBLIC".equalsIgnoreCase(set.getVisibility())) {
+                hasAccess = true;
+            } else if (set.getDocument() != null) {
                 Document doc = set.getDocument();
-                if (doc.getVisibility() == Visibility.PUBLIC || doc.getUploadedBy().getId().equals(user.getId())) {
+                if (doc.getVisibility() == Visibility.PUBLIC || (doc.getUploadedBy() != null && doc.getUploadedBy().getId().equals(user.getId()))) {
                     hasAccess = true;
                 } else {
                     hasAccess = projectRepository.hasUserAccessToDocumentThroughProjects(doc.getId(), user.getId());
@@ -163,7 +173,7 @@ public class AiFlashcardService {
             }
         }
 
-        return getSetDetailsById(setId);
+        return mapToFlashcardSetResponse(set);
     }
 
     @Transactional
@@ -237,6 +247,9 @@ public class AiFlashcardService {
 
     @Transactional
     public FlashcardSetResponse generateFlashcards(MultipartFile file, String text, String email) throws Exception {
+        aiUsageService.checkQuota(email);
+
+        User user = userRepository.findByEmail(email).orElse(null);
         String content = text != null ? text : "";
         Document linkedDocument = null;
 
@@ -251,11 +264,12 @@ public class AiFlashcardService {
                 content += new String(file.getBytes());
             }
 
-            linkedDocument = documentRepository.findAll().stream()
-                    .filter(doc -> doc.getOriginalFileName() != null &&
-                            doc.getOriginalFileName().equalsIgnoreCase(file.getOriginalFilename()))
-                    .findFirst()
-                    .orElse(null);
+            if (user != null) {
+                linkedDocument = documentRepository.findFirstByUploadedByIdAndOriginalFileNameIgnoreCase(user.getId(), file.getOriginalFilename())
+                        .orElseGet(() -> documentRepository.findFirstByOriginalFileNameIgnoreCase(file.getOriginalFilename()).orElse(null));
+            } else {
+                linkedDocument = documentRepository.findFirstByOriginalFileNameIgnoreCase(file.getOriginalFilename()).orElse(null);
+            }
         }
 
         if (content == null || content.trim().isEmpty()) {
@@ -269,9 +283,25 @@ public class AiFlashcardService {
 
     @Transactional
     public FlashcardSetResponse generateFlashcardsFromDocument(UUID documentId, String email) throws Exception {
-        documentParserService.ensureChunksExist(documentId);
+        aiUsageService.checkQuota(email);
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
         Document document = documentRepository.findById(documentId)
                 .orElseThrow(() -> new RuntimeException("Document not found"));
+
+        boolean isOwner = document.getUploadedBy() != null && document.getUploadedBy().getId().equals(user.getId());
+        boolean isAdmin = user.getRole() != null && "ADMIN".equalsIgnoreCase(user.getRole().getName());
+        boolean isPublic = document.getVisibility() == Visibility.PUBLIC;
+
+        if (!isOwner && !isAdmin && !isPublic) {
+            boolean hasProjectAccess = projectRepository.hasUserAccessToDocumentThroughProjects(document.getId(), user.getId());
+            if (!hasProjectAccess) {
+                throw new org.springframework.security.access.AccessDeniedException("You do not have permission to access this document.");
+            }
+        }
+
+        documentParserService.ensureChunksExist(documentId);
 
         if (document.getAiParseStatus() == AiParseStatus.PENDING) {
             throw new RuntimeException("Document is still being processed for AI. Please try again shortly.");
@@ -324,9 +354,9 @@ public class AiFlashcardService {
         aiUsageService.checkQuota(user.getEmail());
 
         // Determine max flashcards based on subscription tier
-        int maxCards = TierLimitsConfig.getMaxFlashcardsPerGeneration(user.getSubscriptionTier());
+        int maxCards = getMaxFlashcards(user);
         boolean isAdmin = user.getRole() != null && "ADMIN".equals(user.getRole().getName());
-        String cardLimitInstruction = (!isAdmin && !TierLimitsConfig.isUnlimited(maxCards))
+        String cardLimitInstruction = (!isAdmin && maxCards >= 0)
                 ? "Tạo tối đa " + maxCards + " flashcards. "
                 : "";
 
@@ -365,7 +395,7 @@ public class AiFlashcardService {
         }
 
         // Enforce tier limit: truncate if AI returned more cards than allowed
-        if (!isAdmin && !TierLimitsConfig.isUnlimited(maxCards) && cards.size() > maxCards) {
+        if (!isAdmin && maxCards >= 0 && cards.size() > maxCards) {
             log.info("Truncating flashcards from {} to {} for tier {}", cards.size(), maxCards, user.getSubscriptionTier());
             cards = cards.subList(0, maxCards);
         }

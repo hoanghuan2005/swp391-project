@@ -17,6 +17,7 @@ import {
   Tag,
   Loader2,
   Sparkles,
+  Crown,
   UserPlus,
   Shield,
   Users,
@@ -37,6 +38,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import PricingModal from "@/components/modals/PricingModal";
 
 // ==========================================
 // COMPONENT TẠO DROPDOWN CÓ TÌM KIẾM (GIỐNG ẢNH)
@@ -175,6 +177,7 @@ export default function Navbar({
 }) {
   const navigate = useNavigate();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [pricingModalOpen, setPricingModalOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifications, setNotifications] = useState([]);
   const [userName, setUserName] = useState("");
@@ -374,8 +377,10 @@ export default function Navbar({
       fetchUnreadCount();
     };
     window.addEventListener("subscription-success", handleSubscriptionSuccess);
+    window.addEventListener("subscription:updated", handleSubscriptionSuccess);
     return () => {
       window.removeEventListener("subscription-success", handleSubscriptionSuccess);
+      window.removeEventListener("subscription:updated", handleSubscriptionSuccess);
     };
   }, [refreshAiUsage, fetchNotifications, fetchUnreadCount]);
 
@@ -627,9 +632,9 @@ ${
                     fetchUnreadCount();
                   }
                 }}
-                className="rounded-full h-10 w-10"
+                className="relative rounded-full h-10 w-10 flex items-center justify-center"
               >
-                <Bell className="!h-5 !w-5" />
+                <Bell className="!w-5 !h-5 text-slate-600" />
                 {unreadCount > 0 && (
                   <span className="absolute top-1 right-1 h-4 w-4 bg-red-500 rounded-full text-white text-[9px] flex items-center justify-center font-bold">
                     {unreadCount}
@@ -753,15 +758,24 @@ ${
               )}
             </div>
 
+            {/* Quick Pricing Icon */}
+            <button
+              onClick={() => setPricingModalOpen(true)}
+              title={subscriptionTier === "PRO" ? "Gói Chuyên Nghiệp (PRO)" : "Xem Các Gói Dịch Vụ"}
+              className="h-10 w-10 rounded-full flex items-center justify-center transition-all cursor-pointer hover:bg-slate-100"
+            >
+              <Crown
+                className={`w-5 h-5 transition-transform hover:scale-110 ${
+                  subscriptionTier === "PRO" ? "text-amber-500 fill-amber-400" : "text-slate-600"
+                }`}
+              />
+            </button>
+
             <div className="relative">
               <button
                 ref={profileButtonRef}
                 onClick={() => setIsDropdownOpen((prev) => !prev)}
-                className={`h-10 w-10 rounded-full bg-[#f26522] text-white font-bold shadow-sm flex items-center justify-center transition-all ${
-                  subscriptionTier === "PRO"
-                    ? "ring-2 ring-yellow-400 ring-offset-1 shadow-[0_0_8px_rgba(250,204,21,0.6)] border-2 border-yellow-400"
-                    : ""
-                }`}
+                className="h-10 w-10 rounded-full bg-[#f26522] text-white font-bold shadow-sm flex items-center justify-center transition-all hover:opacity-90"
               >
                 {userInitial}
               </button>
@@ -789,15 +803,16 @@ ${
                   >
                     <Book size={15} /> My Library
                   </Link>
-                  {canUpgrade && (
-                    <button
-                      onClick={handleUpgradeToPro}
-                      className="border-t w-full px-4 py-3 text-left text-xs font-bold text-[#f26522] hover:bg-orange-50 flex items-center gap-2 cursor-pointer"
-                    >
-                      <Sparkles size={15} />
-                      Upgrade to Pro
-                    </button>
-                  )}
+                  <button
+                    onClick={() => {
+                      setIsDropdownOpen(false);
+                      setPricingModalOpen(true);
+                    }}
+                    className="border-t w-full px-4 py-3 text-left text-xs font-bold text-[#f26522] hover:bg-orange-50 flex items-center gap-2 cursor-pointer"
+                  >
+                    <Sparkles size={15} />
+                    {subscriptionTier === "PRO" ? "Gói Đăng Ký (PRO)" : "Nâng cấp lên PRO"}
+                  </button>
 
                   <button
                     onClick={onLogoutClick}
@@ -917,6 +932,9 @@ ${
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Pricing Modal */}
+      <PricingModal open={pricingModalOpen} onOpenChange={setPricingModalOpen} />
     </div>
   );
 }

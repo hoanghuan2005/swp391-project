@@ -7,7 +7,7 @@ import com.example.keeper.systems.ai_ask.entity.DocumentChunk;
 import com.example.keeper.systems.ai_ask.repository.DocumentChunkRepository;
 import com.example.keeper.systems.ai_usage.service.AiUsageService;
 import com.example.keeper.systems.ai_usage.enums.AiUsageFeature;
-import com.example.keeper.systems.auth.config.TierLimitsConfig;
+import com.example.keeper.systems.auth.repository.SubscriptionPlanRepository;
 import com.example.keeper.systems.auth.entity.User;
 import com.example.keeper.systems.auth.repository.UserRepository;
 import com.example.keeper.systems.document.entity.Document;
@@ -49,16 +49,52 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
     private final EmbeddingService embeddingService;
     private final AiUsageService aiUsageService;
     private final DocumentParserService documentParserService;
+    private final SubscriptionPlanRepository subscriptionPlanRepository;
+
+    private int getMaxQuizQuestions(User user) {
+        String tierCode = user.getSubscriptionTier() != null ? user.getSubscriptionTier().name() : "FREE";
+        return subscriptionPlanRepository.findByCodeAndIsActiveTrue(tierCode)
+                .map(p -> p.getMaxQuizQuestionsPerGeneration() != null ? p.getMaxQuizQuestionsPerGeneration() : (tierCode.equalsIgnoreCase("PRO") ? 50 : 20))
+                .orElse(tierCode.equalsIgnoreCase("PRO") ? 50 : 20);
+    }
 
     @Override
     @Transactional
     public QuizResponse generateQuiz(QuizRequest request, String userEmail) {
+        aiUsageService.checkQuota(userEmail);
+
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        // Enforce tier-based question count limit
-        int maxQuestions = TierLimitsConfig.getMaxQuizQuestions(user.getSubscriptionTier());
         boolean isAdmin = user.getRole() != null && "ADMIN".equals(user.getRole().getName());
+
+        // Enforce document permission check
+        if (request.getDocumentId() != null) {
+            Document document = documentRepository.findById(request.getDocumentId())
+                    .orElseThrow(() -> new RuntimeException("Document not found"));
+            boolean isOwner = document.getUploadedBy() != null && document.getUploadedBy().getId().equals(user.getId());
+            boolean isPublic = document.getVisibility() == com.example.keeper.systems.document.enums.Visibility.PUBLIC;
+            if (!isAdmin && !isOwner && !isPublic) {
+                boolean hasProjectAccess = projectRepository.hasUserAccessToDocumentThroughProjects(document.getId(), user.getId());
+                if (!hasProjectAccess) {
+                    throw new org.springframework.security.access.AccessDeniedException("You do not have permission to access this document.");
+                }
+            }
+        }
+
+        // Enforce project permission check
+        if (request.getProjectId() != null) {
+            Project project = projectRepository.findById(request.getProjectId())
+                    .orElseThrow(() -> new RuntimeException("Project not found"));
+            boolean isOwner = project.getOwner() != null && project.getOwner().getId().equals(user.getId());
+            boolean isMember = project.getMembers() != null && project.getMembers().stream().anyMatch(m -> m.getId().equals(user.getId()));
+            if (!isAdmin && !isOwner && !isMember) {
+                throw new org.springframework.security.access.AccessDeniedException("You do not have permission to access this project.");
+            }
+        }
+
+        // Enforce tier-based question count limit
+        int maxQuestions = getMaxQuizQuestions(user);
         if (!isAdmin && request.getQuestionCount() != null && request.getQuestionCount() > maxQuestions) {
             request.setQuestionCount(maxQuestions);
             log.info("Clamped quiz question count to {} for tier {}", maxQuestions, user.getSubscriptionTier());
@@ -111,7 +147,6 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
                 request.getDifficulty()
         );
 
-        aiUsageService.checkQuota(userEmail);
         String aiResponse = groqService.generateContent(prompt);
         aiUsageService.recordUsage(userEmail, AiUsageFeature.QUIZ_GENERATION);
         log.info("Raw AI response for quiz: {}", aiResponse);
@@ -307,7 +342,7 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         // Enforce tier-based question count limit
-        int maxQuestions = TierLimitsConfig.getMaxQuizQuestions(user.getSubscriptionTier());
+        int maxQuestions = getMaxQuizQuestions(user);
         boolean isAdmin = user.getRole() != null && "ADMIN".equals(user.getRole().getName());
         if (!isAdmin && questionCount != null && questionCount > maxQuestions) {
             questionCount = maxQuestions;

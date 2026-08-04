@@ -1,9 +1,10 @@
 package com.example.keeper.systems.ai_usage.controller;
 
 import com.example.keeper.systems.ai_usage.service.AiUsageService;
-import com.example.keeper.systems.auth.config.TierLimitsConfig;
+import com.example.keeper.systems.auth.entity.SubscriptionPlan;
 import com.example.keeper.systems.auth.entity.User;
 import com.example.keeper.systems.auth.enums.SubscriptionTier;
+import com.example.keeper.systems.auth.repository.SubscriptionPlanRepository;
 import com.example.keeper.systems.auth.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -21,34 +22,39 @@ import java.util.Map;
 public class AiUsageController {
     private final AiUsageService aiUsageService;
     private final UserRepository userRepository;
+    private final SubscriptionPlanRepository subscriptionPlanRepository;
 
     @GetMapping("/me")
     public ResponseEntity<Map<String, Object>> getMyUsage(){
-        String email = SecurityContextHolder.getContext()
+        String authName = SecurityContextHolder.getContext()
                 .getAuthentication()
                 .getName();
 
-        User user =  userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        User user = userRepository.findByEmail(authName)
+                .orElseGet(() -> userRepository.findByUsername(authName)
+                        .orElseThrow(() -> new RuntimeException("User not found")));
 
-        SubscriptionTier tier = user.getSubscriptionTier();
+        SubscriptionTier tier = user.getSubscriptionTier() != null ? user.getSubscriptionTier() : SubscriptionTier.FREE;
 
+        SubscriptionPlan plan = subscriptionPlanRepository.findByCodeAndIsActiveTrue(tier.name())
+                .orElseGet(() -> subscriptionPlanRepository.findByCode(tier.name()).orElse(null));
+
+        boolean isPro = tier == SubscriptionTier.PRO;
         Map<String, Object> tierLimits = new LinkedHashMap<>();
-        tierLimits.put("maxFlashcardsPerGeneration", TierLimitsConfig.getMaxFlashcardsPerGeneration(tier));
-        tierLimits.put("maxQuizQuestionsPerGeneration", TierLimitsConfig.getMaxQuizQuestions(tier));
-        tierLimits.put("maxOwnedProjects", TierLimitsConfig.getMaxOwnedProjects(tier));
-        tierLimits.put("maxJoinedProjects", TierLimitsConfig.getMaxJoinedProjects(tier));
-        tierLimits.put("maxFileSizeBytes", TierLimitsConfig.getMaxFileSize(tier));
-        tierLimits.put("dailyUploadLimit", TierLimitsConfig.getDailyUploadLimit(tier));
-        tierLimits.put("totalDocumentLimit", TierLimitsConfig.getTotalDocumentLimit(tier));
-        tierLimits.put("dailyAiLimit", TierLimitsConfig.getDailyAiLimit(tier));
+        tierLimits.put("maxFlashcardsPerGeneration", plan != null && plan.getMaxFlashcardsPerGeneration() != null ? plan.getMaxFlashcardsPerGeneration() : (isPro ? -1 : 15));
+        tierLimits.put("maxQuizQuestionsPerGeneration", plan != null && plan.getMaxQuizQuestionsPerGeneration() != null ? plan.getMaxQuizQuestionsPerGeneration() : (isPro ? 50 : 20));
+        tierLimits.put("maxOwnedProjects", plan != null && plan.getMaxOwnedProjects() != null ? plan.getMaxOwnedProjects() : (isPro ? -1 : 3));
+        tierLimits.put("maxJoinedProjects", plan != null && plan.getMaxJoinedProjects() != null ? plan.getMaxJoinedProjects() : (isPro ? -1 : 5));
+        tierLimits.put("maxFileSizeBytes", plan != null && plan.getMaxFileSizeBytes() != null ? plan.getMaxFileSizeBytes() : (isPro ? 10 * 1024 * 1024L : 5 * 1024 * 1024L));
+        tierLimits.put("dailyUploadLimit", plan != null && plan.getDailyUploadLimit() != null ? plan.getDailyUploadLimit() : (isPro ? -1L : 3L));
+        tierLimits.put("totalDocumentLimit", plan != null && plan.getTotalDocumentLimit() != null ? plan.getTotalDocumentLimit() : (isPro ? -1L : 20L));
+        tierLimits.put("dailyAiLimit", plan != null && plan.getDailyAiLimit() != null ? plan.getDailyAiLimit() : (isPro ? -1L : 5L));
 
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("subscriptionTier", tier.name());
-        response.put("remainingUsage", aiUsageService.getRemainingUsage(email));
+        response.put("remainingUsage", aiUsageService.getRemainingUsage(user.getEmail()));
         response.put("tierLimits", tierLimits);
 
         return ResponseEntity.ok(response);
     }
 }
-
