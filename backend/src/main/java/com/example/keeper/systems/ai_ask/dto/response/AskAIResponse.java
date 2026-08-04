@@ -28,8 +28,13 @@ public class AskAIResponse {
     @AllArgsConstructor
     public static class SourceReference {
 
+        private Integer index;
+
         private UUID documentId;
 
         private String title;
+
+        private String excerpt;
     }
 }
+

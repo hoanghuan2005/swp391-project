@@ -4,6 +4,7 @@ import com.example.keeper.systems.auth.entity.User;
 import com.example.keeper.systems.auth.repository.UserRepository;
 import com.example.keeper.systems.project.entity.Project;
 import com.example.keeper.systems.project.entity.ProjectChatMessage;
+import com.example.keeper.systems.project.entity.ProjectMemberStatus;
 import com.example.keeper.systems.project.entity.ProjectVisibility;
 import com.example.keeper.systems.project.repository.ProjectChatMessageRepository;
 import com.example.keeper.systems.project.repository.ProjectMemberRepository;
@@ -46,9 +47,9 @@ public class ProjectChatController {
                     .orElse(null);
             if (user != null) {
                 boolean isOwner = project.getOwner().getId().equals(user.getId());
-                boolean isMember = projectMemberRepository.existsByProjectIdAndUserId(id, user.getId());
+                boolean isActiveMember = projectMemberRepository.existsByProjectIdAndUserIdAndStatus(id, user.getId(), ProjectMemberStatus.ACTIVE);
 
-                if (isOwner || isMember) {
+                if (isOwner || isActiveMember) {
                     return chatMessageRepository.findByProjectIdOrderByCreatedAtAsc(id);
                 }
             }
@@ -58,4 +59,5 @@ public class ProjectChatController {
             throw new AccessDeniedException("You do not have access to this workspace chat.");
     }
 }
+
 

@@ -14,4 +14,7 @@ public interface AiMessageRepository
 
     List<AiMessage>
     findTop20ByConversationIdOrderByCreatedAtAsc(UUID conversationId);
-}
+
+    List<AiMessage>
+    findTop10ByConversationIdOrderByCreatedAtAsc(UUID conversationId);
+}

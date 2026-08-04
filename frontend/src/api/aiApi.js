@@ -1,7 +1,7 @@
 import axiosClient from "./axiosClient";
 
 export const askAi = async (request) => {
-  const response = await axiosClient.post("/api/ai/ask", request);
+  const response = await axiosClient.post("/api/ai/ask", request, { timeout: 35000 });
   return response.data;
 };
 
@@ -27,6 +27,7 @@ export const deleteAiConversation = async (conversationId) => {
 };
 
 export const askSharedAi = async (request) => {
-  const response = await axiosClient.post("/api/ai/shared/ask", request);
+  const response = await axiosClient.post("/api/ai/shared/ask", request, { timeout: 35000 });
   return response.data;
 };
+

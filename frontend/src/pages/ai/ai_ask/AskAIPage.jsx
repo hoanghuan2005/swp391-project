@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   Loader2,
   Plus,
@@ -28,16 +29,20 @@ import {
   getAiConversations,
 } from "@/api/aiApi";
 import useDocuments from "@/hooks/useDocuments";
-import ChatInterface from "@/components/chat/ChatInterface"; // <-- Added Import
-import AISidebar from "@/components/ai-sidebar/sidebar/AISidebar"; // <-- Added Import
+import ChatInterface from "@/components/chat/ChatInterface";
+import AISidebar from "@/components/ai-sidebar/sidebar/AISidebar";
 import AiUsageBadge from "@/components/ai-usage/AiUsageBadge";
 import useAiUsage from "@/hooks/useAiUsage";
 import { isAiQuotaExceeded } from "@/api/aiUsageApi";
 import useDocumentQuota from "@/hooks/useDocumentQuota";
 import { isDocumentQuotaExceeded } from "@/api/documentQuotaApi";
 import QuotaExceededDialog from "@/components/quota/QuotaExceededDialog";
+import DocumentPreviewModal from "@/components/documents/DocumentPreviewModal";
+
+const LOCAL_STORAGE_KEY = "swp391_ask_ai_last_state";
 
 export default function AskAIPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [conversations, setConversations] = useState([]);
   const [activeConversation, setActiveConversation] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -49,11 +54,16 @@ export default function AskAIPage() {
     refreshAiUsage,
   } = useAiUsage();
   const { refreshDocumentQuota } = useDocumentQuota();
-  const [selectedDoc, setSelectedDoc] = useState(null);
+  const [selectedDocs, setSelectedDocs] = useState([]);
   const [quotaDialog, setQuotaDialog] = useState({
     open: false,
     type: "AI",
     message: "",
+  });
+  const [previewModalState, setPreviewModalState] = useState({
+    open: false,
+    documentId: null,
+    title: "",
   });
 
   // Custom Confirmation Dialog State
@@ -84,16 +94,12 @@ export default function AskAIPage() {
         if (conv.documentId) {
           const doc = currentDocs.find((d) => d.id === conv.documentId);
           if (doc) {
-            setSelectedDoc(doc);
+            setSelectedDocs([doc]);
           } else {
-            setSelectedDoc({
-              id: conv.documentId,
-              title: "Linked Document",
-              name: "Linked Document",
-            });
+            setSelectedDocs([]);
           }
         } else {
-          setSelectedDoc(null);
+          setSelectedDocs([]);
         }
       } catch (error) {
         console.error("Error fetching messages:", error);
@@ -144,11 +150,99 @@ export default function AskAIPage() {
     }
   }, []);
 
+  const restoredRef = useRef(false);
+
+  // Sync state to URL params and LocalStorage
+  useEffect(() => {
+    const docIdsParam = selectedDocs.map((d) => d.id).join(",");
+    const chatParam = activeConversation?.id || "";
+
+    const newParams = {};
+    if (docIdsParam) newParams.docs = docIdsParam;
+    if (chatParam) newParams.chat = chatParam;
+
+    setSearchParams(newParams, { replace: true });
+
+    try {
+      localStorage.setItem(
+        LOCAL_STORAGE_KEY,
+        JSON.stringify({
+          docIds: selectedDocs.map((d) => d.id),
+          chatId: activeConversation?.id || null,
+        }),
+      );
+    } catch (e) {
+      console.warn("Failed to write to localStorage:", e);
+    }
+  }, [selectedDocs, activeConversation, setSearchParams]);
+
+  // Restore state on initial mount (URL params > LocalStorage fallback)
+  useEffect(() => {
+    if (restoredRef.current) return;
+    if (documents.length === 0 && conversations.length === 0) return;
+
+    restoredRef.current = true;
+
+    const urlDocsParam = searchParams.get("docs");
+    const urlChatParam = searchParams.get("chat");
+
+    let docIdsToRestore = [];
+    let chatIdToRestore = null;
+
+    if (urlDocsParam || urlChatParam) {
+      if (urlDocsParam) {
+        docIdsToRestore = urlDocsParam.split(",").filter(Boolean);
+      }
+      if (urlChatParam) {
+        chatIdToRestore = urlChatParam;
+      }
+    } else {
+      try {
+        const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed.docIds)) docIdsToRestore = parsed.docIds;
+          if (parsed.chatId) chatIdToRestore = parsed.chatId;
+        }
+      } catch (e) {
+        console.warn("Failed to read localStorage state:", e);
+      }
+    }
+
+    if (docIdsToRestore.length > 0) {
+      const matchedDocs = documents.filter((d) => docIdsToRestore.includes(d.id));
+      if (matchedDocs.length > 0) {
+        setSelectedDocs(matchedDocs.slice(0, 5));
+        userSelectedDocumentRef.current = true;
+      }
+    }
+
+    if (chatIdToRestore) {
+      const matchedConv = conversations.find((c) => c.id === chatIdToRestore);
+      if (matchedConv) {
+        handleSelectConversation(matchedConv, documents);
+      }
+    }
+  }, [documents, conversations, searchParams, handleSelectConversation]);
+
+  const handlePreviewDocument = (documentId, title) => {
+    setPreviewModalState({
+      open: true,
+      documentId,
+      title: title || "Document Preview",
+    });
+  };
+
   const handleCreateNewChat = async (doc = null) => {
     try {
+      userSelectedDocumentRef.current = true;
+      const isRealDoc = Boolean(doc && doc.id);
+      const targetDoc = isRealDoc ? doc : null;
+
+      const docTitle = targetDoc ? (targetDoc.title || targetDoc.name || "Document") : null;
       const payload = {
-        title: doc ? `Chat: ${doc.title || doc.name}` : "New Chat",
-        documentId: doc ? doc.id : null,
+        title: targetDoc ? `Chat: ${docTitle}` : "New Chat",
+        documentId: targetDoc ? targetDoc.id : null,
       };
 
       const newConv = await createAiConversation(payload);
@@ -157,10 +251,23 @@ export default function AskAIPage() {
       setActiveConversation(newConv);
       setMessages([]);
 
-      if (doc) {
-        setSelectedDoc(doc);
-      } else {
-        setSelectedDoc(null);
+      const initialDocs = targetDoc ? [targetDoc] : [];
+      setSelectedDocs(initialDocs);
+
+      const newParams = { chat: newConv.id };
+      if (targetDoc?.id) newParams.docs = targetDoc.id;
+      setSearchParams(newParams, { replace: true });
+
+      try {
+        localStorage.setItem(
+          LOCAL_STORAGE_KEY,
+          JSON.stringify({
+            docIds: targetDoc?.id ? [targetDoc.id] : [],
+            chatId: newConv.id,
+          }),
+        );
+      } catch (e) {
+        console.warn("Failed to write to localStorage:", e);
       }
 
       toast.success("Created new chat session");
@@ -190,7 +297,7 @@ export default function AskAIPage() {
       if (activeConversation?.id === confirmTarget.id) {
         setActiveConversation(null);
         setMessages([]);
-        setSelectedDoc(null);
+        setSelectedDocs([]);
       }
 
       toast.success("Chat deleted");
@@ -208,17 +315,20 @@ export default function AskAIPage() {
   const handleSend = async (userMessageContent) => {
     if (!userMessageContent || isLoading) return;
 
-    const selectedDocument = selectedDoc;
-    const selectedDocumentId = selectedDocument?.id ?? null;
-
-    if (selectedDocument?.aiParseStatus === "PENDING") {
+    const pendingDoc = selectedDocs.find((d) => d.aiParseStatus === "PENDING");
+    if (pendingDoc) {
+      const docTitle = pendingDoc.title || pendingDoc.name || "Document";
       toast.error(
-        "This document is still being prepared for AI. Please try again shortly.",
+        `"${docTitle}" is still being prepared for AI. Please try again shortly.`,
       );
       return;
     }
-    if (["FAILED", "UNSUPPORTED"].includes(selectedDocument?.aiParseStatus)) {
-      toast.error("This document is not available for AI context.");
+    const failedDoc = selectedDocs.find((d) =>
+      ["FAILED", "UNSUPPORTED"].includes(d.aiParseStatus),
+    );
+    if (failedDoc) {
+      const docTitle = failedDoc.title || failedDoc.name || "Document";
+      toast.error(`"${docTitle}" is not available for AI context.`);
       return;
     }
 
@@ -226,14 +336,21 @@ export default function AskAIPage() {
 
     let currentConv = activeConversation;
 
+    const selectedDocIds = selectedDocs
+      .filter((d) => d && d.id)
+      .map((d) => d.id);
+
     // Create session on the fly if none is active
     if (!currentConv) {
       try {
+        const firstDocTitle = selectedDocs[0]
+          ? selectedDocs[0].title || selectedDocs[0].name || "Document"
+          : "";
         const payload = {
-          title: selectedDocument
-            ? `Chat: ${selectedDocument.title || selectedDocument.name}`
+          title: selectedDocs.length > 0
+            ? `Chat: ${firstDocTitle}${selectedDocs.length > 1 ? ` (+${selectedDocs.length - 1})` : ""}`
             : "New Chat",
-          documentId: selectedDocumentId,
+          documentId: selectedDocIds[0] || null,
         };
         currentConv = await createAiConversation(payload);
         setConversations((prev) => [currentConv, ...prev]);
@@ -258,7 +375,8 @@ export default function AskAIPage() {
       const response = await askAi({
         conversationId: currentConv.id,
         message: userMessageContent,
-        documentId: selectedDocumentId,
+        documentIds: selectedDocIds,
+        documentId: selectedDocIds[0] || null,
       });
       await refreshAiUsage();
 
@@ -291,6 +409,8 @@ export default function AskAIPage() {
           message: error.response?.data?.message,
         });
         await refreshAiUsage();
+      } else if (error.code === "ECONNABORTED" || error.message?.includes("timeout")) {
+        toast.error("Phản hồi AI bị quá giờ (timeout). Vui lòng thử lại!");
       } else {
         toast.error("AI failed to respond. Please try again.");
       }
@@ -361,24 +481,19 @@ export default function AskAIPage() {
   };
 
   const handleSelectDocument = (doc) => {
-    if (selectedDoc?.id === doc.id) {
-      userSelectedDocumentRef.current = false;
-      setSelectedDoc(null);
-      toast.success("Cleared document focus");
-    } else {
-      userSelectedDocumentRef.current = true;
-      setSelectedDoc(doc);
-      toast.success(`Focused on: ${doc.title || doc.name}`);
-
-      // If we have an active chat, let's bind it
-      if (activeConversation && activeConversation.documentId !== doc.id) {
-        setActiveConversation((prev) =>
-          prev && prev.id === activeConversation.id
-            ? { ...prev, documentId: doc.id }
-            : prev,
-        );
+    userSelectedDocumentRef.current = true;
+    setSelectedDocs((prev) => {
+      const isSelected = prev.some((d) => d.id === doc.id);
+      if (isSelected) {
+        return prev.filter((d) => d.id !== doc.id);
+      } else {
+        if (prev.length >= 5) {
+          toast.error("Bạn chỉ được chọn tối đa 5 tài liệu cùng lúc / You can select at most 5 documents.");
+          return prev;
+        }
+        return [...prev, doc];
       }
-    }
+    });
   };
 
   const filteredDocuments = documents.filter((doc) => {
@@ -387,15 +502,17 @@ export default function AskAIPage() {
     return title.includes(query);
   });
 
-  const isDocUnsupportedOrFailed = !!(selectedDoc && ["FAILED", "UNSUPPORTED"].includes(selectedDoc.aiParseStatus));
+  const isDocUnsupportedOrFailed = selectedDocs.some((d) =>
+    ["FAILED", "UNSUPPORTED"].includes(d.aiParseStatus),
+  );
 
   const documentAlertBoard = isDocUnsupportedOrFailed ? (
     <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-2xl text-red-800 w-full">
       <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
       <div className="flex-1">
-        <h4 className="font-bold text-sm">AI Q&A Disabled</h4>
+        <h4 className="font-bold text-sm">AI Q&A Warning</h4>
         <p className="text-xs text-red-700 mt-1">
-          This document failed to parse or is unsupported. You cannot ask AI questions about it.
+          One or more selected documents failed to parse or are unsupported. Please deselect them.
         </p>
       </div>
     </div>
@@ -409,11 +526,12 @@ export default function AskAIPage() {
         histories={conversations}
         documents={filteredDocuments}
         selectedItem={activeConversation}
-        selectedDoc={selectedDoc}
+        selectedDoc={selectedDocs[0] || null}
+        selectedDocs={selectedDocs}
         onSelectItem={handleSelectConversation}
         onDeleteItem={handleDeleteConversation}
         onSelectDocument={handleSelectDocument}
-        onCreate={handleCreateNewChat}
+        onCreate={() => handleCreateNewChat(null)}
         searchDocQuery={searchDocQuery}
         setSearchDocQuery={setSearchDocQuery}
         fileInputRef={fileInputRef}
@@ -427,9 +545,9 @@ export default function AskAIPage() {
           activeConversation ? activeConversation.title : "Ask StudyMate AI"
         }
         subtitle={
-          selectedDoc
-            ? `Using Document Context: ${selectedDoc.title || selectedDoc.name}`
-            : "General AI Assistant mode (Select a document to ask about it)"
+          selectedDocs.length > 0
+            ? `Using Multi-Document Context (${selectedDocs.length}/5 documents)`
+            : "General AI Assistant mode (Select up to 5 documents to ask about them)"
         }
         messages={messages}
         isLoadingMessages={isLoadingMessages}
@@ -449,8 +567,8 @@ export default function AskAIPage() {
               MinDocu AI Workspace
             </h3>
             <p className="text-xs text-slate-500 leading-relaxed mb-6">
-              Upload or select a course document from the sidebar to ask
-              questions with full document context, or start typing below for a
+              Upload or select up to 5 course documents from the sidebar to ask
+              questions with notebook-style citations, or start typing below for a
               general chat.
             </p>
           </div>
@@ -463,22 +581,34 @@ export default function AskAIPage() {
           />
         }
         contextBadgeComponent={
-          selectedDoc && (
+          selectedDocs.length > 0 && (
             <div className="mt-1.5 flex flex-wrap items-center gap-2">
               <div className="flex items-center gap-1.5 px-3 py-1 bg-orange-50 border border-orange-100 rounded-md text-[10px] text-slate-600 font-semibold w-fit">
                 <FileText className="w-3.5 h-3.5 text-[#f26522]" />
-                Focused on document content.
+                <span>
+                  Focused on <strong className="text-[#f26522]">{selectedDocs.length} / 5</strong> documents
+                </span>
                 <button
-                  onClick={() => setSelectedDoc(null)}
+                  onClick={() => setSelectedDocs([])}
                   className="text-red-500 hover:text-red-700 font-bold ml-1 hover:underline cursor-pointer"
                 >
-                  Clear
+                  Clear All
                 </button>
               </div>
             </div>
           )
         }
+        onPreviewDocument={handlePreviewDocument}
       />
+
+      <DocumentPreviewModal
+        documentId={previewModalState.documentId}
+        open={previewModalState.open}
+        onOpenChange={(open) =>
+          setPreviewModalState((current) => ({ ...current, open }))
+        }
+      />
+
       <QuotaExceededDialog
         open={quotaDialog.open}
         onOpenChange={(open) =>
