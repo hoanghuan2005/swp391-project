@@ -5,6 +5,8 @@ import com.example.keeper.systems.project.dto.response.ProjectDetailResponse;
 import com.example.keeper.systems.project.service.ProjectService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import com.example.keeper.systems.project.exception.ProjectAccessDeniedException;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
@@ -201,5 +203,17 @@ public class ProjectController {
     public ResponseEntity<?> getMyInvitation(@PathVariable UUID projectId) {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         return ResponseEntity.ok(projectService.getMyInvitationStatus(projectId, email));
+    }
+
+    @ExceptionHandler(ProjectAccessDeniedException.class)
+    public ResponseEntity<Map<String, Object>> handleProjectAccessDenied(ProjectAccessDeniedException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                "errorCode", "NEEDS_ACCESS",
+                "message", ex.getMessage(),
+                "projectId", ex.getProjectId(),
+                "projectName", ex.getProjectName(),
+                "ownerName", ex.getOwnerName(),
+                "visibility", ex.getVisibility() != null ? ex.getVisibility() : "PRIVATE"
+        ));
     }
 }

@@ -49,6 +49,8 @@ public class AdminSubscriptionPlanController {
         if (updateData.getMaxQuizQuestionsPerGeneration() != null) plan.setMaxQuizQuestionsPerGeneration(updateData.getMaxQuizQuestionsPerGeneration());
         if (updateData.getMaxOwnedProjects() != null) plan.setMaxOwnedProjects(updateData.getMaxOwnedProjects());
         if (updateData.getMaxJoinedProjects() != null) plan.setMaxJoinedProjects(updateData.getMaxJoinedProjects());
+        if (updateData.getMaxPersonalDocs() != null) plan.setMaxPersonalDocs(updateData.getMaxPersonalDocs());
+        if (updateData.getMaxWorkspaceDocs() != null) plan.setMaxWorkspaceDocs(updateData.getMaxWorkspaceDocs());
         plan.setIsActive(updateData.getIsActive());
 
         SubscriptionPlan updated = subscriptionPlanRepository.save(plan);

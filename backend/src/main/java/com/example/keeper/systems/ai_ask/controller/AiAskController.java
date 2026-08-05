@@ -69,7 +69,11 @@ public class AiAskController {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        String title = (request != null && request.getTitle() != null) ? request.getTitle() : "New Chat";
+        String rawTitle = (request != null && request.getTitle() != null) ? request.getTitle() : "New Chat";
+        String title = rawTitle.replaceAll("\\\\n|\\\\r|[\r\n]", " ").replaceAll("\\s+", " ").trim();
+        if (title.isBlank()) {
+            title = "New Chat";
+        }
         UUID documentId = (request != null) ? request.getDocumentId() : null;
         UUID projectId = (request != null) ? request.getProjectId() : null;
         AiConversation conversation = conversationService.createConversation(user.getId(), title, documentId, projectId);

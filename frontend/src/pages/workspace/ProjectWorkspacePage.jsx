@@ -21,6 +21,8 @@ import WorkspaceGroupChat from "@/components/chat/WorkspaceGroupChat";
 import axiosClient, { backendBaseUrl } from "@/api/axiosClient";
 import UnifiedAIChat from "@/components/ai-chat/UnifiedAIChat";
 import NeedsAccessScreen from "@/components/projects/NeedsAccessScreen";
+import useAiUsage from "@/hooks/useAiUsage";
+import AiUsageBadge from "@/components/ai-usage/AiUsageBadge";
 
 export default function ProjectWorkspacePage() {
   const { projectId, token } = useParams();
@@ -40,6 +42,13 @@ export default function ProjectWorkspacePage() {
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [confirmTarget, setConfirmTarget] = useState(null); // { id, name }
   const [isConfirming, setIsConfirming] = useState(false);
+
+  const {
+    planName,
+    remainingUsage,
+    isUnlimited,
+    loading: aiUsageLoading,
+  } = useAiUsage();
 
   const fetchProject = useCallback(async (silent = false) => {
     try {
@@ -258,6 +267,14 @@ export default function ProjectWorkspacePage() {
           shareToken={token}
           documents={project.documents || []}
           onDeleteDocument={isSharedView ? null : handleDeleteDocument}
+          rightElement={
+            <AiUsageBadge
+              planName={planName}
+              remainingUsage={remainingUsage}
+              isUnlimited={isUnlimited}
+              loading={aiUsageLoading}
+            />
+          }
         />
       ) : (
         <WorkspaceGroupChat

@@ -1,5 +1,6 @@
 package com.example.keeper.systems.ai_usage.service;
 
+import com.example.keeper.systems.ai_usage.dto.UserAiUsageResponse;
 import com.example.keeper.systems.ai_usage.enums.AiUsageFeature;
 
 public interface AiUsageService {
@@ -8,4 +9,7 @@ public interface AiUsageService {
     void recordUsage(String email, AiUsageFeature feature);
 
     long getRemainingUsage(String email);
+
+    UserAiUsageResponse getUserAiUsage(String email);
 }
+

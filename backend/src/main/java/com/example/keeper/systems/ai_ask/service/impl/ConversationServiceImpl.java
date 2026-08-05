@@ -48,10 +48,17 @@ public class ConversationServiceImpl
     @Override
     public AiConversation createConversation(UUID userId, String title, UUID documentId, UUID projectId) {
 
+        String sanitizedTitle = title != null
+                ? title.replaceAll("\\\\n|\\\\r|[\r\n]", " ").replaceAll("\\s+", " ").trim()
+                : "New Chat";
+        if (sanitizedTitle.isBlank()) {
+            sanitizedTitle = "New Chat";
+        }
+
         AiConversation conversation =
                 AiConversation.builder()
                         .userId(userId)
-                        .title(title != null ? title : "New Chat")
+                        .title(sanitizedTitle)
                         .documentId(documentId)
                         .projectId(projectId)
                         .modelName("groq:" + model)

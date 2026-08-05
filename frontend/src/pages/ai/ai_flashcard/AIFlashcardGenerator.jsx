@@ -109,8 +109,9 @@ export default function AIFlashcardGenerator({ contextData }) {
   const [flashcardHistory, setFlashcardHistory] = useState([]);
   const { documents: uploadedDocuments, refreshDocuments } = useDocuments();
   const {
-    subscriptionTier,
+    planName,
     remainingUsage,
+    isUnlimited,
     loading: aiUsageLoading,
     refreshAiUsage,
   } = useAiUsage();
@@ -559,8 +560,9 @@ export default function AIFlashcardGenerator({ contextData }) {
                     <span>⏱️ {formatSessionTime(elapsedSeconds)}</span>
                   </div>
                   <AiUsageBadge
-                    subscriptionTier={subscriptionTier}
+                    planName={planName}
                     remainingUsage={remainingUsage}
+                    isUnlimited={isUnlimited}
                     loading={aiUsageLoading}
                   />
                 </div>

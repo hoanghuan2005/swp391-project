@@ -12,8 +12,9 @@ import UnifiedAIChat from "@/components/ai-chat/UnifiedAIChat";
 export default function AskAIPage() {
   const { documents, refreshDocuments } = useDocuments();
   const {
-    subscriptionTier,
+    planName,
     remainingUsage,
+    isUnlimited,
     loading: aiUsageLoading,
   } = useAiUsage();
   const { refreshDocumentQuota } = useDocumentQuota();
@@ -84,8 +85,9 @@ export default function AskAIPage() {
         isUploading={isUploading}
         rightElement={
           <AiUsageBadge
-            subscriptionTier={subscriptionTier}
+            planName={planName}
             remainingUsage={remainingUsage}
+            isUnlimited={isUnlimited}
             loading={aiUsageLoading}
           />
         }

@@ -16,6 +16,7 @@ import com.example.keeper.systems.document.entity.Document;
 import com.example.keeper.systems.document.enums.AiParseStatus;
 import com.example.keeper.systems.document.repository.DocumentRepository;
 import com.example.keeper.systems.document.service.DocumentDiscoveryService;
+import com.example.keeper.systems.auth.repository.SubscriptionPlanRepository;
 import com.example.keeper.systems.project.entity.Project;
 import com.example.keeper.systems.project.repository.ProjectRepository;
 import lombok.RequiredArgsConstructor;
@@ -52,12 +53,12 @@ public class AiAskServiceImpl implements AiAskService {
     private final EmbeddingService embeddingService;
     private final AiUsageService aiUsageService;
     private final DocumentParserService documentParserService;
+    private final SubscriptionPlanRepository subscriptionPlanRepository;
 
     private static final double SIMILARITY_THRESHOLD = 0.35;
     private static final int MAX_CHUNKS = 8;
     private static final int MAX_CHUNK_CHARS = 600;
     private static final int MAX_INTRO_FALLBACK_CHUNKS = 3;
-    private static final int MAX_PERSONAL_DOCS = 5;
 
     @Override
     @Transactional
@@ -86,7 +87,7 @@ public class AiAskServiceImpl implements AiAskService {
             if (currentTitle == null || "New Chat".equals(currentTitle) || currentTitle.startsWith("Chat: ")) {
                 String firstMsg = request.getMessage();
                 if (firstMsg != null && !firstMsg.isBlank()) {
-                    String cleanedMsg = firstMsg.trim().replaceAll("\\s+", " ");
+                    String cleanedMsg = firstMsg.replaceAll("\\\\n|\\\\r|[\r\n]", " ").replaceAll("\\s+", " ").trim();
                     String newTitle = cleanedMsg.length() > 30 ? cleanedMsg.substring(0, 27) + "..." : cleanedMsg;
                     conversation.setTitle(newTitle);
                     conversationRepository.save(conversation);
@@ -486,16 +487,23 @@ public class AiAskServiceImpl implements AiAskService {
             return;
         }
 
-        if (targetDocIds.size() > MAX_PERSONAL_DOCS) {
-            throw new IllegalArgumentException("You can select at most " + MAX_PERSONAL_DOCS + " documents.");
-        }
-
         String email = SecurityContextHolder.getContext().getAuthentication() != null
                 ? SecurityContextHolder.getContext().getAuthentication().getName()
                 : null;
         User user = (email != null && !"anonymousUser".equals(email))
                 ? userRepository.findByEmail(email).orElse(null)
                 : null;
+
+        boolean isAdmin = user != null && user.getRole() != null && "ADMIN".equalsIgnoreCase(user.getRole().getName());
+        if (!isAdmin) {
+            String tierCode = user != null && user.getSubscriptionTier() != null ? user.getSubscriptionTier().name() : "FREE";
+            int maxPersonalDocs = subscriptionPlanRepository.findByCode(tierCode)
+                    .map(p -> p.getMaxPersonalDocs() != null ? p.getMaxPersonalDocs() : 2)
+                    .orElse(2);
+            if (targetDocIds.size() > maxPersonalDocs) {
+                throw new IllegalArgumentException("Your current plan allows selecting up to " + maxPersonalDocs + " documents.");
+            }
+        }
 
         List<Document> validDocs = new ArrayList<>();
         for (UUID id : targetDocIds) {
@@ -506,7 +514,6 @@ public class AiAskServiceImpl implements AiAskService {
             if (doc != null) {
                 boolean isOwner = doc.getUploadedBy() != null && user != null && user.getId() != null && user.getId().equals(doc.getUploadedBy().getId());
                 boolean isPublic = doc.getVisibility() == com.example.keeper.systems.document.enums.Visibility.PUBLIC;
-                boolean isAdmin = user != null && user.getRole() != null && "ADMIN".equalsIgnoreCase(user.getRole().getName());
 
                 if (isOwner || isPublic || isAdmin) {
                     try {

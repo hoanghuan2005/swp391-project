@@ -412,8 +412,9 @@ function AIMindMapPageInner() {
     refreshDocuments,
   } = useDocuments();
   const {
-    subscriptionTier,
+    planName,
     remainingUsage,
+    isUnlimited,
     loading: aiUsageLoading,
     refreshAiUsage,
   } = useAiUsage();
@@ -854,8 +855,9 @@ function AIMindMapPageInner() {
             } : null}
             rightElement={
               <AiUsageBadge
-                subscriptionTier={subscriptionTier}
+                planName={planName}
                 remainingUsage={remainingUsage}
+                isUnlimited={isUnlimited}
                 loading={aiUsageLoading}
               />
             }
