@@ -20,11 +20,13 @@ import {
 import WorkspaceGroupChat from "@/components/chat/WorkspaceGroupChat";
 import axiosClient, { backendBaseUrl } from "@/api/axiosClient";
 import UnifiedAIChat from "@/components/ai-chat/UnifiedAIChat";
+import NeedsAccessScreen from "@/components/projects/NeedsAccessScreen";
 
 export default function ProjectWorkspacePage() {
   const { projectId, token } = useParams();
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [accessDeniedInfo, setAccessDeniedInfo] = useState(null);
   const isSharedView = Boolean(token);
 
   // Group Chat States
@@ -42,13 +44,18 @@ export default function ProjectWorkspacePage() {
   const fetchProject = useCallback(async (silent = false) => {
     try {
       if (!silent) setLoading(true);
+      setAccessDeniedInfo(null);
       let data = token
         ? await getSharedProject(token)
         : await getProjectDetail(projectId);
       setProject(data);
     } catch (error) {
       console.error("Failed to fetch project:", error);
-      toast.error("Failed to load project workspace");
+      if (error.response?.status === 403 && error.response?.data?.errorCode === "NEEDS_ACCESS") {
+        setAccessDeniedInfo(error.response.data);
+      } else {
+        toast.error("Failed to load project workspace");
+      }
     } finally {
       if (!silent) setLoading(false);
     }
@@ -155,6 +162,7 @@ export default function ProjectWorkspacePage() {
       console.error("WebSocket error", err);
     };
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setGroupSocket(ws);
 
     return () => {
@@ -219,6 +227,17 @@ export default function ProjectWorkspacePage() {
       <div className="h-[calc(100vh-100px)] flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-[#f26522]" />
       </div>
+    );
+  }
+
+  if (accessDeniedInfo) {
+    return (
+      <NeedsAccessScreen
+        projectId={accessDeniedInfo.projectId || projectId}
+        projectName={accessDeniedInfo.projectName}
+        ownerName={accessDeniedInfo.ownerName}
+        visibility={accessDeniedInfo.visibility}
+      />
     );
   }
 
