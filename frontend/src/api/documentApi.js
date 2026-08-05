@@ -21,6 +21,13 @@ export const fetchUploadedDocuments = async () => {
   return response.data;
 };
 
+export const fetchPublicDocuments = async (page = 0, size = 50) => {
+  const response = await axiosClient.get("/api/documents", {
+    params: { page, size },
+  });
+  return response.data?.content || response.data || [];
+};
+
 // ==========================================
 // ADDED FOR DOCUMENT REVIEWS FEATURE
 // ==========================================

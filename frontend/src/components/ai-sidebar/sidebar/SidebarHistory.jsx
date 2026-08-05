@@ -1,6 +1,7 @@
 // SidebarHistory.jsx
 
 import { MessageSquare, Trash2, Edit2 } from "lucide-react";
+import { sanitizeTitle } from "@/lib/utils";
 
 const SidebarHistory = ({
   title,
@@ -37,7 +38,7 @@ const SidebarHistory = ({
                 <MessageSquare className="w-4 h-4 shrink-0 text-slate-400 group-hover:text-[#f26522]" />
 
                 <span className="text-xs font-semibold truncate">
-                  {item.title}
+                  {sanitizeTitle(item.title)}
                 </span>
               </div>
 

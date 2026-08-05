@@ -53,6 +53,7 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
     private final AiUsageService aiUsageService;
     private final DocumentParserService documentParserService;
     private final SubscriptionPlanRepository subscriptionPlanRepository;
+    private final com.example.keeper.systems.project.repository.ProjectMemberRepository projectMemberRepository;
 
     private int getMaxQuizQuestions(User user) {
         String tierCode = user.getSubscriptionTier() != null ? user.getSubscriptionTier().name() : "FREE";
@@ -90,7 +91,7 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
             Project project = projectRepository.findById(request.getProjectId())
                     .orElseThrow(() -> new RuntimeException("Project not found"));
             boolean isOwner = project.getOwner() != null && project.getOwner().getId().equals(user.getId());
-            boolean isMember = projectMemberRepository.existsByProjectIdAndUserId(request.getProjectId(), user.getId());
+            boolean isMember = projectMemberRepository.existsByProjectIdAndUserId(project.getId(), user.getId());
             if (!isAdmin && !isOwner && !isMember) {
                 throw new org.springframework.security.access.AccessDeniedException("You do not have permission to access this project.");
             }

@@ -1,5 +1,6 @@
 package com.example.keeper.systems.ai_usage.service.impl;
 
+import com.example.keeper.systems.ai_usage.dto.UserAiUsageResponse;
 import com.example.keeper.systems.ai_usage.entity.AiUsage;
 import com.example.keeper.systems.ai_usage.enums.AiUsageFeature;
 import com.example.keeper.systems.ai_usage.exception.AiQuotaExceededException;
@@ -21,9 +22,6 @@ import java.time.LocalDateTime;
 @RequiredArgsConstructor
 public class AiUsageServiceImpl implements AiUsageService {
 
-
-    private static final long FREE_DAILY_LIMIT = 5;
-
     private final UserRepository userRepository;
     private final AiUsageRepository aiUsageRepository;
     private final SubscriptionPlanRepository subscriptionPlanRepository;
@@ -32,13 +30,12 @@ public class AiUsageServiceImpl implements AiUsageService {
     public void checkQuota(String email) {
         User user = findUser(email);
 
-        if (isAdmin(user) || user.getSubscriptionTier() == SubscriptionTier.PRO) {
+        if (isAdmin(user)) {
             return;
         }
 
-        long used = getTodayUsage(user);
-
-        if (used >= FREE_DAILY_LIMIT) {
+        UserAiUsageResponse usage = getUserAiUsage(email);
+        if (usage.getMaxDailyAiRequests() != null && usage.getMaxDailyAiRequests() != -1 && usage.getRemainingUsage() <= 0) {
             throw new AiQuotaExceededException(
                     "Daily AI request limit reached."
             );
@@ -62,14 +59,41 @@ public class AiUsageServiceImpl implements AiUsageService {
 
     @Override
     public long getRemainingUsage(String email) {
-        User user = findUser(email);
+        return getUserAiUsage(email).getRemainingUsage();
+    }
 
-        if (isAdmin(user) || user.getSubscriptionTier() == SubscriptionTier.PRO) {
-            return -1;
+    @Override
+    public UserAiUsageResponse getUserAiUsage(String email) {
+        User user = findUser(email);
+        SubscriptionTier tier = user.getSubscriptionTier() != null ? user.getSubscriptionTier() : SubscriptionTier.FREE;
+
+        SubscriptionPlan plan = subscriptionPlanRepository.findByCodeAndIsActiveTrue(tier.name())
+                .orElseGet(() -> subscriptionPlanRepository.findByCode(tier.name()).orElse(null));
+
+        String planName = (plan != null && plan.getName() != null)
+                ? plan.getName()
+                : (tier == SubscriptionTier.PRO ? "Pro Plan" : "Free Plan");
+
+        int maxDailyAiRequests;
+        if (isAdmin(user) || (plan != null && plan.getDailyAiLimit() != null && plan.getDailyAiLimit() < 0)) {
+            maxDailyAiRequests = -1;
+        } else if (plan != null && plan.getDailyAiLimit() != null) {
+            maxDailyAiRequests = plan.getDailyAiLimit().intValue();
+        } else {
+            maxDailyAiRequests = (tier == SubscriptionTier.PRO) ? -1 : 5;
         }
 
-        long used = getTodayUsage(user);
-        return Math.max(0, FREE_DAILY_LIMIT - used);
+        int usedAiRequestsToday = (int) getTodayUsage(user);
+        int remainingUsage = (maxDailyAiRequests == -1)
+                ? -1
+                : Math.max(0, maxDailyAiRequests - usedAiRequestsToday);
+
+        return UserAiUsageResponse.builder()
+                .planName(planName)
+                .maxDailyAiRequests(maxDailyAiRequests)
+                .usedAiRequestsToday(usedAiRequestsToday)
+                .remainingUsage(remainingUsage)
+                .build();
     }
 
     @Override
@@ -96,7 +120,8 @@ public class AiUsageServiceImpl implements AiUsageService {
 
     private User findUser(String email) {
         return userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseGet(() -> userRepository.findByUsername(email)
+                        .orElseThrow(() -> new RuntimeException("User not found")));
     }
 
     private long getTodayUsage(User user) {
@@ -112,3 +137,4 @@ public class AiUsageServiceImpl implements AiUsageService {
         return user.getRole() != null && "ADMIN".equals(user.getRole().getName());
     }
 }
+

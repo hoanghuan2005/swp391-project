@@ -17,6 +17,7 @@ import com.example.keeper.systems.project.entity.ProjectMember;
 import com.example.keeper.systems.project.entity.ProjectMemberStatus;
 import com.example.keeper.systems.project.entity.ProjectRole;
 import com.example.keeper.systems.project.entity.ProjectVisibility;
+import com.example.keeper.systems.project.exception.ProjectAccessDeniedException;
 import com.example.keeper.systems.project.exception.ProjectQuotaExceededException;
 import com.example.keeper.systems.project.repository.ProjectInvitationRepository;
 import com.example.keeper.systems.project.repository.ProjectMemberRepository;
@@ -119,6 +120,24 @@ public class ProjectServiceImpl implements ProjectService {
 
         if (role != ProjectRole.OWNER && role != ProjectRole.EDITOR) {
             throw new RuntimeException("You do not have permission to modify documents in this workspace");
+        }
+
+        // Enforce workspace document limit based on the project owner's subscription plan.
+        // Re-fetch the owner via userRepository to avoid stale data from the LAZY-loaded Hibernate proxy.
+        User owner = project.getOwner() != null
+                ? userRepository.findById(project.getOwner().getId()).orElse(null)
+                : null;
+        boolean ownerIsAdmin = owner != null && owner.getRole() != null && "ADMIN".equals(owner.getRole().getName());
+        if (!ownerIsAdmin) {
+            String tierCode = owner != null && owner.getSubscriptionTier() != null ? owner.getSubscriptionTier().name() : "FREE";
+            int maxWorkspaceDocs = subscriptionPlanRepository.findByCode(tierCode)
+                    .map(p -> p.getMaxWorkspaceDocs() != null ? p.getMaxWorkspaceDocs() : 10)
+                    .orElse(10);
+            int currentDocCount = project.getDocuments() != null ? project.getDocuments().size() : 0;
+            if (currentDocCount >= maxWorkspaceDocs) {
+                throw new ProjectQuotaExceededException(
+                        "This workspace has reached the document limit (" + maxWorkspaceDocs + ") for the owner's " + tierCode + " plan.");
+            }
         }
 
         Document document = documentRepository.findById(documentId)
@@ -267,7 +286,9 @@ public class ProjectServiceImpl implements ProjectService {
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         Set<Project> projects = new HashSet<>(projectRepository.findByOwnerId(user.getId()));
-        projectMemberRepository.findByUserId(user.getId()).forEach(pm -> projects.add(pm.getProject()));
+        projectMemberRepository.findByUserId(user.getId()).stream()
+                .filter(pm -> pm.getStatus() == ProjectMemberStatus.ACTIVE)
+                .forEach(pm -> projects.add(pm.getProject()));
 
         return projects.stream()
                 .map(p -> mapToResponse(p, user))
@@ -286,19 +307,21 @@ public class ProjectServiceImpl implements ProjectService {
         }
 
         boolean isOwner = currentUser != null && project.getOwner().getId().equals(currentUser.getId());
-        boolean isMember = currentUser != null && projectMemberRepository.existsByProjectIdAndUserId(project.getId(), currentUser.getId());
+        boolean isMember = currentUser != null && projectMemberRepository.existsByProjectIdAndUserIdAndStatus(project.getId(), currentUser.getId(), ProjectMemberStatus.ACTIVE);
+
+        String ownerName = project.getOwner().getUsername() != null ? project.getOwner().getUsername() : project.getOwner().getEmail();
 
         if (project.getVisibility() == ProjectVisibility.PRIVATE) {
             if (!isOwner && !isMember) {
-                throw new org.springframework.security.access.AccessDeniedException("Access denied. This workspace is private.");
+                throw new ProjectAccessDeniedException(project.getId(), project.getName(), ownerName, project.getVisibility().name());
             }
         } else if (project.getVisibility() == ProjectVisibility.LINK_SHARED) {
             if (!isOwner && !isMember) {
-                throw new org.springframework.security.access.AccessDeniedException("Access denied. Link-shared workspace must be accessed via share link.");
+                throw new ProjectAccessDeniedException(project.getId(), project.getName(), ownerName, project.getVisibility().name());
             }
         } else if (project.getVisibility() == ProjectVisibility.PUBLIC) {
             if (currentUser == null) {
-                throw new org.springframework.security.access.AccessDeniedException("Access denied. Please log in to view public workspaces.");
+                throw new ProjectAccessDeniedException(project.getId(), project.getName(), ownerName, project.getVisibility().name());
             }
         }
 
@@ -790,6 +813,10 @@ public class ProjectServiceImpl implements ProjectService {
     }
 
     private ProjectDetailResponse processJoinRequest(Project project, User user) {
+        if (project.getVisibility() == ProjectVisibility.PRIVATE) {
+            throw new IllegalArgumentException("Private workspaces are invite-only. You cannot request access.");
+        }
+
         if (project.getOwner().getId().equals(user.getId())) {
             return mapToResponse(project, user);
         }

@@ -231,6 +231,7 @@ export default function WorkspaceOverviewPage() {
     ws.onopen = () => {
       console.log("WebSocket connection established successfully for workspace chat.");
       setIsGroupChatConnected(true);
+      setGroupSocket(ws);
     };
 
     ws.onmessage = (event) => {
@@ -250,17 +251,17 @@ export default function WorkspaceOverviewPage() {
 
     ws.onclose = () => {
       setIsGroupChatConnected(false);
+      setGroupSocket(null);
     };
 
     ws.onerror = (err) => {
       console.error("WebSocket error", err);
     };
 
-    setGroupSocket(ws);
-
     return () => {
       ws.close();
       setIsGroupChatConnected(false);
+      setGroupSocket(null);
     };
   }, [activeTab, projectId, project, isActiveMember]);
 
@@ -931,6 +932,7 @@ export default function WorkspaceOverviewPage() {
             open={isLibraryModalOpen}
             onOpenChange={setIsLibraryModalOpen}
             projectId={projectId}
+            existingWorkspaceDocIds={project?.documents?.map((d) => d.id) || []}
             onSuccess={fetchProject}
           />
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import axiosClient from "@/api/axiosClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,12 +51,13 @@ export default function PlanManagementPage() {
     maxOwnedProjects: 3,
     maxJoinedProjects: 5,
     maxSelectedDocs: 2,
+    maxPersonalDocs: 2,
+    maxWorkspaceDocs: 10,
     isActive: true,
   });
 
-  const fetchPlans = async () => {
+  const fetchPlans = useCallback(async () => {
     try {
-      setLoading(true);
       const res = await axiosClient.get("/api/admin/subscription-plans");
       setPlans(res.data || []);
     } catch (err) {
@@ -64,10 +65,23 @@ export default function PlanManagementPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchPlans();
+    let isMounted = true;
+    axiosClient.get("/api/admin/subscription-plans")
+      .then((res) => {
+        if (isMounted) setPlans(res.data || []);
+      })
+      .catch((err) => {
+        console.error("Failed to load plans:", err);
+      })
+      .finally(() => {
+        if (isMounted) setLoading(false);
+      });
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const handleOpenModal = (plan = null) => {
@@ -88,6 +102,8 @@ export default function PlanManagementPage() {
         maxOwnedProjects: plan.maxOwnedProjects ?? (plan.code === "PRO" ? -1 : 3),
         maxJoinedProjects: plan.maxJoinedProjects ?? (plan.code === "PRO" ? -1 : 5),
         maxSelectedDocs: plan.maxSelectedDocs ?? (plan.code === "PRO" ? 4 : 2),
+        maxPersonalDocs: plan.maxPersonalDocs ?? (plan.code === "PRO" ? 5 : 2),
+        maxWorkspaceDocs: plan.maxWorkspaceDocs ?? (plan.code === "PRO" ? 20 : 10),
         isActive: activeState,
       });
     } else {
@@ -106,6 +122,8 @@ export default function PlanManagementPage() {
         maxOwnedProjects: 3,
         maxJoinedProjects: 5,
         maxSelectedDocs: 2,
+        maxPersonalDocs: 2,
+        maxWorkspaceDocs: 10,
         isActive: true,
       });
     }
@@ -129,6 +147,8 @@ export default function PlanManagementPage() {
         maxOwnedProjects: Number(formData.maxOwnedProjects),
         maxJoinedProjects: Number(formData.maxJoinedProjects),
         maxSelectedDocs: Number(formData.maxSelectedDocs),
+        maxPersonalDocs: Number(formData.maxPersonalDocs),
+        maxWorkspaceDocs: Number(formData.maxWorkspaceDocs),
         isActive: formData.isActive,
       };
 
@@ -318,6 +338,16 @@ export default function PlanManagementPage() {
                           <span className="text-slate-500 font-medium">Max Selected Docs / Query:</span>
                           <span className="font-bold text-slate-700">
                             {plan.maxSelectedDocs === -1 ? "Unlimited" : `${plan.maxSelectedDocs ?? (isPro ? 4 : 2)} docs`}
+                          <span className="text-slate-500 font-medium">Max AI Personal Docs:</span>
+                          <span className="font-bold text-slate-700">
+                            {plan.maxPersonalDocs ?? 2} docs
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-slate-500 font-medium">Max Workspace Docs:</span>
+                          <span className="font-bold text-slate-700">
+                            {plan.maxWorkspaceDocs ?? 10} docs
                           </span>
                         </div>
                       </div>
@@ -547,7 +577,151 @@ export default function PlanManagementPage() {
               </div>
             </div>
 
-            <DialogFooter className="p-6 py-4 border-t border-slate-100 flex-shrink-0 bg-white gap-2">
+            <div>
+              <label className="text-xs font-bold text-slate-600">Price (VND)</label>
+              <Input
+                type="number"
+                value={formData.priceVnd}
+                onChange={(e) => setFormData({ ...formData, priceVnd: e.target.value })}
+                placeholder="0"
+                className="mt-1 rounded-xl"
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-bold text-slate-600">Max File Size (MB)</label>
+                <Input
+                  type="number"
+                  value={formData.maxFileMb}
+                  onChange={(e) => setFormData({ ...formData, maxFileMb: e.target.value })}
+                  placeholder="10"
+                  className="mt-1 rounded-xl"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-600">Total Storage (MB)</label>
+                <Input
+                  type="number"
+                  value={formData.totalStorageMb}
+                  onChange={(e) => setFormData({ ...formData, totalStorageMb: e.target.value })}
+                  placeholder="100"
+                  className="mt-1 rounded-xl"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-bold text-slate-600">Daily Uploads (-1 = Unlimited)</label>
+                <Input
+                  type="number"
+                  value={formData.dailyUploadLimit}
+                  onChange={(e) => setFormData({ ...formData, dailyUploadLimit: e.target.value })}
+                  className="mt-1 rounded-xl"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-600">Daily AI Requests (-1 = Unlimited)</label>
+                <Input
+                  type="number"
+                  value={formData.dailyAiLimit}
+                  onChange={(e) => setFormData({ ...formData, dailyAiLimit: e.target.value })}
+                  className="mt-1 rounded-xl"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-bold text-slate-600">Flashcards / Gen (-1 = Unlimited)</label>
+                <Input
+                  type="number"
+                  value={formData.maxFlashcardsPerGen}
+                  onChange={(e) => setFormData({ ...formData, maxFlashcardsPerGen: e.target.value })}
+                  className="mt-1 rounded-xl"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-600">Quiz Questions / Gen (-1 = Unlimited)</label>
+                <Input
+                  type="number"
+                  value={formData.maxQuizQuestionsPerGen}
+                  onChange={(e) => setFormData({ ...formData, maxQuizQuestionsPerGen: e.target.value })}
+                  className="mt-1 rounded-xl"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-bold text-slate-600">Owned Workspaces (-1 = Unlimited)</label>
+                <Input
+                  type="number"
+                  value={formData.maxOwnedProjects}
+                  onChange={(e) => setFormData({ ...formData, maxOwnedProjects: e.target.value })}
+                  className="mt-1 rounded-xl"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-600">Joined Workspaces (-1 = Unlimited)</label>
+                <Input
+                  type="number"
+                  value={formData.maxJoinedProjects}
+                  onChange={(e) => setFormData({ ...formData, maxJoinedProjects: e.target.value })}
+                  className="mt-1 rounded-xl"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-bold text-slate-600">Max AI Personal Docs</label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={formData.maxPersonalDocs}
+                  onChange={(e) => setFormData({ ...formData, maxPersonalDocs: e.target.value })}
+                  className="mt-1 rounded-xl"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-600">Max Workspace Docs</label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={formData.maxWorkspaceDocs}
+                  onChange={(e) => setFormData({ ...formData, maxWorkspaceDocs: e.target.value })}
+                  className="mt-1 rounded-xl"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-2">
+              <span className="text-xs font-bold text-slate-600">Activate Plan</span>
+              <Switch
+                checked={formData.isActive}
+                onCheckedChange={(checked) => setFormData({ ...formData, isActive: checked })}
+              />
+            </div>
+
+            <DialogFooter className="pt-4 gap-2">
               <Button type="button" variant="outline" onClick={() => setModalOpen(false)} className="rounded-xl font-bold">
                 Cancel
               </Button>

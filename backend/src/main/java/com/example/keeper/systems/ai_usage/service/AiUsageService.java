@@ -1,5 +1,6 @@
 package com.example.keeper.systems.ai_usage.service;
 
+import com.example.keeper.systems.ai_usage.dto.UserAiUsageResponse;
 import com.example.keeper.systems.ai_usage.enums.AiUsageFeature;
 
 public interface AiUsageService {
@@ -10,4 +11,6 @@ public interface AiUsageService {
     long getRemainingUsage(String email);
 
     void checkDocumentSelectionLimit(String email, int selectedCount);
+    UserAiUsageResponse getUserAiUsage(String email);
 }
+

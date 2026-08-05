@@ -13,6 +13,7 @@ const AISidebar = ({
 
   histories = [],
   documents = [],
+  publicDocuments = [],
 
   selectedItem,
   selectedDoc,
@@ -23,6 +24,7 @@ const AISidebar = ({
   onEditItem,
   onSelectDocument,
   onDeleteDocument,
+  onOpenPublicModal,
 
   onCreate,
 
@@ -32,13 +34,14 @@ const AISidebar = ({
   fileInputRef,
   handleUpload,
   isUploading,
+  onToggleSidebar,
 }) => {
   const config = sidebarConfig[type];
 
   return (
-    <div className="w-[280px] border-r border-slate-200 bg-white flex flex-col">
+    <div className="w-full h-full border-r border-slate-200 bg-white flex flex-col min-w-0">
       {/* HEADER */}
-      <SidebarHeader config={config} />
+      <SidebarHeader config={config} onToggleSidebar={onToggleSidebar} />
 
       {/* CREATE BUTTON */}
       <button
@@ -63,10 +66,12 @@ const AISidebar = ({
       {/* DOCUMENTS */}
       <SidebarDocuments
         documents={documents}
+        publicDocuments={publicDocuments}
         selectedDoc={selectedDoc}
         selectedDocs={selectedDocs}
         onSelectDocument={onSelectDocument}
         onDeleteDocument={onDeleteDocument}
+        onOpenPublicModal={onOpenPublicModal}
         searchDocQuery={searchDocQuery}
         setSearchDocQuery={setSearchDocQuery}
         fileInputRef={fileInputRef}

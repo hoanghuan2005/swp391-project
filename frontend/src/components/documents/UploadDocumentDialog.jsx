@@ -327,7 +327,10 @@ export default function UploadDocumentDialog({
                 "Failed to attach document to workspace",
                 linkError,
               );
-              toast.error("Uploaded but failed to attach to workspace");
+              toast.error(
+                linkError.response?.data?.message ||
+                  "Uploaded but failed to attach to workspace",
+              );
             }
           }
         }

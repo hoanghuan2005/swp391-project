@@ -60,6 +60,12 @@ public class SubscriptionPlan extends BaseEntity {
     @Builder.Default
     @Column(name = "max_selected_docs", nullable = false)
     private Integer maxSelectedDocs = 2;
+    @Column(name = "max_personal_docs", nullable = false)
+    private Integer maxPersonalDocs = 2;
+
+    @Builder.Default
+    @Column(name = "max_workspace_docs", nullable = false)
+    private Integer maxWorkspaceDocs = 10;
 
     @Builder.Default
     @Column(name = "is_active", nullable = false)

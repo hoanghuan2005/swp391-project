@@ -36,6 +36,8 @@ const defaultPlans = [
     period: "forever",
     features: [
       "5 AI requests per day",
+      "Select up to 2 personal documents for AI Chat",
+      "Up to 10 documents per workspace",
       "Up to 15 flashcards per generation",
       "Up to 20 quiz questions per generation",
       "Create up to 3 workspaces",
@@ -53,6 +55,8 @@ const defaultPlans = [
     period: "month",
     features: [
       "Unlimited AI requests",
+      "Select up to 5 personal documents for AI Chat",
+      "Up to 20 documents per workspace",
       "Unlimited flashcards per generation",
       "Up to 50 quiz questions per generation",
       "Unlimited workspaces",
@@ -82,24 +86,26 @@ export default function PricingModal({ open, onOpenChange, isOpen, onClose }) {
   };
 
   useEffect(() => {
-    if (isModalOpen) {
-      fetchActivePlans();
-    }
+    if (!isModalOpen) return;
+    let isSubscribed = true;
+    axiosClient.get("/api/subscription/plans")
+      .then((res) => {
+        if (isSubscribed && res.data && res.data.length > 0) {
+          setDbPlans(res.data);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to fetch active plans:", err);
+      })
+      .finally(() => {
+        if (isSubscribed) {
+          setIsFetchingPlans(false);
+        }
+      });
+    return () => {
+      isSubscribed = false;
+    };
   }, [isModalOpen]);
-
-  const fetchActivePlans = async () => {
-    try {
-      setIsFetchingPlans(true);
-      const res = await axiosClient.get("/api/subscription/plans");
-      if (res.data && res.data.length > 0) {
-        setDbPlans(res.data);
-      }
-    } catch (err) {
-      console.error("Failed to fetch active plans:", err);
-    } finally {
-      setIsFetchingPlans(false);
-    }
-  };
 
   const role = getTokenRole();
   const isLoggedIn = localStorage.getItem("isLoggedIn") === "true";
@@ -161,6 +167,8 @@ export default function PricingModal({ open, onOpenChange, isOpen, onClose }) {
       period: p.priceVnd === 0 ? "forever" : "month",
       features: [
         p.dailyAiLimit === -1 ? "Unlimited AI requests" : `${p.dailyAiLimit} AI requests per day`,
+        `Select up to ${p.maxPersonalDocs ?? (isFree ? 2 : 5)} personal documents for AI Chat`,
+        `Up to ${p.maxWorkspaceDocs ?? (isFree ? 10 : 20)} documents per workspace`,
         p.maxFlashcardsPerGeneration === -1 ? "Unlimited flashcards per generation" : `Up to ${p.maxFlashcardsPerGeneration} flashcards per generation`,
         p.maxQuizQuestionsPerGeneration === -1 ? "Unlimited quiz questions per generation" : `Up to ${p.maxQuizQuestionsPerGeneration} quiz questions per generation`,
         p.maxOwnedProjects === -1 ? "Unlimited workspaces" : `Create up to ${p.maxOwnedProjects} workspaces`,

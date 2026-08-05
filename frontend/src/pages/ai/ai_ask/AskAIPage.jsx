@@ -1,85 +1,30 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
-import {
-  Loader2,
-  Plus,
-  FileText,
-  Search,
-  Sparkles,
-  MessageSquare,
-  Trash2,
-  AlertCircle,
-} from "lucide-react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
 import axiosClient from "@/api/axiosClient";
-import {
-  askAi,
-  createAiConversation,
-  deleteAiConversation,
-  getAiConversationMessages,
-  getAiConversations,
-} from "@/api/aiApi";
 import useDocuments from "@/hooks/useDocuments";
-import ChatInterface from "@/components/chat/ChatInterface";
-import AISidebar from "@/components/ai-sidebar/sidebar/AISidebar";
-import AiUsageBadge from "@/components/ai-usage/AiUsageBadge";
 import useAiUsage from "@/hooks/useAiUsage";
-import { isAiQuotaExceeded } from "@/api/aiUsageApi";
 import useDocumentQuota from "@/hooks/useDocumentQuota";
 import { isDocumentQuotaExceeded } from "@/api/documentQuotaApi";
+import AiUsageBadge from "@/components/ai-usage/AiUsageBadge";
 import QuotaExceededDialog from "@/components/quota/QuotaExceededDialog";
-import DocumentPreviewModal from "@/components/documents/DocumentPreviewModal";
-
-const LOCAL_STORAGE_KEY = "swp391_ask_ai_last_state";
+import UnifiedAIChat from "@/components/ai-chat/UnifiedAIChat";
 
 export default function AskAIPage() {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const [conversations, setConversations] = useState([]);
-  const [activeConversation, setActiveConversation] = useState(null);
-  const [messages, setMessages] = useState([]);
   const { documents, refreshDocuments } = useDocuments();
   const {
-    subscriptionTier,
+    planName,
     remainingUsage,
     maxSelectedDocs = 2,
+    isUnlimited,
     loading: aiUsageLoading,
-    refreshAiUsage,
   } = useAiUsage();
   const { refreshDocumentQuota } = useDocumentQuota();
-  const [selectedDocs, setSelectedDocs] = useState([]);
+  const [isUploading, setIsUploading] = useState(false);
   const [quotaDialog, setQuotaDialog] = useState({
     open: false,
     type: "AI",
     message: "",
   });
-  const [previewModalState, setPreviewModalState] = useState({
-    open: false,
-    documentId: null,
-    title: "",
-  });
-
-  // Custom Confirmation Dialog State
-  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
-  const [confirmTarget, setConfirmTarget] = useState(null); // { id, name }
-  const [isConfirming, setIsConfirming] = useState(false);
-
-  const documentsRef = useRef([]);
-  const userSelectedDocumentRef = useRef(false);
-
-  // Removed local 'input' state and 'messagesEndRef' as ChatInterface handles them now
-  const [isLoading, setIsLoading] = useState(false);
-  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-  const [searchDocQuery, setSearchDocQuery] = useState("");
 
   const fileInputRef = useRef(null);
 
@@ -441,30 +386,15 @@ export default function AskAIPage() {
       formData.append("title", file.name);
       formData.append("visibility", "PUBLIC");
 
-      const response = await axiosClient.post(
-        "/api/documents/upload",
-        formData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
+      await axiosClient.post("/api/documents/upload", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
         },
-      );
+      });
 
       toast.success(`Uploaded ${file.name} successfully!`, { id: toastId });
       await refreshDocumentQuota();
-
-      // Reload documents and auto start chat with this document
-      try {
-        await refreshDocuments();
-      } catch {
-        // ignore
-      }
-
-      const newUploadedDoc = response.data;
-      if (newUploadedDoc) {
-        handleCreateNewChat(newUploadedDoc);
-      }
+      await refreshDocuments();
     } catch (error) {
       console.error("Error uploading document:", error);
       if (isDocumentQuotaExceeded(error)) {
@@ -531,20 +461,11 @@ export default function AskAIPage() {
 
   return (
     <div className="h-[calc(100vh-73px)] flex overflow-hidden bg-[#fafafa] rounded-b-xl -mx-8 -my-6">
-      {/* SIDEBAR */}
-      <AISidebar
-        type="ask-ai"
-        histories={conversations}
-        documents={filteredDocuments}
-        selectedItem={activeConversation}
-        selectedDoc={selectedDocs[0] || null}
-        selectedDocs={selectedDocs}
-        onSelectItem={handleSelectConversation}
-        onDeleteItem={handleDeleteConversation}
-        onSelectDocument={handleSelectDocument}
-        onCreate={() => handleCreateNewChat(null)}
-        searchDocQuery={searchDocQuery}
-        setSearchDocQuery={setSearchDocQuery}
+      <UnifiedAIChat
+        mode="PERSONAL"
+        documents={documents}
+        onRefreshDocuments={refreshDocuments}
+        showUploadButton={true}
         fileInputRef={fileInputRef}
         handleUpload={handleUpload}
         isUploading={isUploading}
@@ -586,8 +507,9 @@ export default function AskAIPage() {
         }
         rightElement={
           <AiUsageBadge
-            subscriptionTier={subscriptionTier}
+            planName={planName}
             remainingUsage={remainingUsage}
+            isUnlimited={isUnlimited}
             loading={aiUsageLoading}
           />
         }
@@ -627,48 +549,7 @@ export default function AskAIPage() {
         }
         type={quotaDialog.type}
         message={quotaDialog.message}
-        fileSize={quotaDialog.fileSize}
       />
-
-      <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
-        <DialogContent className="sm:max-w-[425px] rounded-3xl bg-white border border-slate-100 shadow-xl p-6">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-extrabold text-slate-800 flex items-center gap-2">
-              <span className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center text-red-500">
-                <Trash2 className="w-5 h-5" />
-              </span>
-              Confirm Delete
-            </DialogTitle>
-            <DialogDescription className="text-sm text-slate-500 mt-2">
-              Are you sure you want to delete chat session "{confirmTarget?.name}"? This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="mt-6 flex flex-col sm:flex-row gap-2 justify-end">
-            <Button
-              variant="outline"
-              disabled={isConfirming}
-              onClick={() => setConfirmDialogOpen(false)}
-              className="rounded-xl border-slate-200 font-semibold cursor-pointer"
-            >
-              Cancel
-            </Button>
-            <Button
-              disabled={isConfirming}
-              onClick={handleConfirmDeleteConversation}
-              className="bg-red-500 hover:bg-red-600 text-white font-semibold rounded-xl flex items-center gap-2 cursor-pointer border-none"
-            >
-              {isConfirming ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Deleting...
-                </>
-              ) : (
-                "Delete"
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

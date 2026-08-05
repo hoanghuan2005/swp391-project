@@ -82,8 +82,9 @@ export default function AIQuizGenerator() {
   const [quizHistory, setQuizHistory] = useState([]);
   const { documents: uploadedDocuments, refreshDocuments } = useDocuments();
   const {
-    subscriptionTier,
+    planName,
     remainingUsage,
+    isUnlimited,
     loading: aiUsageLoading,
     refreshAiUsage,
   } = useAiUsage();
@@ -224,10 +225,10 @@ export default function AIQuizGenerator() {
   }, [publishDialogOpen, courses.length]);
 
   useEffect(() => {
-    if (subscriptionTier !== "PRO" && questionCount > 20) {
+    if (!isUnlimited && questionCount > 20) {
       setQuestionCount(20);
     }
-  }, [subscriptionTier, questionCount]);
+  }, [isUnlimited, questionCount]);
 
   // Derive detected course from the selected quiz's source document
   const detectedCourse = selectedQuiz?.documentCourseId
@@ -575,8 +576,9 @@ export default function AIQuizGenerator() {
                   <span>⏱️ {formatSessionTime(elapsedSeconds)}</span>
                 </div>
                 <AiUsageBadge
-                  subscriptionTier={subscriptionTier}
+                  planName={planName}
                   remainingUsage={remainingUsage}
+                  isUnlimited={isUnlimited}
                   loading={aiUsageLoading}
                 />
               </div>
@@ -919,7 +921,7 @@ export default function AIQuizGenerator() {
               </label>
 
               <div className="grid grid-cols-4 gap-2">
-                {(subscriptionTier === "PRO" ? [5, 10, 15, 20, 30, 50] : [5, 10, 15, 20]).map((num) => (
+                {(isUnlimited ? [5, 10, 15, 20, 30, 50] : [5, 10, 15, 20]).map((num) => (
                   <Button
                     key={num}
                     variant={questionCount === num ? "default" : "outline"}
@@ -934,7 +936,7 @@ export default function AIQuizGenerator() {
                   </Button>
                 ))}
               </div>
-              {subscriptionTier !== "PRO" && (
+              {!isUnlimited && (
                 <p className="text-xs text-slate-400 mt-2">
                   Upgrade to <span className="font-semibold text-amber-500">PRO</span> to generate up to 50 questions.
                 </p>
