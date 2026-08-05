@@ -2,6 +2,7 @@ package com.example.keeper.systems.ai_mindmap.service;
 
 import com.example.keeper.systems.ai_ask.entity.DocumentChunk;
 import com.example.keeper.systems.ai_ask.repository.DocumentChunkRepository;
+import com.example.keeper.systems.ai_ask.service.DocumentParserService;
 import com.example.keeper.systems.ai_ask.service.GroqService;
 import com.example.keeper.systems.ai_usage.enums.AiUsageFeature;
 import com.example.keeper.systems.ai_usage.service.AiUsageService;

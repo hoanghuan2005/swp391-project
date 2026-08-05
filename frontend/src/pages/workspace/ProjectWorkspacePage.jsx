@@ -1,6 +1,6 @@
-import React, { useEffect, useState, useCallback, useRef } from "react";
-import { useParams, useSearchParams } from "react-router-dom";
-import { Loader2, Sparkles, CheckSquare, Trash2 } from "lucide-react";
+import React, { useEffect, useState, useCallback } from "react";
+import { useParams } from "react-router-dom";
+import { Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,77 +17,27 @@ import {
   getSharedProject,
   removeDocumentFromProject,
 } from "@/api/projectApi";
-import {
-  askAi,
-  askSharedAi,
-  createAiConversation,
-  getAiConversationMessages,
-  getAiConversations,
-} from "@/api/aiApi";
-import ChatInterface from "@/components/chat/ChatInterface";
-import AISidebar from "@/components/ai-sidebar/sidebar/AISidebar";
 import WorkspaceGroupChat from "@/components/chat/WorkspaceGroupChat";
 import axiosClient, { backendBaseUrl } from "@/api/axiosClient";
-import useAiUsage from "@/hooks/useAiUsage";
-import { isAiQuotaExceeded } from "@/api/aiUsageApi";
-import QuotaExceededDialog from "@/components/quota/QuotaExceededDialog";
-import DocumentPreviewModal from "@/components/documents/DocumentPreviewModal";
-
-const welcomeMessage = {
-  id: "initial",
-  role: "assistant",
-  content:
-    "Welcome to your Project Workspace! Select specific sources from the sidebar to talk to, or ask a question right away to synthesize answers across the entire project.",
-};
+import UnifiedAIChat from "@/components/ai-chat/UnifiedAIChat";
 
 export default function ProjectWorkspacePage() {
   const { projectId, token } = useParams();
-  const [searchParams, setSearchParams] = useSearchParams();
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [messages, setMessages] = useState([welcomeMessage]);
-
-  const [isSending, setIsSending] = useState(false);
-  const isSharedView = !!token;
-
-  const { refreshAiUsage } = useAiUsage();
-  const [quotaDialog, setQuotaDialog] = useState({
-    open: false,
-    type: "AI",
-    message: "",
-  });
-  const [previewModalState, setPreviewModalState] = useState({
-    open: false,
-    documentId: null,
-    title: "",
-  });
-
+  const isSharedView = Boolean(token);
 
   // Group Chat States
-  const [chatMode, setChatMode] = useState("ai"); // "ai" or "group"
+  const [chatMode] = useState("ai"); // "ai" or "group"
   const [groupMessages, setGroupMessages] = useState([]);
   const [isGroupChatConnected, setIsGroupChatConnected] = useState(false);
   const [groupSocket, setGroupSocket] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
 
-  const [searchDocQuery, setSearchDocQuery] = useState("");
-  const fileInputRef = useRef(null);
-
-  // Custom Confirmation Dialog State
+  // Custom Confirmation Dialog State (for document removal from workspace)
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [confirmTarget, setConfirmTarget] = useState(null); // { id, name }
   const [isConfirming, setIsConfirming] = useState(false);
-
-  // --- MULTI-SELECT NOTEBOOKLM LOGIC ---
-  const [selectedDocs, setSelectedDocs] = useState([]); // Array instead of a single object!
-
-  const [conversations, setConversations] = useState([]);
-  const [activeConversation, setActiveConversation] = useState(null);
-
-  const loadConversationMessages = useCallback(async (conversationId) => {
-    const savedMessages = (await getAiConversationMessages(conversationId)) || [];
-    setMessages(savedMessages.length > 0 ? savedMessages : [welcomeMessage]);
-  }, []);
 
   const fetchProject = useCallback(async (silent = false) => {
     try {
@@ -96,34 +46,13 @@ export default function ProjectWorkspacePage() {
         ? await getSharedProject(token)
         : await getProjectDetail(projectId);
       setProject(data);
-
-      if (token) {
-        const mainChat = { id: "main", title: data.name };
-        setConversations([mainChat]);
-        setActiveConversation(mainChat);
-        setMessages([welcomeMessage]);
-        return;
-      }
-
-      const savedConversations =
-        (await getAiConversations({ projectId: data.id })) || [];
-      setConversations(savedConversations);
-
-      if (savedConversations.length > 0) {
-        const currentConversation = savedConversations[0];
-        setActiveConversation(currentConversation);
-        await loadConversationMessages(currentConversation.id);
-      } else {
-        setActiveConversation(null);
-        setMessages([welcomeMessage]);
-      }
     } catch (error) {
       console.error("Failed to fetch project:", error);
       toast.error("Failed to load project workspace");
     } finally {
       if (!silent) setLoading(false);
     }
-  }, [projectId, token, loadConversationMessages]);
+  }, [projectId, token]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -142,7 +71,7 @@ export default function ProjectWorkspacePage() {
     }
   }, []);
 
-  // Set up background polling every 15 seconds to sync AI workspace documents/conversations when tab is focused
+  // Background polling every 15s to sync workspace documents
   useEffect(() => {
     const intervalId = setInterval(() => {
       if (document.visibilityState === "visible") {
@@ -187,7 +116,6 @@ export default function ProjectWorkspacePage() {
   // Connect to Group Chat WebSocket
   useEffect(() => {
     if (chatMode !== "group" || !projectId) return;
-
     if (localStorage.getItem("isLoggedIn") !== "true") return;
 
     const wsBaseUrl = backendBaseUrl
@@ -198,11 +126,9 @@ export default function ProjectWorkspacePage() {
     const tokenStr = localStorage.getItem("token");
     const queryParam = tokenStr ? `?token=${encodeURIComponent(tokenStr)}` : "";
     const wsUrl = `${cleanWsBaseUrl}/project-chat-ws/${projectId}${queryParam}`;
-    console.log("Connecting to workspace chat WebSocket:", wsUrl);
     const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
-      console.log("WebSocket connection established successfully for workspace chat.");
       setIsGroupChatConnected(true);
     };
 
@@ -261,246 +187,9 @@ export default function ProjectWorkspacePage() {
     groupSocket.send(payload);
   };
 
-  const handleSelectConversation = async (conversation) => {
-    if (!conversation || conversation.id === activeConversation?.id) {
-      return;
-    }
-
-    setActiveConversation(conversation);
-    try {
-      await loadConversationMessages(conversation.id);
-    } catch (error) {
-      console.error("Failed to load workspace chat:", error);
-      toast.error("Failed to load workspace chat history");
-    }
-  };
-
-  const createWorkspaceConversation = async (title = "New Chat") => {
-    const newConversation = await createAiConversation({
-      title,
-      projectId: project.id,
-    });
-    setConversations((prev) => [newConversation, ...prev]);
-    setActiveConversation(newConversation);
-    return newConversation;
-  };
-
-  const handleCreateNewConversation = async () => {
-    if (isSharedView) {
-      setActiveConversation({ id: "main", title: project.name });
-      setMessages([welcomeMessage]);
-      setSelectedDocs([]);
-      setSearchParams({}, { replace: true });
-      return;
-    }
-
-    try {
-      const newConversation = await createWorkspaceConversation();
-      setMessages([welcomeMessage]);
-      setSelectedDocs([]);
-      setSearchParams({ chat: newConversation.id }, { replace: true });
-      try {
-        localStorage.setItem(
-          LOCAL_STORAGE_KEY,
-          JSON.stringify({ docIds: [], chatId: newConversation.id }),
-        );
-      } catch (e) {
-        console.warn("Failed to update localStorage on new conversation:", e);
-      }
-    } catch (error) {
-      console.error("Failed to create workspace chat:", error);
-      toast.error("Failed to create new chat");
-    }
-  };
-
-  const handleSend = async (messageText) => {
-    if (!messageText || isSending) return;
-
-    if (hasFailedOrUnsupportedSelected) {
-      toast.error("Some selected documents failed to parse or are unsupported.");
-      return;
-    }
-
-    const pendingDocs =
-      selectedDocs.length > 0
-        ? selectedDocs.filter((doc) => doc.aiParseStatus === "PENDING")
-        : (project.documents || []).filter(
-            (doc) => doc.aiParseStatus === "PENDING",
-          );
-
-    if (pendingDocs.length > 0) {
-      toast.error(
-        "Some documents are still being prepared for AI. Please try again shortly.",
-      );
-      return;
-    }
-
-    const userMessage = { id: Date.now(), role: "user", content: messageText };
-    setMessages((prev) => [...prev, userMessage]);
-    setIsSending(true);
-
-    try {
-      const currentConversation = token
-        ? null
-        : activeConversation || (await createWorkspaceConversation());
-      const validDocIds = selectedDocs.filter((d) => d && d.id).map((d) => d.id);
-      const documentIdsToSend = validDocIds.length > 0 ? validDocIds : null;
-
-      const payload = {
-        conversationId: currentConversation?.id || null,
-        projectId: project.id,
-        shareToken: token || null,
-        documentIds: documentIdsToSend,
-        message: messageText,
-      };
-
-      const response = token
-        ? await askSharedAi(payload)
-        : await askAi(payload);
-
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: response.assistantMessageId || Date.now() + 1,
-          role: "assistant",
-          content: response.answer,
-          sources: response.sources || [],
-        },
-      ]);
-
-      if (!token && project?.id) {
-        try {
-          const savedConversations = (await getAiConversations({ projectId: project.id })) || [];
-          setConversations(savedConversations);
-          if (currentConversation) {
-            const refreshedConv = savedConversations.find((c) => c.id === currentConversation.id);
-            if (refreshedConv) setActiveConversation(refreshedConv);
-          }
-        } catch {
-          // ignore
-        }
-      }
-    } catch (error) {
-      console.error("AI Ask failed:", error);
-      if (isAiQuotaExceeded(error)) {
-        setQuotaDialog({
-          open: true,
-          type: "AI",
-          message: error.response?.data?.message,
-        });
-        await refreshAiUsage();
-      } else if (error.code === "ECONNABORTED" || error.message?.includes("timeout")) {
-        toast.error("Phản hồi AI bị quá giờ (timeout). Vui lòng thử lại!");
-      } else {
-        toast.error("AI Assistant is currently unavailable");
-      }
-    } finally {
-      setIsSending(false);
-    }
-  };
-
-  const LOCAL_STORAGE_KEY = `swp391_workspace_ai_state_${projectId || token || "default"}`;
-  const restoredRef = useRef(false);
-
-  // Sync state to URL params and LocalStorage
-  useEffect(() => {
-    const docIdsParam = selectedDocs.map((d) => d.id).join(",");
-    const chatParam = activeConversation?.id || "";
-
-    const newParams = {};
-    if (docIdsParam) newParams.docs = docIdsParam;
-    if (chatParam) newParams.chat = chatParam;
-
-    setSearchParams(newParams, { replace: true });
-
-    try {
-      localStorage.setItem(
-        LOCAL_STORAGE_KEY,
-        JSON.stringify({
-          docIds: selectedDocs.map((d) => d.id),
-          chatId: activeConversation?.id || null,
-        }),
-      );
-    } catch (e) {
-      console.warn("Failed to write workspace state to localStorage:", e);
-    }
-  }, [selectedDocs, activeConversation, setSearchParams, LOCAL_STORAGE_KEY]);
-
-  // Restore state on mount (URL params > LocalStorage fallback)
-  useEffect(() => {
-    if (restoredRef.current) return;
-    if (!project || (conversations.length === 0 && !token)) return;
-
-    restoredRef.current = true;
-
-    const urlDocsParam = searchParams.get("docs");
-    const urlChatParam = searchParams.get("chat");
-
-    let docIdsToRestore = [];
-    let chatIdToRestore = null;
-
-    if (urlDocsParam || urlChatParam) {
-      if (urlDocsParam) docIdsToRestore = urlDocsParam.split(",").filter(Boolean);
-      if (urlChatParam) chatIdToRestore = urlChatParam;
-    } else {
-      try {
-        const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed.docIds)) docIdsToRestore = parsed.docIds;
-          if (parsed.chatId) chatIdToRestore = parsed.chatId;
-        }
-      } catch (e) {
-        console.warn("Failed to read workspace state from localStorage:", e);
-      }
-    }
-
-    if (docIdsToRestore.length > 0 && project.documents) {
-      const matchedDocs = project.documents.filter((d) => docIdsToRestore.includes(d.id));
-      if (matchedDocs.length > 0) {
-        setSelectedDocs(matchedDocs.slice(0, 5));
-      }
-    }
-
-    if (chatIdToRestore && conversations.length > 0) {
-      const matchedConv = conversations.find((c) => c.id === chatIdToRestore);
-      if (matchedConv) {
-        handleSelectConversation(matchedConv);
-      }
-    }
-  }, [project, conversations, searchParams, token, handleSelectConversation, LOCAL_STORAGE_KEY]);
-
-  const handlePreviewDocument = (documentId, title) => {
-    setPreviewModalState({
-      open: true,
-      documentId,
-      title: title || "Document Preview",
-    });
-  };
-
-  // Toggle selection logic for multiple documents (Max 5 documents)
-  const handleSelectDocument = (doc) => {
-    setSelectedDocs((prevSelected) => {
-      const isAlreadySelected = prevSelected.find((d) => d.id === doc.id);
-      if (isAlreadySelected) {
-        return prevSelected.filter((d) => d.id !== doc.id); // Remove if already checked
-      } else {
-        if (prevSelected.length >= 5) {
-          toast.error("Bạn chỉ được chọn tối đa 5 tài liệu trọng tâm / Maximum 5 documents allowed.");
-          return prevSelected;
-        }
-        return [...prevSelected, doc]; // Add if unchecked
-      }
-    });
-  };
-
-  const handleClearSelection = () => {
-    setSelectedDocs([]);
-  };
-
   const handleDeleteDocument = (documentId) => {
     if (isSharedView) return;
-    const doc = project.documents?.find((d) => d.id === documentId);
+    const doc = project?.documents?.find((d) => d.id === documentId);
     setConfirmTarget({
       id: documentId,
       name: doc?.title || doc?.name || "tài liệu này",
@@ -514,11 +203,6 @@ export default function ProjectWorkspacePage() {
     try {
       await removeDocumentFromProject(projectId, confirmTarget.id);
       toast.success("Document removed");
-
-      // Clear from selectedDocs if it was there
-      setSelectedDocs((prev) => prev.filter((d) => d.id !== confirmTarget.id));
-
-      // Refresh project to update sidebar
       fetchProject(true);
     } catch (error) {
       console.error("Delete document failed:", error);
@@ -529,22 +213,6 @@ export default function ProjectWorkspacePage() {
       setConfirmTarget(null);
     }
   };
-
-  const hasFailedOrUnsupportedSelected = selectedDocs.some(
-    (doc) => doc.aiParseStatus === "FAILED" || doc.aiParseStatus === "UNSUPPORTED"
-  );
-
-  const documentAlertBoard = hasFailedOrUnsupportedSelected ? (
-    <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-2xl text-red-800 w-full">
-      <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
-      <div className="flex-1">
-        <h4 className="font-bold text-sm">AI Q&A Disabled</h4>
-        <p className="text-xs text-red-700 mt-1">
-          Some of the selected documents failed to parse or are unsupported. You cannot ask AI questions about them.
-        </p>
-      </div>
-    </div>
-  ) : null;
 
   if (loading) {
     return (
@@ -558,93 +226,34 @@ export default function ProjectWorkspacePage() {
 
   return (
     <div
-      className={`flex overflow-hidden bg-[#fafafa] ${isSharedView ? "h-screen w-full absolute inset-0 z-50" : "h-[calc(100vh-73px)] rounded-b-xl -mx-8 -my-6"}`}
+      className={`flex overflow-hidden bg-[#fafafa] ${
+        isSharedView
+          ? "h-screen w-full absolute inset-0 z-50"
+          : "h-[calc(100vh-73px)] rounded-b-xl -mx-8 -my-6"
+      }`}
     >
-      <AISidebar
-        type="project-workspace"
-        histories={conversations}
-        documents={project.documents || []}
-        selectedItem={activeConversation}
-        selectedDocs={selectedDocs} // Pass the array!
-        onSelectItem={handleSelectConversation}
-        onSelectDocument={handleSelectDocument}
-        onDeleteDocument={isSharedView ? null : handleDeleteDocument}
-        onCreate={() => handleCreateNewConversation()}
-        searchDocQuery={searchDocQuery}
-        setSearchDocQuery={setSearchDocQuery}
-        fileInputRef={fileInputRef}
-      />
+      {chatMode === "ai" ? (
+        <UnifiedAIChat
+          mode="WORKSPACE"
+          workspaceId={projectId}
+          shareToken={token}
+          documents={project.documents || []}
+          onDeleteDocument={isSharedView ? null : handleDeleteDocument}
+        />
+      ) : (
+        <WorkspaceGroupChat
+          projectId={project.id}
+          title={project.name}
+          subtitle="Phòng thảo luận Workspace"
+          messages={groupMessages}
+          isChatConnected={isGroupChatConnected}
+          currentUser={currentUser}
+          onSendMessage={handleSendGroupMessage}
+          onToggleReaction={handleToggleGroupReaction}
+        />
+      )}
 
-      <div className="flex-1 flex flex-col min-w-0">
-        {chatMode === "ai" ? (
-          <ChatInterface
-            title={project.name}
-            subtitle={
-              selectedDocs.length > 0
-                ? `Synthesizing ${selectedDocs.length} selected sources`
-                : "Querying entire workspace"
-            }
-            messages={messages}
-            isSending={isSending}
-            onSendMessage={handleSend}
-            showUploadButton={false}
-            isDisabled={hasFailedOrUnsupportedSelected}
-            alertComponent={documentAlertBoard}
-            emptyStateComponent={
-              <div className="h-full flex flex-col items-center justify-center text-center p-8 max-w-lg mx-auto">
-                <div className="w-16 h-16 rounded-3xl bg-[#f26522]/10 flex items-center justify-center mb-4">
-                  <Sparkles className="w-8 h-8 text-[#f26522]" />
-                </div>
-                <h3 className="text-lg font-bold text-slate-800 mb-2">
-                  Project Workspace Active
-                </h3>
-                <p className="text-xs text-slate-500 leading-relaxed mb-6">
-                  Select specific sources from the sidebar to limit the context,
-                  or leave them unchecked to have the AI synthesize answers across
-                  all {project.documents?.length || 0} documents.
-                </p>
-              </div>
-            }
-            // The Context Badge now reflects multiple sources
-            contextBadgeComponent={
-              selectedDocs.length > 0 && (
-                <div className="mt-1.5 flex items-center gap-1.5 px-3 py-1 bg-orange-50 border border-orange-100 rounded-md text-[10px] text-slate-600 font-semibold w-fit">
-                  <CheckSquare className="w-3.5 h-3.5 text-[#f26522]" />
-                  Focused on {selectedDocs.length} source
-                  {selectedDocs.length > 1 ? "s" : ""}
-                  <button
-                    onClick={handleClearSelection}
-                    className="text-red-500 hover:text-red-700 font-bold ml-1 hover:underline cursor-pointer"
-                  >
-                    Clear All
-                  </button>
-                </div>
-              )
-            }
-            onPreviewDocument={handlePreviewDocument}
-          />
-        ) : (
-          <WorkspaceGroupChat
-            projectId={project.id}
-            title={project.name}
-            subtitle="Phòng thảo luận Workspace"
-            messages={groupMessages}
-            isChatConnected={isGroupChatConnected}
-            currentUser={currentUser}
-            onSendMessage={handleSendGroupMessage}
-            onToggleReaction={handleToggleGroupReaction}
-          />
-        )}
-      </div>
-
-      <DocumentPreviewModal
-        documentId={previewModalState.documentId}
-        open={previewModalState.open}
-        onOpenChange={(open) =>
-          setPreviewModalState((current) => ({ ...current, open }))
-        }
-      />
-
+      {/* DOCUMENT REMOVAL CONFIRMATION DIALOG */}
       <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
         <DialogContent className="sm:max-w-[425px] rounded-3xl bg-white border border-slate-100 shadow-xl p-6">
           <DialogHeader>
@@ -684,15 +293,6 @@ export default function ProjectWorkspacePage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      <QuotaExceededDialog
-        open={quotaDialog.open}
-        onOpenChange={(open) =>
-          setQuotaDialog((current) => ({ ...current, open }))
-        }
-        type={quotaDialog.type}
-        message={quotaDialog.message}
-      />
     </div>
   );
 }
-
