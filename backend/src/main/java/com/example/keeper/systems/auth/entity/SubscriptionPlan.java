@@ -58,6 +58,10 @@ public class SubscriptionPlan extends BaseEntity {
     private Integer maxJoinedProjects = 5;
 
     @Builder.Default
+    @Column(name = "max_selected_docs", nullable = false)
+    private Integer maxSelectedDocs = 2;
+
+    @Builder.Default
     @Column(name = "is_active", nullable = false)
     @com.fasterxml.jackson.annotation.JsonProperty("isActive")
     private boolean isActive = true;

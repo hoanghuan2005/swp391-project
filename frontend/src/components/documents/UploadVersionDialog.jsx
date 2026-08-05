@@ -26,9 +26,22 @@ export default function UploadVersionDialog({
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef(null);
 
+  const ALLOWED_EXTENSIONS = [".pdf", ".doc", ".docx", ".ppt", ".pptx"];
+  const isSupportedFile = (file) => {
+    if (!file || !file.name) return false;
+    const name = file.name.toLowerCase();
+    return ALLOWED_EXTENSIONS.some((ext) => name.endsWith(ext));
+  };
+
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (!isSupportedFile(file)) {
+        toast.error("Hệ thống chỉ hỗ trợ các định dạng file: .pdf, .doc, .docx, .ppt, .pptx");
+        setSelectedFile(null);
+        if (e.target) e.target.value = "";
+        return;
+      }
       setSelectedFile(file);
     }
   };
@@ -42,8 +55,8 @@ export default function UploadVersionDialog({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!selectedFile) {
-      toast.error("Please select a file to update");
+    if (!selectedFile || !isSupportedFile(selectedFile)) {
+      toast.error("Hệ thống chỉ hỗ trợ các định dạng file: .pdf, .doc, .docx, .ppt, .pptx");
       return;
     }
 
@@ -101,6 +114,7 @@ export default function UploadVersionDialog({
               <input
                 ref={fileInputRef}
                 type="file"
+                accept=".pdf,.doc,.docx,.ppt,.pptx"
                 className="hidden"
                 onChange={handleFileChange}
               />

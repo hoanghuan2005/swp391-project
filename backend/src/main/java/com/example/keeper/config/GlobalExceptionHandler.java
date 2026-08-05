@@ -1,6 +1,7 @@
 package com.example.keeper.config;
 
 import com.example.keeper.systems.ai_usage.exception.AiQuotaExceededException;
+import com.example.keeper.systems.ai_usage.exception.DocumentSelectionQuotaExceededException;
 import com.example.keeper.systems.project.exception.ProjectQuotaExceededException;
 import jakarta.persistence.EntityNotFoundException;
 import com.example.keeper.systems.document.exception.DocumentQuotaExceededException;
@@ -38,6 +39,15 @@ public class GlobalExceptionHandler {
                 return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                                 .body(Map.of(
                                                 "code", "AI_QUOTA_EXCEEDED",
+                                                "message", ex.getMessage()));
+        }
+
+        @ExceptionHandler(DocumentSelectionQuotaExceededException.class)
+        public ResponseEntity<Map<String, Object>> handleDocumentSelectionQuotaExceededException(
+                        DocumentSelectionQuotaExceededException ex) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                                .body(Map.of(
+                                                "code", "DOCUMENT_SELECTION_LIMIT_EXCEEDED",
                                                 "message", ex.getMessage()));
         }
 

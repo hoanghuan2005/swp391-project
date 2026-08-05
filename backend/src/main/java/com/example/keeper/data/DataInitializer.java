@@ -80,6 +80,7 @@ public class DataInitializer implements CommandLineRunner {
                                                         .maxQuizQuestionsPerGeneration(20)
                                                         .maxOwnedProjects(3)
                                                         .maxJoinedProjects(5)
+                                                        .maxSelectedDocs(2)
                                                         .isActive(true)
                                                         .build(),
                                         com.example.keeper.systems.auth.entity.SubscriptionPlan.builder()
@@ -95,6 +96,7 @@ public class DataInitializer implements CommandLineRunner {
                                                         .maxQuizQuestionsPerGeneration(50)
                                                         .maxOwnedProjects(-1)
                                                         .maxJoinedProjects(-1)
+                                                        .maxSelectedDocs(4)
                                                         .isActive(true)
                                                         .build()));
                         System.out.println("Seeded subscription plans");
@@ -147,6 +149,7 @@ public class DataInitializer implements CommandLineRunner {
                                         passwordEncoder.encode("student123"));
                         student.setRole(studentRole);
                         student.setEmailVerified(true);
+                        student.setMaxStorageBytes(100L * 1024 * 1024);
 
                         userRepository.save(student);
 
@@ -189,6 +192,7 @@ public class DataInitializer implements CommandLineRunner {
                                 u.setPassword(passwordEncoder.encode(rawPassword));
                                 u.setRole(studentRole);
                                 u.setEmailVerified(true);
+                                u.setMaxStorageBytes(100L * 1024 * 1024);
 
                                 com.example.keeper.systems.profile.entity.UserProfile up = com.example.keeper.systems.profile.entity.UserProfile
                                                 .builder()

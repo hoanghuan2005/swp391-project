@@ -92,6 +92,7 @@ public class DocumentServiceImpl implements DocumentService {
 
     @Override
     public Document uploadAndCreate(MultipartFile file, CreateDocumentRequest request) {
+        validateSupportedFileFormat(file);
         documentQuotaService.validateUpload(getCurrentUserEmail(), file.getSize());
 
         Document document = buildDocument(request);
@@ -1191,6 +1192,7 @@ public class DocumentServiceImpl implements DocumentService {
     @Override
     @org.springframework.transaction.annotation.Transactional
     public DocumentVersion uploadNewVersion(UUID documentId, MultipartFile file, String changelog, String email) {
+        validateSupportedFileFormat(file);
         User uploader = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
         Document document = getById(documentId);
@@ -1483,5 +1485,20 @@ public class DocumentServiceImpl implements DocumentService {
                 .uploaderName(savedVersion.getUploadedBy() != null ? (savedVersion.getUploadedBy().getUsername() != null ? savedVersion.getUploadedBy().getUsername() : savedVersion.getUploadedBy().getEmail()) : "N/A")
                 .createdAt(savedVersion.getCreatedAt())
                 .build();
+    }
+
+    private void validateSupportedFileFormat(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("Tệp tin không được để trống.");
+        }
+        String originalFilename = file.getOriginalFilename();
+        if (originalFilename == null || !originalFilename.contains(".")) {
+            throw new IllegalArgumentException("Hệ thống chỉ hỗ trợ các định dạng file: .pdf, .doc, .docx, .ppt, .pptx");
+        }
+        String lower = originalFilename.toLowerCase();
+        if (!lower.endsWith(".pdf") && !lower.endsWith(".doc") && !lower.endsWith(".docx")
+                && !lower.endsWith(".ppt") && !lower.endsWith(".pptx")) {
+            throw new IllegalArgumentException("Hệ thống chỉ hỗ trợ các định dạng file: .pdf, .doc, .docx, .ppt, .pptx");
+        }
     }
 }

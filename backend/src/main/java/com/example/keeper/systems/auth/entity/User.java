@@ -74,4 +74,7 @@ public class User extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "subscription_tier")
     private SubscriptionTier subscriptionTier = SubscriptionTier.FREE;
+
+    @Column(name = "max_storage_bytes")
+    private Long maxStorageBytes;
 }

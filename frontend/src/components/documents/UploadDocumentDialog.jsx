@@ -217,9 +217,22 @@ export default function UploadDocumentDialog({
     }
   };
 
+  const ALLOWED_EXTENSIONS = [".pdf", ".doc", ".docx", ".ppt", ".pptx"];
+  const isSupportedFile = (file) => {
+    if (!file || !file.name) return false;
+    const name = file.name.toLowerCase();
+    return ALLOWED_EXTENSIONS.some((ext) => name.endsWith(ext));
+  };
+
   const handleFileSelect = (event) => {
     const file = event.target.files?.[0];
     if (file) {
+      if (!isSupportedFile(file)) {
+        toast.error("Hệ thống chỉ hỗ trợ các định dạng file: .pdf, .doc, .docx, .ppt, .pptx");
+        setSelectedFile(null);
+        if (event.target) event.target.value = "";
+        return;
+      }
       setSelectedFile(file);
       if (!title.trim() || (selectedFile && title === selectedFile.name)) {
         setTitle(file.name);
@@ -366,8 +379,8 @@ export default function UploadDocumentDialog({
   };
 
   const handleUploadDocument = async () => {
-    if (!selectedFile) {
-      const message = "Please select a file to upload.";
+    if (!selectedFile || !isSupportedFile(selectedFile)) {
+      const message = "Hệ thống chỉ hỗ trợ các định dạng file: .pdf, .doc, .docx, .ppt, .pptx";
       setUploadError(message);
       toast.error(message);
       return;

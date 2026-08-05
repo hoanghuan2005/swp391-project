@@ -6,8 +6,16 @@ export default function useAiUsage() {
     subscriptionTier: "FREE",
     remainingUsage: null,
     tierLimits: null,
+    maxSelectedDocs: 2,
   });
   const [loading, setLoading] = useState(true);
+
+  const calculateMaxSelectedDocs = (data) => {
+    if (!data) return 2;
+    if (data.maxSelectedDocs != null) return data.maxSelectedDocs;
+    if (data.tierLimits?.maxSelectedDocs != null) return data.tierLimits.maxSelectedDocs;
+    return data.subscriptionTier === "PRO" ? 4 : 2;
+  };
 
   const refreshAiUsage = useCallback(async () => {
     if (localStorage.getItem("isLoggedIn") !== "true") {
@@ -17,7 +25,8 @@ export default function useAiUsage() {
     try {
       setLoading(true);
       const usage = await getMyAiUsage();
-      setAiUsage(usage);
+      const maxSelectedDocs = calculateMaxSelectedDocs(usage);
+      setAiUsage({ ...usage, maxSelectedDocs });
       return usage;
     } catch (error) {
       console.error("Failed to load AI usage:", error);
@@ -39,7 +48,8 @@ export default function useAiUsage() {
       getMyAiUsage()
         .then((usage) => {
           if (active) {
-            setAiUsage(usage);
+            const maxSelectedDocs = calculateMaxSelectedDocs(usage);
+            setAiUsage({ ...usage, maxSelectedDocs });
           }
         })
         .catch((error) => {

@@ -8,4 +8,6 @@ public interface AiUsageService {
     void recordUsage(String email, AiUsageFeature feature);
 
     long getRemainingUsage(String email);
+
+    void checkDocumentSelectionLimit(String email, int selectedCount);
 }

@@ -49,6 +49,7 @@ public class AdminSubscriptionPlanController {
         if (updateData.getMaxQuizQuestionsPerGeneration() != null) plan.setMaxQuizQuestionsPerGeneration(updateData.getMaxQuizQuestionsPerGeneration());
         if (updateData.getMaxOwnedProjects() != null) plan.setMaxOwnedProjects(updateData.getMaxOwnedProjects());
         if (updateData.getMaxJoinedProjects() != null) plan.setMaxJoinedProjects(updateData.getMaxJoinedProjects());
+        if (updateData.getMaxSelectedDocs() != null) plan.setMaxSelectedDocs(updateData.getMaxSelectedDocs());
         plan.setIsActive(updateData.getIsActive());
 
         SubscriptionPlan updated = subscriptionPlanRepository.save(plan);
@@ -69,10 +70,6 @@ public class AdminSubscriptionPlanController {
     public ResponseEntity<Void> deletePlan(@PathVariable UUID id) {
         SubscriptionPlan plan = subscriptionPlanRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Subscription plan not found: " + id));
-
-        if ("FREE".equalsIgnoreCase(plan.getCode()) || "PRO".equalsIgnoreCase(plan.getCode())) {
-            throw new IllegalArgumentException("Core system plans (FREE, PRO) cannot be deleted. You can toggle them to Inactive instead.");
-        }
 
         subscriptionPlanRepository.delete(plan);
         return ResponseEntity.noContent().build();

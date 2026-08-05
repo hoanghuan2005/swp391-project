@@ -46,13 +46,17 @@ public class UserSubscriptionController {
                 .orElseGet(() -> subscriptionPlanRepository.findByCode("FREE")
                         .orElse(null));
 
+        long userTotalStorage = user.getMaxStorageBytes() != null
+                ? user.getMaxStorageBytes()
+                : (plan != null ? plan.getTotalStorageBytes() : (tier == SubscriptionTier.PRO ? 1024 * 1024 * 1024L : 100 * 1024 * 1024L));
+
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("username", user.getUsername());
         result.put("subscriptionTier", tier.name());
         result.put("planName", plan != null ? plan.getName() : (tier == SubscriptionTier.PRO ? "Gói Chuyên Nghiệp (PRO)" : "Gói Miễn Phí"));
         result.put("priceVnd", plan != null ? plan.getPriceVnd() : (tier == SubscriptionTier.PRO ? 99000 : 0));
         result.put("maxFileSizeBytes", plan != null ? plan.getMaxFileSizeBytes() : (tier == SubscriptionTier.PRO ? 10 * 1024 * 1024 : 5 * 1024 * 1024));
-        result.put("totalStorageBytes", plan != null ? plan.getTotalStorageBytes() : (tier == SubscriptionTier.PRO ? 1024 * 1024 * 1024 : 100 * 1024 * 1024));
+        result.put("totalStorageBytes", userTotalStorage);
         result.put("dailyUploadLimit", plan != null ? plan.getDailyUploadLimit() : (tier == SubscriptionTier.PRO ? -1 : 3));
         result.put("totalDocumentLimit", plan != null ? plan.getTotalDocumentLimit() : (tier == SubscriptionTier.PRO ? -1 : 20));
         result.put("dailyAiLimit", plan != null && plan.getDailyAiLimit() != null ? plan.getDailyAiLimit() : (tier == SubscriptionTier.PRO ? -1 : 5));
@@ -80,8 +84,13 @@ public class UserSubscriptionController {
             return ResponseEntity.badRequest().body(Map.of("message", "Tài khoản của bạn hiện đã là gói Miễn Phí (FREE)."));
         }
 
-        // Downgrade user to FREE tier
+        // Downgrade user to FREE tier & snapshot FREE plan storage limit
         user.setSubscriptionTier(SubscriptionTier.FREE);
+        SubscriptionPlan freePlan = subscriptionPlanRepository.findByCodeAndIsActiveTrue("FREE")
+                .orElseGet(() -> subscriptionPlanRepository.findByCode("FREE").orElse(null));
+        if (freePlan != null && freePlan.getTotalStorageBytes() != null) {
+            user.setMaxStorageBytes(freePlan.getTotalStorageBytes());
+        }
         userRepository.save(user);
 
         // Send notification

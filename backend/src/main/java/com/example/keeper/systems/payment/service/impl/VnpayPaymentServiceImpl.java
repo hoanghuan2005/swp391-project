@@ -1,8 +1,10 @@
 package com.example.keeper.systems.payment.service.impl;
 
 import com.example.keeper.config.VnpayConfig;
+import com.example.keeper.systems.auth.entity.SubscriptionPlan;
 import com.example.keeper.systems.auth.entity.User;
 import com.example.keeper.systems.auth.enums.SubscriptionTier;
+import com.example.keeper.systems.auth.repository.SubscriptionPlanRepository;
 import com.example.keeper.systems.auth.repository.UserRepository;
 import com.example.keeper.systems.auth.service.EmailService;
 import com.example.keeper.systems.notification.service.NotificationService;
@@ -46,6 +48,7 @@ public class VnpayPaymentServiceImpl implements VnpayPaymentService {
     private final VnpayConfig vnpayConfig;
     private final UserRepository userRepository;
     private final PaymentTransactionRepository paymentTransactionRepository;
+    private final SubscriptionPlanRepository subscriptionPlanRepository;
     private final EmailService emailService;
     private final NotificationService notificationService;
 
@@ -133,8 +136,7 @@ public class VnpayPaymentServiceImpl implements VnpayPaymentService {
             transaction.setProcessedAt(LocalDateTime.now());
 
             User user = transaction.getUser();
-            user.setSubscriptionTier(SubscriptionTier.PRO);
-            userRepository.save(user);
+            snapshotProTierUpgrade(user);
             paymentTransactionRepository.save(transaction);
 
             try {
@@ -210,8 +212,7 @@ public class VnpayPaymentServiceImpl implements VnpayPaymentService {
         transaction.setProcessedAt(LocalDateTime.now());
         if (successful) {
             transaction.setStatus(PaymentStatus.SUCCESS);
-            transactionUser.setSubscriptionTier(SubscriptionTier.PRO);
-            userRepository.save(transactionUser);
+            snapshotProTierUpgrade(transactionUser);
 
             try {
                 emailService.sendSubscriptionSuccessEmail(transactionUser.getEmail(), transactionUser.getUsername());
@@ -418,5 +419,15 @@ public class VnpayPaymentServiceImpl implements VnpayPaymentService {
                 .status(transaction.getStatus().name())
                 .subscriptionTier(transaction.getUser().getSubscriptionTier().name())
                 .build();
+    }
+
+    private void snapshotProTierUpgrade(User user) {
+        user.setSubscriptionTier(SubscriptionTier.PRO);
+        SubscriptionPlan proPlan = subscriptionPlanRepository.findByCodeAndIsActiveTrue("PRO")
+                .orElseGet(() -> subscriptionPlanRepository.findByCode("PRO").orElse(null));
+        if (proPlan != null && proPlan.getTotalStorageBytes() != null) {
+            user.setMaxStorageBytes(proPlan.getTotalStorageBytes());
+        }
+        userRepository.save(user);
     }
 }

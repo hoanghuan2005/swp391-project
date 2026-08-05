@@ -12,8 +12,10 @@ import com.example.keeper.systems.auth.entity.User;
 import com.example.keeper.systems.auth.repository.UserRepository;
 import com.example.keeper.systems.document.entity.Document;
 import com.example.keeper.systems.document.enums.AiParseStatus;
+import com.example.keeper.systems.document.enums.Visibility;
 import com.example.keeper.systems.document.repository.DocumentRepository;
 import com.example.keeper.systems.project.entity.Project;
+import com.example.keeper.systems.project.repository.ProjectMemberRepository;
 import com.example.keeper.systems.project.repository.ProjectRepository;
 import com.example.keeper.systems.ai_quiz.dto.request.QuizRequest;
 import com.example.keeper.systems.ai_quiz.dto.response.QuestionDTO;
@@ -42,6 +44,7 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
     private final QuizRepository quizRepository;
     private final DocumentChunkRepository documentChunkRepository;
     private final ProjectRepository projectRepository;
+    private final ProjectMemberRepository projectMemberRepository;
     private final DocumentRepository documentRepository;
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
@@ -73,7 +76,7 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
             Document document = documentRepository.findById(request.getDocumentId())
                     .orElseThrow(() -> new RuntimeException("Document not found"));
             boolean isOwner = document.getUploadedBy() != null && document.getUploadedBy().getId().equals(user.getId());
-            boolean isPublic = document.getVisibility() == com.example.keeper.systems.document.enums.Visibility.PUBLIC;
+            boolean isPublic = document.getVisibility() == Visibility.PUBLIC;
             if (!isAdmin && !isOwner && !isPublic) {
                 boolean hasProjectAccess = projectRepository.hasUserAccessToDocumentThroughProjects(document.getId(), user.getId());
                 if (!hasProjectAccess) {
@@ -87,7 +90,7 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
             Project project = projectRepository.findById(request.getProjectId())
                     .orElseThrow(() -> new RuntimeException("Project not found"));
             boolean isOwner = project.getOwner() != null && project.getOwner().getId().equals(user.getId());
-            boolean isMember = project.getMembers() != null && project.getMembers().stream().anyMatch(m -> m.getId().equals(user.getId()));
+            boolean isMember = projectMemberRepository.existsByProjectIdAndUserId(request.getProjectId(), user.getId());
             if (!isAdmin && !isOwner && !isMember) {
                 throw new org.springframework.security.access.AccessDeniedException("You do not have permission to access this project.");
             }

@@ -48,11 +48,13 @@ public class AiUsageController {
         tierLimits.put("maxFileSizeBytes", plan != null && plan.getMaxFileSizeBytes() != null ? plan.getMaxFileSizeBytes() : (isPro ? 10 * 1024 * 1024L : 5 * 1024 * 1024L));
         tierLimits.put("dailyUploadLimit", plan != null && plan.getDailyUploadLimit() != null ? plan.getDailyUploadLimit() : (isPro ? -1L : 3L));
         tierLimits.put("totalDocumentLimit", plan != null && plan.getTotalDocumentLimit() != null ? plan.getTotalDocumentLimit() : (isPro ? -1L : 20L));
-        tierLimits.put("dailyAiLimit", plan != null && plan.getDailyAiLimit() != null ? plan.getDailyAiLimit() : (isPro ? -1L : 5L));
+        int maxSelectedDocs = plan != null && plan.getMaxSelectedDocs() != null ? plan.getMaxSelectedDocs() : (isPro ? 4 : 2);
+        tierLimits.put("maxSelectedDocs", maxSelectedDocs);
 
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("subscriptionTier", tier.name());
         response.put("remainingUsage", aiUsageService.getRemainingUsage(user.getEmail()));
+        response.put("maxSelectedDocs", maxSelectedDocs);
         response.put("tierLimits", tierLimits);
 
         return ResponseEntity.ok(response);

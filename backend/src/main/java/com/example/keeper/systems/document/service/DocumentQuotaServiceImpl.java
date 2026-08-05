@@ -39,7 +39,7 @@ public class DocumentQuotaServiceImpl implements DocumentQuotaService {
         }
 
         long usedStorage = getUsedStorage(user);
-        long maxStorage = plan.getTotalStorageBytes();
+        long maxStorage = user.getMaxStorageBytes() != null ? user.getMaxStorageBytes() : plan.getTotalStorageBytes();
         if (maxStorage != UNLIMITED && (usedStorage + fileSize > maxStorage)) {
             throw new DocumentQuotaExceededException(
                     "Total storage limit (" + toMegabytes(maxStorage) + "MB) exceeded.");
@@ -72,6 +72,8 @@ public class DocumentQuotaServiceImpl implements DocumentQuotaService {
 
         long usedStorage = getUsedStorage(user);
 
+        long maxStorage = user.getMaxStorageBytes() != null ? user.getMaxStorageBytes() : plan.getTotalStorageBytes();
+
         return DocumentQuotaResponse.builder()
                 .subscriptionTier(user.getSubscriptionTier() != null ? user.getSubscriptionTier().name() : "FREE")
                 .uploadsToday(getUploadsToday(user))
@@ -80,7 +82,7 @@ public class DocumentQuotaServiceImpl implements DocumentQuotaService {
                 .totalDocumentLimit(admin ? UNLIMITED : plan.getTotalDocumentLimit())
                 .maxFileSizeBytes(admin ? 10L * 1024 * 1024 : plan.getMaxFileSizeBytes())
                 .usedStorageBytes(usedStorage)
-                .maxStorageBytes(admin ? UNLIMITED : plan.getTotalStorageBytes())
+                .maxStorageBytes(admin ? UNLIMITED : maxStorage)
                 .build();
     }
 

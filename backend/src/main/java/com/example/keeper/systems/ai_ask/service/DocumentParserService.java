@@ -9,6 +9,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.apache.poi.hslf.usermodel.HSLFSlideShow;
+import org.apache.poi.hwpf.HWPFDocument;
+import org.apache.poi.hwpf.extractor.WordExtractor;
 import org.apache.poi.sl.extractor.SlideShowExtractor;
 import org.apache.poi.xslf.extractor.XSLFExtractor;
 import org.apache.poi.xslf.usermodel.XMLSlideShow;
@@ -151,8 +153,8 @@ public class DocumentParserService {
     }
 
     private String extractDocText(InputStream inputStream) throws Exception {
-        try (org.apache.poi.hwpf.HWPFDocument document = new org.apache.poi.hwpf.HWPFDocument(inputStream);
-             org.apache.poi.hwpf.extractor.WordExtractor extractor = new org.apache.poi.hwpf.extractor.WordExtractor(document)) {
+        try (HWPFDocument document = new HWPFDocument(inputStream);
+             WordExtractor extractor = new WordExtractor(document)) {
             return extractor.getText();
         }
     }

@@ -3,10 +3,13 @@ package com.example.keeper.systems.ai_usage.service.impl;
 import com.example.keeper.systems.ai_usage.entity.AiUsage;
 import com.example.keeper.systems.ai_usage.enums.AiUsageFeature;
 import com.example.keeper.systems.ai_usage.exception.AiQuotaExceededException;
+import com.example.keeper.systems.ai_usage.exception.DocumentSelectionQuotaExceededException;
 import com.example.keeper.systems.ai_usage.repository.AiUsageRepository;
 import com.example.keeper.systems.ai_usage.service.AiUsageService;
+import com.example.keeper.systems.auth.entity.SubscriptionPlan;
 import com.example.keeper.systems.auth.entity.User;
 import com.example.keeper.systems.auth.enums.SubscriptionTier;
+import com.example.keeper.systems.auth.repository.SubscriptionPlanRepository;
 import com.example.keeper.systems.auth.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -23,6 +26,7 @@ public class AiUsageServiceImpl implements AiUsageService {
 
     private final UserRepository userRepository;
     private final AiUsageRepository aiUsageRepository;
+    private final SubscriptionPlanRepository subscriptionPlanRepository;
 
     @Override
     public void checkQuota(String email) {
@@ -66,6 +70,28 @@ public class AiUsageServiceImpl implements AiUsageService {
 
         long used = getTodayUsage(user);
         return Math.max(0, FREE_DAILY_LIMIT - used);
+    }
+
+    @Override
+    public void checkDocumentSelectionLimit(String email, int selectedCount) {
+        User user = findUser(email);
+        if (isAdmin(user)) {
+            return;
+        }
+
+        SubscriptionTier tier = user.getSubscriptionTier() != null ? user.getSubscriptionTier() : SubscriptionTier.FREE;
+        SubscriptionPlan plan = subscriptionPlanRepository.findByCodeAndIsActiveTrue(tier.name())
+                .orElseGet(() -> subscriptionPlanRepository.findByCode(tier.name()).orElse(null));
+
+        int maxAllowed = plan != null && plan.getMaxSelectedDocs() != null
+                ? plan.getMaxSelectedDocs()
+                : (tier == SubscriptionTier.PRO ? 4 : 2);
+
+        if (maxAllowed != -1 && selectedCount > maxAllowed) {
+            throw new DocumentSelectionQuotaExceededException(
+                    "Gói " + tier.name() + " chỉ cho phép chọn tối đa " + maxAllowed + " tài liệu cùng lúc trong phiên bản Demo."
+            );
+        }
     }
 
     private User findUser(String email) {

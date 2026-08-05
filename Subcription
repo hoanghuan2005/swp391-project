@@ -7,6 +7,7 @@ Enforce giới hạn theo subscription tier (FREE / PRO) cho flashcard, quiz, pr
 
 | Feature | FREE | PRO |
 |---|---|---|
+| **Tài liệu chọn hỏi AI / lần** | Tối đa 2 tài liệu | Tối đa 4 tài liệu |
 | **Flashcard / lần tạo** | Tối đa 15 cards | Unlimited (AI tự quyết) |
 | **Quiz questions / lần tạo** | Tối đa 20 câu | Tối đa 50 câu |
 | **Project tạo** | Tối đa 3 projects | Unlimited |

@@ -66,22 +66,22 @@ export default function AdminSidebar({ isOpen = true }) {
   return (
     <aside
       className={cn(
-        "h-[calc(100vh-68px)] overflow-y-auto pb-10 bg-white [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] border-r border-gray-100 transition-all duration-300 ease-in-out shadow-sm",
+        "h-full flex flex-col bg-white border-r border-slate-200/80 transition-all duration-300 ease-in-out shadow-xs",
         isOpen ? "w-[280px] px-3 pt-3" : "w-[72px] px-2 pt-3",
         "hidden lg:block shrink-0 transition-all duration-300 ease-in-out",
       )}
     >
-      {/* Header riêng cho Admin */}
+      {/* Cố định Header riêng cho Admin */}
       <div
         className={cn(
-          "mb-6 mt-2 transition-all duration-300 ease-in-out overflow-hidden flex flex-col items-center",
+          "shrink-0 mb-4 mt-1 pb-3 border-b border-slate-100 transition-all duration-300 ease-in-out overflow-hidden flex flex-col items-center",
           isOpen ? "px-2" : "",
         )}
       >
         <div
           className={cn(
             "flex items-center w-full transition-all duration-300",
-            isOpen ? "justify-start gap-4 mb-5" : "justify-center",
+            isOpen ? "justify-start gap-4" : "justify-center",
           )}
         >
           <div className="h-[42px] w-[42px] shrink-0 rounded-xl bg-slate-800 text-white flex items-center justify-center font-bold text-lg shadow-sm">
@@ -103,93 +103,95 @@ export default function AdminSidebar({ isOpen = true }) {
         </div>
       </div>
 
-      {/* Điều hướng */}
-      <nav className={cn("w-full flex flex-col", !isOpen && "items-center")}>
-        <AdminNavItem
-          to="/admin/dashboard"
-          icon={LayoutDashboard}
-          label="Dashboard"
-          isOpen={isOpen}
-          pathname={location.pathname}
-        />
-        <AdminNavItem
-          to="/admin/users"
-          icon={Users}
-          label="Users"
-          isOpen={isOpen}
-          pathname={location.pathname}
-        />
-        <AdminNavItem
-          to="/admin/documents"
-          icon={FileText}
-          label="Documents"
-          isOpen={isOpen}
-          pathname={location.pathname}
-        />
-        <AdminNavItem
-          to="/admin/reports"
-          icon={ShieldAlert}
-          label="Reports"
-          isOpen={isOpen}
-          pathname={location.pathname}
-        />
-        <AdminNavItem
-          to="/admin/payments"
-          icon={CreditCard}
-          label="Payments"
-          isOpen={isOpen}
-          pathname={location.pathname}
-        />
-        <AdminNavItem
-          to="/admin/plans"
-          icon={Layers}
-          label="Subscription Plans"
-          isOpen={isOpen}
-          pathname={location.pathname}
-        />
-        <AdminNavItem
-          to="/admin/ai-usages"
-          icon={Brain}
-          label="AI Usages"
-          isOpen={isOpen}
-          pathname={location.pathname}
-        />
-        <AdminNavItem
-          to="/admin/courses"
-          icon={BookOpen}
-          label="Courses"
-          isOpen={isOpen}
-          pathname={location.pathname}
-        />
-        <AdminNavItem
-          to="/admin/catalog/schools"
-          icon={GraduationCap}
-          label="Schools"
-          isOpen={isOpen}
-          pathname={location.pathname}
-        />
-        <AdminNavItem
-          to="/admin/catalog/majors"
-          icon={Layers}
-          label="Majors"
-          isOpen={isOpen}
-          pathname={location.pathname}
-        />
-        <AdminNavItem
-          to="/admin/catalog/tags"
-          icon={Tags}
-          label="Tags"
-          isOpen={isOpen}
-          pathname={location.pathname}
-        />
-        <AdminNavItem
-          to="/admin/catalog/languages"
-          icon={Globe}
-          label="Languages"
-          isOpen={isOpen}
-          pathname={location.pathname}
-        />
-      </nav>
+      {/* Chỉ cuộn danh sách menu ở dưới */}
+      <div className="flex-1 overflow-y-auto pb-8 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        <nav className={cn("w-full flex flex-col", !isOpen && "items-center")}>
+          <AdminNavItem
+            to="/admin/dashboard"
+            icon={LayoutDashboard}
+            label="Dashboard"
+            isOpen={isOpen}
+            pathname={location.pathname}
+          />
+          <AdminNavItem
+            to="/admin/users"
+            icon={Users}
+            label="Users"
+            isOpen={isOpen}
+            pathname={location.pathname}
+          />
+          <AdminNavItem
+            to="/admin/documents"
+            icon={FileText}
+            label="Documents"
+            isOpen={isOpen}
+            pathname={location.pathname}
+          />
+          <AdminNavItem
+            to="/admin/reports"
+            icon={ShieldAlert}
+            label="Reports"
+            isOpen={isOpen}
+            pathname={location.pathname}
+          />
+          <AdminNavItem
+            to="/admin/payments"
+            icon={CreditCard}
+            label="Payments"
+            isOpen={isOpen}
+            pathname={location.pathname}
+          />
+          <AdminNavItem
+            to="/admin/plans"
+            icon={Layers}
+            label="Subscription Plans"
+            isOpen={isOpen}
+            pathname={location.pathname}
+          />
+          <AdminNavItem
+            to="/admin/ai-usages"
+            icon={Brain}
+            label="AI Usages"
+            isOpen={isOpen}
+            pathname={location.pathname}
+          />
+          <AdminNavItem
+            to="/admin/courses"
+            icon={BookOpen}
+            label="Courses"
+            isOpen={isOpen}
+            pathname={location.pathname}
+          />
+          <AdminNavItem
+            to="/admin/catalog/schools"
+            icon={GraduationCap}
+            label="Schools"
+            isOpen={isOpen}
+            pathname={location.pathname}
+          />
+          <AdminNavItem
+            to="/admin/catalog/majors"
+            icon={Layers}
+            label="Majors"
+            isOpen={isOpen}
+            pathname={location.pathname}
+          />
+          <AdminNavItem
+            to="/admin/catalog/tags"
+            icon={Tags}
+            label="Tags"
+            isOpen={isOpen}
+            pathname={location.pathname}
+          />
+          <AdminNavItem
+            to="/admin/catalog/languages"
+            icon={Globe}
+            label="Languages"
+            isOpen={isOpen}
+            pathname={location.pathname}
+          />
+        </nav>
+      </div>
     </aside>
   );
 }

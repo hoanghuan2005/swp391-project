@@ -50,6 +50,7 @@ export default function AskAIPage() {
   const {
     subscriptionTier,
     remainingUsage,
+    maxSelectedDocs = 2,
     loading: aiUsageLoading,
     refreshAiUsage,
   } = useAiUsage();
@@ -212,7 +213,7 @@ export default function AskAIPage() {
     if (docIdsToRestore.length > 0) {
       const matchedDocs = documents.filter((d) => docIdsToRestore.includes(d.id));
       if (matchedDocs.length > 0) {
-        setSelectedDocs(matchedDocs.slice(0, 5));
+        setSelectedDocs(matchedDocs.slice(0, maxSelectedDocs));
         userSelectedDocumentRef.current = true;
       }
     }
@@ -409,6 +410,14 @@ export default function AskAIPage() {
           message: error.response?.data?.message,
         });
         await refreshAiUsage();
+      } else if (
+        error.response?.data?.code === "DOCUMENT_SELECTION_LIMIT_EXCEEDED" ||
+        error.response?.data?.message?.includes("tài liệu")
+      ) {
+        toast.error(
+          error.response?.data?.message ||
+            `Gói của bạn chỉ được chọn tối đa ${maxSelectedDocs} tài liệu cùng lúc trong phiên bản Demo.`
+        );
       } else if (error.code === "ECONNABORTED" || error.message?.includes("timeout")) {
         toast.error("Phản hồi AI bị quá giờ (timeout). Vui lòng thử lại!");
       } else {
@@ -487,8 +496,10 @@ export default function AskAIPage() {
       if (isSelected) {
         return prev.filter((d) => d.id !== doc.id);
       } else {
-        if (prev.length >= 5) {
-          toast.error("Bạn chỉ được chọn tối đa 5 tài liệu cùng lúc / You can select at most 5 documents.");
+        if (prev.length >= maxSelectedDocs) {
+          toast.error(
+            `Gói của bạn chỉ được chọn tối đa ${maxSelectedDocs} tài liệu cùng lúc trong phiên bản Demo.`
+          );
           return prev;
         }
         return [...prev, doc];
@@ -546,8 +557,8 @@ export default function AskAIPage() {
         }
         subtitle={
           selectedDocs.length > 0
-            ? `Using Multi-Document Context (${selectedDocs.length}/5 documents)`
-            : "General AI Assistant mode (Select up to 5 documents to ask about them)"
+            ? `Using Multi-Document Context (${selectedDocs.length}/${maxSelectedDocs} documents)`
+            : `General AI Assistant mode (Select up to ${maxSelectedDocs} documents to ask about them)`
         }
         messages={messages}
         isLoadingMessages={isLoadingMessages}
@@ -567,7 +578,7 @@ export default function AskAIPage() {
               MinDocu AI Workspace
             </h3>
             <p className="text-xs text-slate-500 leading-relaxed mb-6">
-              Upload or select up to 5 course documents from the sidebar to ask
+              Upload or select up to {maxSelectedDocs} course documents from the sidebar to ask
               questions with notebook-style citations, or start typing below for a
               general chat.
             </p>
@@ -586,7 +597,7 @@ export default function AskAIPage() {
               <div className="flex items-center gap-1.5 px-3 py-1 bg-orange-50 border border-orange-100 rounded-md text-[10px] text-slate-600 font-semibold w-fit">
                 <FileText className="w-3.5 h-3.5 text-[#f26522]" />
                 <span>
-                  Focused on <strong className="text-[#f26522]">{selectedDocs.length} / 5</strong> documents
+                  Focused on <strong className="text-[#f26522]">{selectedDocs.length} / {maxSelectedDocs}</strong> documents
                 </span>
                 <button
                   onClick={() => setSelectedDocs([])}

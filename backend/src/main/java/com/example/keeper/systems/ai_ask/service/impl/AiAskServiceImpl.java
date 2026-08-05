@@ -70,6 +70,16 @@ public class AiAskServiceImpl implements AiAskService {
     @Override
     @Transactional
     public AskAIResponse ask(AskAIRequest request) {
+        String email = SecurityContextHolder.getContext()
+                .getAuthentication()
+                .getName();
+
+        if (request.getDocumentIds() != null && !request.getDocumentIds().isEmpty()) {
+            aiUsageService.checkDocumentSelectionLimit(email, request.getDocumentIds().size());
+        }
+
+        aiUsageService.checkQuota(email);
+
         AiConversation conversation = null;
         List<AiMessage> history = new ArrayList<>();
 
@@ -120,12 +130,6 @@ public class AiAskServiceImpl implements AiAskService {
 
         String systemPrompt = buildSystemInstruction(request, isProjectRequest);
         String userContent = buildUserContent(request, history, contextBlock);
-
-        String email = SecurityContextHolder.getContext()
-                .getAuthentication()
-                .getName();
-
-        aiUsageService.checkQuota(email);
 
         String aiAnswer = groqService.generateContent(systemPrompt, userContent, 0.3, 1024);
 
@@ -556,9 +560,10 @@ public class AiAskServiceImpl implements AiAskService {
             return;
         }
 
-        if (targetDocIds.size() > MAX_PERSONAL_DOCS) {
-            throw new IllegalArgumentException("You can select at most " + MAX_PERSONAL_DOCS + " documents.");
-        }
+        String email = SecurityContextHolder.getContext()
+                .getAuthentication()
+                .getName();
+        aiUsageService.checkDocumentSelectionLimit(email, targetDocIds.size());
 
         List<Document> validDocs = new ArrayList<>();
         for (UUID id : targetDocIds) {

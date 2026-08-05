@@ -4,8 +4,10 @@ import com.example.keeper.systems.ai_usage.repository.AiUsageRepository;
 import com.example.keeper.systems.ai_flashcard.repository.FlashcardSetRepository;
 import com.example.keeper.systems.ai_mindmap.repository.MindMapRepository;
 import com.example.keeper.systems.ai_quiz.repository.QuizRepository;
+import com.example.keeper.systems.auth.entity.SubscriptionPlan;
 import com.example.keeper.systems.auth.entity.User;
 import com.example.keeper.systems.auth.enums.SubscriptionTier;
+import com.example.keeper.systems.auth.repository.SubscriptionPlanRepository;
 import com.example.keeper.systems.auth.repository.UserRepository;
 import com.example.keeper.systems.document.entity.Document;
 import com.example.keeper.systems.document.enums.Visibility;
@@ -51,6 +53,7 @@ public class AdminUserServiceImpl implements AdminUserService {
     private final ProjectRepository projectRepository;
     private final ProjectMemberRepository projectMemberRepository;
     private final PaymentTransactionRepository paymentTransactionRepository;
+    private final SubscriptionPlanRepository subscriptionPlanRepository;
 
     @Override
     public List<AdminUserListItemResponse> getAllUsers() {
@@ -202,11 +205,20 @@ public class AdminUserServiceImpl implements AdminUserService {
         user.setEmailVerified(true);
         user.setBanned(false);
 
-        String tierStr = request.getSubscriptionTier() != null ? request.getSubscriptionTier() : "FREE";
+        SubscriptionTier tier;
         try {
-            user.setSubscriptionTier(SubscriptionTier.valueOf(tierStr.toUpperCase()));
+            String tierStr = request.getSubscriptionTier() != null ? request.getSubscriptionTier() : "FREE";
+            tier = SubscriptionTier.valueOf(tierStr.toUpperCase());
         } catch (Exception e) {
-            user.setSubscriptionTier(SubscriptionTier.FREE);
+            tier = SubscriptionTier.FREE;
+        }
+        user.setSubscriptionTier(tier);
+
+        final String tierCode = tier.name();
+        SubscriptionPlan plan = subscriptionPlanRepository.findByCodeAndIsActiveTrue(tierCode)
+                .orElseGet(() -> subscriptionPlanRepository.findByCode(tierCode).orElse(null));
+        if (plan != null && plan.getTotalStorageBytes() != null) {
+            user.setMaxStorageBytes(plan.getTotalStorageBytes());
         }
 
         User savedUser = userRepository.save(user);

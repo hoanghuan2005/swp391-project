@@ -50,6 +50,7 @@ export default function PlanManagementPage() {
     maxQuizQuestionsPerGen: 20,
     maxOwnedProjects: 3,
     maxJoinedProjects: 5,
+    maxSelectedDocs: 2,
     isActive: true,
   });
 
@@ -86,6 +87,7 @@ export default function PlanManagementPage() {
         maxQuizQuestionsPerGen: plan.maxQuizQuestionsPerGeneration ?? (plan.code === "PRO" ? 50 : 20),
         maxOwnedProjects: plan.maxOwnedProjects ?? (plan.code === "PRO" ? -1 : 3),
         maxJoinedProjects: plan.maxJoinedProjects ?? (plan.code === "PRO" ? -1 : 5),
+        maxSelectedDocs: plan.maxSelectedDocs ?? (plan.code === "PRO" ? 4 : 2),
         isActive: activeState,
       });
     } else {
@@ -103,6 +105,7 @@ export default function PlanManagementPage() {
         maxQuizQuestionsPerGen: 20,
         maxOwnedProjects: 3,
         maxJoinedProjects: 5,
+        maxSelectedDocs: 2,
         isActive: true,
       });
     }
@@ -125,6 +128,7 @@ export default function PlanManagementPage() {
         maxQuizQuestionsPerGeneration: Number(formData.maxQuizQuestionsPerGen),
         maxOwnedProjects: Number(formData.maxOwnedProjects),
         maxJoinedProjects: Number(formData.maxJoinedProjects),
+        maxSelectedDocs: Number(formData.maxSelectedDocs),
         isActive: formData.isActive,
       };
 
@@ -155,10 +159,6 @@ export default function PlanManagementPage() {
   };
 
   const handleOpenDeleteDialog = (plan) => {
-    if (plan.code === "FREE" || plan.code === "PRO") {
-      toast.warning("Core system plans (FREE, PRO) cannot be deleted. You can set them to Inactive instead.");
-      return;
-    }
     setDeletingPlan(plan);
     setDeleteDialogOpen(true);
   };
@@ -249,7 +249,11 @@ export default function PlanManagementPage() {
                           <span className={`text-xs font-bold ${active ? "text-emerald-600" : "text-slate-400"}`}>
                             {active ? "Active" : "Inactive"}
                           </span>
-                          <Switch checked={active} onCheckedChange={() => handleToggleStatus(plan.id)} />
+                          <Switch
+                            checked={active}
+                            onCheckedChange={() => handleToggleStatus(plan.id)}
+                            className="data-[state=checked]:bg-[#f26522] cursor-pointer"
+                          />
                         </div>
                       </div>
 
@@ -309,6 +313,13 @@ export default function PlanManagementPage() {
                             {plan.maxOwnedProjects === -1 ? "Unlimited" : `${plan.maxOwnedProjects ?? 3} workspaces`}
                           </span>
                         </div>
+
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-slate-500 font-medium">Max Selected Docs / Query:</span>
+                          <span className="font-bold text-slate-700">
+                            {plan.maxSelectedDocs === -1 ? "Unlimited" : `${plan.maxSelectedDocs ?? (isPro ? 4 : 2)} docs`}
+                          </span>
+                        </div>
                       </div>
                     </div>
 
@@ -322,14 +333,9 @@ export default function PlanManagementPage() {
                       </Button>
                       <Button
                         onClick={() => handleOpenDeleteDialog(plan)}
-                        disabled={isCorePlan}
-                        title={isCorePlan ? "Core plans (FREE, PRO) cannot be deleted" : "Delete Plan"}
+                        title="Delete Plan"
                         variant="outline"
-                        className={`rounded-xl px-3 border-slate-200 font-bold text-xs cursor-pointer ${
-                          isCorePlan
-                            ? "opacity-40 cursor-not-allowed bg-slate-50 text-slate-400"
-                            : "hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 text-slate-500"
-                        }`}
+                        className="rounded-xl px-3 border-slate-200 font-bold text-xs cursor-pointer hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 text-slate-500"
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
@@ -347,7 +353,7 @@ export default function PlanManagementPage() {
         <DialogContent className="sm:max-w-md rounded-3xl p-6 bg-white">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold text-slate-800">
-              Delete Subscription Plan
+              Confirm Delete Plan
             </DialogTitle>
             <DialogDescription className="text-slate-500 text-sm mt-1">
               Are you sure you want to delete <strong className="text-slate-800">{deletingPlan?.name} ({deletingPlan?.code})</strong>? This action cannot be undone.
@@ -376,158 +382,172 @@ export default function PlanManagementPage() {
 
       {/* Edit / Create Modal */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="sm:max-w-lg rounded-3xl p-6 bg-white max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-lg rounded-3xl p-0 bg-white max-h-[85vh] flex flex-col overflow-hidden">
+          <DialogHeader className="p-6 pb-4 border-b border-slate-100 flex-shrink-0">
             <DialogTitle className="text-xl font-bold text-slate-800">
               {editingPlan ? `Configure ${editingPlan.code} Plan` : "Create New Subscription Plan"}
             </DialogTitle>
           </DialogHeader>
 
-          <form onSubmit={handleSave} className="space-y-4 py-2">
-            <div className="grid grid-cols-2 gap-4">
+          <form onSubmit={handleSave} className="flex flex-col flex-1 overflow-hidden min-h-0">
+            <div className="p-6 space-y-4 overflow-y-auto flex-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-600">Plan Code</label>
+                  <Input
+                    disabled={!!editingPlan}
+                    value={formData.code}
+                    onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
+                    placeholder="FREE, PRO, STUDENT..."
+                    className="mt-1 rounded-xl uppercase"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-600">Plan Name</label>
+                  <Input
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    placeholder="Free Plan, Pro Plan..."
+                    className="mt-1 rounded-xl"
+                    required
+                  />
+                </div>
+              </div>
+
               <div>
-                <label className="text-xs font-bold text-slate-600">Plan Code</label>
+                <label className="text-xs font-bold text-slate-600">Price (VND)</label>
                 <Input
-                  disabled={!!editingPlan}
-                  value={formData.code}
-                  onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
-                  placeholder="FREE, PRO, STUDENT..."
-                  className="mt-1 rounded-xl uppercase"
+                  type="number"
+                  value={formData.priceVnd}
+                  onChange={(e) => setFormData({ ...formData, priceVnd: e.target.value })}
+                  placeholder="0"
+                  className="mt-1 rounded-xl"
                   required
                 />
               </div>
 
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-600">Max File Size (MB)</label>
+                  <Input
+                    type="number"
+                    value={formData.maxFileMb}
+                    onChange={(e) => setFormData({ ...formData, maxFileMb: e.target.value })}
+                    placeholder="10"
+                    className="mt-1 rounded-xl"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-600">Total Storage (MB)</label>
+                  <Input
+                    type="number"
+                    value={formData.totalStorageMb}
+                    onChange={(e) => setFormData({ ...formData, totalStorageMb: e.target.value })}
+                    placeholder="100"
+                    className="mt-1 rounded-xl"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-600">Daily Uploads (-1 = Unlimited)</label>
+                  <Input
+                    type="number"
+                    value={formData.dailyUploadLimit}
+                    onChange={(e) => setFormData({ ...formData, dailyUploadLimit: e.target.value })}
+                    className="mt-1 rounded-xl"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-600">Daily AI Requests (-1 = Unlimited)</label>
+                  <Input
+                    type="number"
+                    value={formData.dailyAiLimit}
+                    onChange={(e) => setFormData({ ...formData, dailyAiLimit: e.target.value })}
+                    className="mt-1 rounded-xl"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-600">Flashcards / Gen (-1 = Unlimited)</label>
+                  <Input
+                    type="number"
+                    value={formData.maxFlashcardsPerGen}
+                    onChange={(e) => setFormData({ ...formData, maxFlashcardsPerGen: e.target.value })}
+                    className="mt-1 rounded-xl"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-600">Quiz Questions / Gen (-1 = Unlimited)</label>
+                  <Input
+                    type="number"
+                    value={formData.maxQuizQuestionsPerGen}
+                    onChange={(e) => setFormData({ ...formData, maxQuizQuestionsPerGen: e.target.value })}
+                    className="mt-1 rounded-xl"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-600">Owned Workspaces (-1 = Unlimited)</label>
+                  <Input
+                    type="number"
+                    value={formData.maxOwnedProjects}
+                    onChange={(e) => setFormData({ ...formData, maxOwnedProjects: e.target.value })}
+                    className="mt-1 rounded-xl"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-600">Joined Workspaces (-1 = Unlimited)</label>
+                  <Input
+                    type="number"
+                    value={formData.maxJoinedProjects}
+                    onChange={(e) => setFormData({ ...formData, maxJoinedProjects: e.target.value })}
+                    className="mt-1 rounded-xl"
+                    required
+                  />
+                </div>
+              </div>
+
               <div>
-                <label className="text-xs font-bold text-slate-600">Plan Name</label>
+                <label className="text-xs font-bold text-slate-600">Max Selected Docs / Query (-1 = Unlimited)</label>
                 <Input
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Free Plan, Pro Plan..."
+                  type="number"
+                  value={formData.maxSelectedDocs}
+                  onChange={(e) => setFormData({ ...formData, maxSelectedDocs: e.target.value })}
                   className="mt-1 rounded-xl"
                   required
+                />
+              </div>
+
+              <div className="flex items-center justify-between pt-2">
+                <span className="text-xs font-bold text-slate-600">Activate Plan</span>
+                <Switch
+                  checked={formData.isActive}
+                  onCheckedChange={(checked) => setFormData({ ...formData, isActive: checked })}
+                  className="data-[state=checked]:bg-[#f26522]"
                 />
               </div>
             </div>
 
-            <div>
-              <label className="text-xs font-bold text-slate-600">Price (VND)</label>
-              <Input
-                type="number"
-                value={formData.priceVnd}
-                onChange={(e) => setFormData({ ...formData, priceVnd: e.target.value })}
-                placeholder="0"
-                className="mt-1 rounded-xl"
-                required
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs font-bold text-slate-600">Max File Size (MB)</label>
-                <Input
-                  type="number"
-                  value={formData.maxFileMb}
-                  onChange={(e) => setFormData({ ...formData, maxFileMb: e.target.value })}
-                  placeholder="10"
-                  className="mt-1 rounded-xl"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-600">Total Storage (MB)</label>
-                <Input
-                  type="number"
-                  value={formData.totalStorageMb}
-                  onChange={(e) => setFormData({ ...formData, totalStorageMb: e.target.value })}
-                  placeholder="100"
-                  className="mt-1 rounded-xl"
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs font-bold text-slate-600">Daily Uploads (-1 = Unlimited)</label>
-                <Input
-                  type="number"
-                  value={formData.dailyUploadLimit}
-                  onChange={(e) => setFormData({ ...formData, dailyUploadLimit: e.target.value })}
-                  className="mt-1 rounded-xl"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-600">Daily AI Requests (-1 = Unlimited)</label>
-                <Input
-                  type="number"
-                  value={formData.dailyAiLimit}
-                  onChange={(e) => setFormData({ ...formData, dailyAiLimit: e.target.value })}
-                  className="mt-1 rounded-xl"
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs font-bold text-slate-600">Flashcards / Gen (-1 = Unlimited)</label>
-                <Input
-                  type="number"
-                  value={formData.maxFlashcardsPerGen}
-                  onChange={(e) => setFormData({ ...formData, maxFlashcardsPerGen: e.target.value })}
-                  className="mt-1 rounded-xl"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-600">Quiz Questions / Gen (-1 = Unlimited)</label>
-                <Input
-                  type="number"
-                  value={formData.maxQuizQuestionsPerGen}
-                  onChange={(e) => setFormData({ ...formData, maxQuizQuestionsPerGen: e.target.value })}
-                  className="mt-1 rounded-xl"
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs font-bold text-slate-600">Owned Workspaces (-1 = Unlimited)</label>
-                <Input
-                  type="number"
-                  value={formData.maxOwnedProjects}
-                  onChange={(e) => setFormData({ ...formData, maxOwnedProjects: e.target.value })}
-                  className="mt-1 rounded-xl"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-600">Joined Workspaces (-1 = Unlimited)</label>
-                <Input
-                  type="number"
-                  value={formData.maxJoinedProjects}
-                  onChange={(e) => setFormData({ ...formData, maxJoinedProjects: e.target.value })}
-                  className="mt-1 rounded-xl"
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between pt-2">
-              <span className="text-xs font-bold text-slate-600">Activate Plan</span>
-              <Switch
-                checked={formData.isActive}
-                onCheckedChange={(checked) => setFormData({ ...formData, isActive: checked })}
-              />
-            </div>
-
-            <DialogFooter className="pt-4 gap-2">
+            <DialogFooter className="p-6 py-4 border-t border-slate-100 flex-shrink-0 bg-white gap-2">
               <Button type="button" variant="outline" onClick={() => setModalOpen(false)} className="rounded-xl font-bold">
                 Cancel
               </Button>

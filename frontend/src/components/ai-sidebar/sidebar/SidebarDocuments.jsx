@@ -1,4 +1,5 @@
 import { Search, Loader2, FileText, CheckCircle2, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
 const SidebarDocuments = ({
   documents,
@@ -28,9 +29,21 @@ const SidebarDocuments = ({
         <input
           ref={fileInputRef}
           type="file"
-          accept=".pdf,.docx"
+          accept=".pdf,.doc,.docx,.ppt,.pptx"
           className="hidden"
-          onChange={handleUpload}
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) {
+              const name = file.name.toLowerCase();
+              const allowed = [".pdf", ".doc", ".docx", ".ppt", ".pptx"];
+              if (!allowed.some((ext) => name.endsWith(ext))) {
+                toast.error("Hệ thống chỉ hỗ trợ các định dạng file: .pdf, .doc, .docx, .ppt, .pptx");
+                e.target.value = "";
+                return;
+              }
+            }
+            handleUpload?.(e);
+          }}
         />
       </div>
 
