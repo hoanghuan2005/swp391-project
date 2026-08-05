@@ -2,6 +2,11 @@ package com.example.keeper.systems.ai_usage.controller;
 
 import com.example.keeper.systems.ai_usage.dto.UserAiUsageResponse;
 import com.example.keeper.systems.ai_usage.service.AiUsageService;
+import com.example.keeper.systems.auth.entity.SubscriptionPlan;
+import com.example.keeper.systems.auth.entity.User;
+import com.example.keeper.systems.auth.enums.SubscriptionTier;
+import com.example.keeper.systems.auth.repository.SubscriptionPlanRepository;
+import com.example.keeper.systems.auth.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -9,15 +14,20 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
 public class AiUsageController {
 
     private final AiUsageService aiUsageService;
+    private final UserRepository userRepository;
+    private final SubscriptionPlanRepository subscriptionPlanRepository;
 
     @GetMapping({"/ai-usage/me", "/user/ai-usage"})
-    public ResponseEntity<UserAiUsageResponse> getMyUsage() {
+    public ResponseEntity<Map<String, Object>> getMyUsage() {
         String authName = SecurityContextHolder.getContext()
                 .getAuthentication()
                 .getName();

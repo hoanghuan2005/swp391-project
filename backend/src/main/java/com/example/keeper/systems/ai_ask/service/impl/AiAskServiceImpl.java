@@ -12,12 +12,14 @@ import com.example.keeper.systems.ai_ask.repository.AiMessageRepository;
 import com.example.keeper.systems.ai_ask.repository.DocumentChunkRepository;
 import com.example.keeper.systems.ai_ask.service.*;
 import com.example.keeper.systems.auth.entity.User;
+import com.example.keeper.systems.auth.repository.UserRepository;
 import com.example.keeper.systems.document.entity.Document;
 import com.example.keeper.systems.document.enums.AiParseStatus;
 import com.example.keeper.systems.document.repository.DocumentRepository;
 import com.example.keeper.systems.document.service.DocumentDiscoveryService;
 import com.example.keeper.systems.auth.repository.SubscriptionPlanRepository;
 import com.example.keeper.systems.project.entity.Project;
+import com.example.keeper.systems.project.repository.ProjectMemberRepository;
 import com.example.keeper.systems.project.repository.ProjectRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -45,8 +47,8 @@ public class AiAskServiceImpl implements AiAskService {
     private final AiMessageRepository messageRepository;
     private final DocumentChunkRepository documentChunkRepository;
     private final ProjectRepository projectRepository;
-    private final com.example.keeper.systems.project.repository.ProjectMemberRepository projectMemberRepository;
-    private final com.example.keeper.systems.auth.repository.UserRepository userRepository;
+    private final ProjectMemberRepository projectMemberRepository;
+    private final UserRepository userRepository;
     private final DocumentRepository documentRepository;
     private final DocumentDiscoveryService documentDiscoveryService;
     private final GroqService groqService;
@@ -63,15 +65,17 @@ public class AiAskServiceImpl implements AiAskService {
     @Override
     @Transactional
     public AskAIResponse ask(AskAIRequest request) {
-        String email = SecurityContextHolder.getContext()
-                .getAuthentication()
-                .getName();
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        String email = (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getName()))
+                ? auth.getName()
+                : null;
 
-        if (request.getDocumentIds() != null && !request.getDocumentIds().isEmpty()) {
-            aiUsageService.checkDocumentSelectionLimit(email, request.getDocumentIds().size());
+        if (email != null) {
+            if (request.getDocumentIds() != null && !request.getDocumentIds().isEmpty()) {
+                aiUsageService.checkDocumentSelectionLimit(email, request.getDocumentIds().size());
+            }
+            aiUsageService.checkQuota(email);
         }
-
-        aiUsageService.checkQuota(email);
 
         AiConversation conversation = null;
         List<AiMessage> history = new ArrayList<>();
@@ -127,15 +131,6 @@ public class AiAskServiceImpl implements AiAskService {
 
         String systemPrompt = buildSystemInstruction(request, isProjectRequest, hasDocumentSelection);
         String userContent = buildUserContent(request, history, contextBlock);
-
-        var auth = SecurityContextHolder.getContext().getAuthentication();
-        String email = (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getName()))
-                ? auth.getName()
-                : null;
-
-        if (email != null) {
-            aiUsageService.checkQuota(email);
-        }
 
         String aiAnswer = groqService.generateContent(systemPrompt, userContent, 0.3, 1024);
 

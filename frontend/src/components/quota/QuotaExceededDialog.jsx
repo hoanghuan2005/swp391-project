@@ -18,12 +18,16 @@ const CONTENT = {
     fallback: "You have reached your daily AI request limit.",
   },
   DOCUMENT: {
-    title: "Document limit reached",
+    title: "Giới hạn tài liệu / dung lượng",
     fallback: "You have reached your document upload or storage limit.",
   },
   FILE_SIZE: {
-    title: "File is too large",
+    title: "Kích thước tệp quá lớn",
     fallback: "This file exceeds the maximum size for your current plan.",
+  },
+  STORAGE: {
+    title: "Đã hết dung lượng lưu trữ",
+    fallback: "Bạn đã dùng hết hạn mức dung lượng lưu trữ của tài khoản.",
   },
 };
 
@@ -44,14 +48,33 @@ export default function QuotaExceededDialog({
   const isOverSystemMax = (fileSize && fileSize > 10 * 1024 * 1024) || 
     (message && (message.includes("10MB") || message.includes("10 MB")));
 
+  const isStorageLimit =
+    type === "STORAGE" ||
+    (message &&
+      (message.toLowerCase().includes("storage") ||
+        message.toLowerCase().includes("lưu trữ") ||
+        message.toLowerCase().includes("dung lượng")));
+
+  let displayTitle = isStorageLimit ? "Đã hết dung lượng lưu trữ" : content.title;
   let displayMessage = message || content.fallback;
-  if (type === "FILE_SIZE") {
-    if (isOverSystemMax) {
+
+  if (isStorageLimit) {
+    if (subscriptionTier === "FREE") {
       displayMessage =
-        "This file exceeds the maximum 10MB system upload limit. Files larger than 10MB are strictly capped by the cloud server.";
+        message ||
+        "Tài khoản Free của bạn đã đạt giới hạn dung lượng lưu trữ. Vui lòng nâng cấp lên gói PRO để mở rộng thêm dung lượng lưu trữ!";
     } else {
       displayMessage =
-        "This file exceeds the 5MB maximum file size limit for Free accounts. Please upgrade to a PRO plan to upload files up to 10MB.";
+        message ||
+        "Tài khoản PRO của bạn đã đạt giới hạn dung lượng lưu trữ tối đa. Bạn có thể chờ gói dịch vụ mới hoặc liên hệ Quản trị viên.";
+    }
+  } else if (type === "FILE_SIZE") {
+    if (isOverSystemMax) {
+      displayMessage =
+        "Kích thước tệp vượt quá giới hạn tối đa 10MB của hệ thống. Tệp lớn hơn 10MB bị giới hạn bởi máy chủ.";
+    } else {
+      displayMessage =
+        "Kích thước tệp vượt quá 5MB cho tài khoản Free. Vui lòng nâng cấp lên gói PRO để tải lên tệp tối đa 10MB.";
     }
   }
 
@@ -77,7 +100,7 @@ export default function QuotaExceededDialog({
             </div>
             <DialogHeader>
               <DialogTitle className="text-xl font-black text-slate-900">
-                {content.title}
+                {displayTitle}
               </DialogTitle>
               <DialogDescription className="pt-2 text-sm leading-6 text-slate-600">
                 {displayMessage}

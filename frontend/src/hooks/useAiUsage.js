@@ -101,12 +101,9 @@ export default function useAiUsage() {
   }, []);
 
   return {
-    planName: data.planName,
-    remainingUsage: data.remainingUsage,
-    maxUsage: data.maxUsage,
-    usedAiRequestsToday: data.usedAiRequestsToday,
-    isUnlimited: data.isUnlimited,
-    subscriptionTier: data.planName,
+    ...aiUsage,
+    subscriptionTier: aiUsage.subscriptionTier || "FREE",
+    maxSelectedDocs: aiUsage.maxSelectedDocs ?? (aiUsage.subscriptionTier === "PRO" ? 4 : 2),
     loading,
     error,
     refreshAiUsage,

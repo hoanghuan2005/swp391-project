@@ -53,7 +53,6 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
     private final AiUsageService aiUsageService;
     private final DocumentParserService documentParserService;
     private final SubscriptionPlanRepository subscriptionPlanRepository;
-    private final com.example.keeper.systems.project.repository.ProjectMemberRepository projectMemberRepository;
 
     private int getMaxQuizQuestions(User user) {
         String tierCode = user.getSubscriptionTier() != null ? user.getSubscriptionTier().name() : "FREE";

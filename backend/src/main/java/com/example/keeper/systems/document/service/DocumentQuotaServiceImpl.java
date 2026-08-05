@@ -41,15 +41,26 @@ public class DocumentQuotaServiceImpl implements DocumentQuotaService {
         long usedStorage = getUsedStorage(user);
         long maxStorage = user.getMaxStorageBytes() != null ? user.getMaxStorageBytes() : plan.getTotalStorageBytes();
         if (maxStorage != UNLIMITED && (usedStorage + fileSize > maxStorage)) {
-            throw new DocumentQuotaExceededException(
-                    "Total storage limit (" + toMegabytes(maxStorage) + "MB) exceeded.");
+            String tier = user.getSubscriptionTier() != null ? user.getSubscriptionTier().name() : "FREE";
+            if ("FREE".equals(tier)) {
+                throw new DocumentQuotaExceededException(
+                        "Tài khoản Free của bạn đã đạt giới hạn dung lượng lưu trữ (" + toMegabytes(maxStorage) + "MB). Vui lòng nâng cấp lên gói PRO để mở rộng thêm dung lượng!");
+            } else {
+                throw new DocumentQuotaExceededException(
+                        "Tài khoản PRO của bạn đã đạt giới hạn dung lượng lưu trữ tối đa (" + toMegabytes(maxStorage) + "MB). Đã hết giới hạn lưu trữ, bạn có thể chờ gói mới hoặc liên hệ Quản trị viên.");
+            }
         }
 
         validateDocumentCount(user, plan);
 
         long dailyLimit = plan.getDailyUploadLimit();
         if (dailyLimit != UNLIMITED && getUploadsToday(user) >= dailyLimit) {
-            throw new DocumentQuotaExceededException("Daily document upload limit reached.");
+            String tier = user.getSubscriptionTier() != null ? user.getSubscriptionTier().name() : "FREE";
+            if ("FREE".equals(tier)) {
+                throw new DocumentQuotaExceededException("Tài khoản Free đã đạt giới hạn lượt tải lên trong ngày. Vui lòng nâng cấp lên gói PRO!");
+            } else {
+                throw new DocumentQuotaExceededException("Tài khoản PRO đã đạt giới hạn lượt tải lên trong ngày. Bạn có thể chờ gói mới hoặc liên hệ Quản trị viên.");
+            }
         }
     }
 
@@ -89,7 +100,12 @@ public class DocumentQuotaServiceImpl implements DocumentQuotaService {
     private void validateDocumentCount(User user, SubscriptionPlan plan) {
         long docLimit = plan.getTotalDocumentLimit();
         if (docLimit != UNLIMITED && documentRepository.countByUploadedById(user.getId()) >= docLimit) {
-            throw new DocumentQuotaExceededException("Total document limit reached.");
+            String tier = user.getSubscriptionTier() != null ? user.getSubscriptionTier().name() : "FREE";
+            if ("FREE".equals(tier)) {
+                throw new DocumentQuotaExceededException("Tài khoản Free đã đạt giới hạn tổng số lượng tài liệu. Vui lòng nâng cấp lên gói PRO!");
+            } else {
+                throw new DocumentQuotaExceededException("Tài khoản PRO đã đạt giới hạn tổng số lượng tài liệu tối đa. Bạn có thể chờ gói mới hoặc liên hệ Quản trị viên.");
+            }
         }
     }
 

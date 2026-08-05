@@ -102,17 +102,13 @@ export default function ChatInterface({
       {/* HEADER */}
       <div className="h-[79px] px-6 border-b border-slate-200 bg-white flex items-center justify-between shrink-0 sticky top-0 z-10 gap-4 min-w-0">
         <div className="flex items-center gap-3 min-w-0 flex-1">
-          {onToggleSidebar && (
+          {onToggleSidebar && isSidebarCollapsed && (
             <button
               onClick={onToggleSidebar}
               className="w-7 h-7 flex items-center justify-center rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors shrink-0 cursor-pointer border-none bg-transparent shadow-none"
-              title={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              title="Expand sidebar"
             >
-              {isSidebarCollapsed ? (
-                <PanelLeftOpen className="w-4 h-4 text-[#f26522]" />
-              ) : (
-                <PanelLeftClose className="w-4 h-4" />
-              )}
+              <PanelLeftOpen className="w-4 h-4 text-[#f26522]" />
             </button>
           )}
           <div className="p-2 bg-[#f26522]/10 rounded-lg shrink-0">
