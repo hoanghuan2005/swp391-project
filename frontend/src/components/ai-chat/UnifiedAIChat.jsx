@@ -26,19 +26,20 @@ import {
   getAiConversationMessages,
   getAiConversations,
 } from "@/api/aiApi";
+import { fetchPublicDocuments } from "@/api/documentApi";
 import ChatInterface from "@/components/chat/ChatInterface";
 import AISidebar from "@/components/ai-sidebar/sidebar/AISidebar";
 import useAiUsage from "@/hooks/useAiUsage";
 import { isAiQuotaExceeded } from "@/api/aiUsageApi";
 import QuotaExceededDialog from "@/components/quota/QuotaExceededDialog";
 import DocumentPreviewModal from "@/components/documents/DocumentPreviewModal";
+import PublicDocumentModal from "@/components/documents/PublicDocumentModal";
 
 export default function UnifiedAIChat({
   mode = "PERSONAL", // "PERSONAL" | "WORKSPACE"
   workspaceId = null,
   shareToken = null,
   documents = [],
-  onRefreshDocuments = null,
   onDeleteDocument = null,
   showUploadButton = false,
   fileInputRef = null,
@@ -50,10 +51,20 @@ export default function UnifiedAIChat({
   const [conversations, setConversations] = useState([]);
   const [activeConversation, setActiveConversation] = useState(null);
   const [messages, setMessages] = useState([]);
+  const [publicDocuments, setPublicDocuments] = useState([]);
   const [selectedDocs, setSelectedDocs] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [searchDocQuery, setSearchDocQuery] = useState("");
+  const [publicModalOpen, setPublicModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (mode === "PERSONAL") {
+      fetchPublicDocuments()
+        .then((docs) => setPublicDocuments(docs || []))
+        .catch((e) => console.warn("Failed to fetch public documents", e));
+    }
+  }, [mode]);
 
   const [quotaDialog, setQuotaDialog] = useState({
     open: false,
@@ -83,8 +94,8 @@ export default function UnifiedAIChat({
     : "swp391_ask_ai_last_state";
 
   useEffect(() => {
-    documentsRef.current = documents;
-  }, [documents]);
+    documentsRef.current = [...documents, ...publicDocuments];
+  }, [documents, publicDocuments]);
 
   // Handle switching conversation: ALWAYS clear selectedDocs first to avoid state leaks
   const handleSelectConversation = useCallback(
@@ -142,6 +153,7 @@ export default function UnifiedAIChat({
   }, [isSharedView, isWorkspace, workspaceId, handleSelectConversation, activeConversation]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchConversations();
   }, [fetchConversations]);
 
@@ -184,7 +196,7 @@ export default function UnifiedAIChat({
   // Restore state on mount
   useEffect(() => {
     if (restoredRef.current) return;
-    if (documents.length === 0 && conversations.length === 0) return;
+    if (documents.length === 0 && publicDocuments.length === 0 && conversations.length === 0) return;
 
     restoredRef.current = true;
 
@@ -210,9 +222,11 @@ export default function UnifiedAIChat({
       }
     }
 
+    const allDocs = [...documents, ...publicDocuments];
     if (docIdsToRestore.length > 0) {
-      const matchedDocs = documents.filter((d) => docIdsToRestore.includes(d.id));
+      const matchedDocs = allDocs.filter((d) => docIdsToRestore.includes(d.id));
       if (matchedDocs.length > 0) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setSelectedDocs(matchedDocs.slice(0, 5));
         userSelectedDocumentRef.current = true;
       }
@@ -224,7 +238,7 @@ export default function UnifiedAIChat({
         handleSelectConversation(matchedConv, documents);
       }
     }
-  }, [documents, conversations, searchParams, handleSelectConversation, LOCAL_STORAGE_KEY]);
+  }, [documents, publicDocuments, conversations, searchParams, handleSelectConversation, LOCAL_STORAGE_KEY]);
 
   const handlePreviewDocument = (documentId, title) => {
     setPreviewModalState({
@@ -453,6 +467,14 @@ export default function UnifiedAIChat({
     setSelectedDocs([]);
   };
 
+  const handleAddPublicDocs = (newPublicDocs) => {
+    userSelectedDocumentRef.current = true;
+    const userDocIds = new Set(documents.map((d) => d.id));
+    const userSelectedUserDocs = selectedDocs.filter((sd) => userDocIds.has(sd.id));
+    const combined = [...userSelectedUserDocs, ...newPublicDocs].slice(0, 5);
+    setSelectedDocs(combined);
+  };
+
   const filteredDocuments = documents.filter((doc) => {
     const title = (doc.title || doc.name || "").toLowerCase();
     const query = searchDocQuery.toLowerCase();
@@ -484,6 +506,7 @@ export default function UnifiedAIChat({
         type={sidebarType}
         histories={conversations}
         documents={filteredDocuments}
+        publicDocuments={publicDocuments}
         selectedItem={activeConversation}
         selectedDoc={selectedDocs[0] || null}
         selectedDocs={selectedDocs}
@@ -491,6 +514,7 @@ export default function UnifiedAIChat({
         onDeleteItem={handleDeleteConversation}
         onSelectDocument={handleSelectDocument}
         onDeleteDocument={onDeleteDocument}
+        onOpenPublicModal={!isWorkspace ? () => setPublicModalOpen(true) : null}
         onCreate={() => handleCreateNewChat(null)}
         searchDocQuery={searchDocQuery}
         setSearchDocQuery={setSearchDocQuery}
@@ -617,6 +641,14 @@ export default function UnifiedAIChat({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <PublicDocumentModal
+        open={publicModalOpen}
+        onOpenChange={setPublicModalOpen}
+        userDocuments={documents}
+        alreadySelectedDocs={selectedDocs}
+        onAddPublicDocs={handleAddPublicDocs}
+      />
     </div>
   );
 }

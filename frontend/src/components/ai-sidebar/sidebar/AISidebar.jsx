@@ -13,6 +13,7 @@ const AISidebar = ({
 
   histories = [],
   documents = [],
+  publicDocuments = [],
 
   selectedItem,
   selectedDoc,
@@ -23,6 +24,7 @@ const AISidebar = ({
   onEditItem,
   onSelectDocument,
   onDeleteDocument,
+  onOpenPublicModal,
 
   onCreate,
 
@@ -63,10 +65,12 @@ const AISidebar = ({
       {/* DOCUMENTS */}
       <SidebarDocuments
         documents={documents}
+        publicDocuments={publicDocuments}
         selectedDoc={selectedDoc}
         selectedDocs={selectedDocs}
         onSelectDocument={onSelectDocument}
         onDeleteDocument={onDeleteDocument}
+        onOpenPublicModal={onOpenPublicModal}
         searchDocQuery={searchDocQuery}
         setSearchDocQuery={setSearchDocQuery}
         fileInputRef={fileInputRef}

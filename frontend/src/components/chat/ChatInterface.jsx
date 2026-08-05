@@ -9,7 +9,8 @@ const renderMessageWithCitations = (content, sources, onCitationClick) => {
   if (!content) return null;
   if (!sources || sources.length === 0) return content;
 
-  const citationRegex = /\[(\d+)\]/g;
+  // Flexible citation regex matching [1], [Source 1], [doc 1], or (1)
+  const citationRegex = /(?:\[|\()(?:\s*Source\s*|\s*doc\s*)?(\d+)(?:\]|\))/gi;
   const parts = [];
   let lastIndex = 0;
   let match;
@@ -19,7 +20,7 @@ const renderMessageWithCitations = (content, sources, onCitationClick) => {
     const sourceNum = parseInt(match[1], 10);
     const source = sources.find(
       (s) => s.index === sourceNum || s.index === Number(sourceNum),
-    );
+    ) || sources[sourceNum - 1];
 
     if (matchIndex > lastIndex) {
       parts.push(content.substring(lastIndex, matchIndex));
@@ -34,7 +35,7 @@ const renderMessageWithCitations = (content, sources, onCitationClick) => {
             e.stopPropagation();
             onCitationClick(source);
           }}
-          title={`Click to view source [${sourceNum}]: ${source.title}`}
+          title={`Click to view source [${sourceNum}]: ${source.title || "Document"}`}
           className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 mx-0.5 text-[10px] font-extrabold text-[#f26522] bg-orange-100/90 border border-orange-200 rounded-md hover:bg-[#f26522] hover:text-white transition-all cursor-pointer shadow-2xs align-middle"
         >
           {sourceNum}
