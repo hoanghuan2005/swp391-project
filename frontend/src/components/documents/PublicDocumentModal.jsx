@@ -18,6 +18,7 @@ export default function PublicDocumentModal({
   userDocuments = [],
   alreadySelectedDocs = [],
   onAddPublicDocs,
+  maxPersonalDocs = 2,
 }) {
   const [publicDocs, setPublicDocs] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -63,8 +64,8 @@ export default function PublicDocumentModal({
           (sd) => !publicDocs.some((pd) => pd.id === sd.id),
         ).length;
 
-        if (userSelectedCount + prev.length >= 5) {
-          toast.error("You can select at most 5 documents total for AI context.");
+        if (userSelectedCount + prev.length >= maxPersonalDocs) {
+          toast.error(`You can select at most ${maxPersonalDocs} document${maxPersonalDocs > 1 ? "s" : ""} total for AI context.`);
           return prev;
         }
         return [...prev, doc];

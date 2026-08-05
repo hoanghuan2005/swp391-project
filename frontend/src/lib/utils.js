@@ -59,3 +59,13 @@ export function getFileExtension(doc) {
   return "DOC";
 }
 
+export function sanitizeTitle(title) {
+  if (!title) return "";
+  return String(title)
+    .replaceAll(/\\n/g, " ")
+    .replaceAll(/\\r/g, " ")
+    .replaceAll(/[\r\n]/g, " ")
+    .replaceAll(/\s+/g, " ")
+    .trim();
+}
+

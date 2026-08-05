@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -13,12 +13,13 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Search, FileText, Loader2, Check } from "lucide-react";
 import axiosClient from "@/api/axiosClient";
 import useDocuments from "@/hooks/useDocuments";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 
 export default function SelectExistingDocumentModal({
   open,
   onOpenChange,
   projectId, // Optional: if provided, works as multi-select project linker
+  existingWorkspaceDocIds = [], // Optional: Array of document IDs or document objects already in current workspace
   onSuccess, // Passes data back to parent component upon completion
 }) {
   const { documents, loading, refreshDocuments } = useDocuments();
@@ -33,12 +34,26 @@ export default function SelectExistingDocumentModal({
   useEffect(() => {
     if (open) {
       refreshDocuments();
-      setSelectedDocIds([]); // Reset selection on open
-      setSearchQuery("");
     }
-  }, [open]);
+  }, [open, refreshDocuments]);
+
+  // Set of existing document IDs in workspace
+  const existingSet = useMemo(() => {
+    const set = new Set();
+    (existingWorkspaceDocIds || []).forEach((item) => {
+      if (!item) return;
+      if (typeof item === "string" || typeof item === "number") {
+        set.add(String(item));
+      } else if (item.id) {
+        set.add(String(item.id));
+      }
+    });
+    return set;
+  }, [existingWorkspaceDocIds]);
 
   const toggleSelection = (docId) => {
+    if (existingSet.has(String(docId))) return; // Prevent selection of already added docs
+
     setSelectedDocIds((prev) => {
       if (isSelectionOnlyMode) {
         // Single selection behavior: clicking toggles or replaces
@@ -80,7 +95,8 @@ export default function SelectExistingDocumentModal({
       } catch (error) {
         console.error("Failed to link documents", error);
         toast.error(
-          "Failed to add some documents. They might already be in this workspace.",
+          error.response?.data?.message ||
+            "Failed to add some documents. They might already be in this workspace.",
         );
       } finally {
         setIsLinking(false);
@@ -88,11 +104,21 @@ export default function SelectExistingDocumentModal({
     }
   };
 
-  const filteredDocuments = documents.filter((doc) =>
-    (doc.title || doc.name || "")
-      .toLowerCase()
-      .includes(searchQuery.toLowerCase()),
-  );
+  // Filter and sort: documents NOT in workspace at top, documents ALREADY in workspace at bottom
+  const filteredDocuments = useMemo(() => {
+    return (documents || [])
+      .filter((doc) =>
+        (doc.title || doc.name || "")
+          .toLowerCase()
+          .includes(searchQuery.toLowerCase()),
+      )
+      .sort((a, b) => {
+        const aExists = existingSet.has(String(a.id));
+        const bExists = existingSet.has(String(b.id));
+        if (aExists === bExists) return 0;
+        return aExists ? 1 : -1; // Existing docs at bottom
+      });
+  }, [documents, searchQuery, existingSet]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -132,44 +158,62 @@ export default function SelectExistingDocumentModal({
               ) : (
                 <div className="grid gap-2">
                   {filteredDocuments.map((doc) => {
+                    const isAlreadyInWorkspace = existingSet.has(String(doc.id));
                     const isSelected = selectedDocIds.includes(doc.id);
                     return (
                       <div
                         key={doc.id}
-                        onClick={() => toggleSelection(doc.id)}
-                        className={`flex items-center gap-3 p-3 rounded-lg border transition-all cursor-pointer ${
-                          isSelected
-                            ? "border-[#f26522] bg-orange-50/50"
-                            : "border-transparent hover:border-slate-200 hover:bg-white"
+                        onClick={() => {
+                          if (!isAlreadyInWorkspace) {
+                            toggleSelection(doc.id);
+                          }
+                        }}
+                        className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
+                          isAlreadyInWorkspace
+                            ? "border-slate-200/60 bg-slate-100/60 opacity-60 cursor-not-allowed select-none"
+                            : isSelected
+                              ? "border-[#f26522] bg-orange-50/50 cursor-pointer"
+                              : "border-slate-100 hover:border-slate-200 hover:bg-white cursor-pointer"
                         }`}
                       >
                         {/* Custom Radio / Checkbox UI */}
                         <div
                           className={`w-5 h-5 flex items-center justify-center shrink-0 transition-colors ${
-                            isSelectionOnlyMode ? "rounded-full" : "rounded"
+                            isSelectionOnlyMode ? "rounded-full" : "rounded-md"
                           } ${
-                            isSelected
-                              ? "bg-[#f26522] border-[#f26522]"
-                              : "border-2 border-slate-300 bg-white"
+                            isAlreadyInWorkspace
+                              ? "border-2 border-slate-300 bg-slate-200 text-slate-400"
+                              : isSelected
+                                ? "bg-[#f26522] border-[#f26522]"
+                                : "border-2 border-slate-300 bg-white"
                           }`}
                         >
-                          {isSelected && (
+                          {isSelected && !isAlreadyInWorkspace && (
                             <Check className="w-3.5 h-3.5 text-white stroke-[3]" />
+                          )}
+                          {isAlreadyInWorkspace && (
+                            <Check className="w-3 h-3 text-slate-500 stroke-[3]" />
                           )}
                         </div>
 
                         <div className="w-10 h-10 rounded-xl bg-white shadow-sm border border-slate-100 flex items-center justify-center shrink-0">
-                          <FileText className="w-4 h-4 text-slate-500" />
+                          <FileText className={`w-4 h-4 ${isAlreadyInWorkspace ? "text-slate-400" : "text-slate-500"}`} />
                         </div>
 
                         <div className="flex-1 min-w-0">
-                          <h4 className="font-semibold text-slate-700 text-sm truncate">
+                          <h4 className={`font-semibold text-sm truncate ${isAlreadyInWorkspace ? "text-slate-500" : "text-slate-700"}`}>
                             {doc.title}
                           </h4>
                           <p className="text-xs text-slate-400">
                             {doc.fileType || "Document"}
                           </p>
                         </div>
+
+                        {isAlreadyInWorkspace && (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-200/80 text-slate-600 border border-slate-300/60 shrink-0">
+                            <Check className="w-3 h-3 text-slate-500" /> Already added
+                          </span>
+                        )}
                       </div>
                     );
                   })}

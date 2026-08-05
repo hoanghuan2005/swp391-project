@@ -66,6 +66,9 @@ export default function UnifiedAIChat({
     }
   }, [mode]);
 
+  const { tierLimits } = useAiUsage();
+  const maxPersonalDocs = tierLimits?.maxPersonalDocs ?? 2;
+
   const [quotaDialog, setQuotaDialog] = useState({
     open: false,
     type: "AI",
@@ -452,9 +455,9 @@ export default function UnifiedAIChat({
       if (isSelected) {
         return prev.filter((d) => d.id !== doc.id);
       } else {
-        if (prev.length >= 5) {
+        if (prev.length >= maxPersonalDocs) {
           toast.error(
-            "Maximum 5 documents allowed.",
+            `Maximum ${maxPersonalDocs} document${maxPersonalDocs > 1 ? "s" : ""} allowed.`,
           );
           return prev;
         }
@@ -471,7 +474,7 @@ export default function UnifiedAIChat({
     userSelectedDocumentRef.current = true;
     const userDocIds = new Set(documents.map((d) => d.id));
     const userSelectedUserDocs = selectedDocs.filter((sd) => userDocIds.has(sd.id));
-    const combined = [...userSelectedUserDocs, ...newPublicDocs].slice(0, 5);
+    const combined = [...userSelectedUserDocs, ...newPublicDocs].slice(0, maxPersonalDocs);
     setSelectedDocs(combined);
   };
 
@@ -497,57 +500,130 @@ export default function UnifiedAIChat({
     </div>
   ) : null;
 
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    const saved = localStorage.getItem("ai_sidebar_width");
+    return saved ? Math.max(200, Math.min(500, parseInt(saved, 10))) : 260;
+  });
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    return localStorage.getItem("ai_sidebar_collapsed") === "true";
+  });
+  const isDraggingRef = useRef(false);
+  const sidebarWidthRef = useRef(sidebarWidth);
+
+  useEffect(() => {
+    sidebarWidthRef.current = sidebarWidth;
+  }, [sidebarWidth]);
+
+  const handleMouseDown = useCallback((e) => {
+    e.preventDefault();
+    isDraggingRef.current = true;
+    const startX = e.clientX;
+    const startWidth = sidebarWidthRef.current;
+
+    document.body.style.userSelect = "none";
+    document.body.style.cursor = "col-resize";
+
+    const handleMouseMove = (moveEvent) => {
+      if (!isDraggingRef.current) return;
+      const deltaX = moveEvent.clientX - startX;
+      const newWidth = Math.max(200, Math.min(500, startWidth + deltaX));
+      setSidebarWidth(newWidth);
+      localStorage.setItem("ai_sidebar_width", newWidth);
+    };
+
+    const handleMouseUp = () => {
+      isDraggingRef.current = false;
+      document.body.style.userSelect = "";
+      document.body.style.cursor = "";
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+  }, []);
+
+  const toggleSidebar = useCallback(() => {
+    setIsSidebarCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem("ai_sidebar_collapsed", String(next));
+      return next;
+    });
+  }, []);
+
   const sidebarType = isWorkspace ? "project-workspace" : "ask-ai";
 
   return (
-    <div className="h-full w-full flex overflow-hidden bg-[#fafafa]">
-      {/* SIDEBAR */}
-      <AISidebar
-        type={sidebarType}
-        histories={conversations}
-        documents={filteredDocuments}
-        publicDocuments={publicDocuments}
-        selectedItem={activeConversation}
-        selectedDoc={selectedDocs[0] || null}
-        selectedDocs={selectedDocs}
-        onSelectItem={handleSelectConversation}
-        onDeleteItem={handleDeleteConversation}
-        onSelectDocument={handleSelectDocument}
-        onDeleteDocument={onDeleteDocument}
-        onOpenPublicModal={!isWorkspace ? () => setPublicModalOpen(true) : null}
-        onCreate={() => handleCreateNewChat(null)}
-        searchDocQuery={searchDocQuery}
-        setSearchDocQuery={setSearchDocQuery}
-        fileInputRef={fileInputRef}
-        handleUpload={handleUpload}
-        isUploading={isUploading}
-      />
+    <div className="h-full w-full flex overflow-hidden bg-[#fafafa] relative">
+      {/* RESIZABLE SIDEBAR */}
+      {!isSidebarCollapsed && (
+        <div
+          style={{ width: `${sidebarWidth}px` }}
+          className="h-full shrink-0 flex flex-col relative min-w-0"
+        >
+          <AISidebar
+            type={sidebarType}
+            histories={conversations}
+            documents={filteredDocuments}
+            publicDocuments={publicDocuments}
+            selectedItem={activeConversation}
+            selectedDoc={selectedDocs[0] || null}
+            selectedDocs={selectedDocs}
+            onSelectItem={handleSelectConversation}
+            onDeleteItem={handleDeleteConversation}
+            onSelectDocument={handleSelectDocument}
+            onDeleteDocument={onDeleteDocument}
+            onOpenPublicModal={!isWorkspace ? () => setPublicModalOpen(true) : null}
+            onCreate={() => handleCreateNewChat(null)}
+            searchDocQuery={searchDocQuery}
+            setSearchDocQuery={setSearchDocQuery}
+            fileInputRef={fileInputRef}
+            handleUpload={handleUpload}
+            isUploading={isUploading}
+            onToggleSidebar={toggleSidebar}
+          />
+        </div>
+      )}
+
+      {/* DRAG RESIZE HANDLE */}
+      {!isSidebarCollapsed && (
+        <div
+          onMouseDown={handleMouseDown}
+          className="w-1.5 hover:w-2 h-full cursor-col-resize z-20 group flex items-center justify-center transition-all bg-slate-200/50 hover:bg-[#f26522]/40 active:bg-[#f26522] shrink-0"
+          title="Drag to resize sidebar"
+        >
+          <div className="w-0.5 h-8 bg-slate-300 group-hover:bg-[#f26522] rounded-full transition-colors" />
+        </div>
+      )}
 
       {/* CHAT AREA */}
-      <ChatInterface
-        title={
-          activeConversation
-            ? activeConversation.title
-            : isWorkspace
-              ? "Project Workspace AI"
-              : "Ask StudyMate AI"
-        }
-        subtitle={
-          selectedDocs.length > 0
-            ? `Focused on ${selectedDocs.length} document${selectedDocs.length > 1 ? "s" : ""} (${selectedDocs.length}/5)`
-            : isWorkspace
-              ? "Workspace General Knowledge mode (Select up to 5 documents to filter context)"
-              : "General AI Assistant mode (Select up to 5 documents to ask about them)"
-        }
-        messages={messages}
-        isLoadingMessages={isLoadingMessages}
-        isSending={isLoading}
-        onSendMessage={handleSend}
-        showUploadButton={showUploadButton}
-        isUploading={isUploading}
-        onUploadClick={() => fileInputRef?.current?.click()}
-        isDisabled={isDocUnsupportedOrFailed}
-        alertComponent={documentAlertBoard}
+      <div className="flex-1 min-w-0 h-full flex flex-col overflow-hidden">
+        <ChatInterface
+          title={
+            activeConversation
+              ? activeConversation.title
+              : isWorkspace
+                ? "Project Workspace AI"
+                : "Ask StudyMate AI"
+          }
+          subtitle={
+            selectedDocs.length > 0
+              ? `Focused on ${selectedDocs.length} document${selectedDocs.length > 1 ? "s" : ""} (${selectedDocs.length}/${maxPersonalDocs})`
+              : isWorkspace
+                ? `Workspace General Knowledge mode (Select up to ${maxPersonalDocs} document${maxPersonalDocs > 1 ? "s" : ""} to filter context)`
+                : `General AI Assistant mode (Select up to ${maxPersonalDocs} document${maxPersonalDocs > 1 ? "s" : ""} to ask about them)`
+          }
+          messages={messages}
+          isLoadingMessages={isLoadingMessages}
+          isSending={isLoading}
+          onSendMessage={handleSend}
+          showUploadButton={showUploadButton}
+          isUploading={isUploading}
+          onUploadClick={() => fileInputRef?.current?.click()}
+          isDisabled={isDocUnsupportedOrFailed}
+          alertComponent={documentAlertBoard}
+          onToggleSidebar={toggleSidebar}
+          isSidebarCollapsed={isSidebarCollapsed}
         emptyStateComponent={
           <div className="h-full flex flex-col items-center justify-center text-center p-8 max-w-lg mx-auto">
             <div className="w-16 h-16 rounded-3xl bg-[#f26522]/10 flex items-center justify-center mb-4">
@@ -559,7 +635,7 @@ export default function UnifiedAIChat({
             <p className="text-xs text-slate-500 leading-relaxed mb-6">
               {isWorkspace
                 ? "Select specific project documents from the sidebar to query them with citations, or ask general questions directly using AI General Knowledge."
-                : "Upload or select up to 5 course documents from the sidebar to ask questions with notebook-style citations, or start typing below for a general chat."}
+                : `Upload or select up to ${maxPersonalDocs} course document${maxPersonalDocs > 1 ? "s" : ""} from the sidebar to ask questions with notebook-style citations, or start typing below for a general chat.`}
             </p>
           </div>
         }
@@ -570,7 +646,7 @@ export default function UnifiedAIChat({
               <div className="flex items-center gap-1.5 px-3 py-1 bg-orange-50 border border-orange-100 rounded-md text-[10px] text-slate-600 font-semibold w-fit">
                 <CheckSquare className="w-3.5 h-3.5 text-[#f26522]" />
                 <span>
-                  Focused on <strong className="text-[#f26522]">{selectedDocs.length} / 5</strong> documents
+                  Focused on <strong className="text-[#f26522]">{selectedDocs.length} / {maxPersonalDocs}</strong> documents
                 </span>
                 <button
                   onClick={handleClearSelection}
@@ -584,6 +660,7 @@ export default function UnifiedAIChat({
         }
         onPreviewDocument={handlePreviewDocument}
       />
+      </div>
 
       <DocumentPreviewModal
         documentId={previewModalState.documentId}
@@ -648,6 +725,7 @@ export default function UnifiedAIChat({
         userDocuments={documents}
         alreadySelectedDocs={selectedDocs}
         onAddPublicDocs={handleAddPublicDocs}
+        maxPersonalDocs={maxPersonalDocs}
       />
     </div>
   );

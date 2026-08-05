@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { FolderPlus, Loader2, Search, CheckCircle2, LayoutDashboard } from "lucide-react";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 
 import {
   Dialog,
@@ -22,25 +22,24 @@ export default function AddToProjectModal({ documentId, open, onOpenChange }) {
   const [selectedProjectId, setSelectedProjectId] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  const fetchProjects = useCallback(async () => {
-    try {
-      setLoading(true);
-      const data = await getMyProjects();
-      setProjects(data);
-    } catch (error) {
-      console.error("Failed to fetch projects:", error);
-      toast.error("Could not load your workspaces");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
-    if (open) {
-      fetchProjects();
-      setSelectedProjectId(null);
-    }
-  }, [open, fetchProjects]);
+    if (!open) return;
+    let isMounted = true;
+    getMyProjects()
+      .then((data) => {
+        if (isMounted) setProjects(data);
+      })
+      .catch((error) => {
+        console.error("Failed to fetch projects:", error);
+        if (isMounted) toast.error(error.response?.data?.message || "Could not load your workspaces");
+      })
+      .finally(() => {
+        if (isMounted) setLoading(false);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [open]);
 
   const handleSave = async () => {
     if (!selectedProjectId || !documentId) return;
@@ -52,7 +51,7 @@ export default function AddToProjectModal({ documentId, open, onOpenChange }) {
       onOpenChange(false);
     } catch (error) {
       console.error("Failed to add document:", error);
-      toast.error("Failed to save to workspace");
+      toast.error(error.response?.data?.message || "Failed to save to workspace");
     } finally {
       setIsSaving(false);
     }

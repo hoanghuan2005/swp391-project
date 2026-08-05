@@ -34,13 +34,14 @@ const AISidebar = ({
   fileInputRef,
   handleUpload,
   isUploading,
+  onToggleSidebar,
 }) => {
   const config = sidebarConfig[type];
 
   return (
-    <div className="w-[280px] border-r border-slate-200 bg-white flex flex-col">
+    <div className="w-full h-full border-r border-slate-200 bg-white flex flex-col min-w-0">
       {/* HEADER */}
-      <SidebarHeader config={config} />
+      <SidebarHeader config={config} onToggleSidebar={onToggleSidebar} />
 
       {/* CREATE BUTTON */}
       <button

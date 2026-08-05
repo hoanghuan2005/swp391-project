@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import axiosClient from "@/api/axiosClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,12 +50,13 @@ export default function PlanManagementPage() {
     maxQuizQuestionsPerGen: 20,
     maxOwnedProjects: 3,
     maxJoinedProjects: 5,
+    maxPersonalDocs: 2,
+    maxWorkspaceDocs: 10,
     isActive: true,
   });
 
-  const fetchPlans = async () => {
+  const fetchPlans = useCallback(async () => {
     try {
-      setLoading(true);
       const res = await axiosClient.get("/api/admin/subscription-plans");
       setPlans(res.data || []);
     } catch (err) {
@@ -63,10 +64,23 @@ export default function PlanManagementPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchPlans();
+    let isMounted = true;
+    axiosClient.get("/api/admin/subscription-plans")
+      .then((res) => {
+        if (isMounted) setPlans(res.data || []);
+      })
+      .catch((err) => {
+        console.error("Failed to load plans:", err);
+      })
+      .finally(() => {
+        if (isMounted) setLoading(false);
+      });
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const handleOpenModal = (plan = null) => {
@@ -86,6 +100,8 @@ export default function PlanManagementPage() {
         maxQuizQuestionsPerGen: plan.maxQuizQuestionsPerGeneration ?? (plan.code === "PRO" ? 50 : 20),
         maxOwnedProjects: plan.maxOwnedProjects ?? (plan.code === "PRO" ? -1 : 3),
         maxJoinedProjects: plan.maxJoinedProjects ?? (plan.code === "PRO" ? -1 : 5),
+        maxPersonalDocs: plan.maxPersonalDocs ?? (plan.code === "PRO" ? 5 : 2),
+        maxWorkspaceDocs: plan.maxWorkspaceDocs ?? (plan.code === "PRO" ? 20 : 10),
         isActive: activeState,
       });
     } else {
@@ -103,6 +119,8 @@ export default function PlanManagementPage() {
         maxQuizQuestionsPerGen: 20,
         maxOwnedProjects: 3,
         maxJoinedProjects: 5,
+        maxPersonalDocs: 2,
+        maxWorkspaceDocs: 10,
         isActive: true,
       });
     }
@@ -125,6 +143,8 @@ export default function PlanManagementPage() {
         maxQuizQuestionsPerGeneration: Number(formData.maxQuizQuestionsPerGen),
         maxOwnedProjects: Number(formData.maxOwnedProjects),
         maxJoinedProjects: Number(formData.maxJoinedProjects),
+        maxPersonalDocs: Number(formData.maxPersonalDocs),
+        maxWorkspaceDocs: Number(formData.maxWorkspaceDocs),
         isActive: formData.isActive,
       };
 
@@ -307,6 +327,20 @@ export default function PlanManagementPage() {
                           <span className="text-slate-500 font-medium">Owned Workspaces:</span>
                           <span className="font-bold text-slate-700">
                             {plan.maxOwnedProjects === -1 ? "Unlimited" : `${plan.maxOwnedProjects ?? 3} workspaces`}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-slate-500 font-medium">Max AI Personal Docs:</span>
+                          <span className="font-bold text-slate-700">
+                            {plan.maxPersonalDocs ?? 2} docs
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-slate-500 font-medium">Max Workspace Docs:</span>
+                          <span className="font-bold text-slate-700">
+                            {plan.maxWorkspaceDocs ?? 10} docs
                           </span>
                         </div>
                       </div>
@@ -513,6 +547,32 @@ export default function PlanManagementPage() {
                   type="number"
                   value={formData.maxJoinedProjects}
                   onChange={(e) => setFormData({ ...formData, maxJoinedProjects: e.target.value })}
+                  className="mt-1 rounded-xl"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-bold text-slate-600">Max AI Personal Docs</label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={formData.maxPersonalDocs}
+                  onChange={(e) => setFormData({ ...formData, maxPersonalDocs: e.target.value })}
+                  className="mt-1 rounded-xl"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-600">Max Workspace Docs</label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={formData.maxWorkspaceDocs}
+                  onChange={(e) => setFormData({ ...formData, maxWorkspaceDocs: e.target.value })}
                   className="mt-1 rounded-xl"
                   required
                 />
