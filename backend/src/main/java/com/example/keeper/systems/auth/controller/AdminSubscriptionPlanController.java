@@ -18,7 +18,7 @@ public class AdminSubscriptionPlanController {
 
     @GetMapping
     public ResponseEntity<List<SubscriptionPlan>> getAllPlans() {
-        return ResponseEntity.ok(subscriptionPlanRepository.findAll());
+        return ResponseEntity.ok(subscriptionPlanRepository.findAllByOrderByPriceVndAsc());
     }
 
     @PostMapping
@@ -50,7 +50,6 @@ public class AdminSubscriptionPlanController {
         if (updateData.getMaxOwnedProjects() != null) plan.setMaxOwnedProjects(updateData.getMaxOwnedProjects());
         if (updateData.getMaxJoinedProjects() != null) plan.setMaxJoinedProjects(updateData.getMaxJoinedProjects());
         if (updateData.getMaxSelectedDocs() != null) plan.setMaxSelectedDocs(updateData.getMaxSelectedDocs());
-        if (updateData.getMaxPersonalDocs() != null) plan.setMaxPersonalDocs(updateData.getMaxPersonalDocs());
         if (updateData.getMaxWorkspaceDocs() != null) plan.setMaxWorkspaceDocs(updateData.getMaxWorkspaceDocs());
         plan.setIsActive(updateData.getIsActive());
 

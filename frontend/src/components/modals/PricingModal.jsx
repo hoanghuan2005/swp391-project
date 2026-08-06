@@ -31,12 +31,13 @@ const defaultPlans = [
   {
     code: "FREE",
     name: "Free",
+    priceVnd: 0,
     description: "For trying Study Hub AI features.",
     price: "0đ",
     period: "forever",
     features: [
       "5 AI requests per day",
-      "Select up to 2 personal documents for AI Chat",
+      "Select up to 2 documents per AI query",
       "Up to 10 documents per workspace",
       "Up to 15 flashcards per generation",
       "Up to 20 quiz questions per generation",
@@ -50,12 +51,13 @@ const defaultPlans = [
   {
     code: "PRO",
     name: "Pro",
+    priceVnd: 99000,
     description: "For frequent study sessions.",
     price: "99.000đ",
     period: "month",
     features: [
       "Unlimited AI requests",
-      "Select up to 5 personal documents for AI Chat",
+      "Select up to 4 documents per AI query",
       "Up to 20 documents per workspace",
       "Unlimited flashcards per generation",
       "Up to 50 quiz questions per generation",
@@ -63,7 +65,6 @@ const defaultPlans = [
       "10MB max file size",
       "1GB total storage capacity",
       "Unlimited document uploads",
-      "Priority support",
     ],
     action: "Upgrade to Pro",
   },
@@ -91,7 +92,8 @@ export default function PricingModal({ open, onOpenChange, isOpen, onClose }) {
     axiosClient.get("/api/subscription/plans")
       .then((res) => {
         if (isSubscribed && res.data && res.data.length > 0) {
-          setDbPlans(res.data);
+          const sorted = (res.data || []).sort((a, b) => (a.priceVnd || 0) - (b.priceVnd || 0));
+          setDbPlans(sorted);
         }
       })
       .catch((err) => {
@@ -156,7 +158,9 @@ export default function PricingModal({ open, onOpenChange, isOpen, onClose }) {
     }
   };
 
-  const displayPlans = dbPlans.length > 0 ? dbPlans.map((p) => {
+  const rawPlans = dbPlans.length > 0 ? [...dbPlans].sort((a, b) => (a.priceVnd || 0) - (b.priceVnd || 0)) : defaultPlans;
+
+  const displayPlans = rawPlans.map((p) => {
     const isPro = p.code === "PRO";
     const isFree = p.code === "FREE";
     return {
@@ -167,7 +171,7 @@ export default function PricingModal({ open, onOpenChange, isOpen, onClose }) {
       period: p.priceVnd === 0 ? "forever" : "month",
       features: [
         p.dailyAiLimit === -1 ? "Unlimited AI requests" : `${p.dailyAiLimit} AI requests per day`,
-        `Select up to ${p.maxPersonalDocs ?? (isFree ? 2 : 5)} personal documents for AI Chat`,
+        `Select up to ${p.maxSelectedDocs ?? (isFree ? 2 : 4)} documents per AI query`,
         `Up to ${p.maxWorkspaceDocs ?? (isFree ? 10 : 20)} documents per workspace`,
         p.maxFlashcardsPerGeneration === -1 ? "Unlimited flashcards per generation" : `Up to ${p.maxFlashcardsPerGeneration} flashcards per generation`,
         p.maxQuizQuestionsPerGeneration === -1 ? "Unlimited quiz questions per generation" : `Up to ${p.maxQuizQuestionsPerGeneration} quiz questions per generation`,
@@ -175,31 +179,30 @@ export default function PricingModal({ open, onOpenChange, isOpen, onClose }) {
         `${formatBytes(p.maxFileSizeBytes)} max file size`,
         `${formatBytes(p.totalStorageBytes)} total storage capacity`,
         p.dailyUploadLimit === -1 ? "Unlimited document uploads" : `${p.dailyUploadLimit} document uploads per day`,
-        ...(isPro ? ["Priority support"] : []),
       ],
       action: isFree ? "Free Plan" : `Upgrade to ${p.name || p.code}`,
     };
-  }) : defaultPlans;
+  });
 
   return (
     <>
       <Dialog open={!!isModalOpen} onOpenChange={(openState) => !openState && handleClose()}>
-        <DialogContent className="sm:max-w-4xl rounded-[32px] p-0 overflow-hidden border-none shadow-[0_20px_50px_rgba(0,0,0,0.15)] bg-slate-50/95 backdrop-blur-md">
-          <DialogHeader className="p-8 pb-4 text-center">
-            <DialogTitle className="text-3xl font-extrabold text-slate-800 tracking-tight flex items-center justify-center gap-2">
-              Choose Your Plan <Crown className="h-6 w-6 text-amber-500 fill-amber-500 animate-pulse" />
+        <DialogContent className="sm:max-w-3xl rounded-[28px] p-0 overflow-hidden border-none shadow-[0_20px_50px_rgba(0,0,0,0.15)] bg-slate-50/95 backdrop-blur-md">
+          <DialogHeader className="p-5 pb-2 text-center">
+            <DialogTitle className="text-2xl font-extrabold text-slate-800 tracking-tight flex items-center justify-center gap-2">
+              Choose Your Plan <Crown className="h-5 w-5 text-amber-500 fill-amber-500 animate-pulse" />
             </DialogTitle>
-            <DialogDescription className="text-slate-500 text-sm mt-2 max-w-md mx-auto leading-relaxed">
+            <DialogDescription className="text-slate-500 text-xs mt-1 max-w-md mx-auto leading-relaxed">
               Unlock advanced AI features, higher storage capacity, and boost your productivity with our subscription plans.
             </DialogDescription>
           </DialogHeader>
 
           {isFetchingPlans && displayPlans.length === 0 ? (
-            <div className="flex items-center justify-center py-12 text-slate-400">
-              <Loader2 className="w-6 h-6 animate-spin mr-2 text-[#f26522]" /> Loading plans...
+            <div className="flex items-center justify-center py-8 text-slate-400">
+              <Loader2 className="w-5 h-5 animate-spin mr-2 text-[#f26522]" /> Loading plans...
             </div>
           ) : (
-            <div className={`grid gap-6 md:grid-cols-${Math.min(displayPlans.length, 3)} px-8 pb-8`}>
+            <div className={`grid gap-4 md:grid-cols-${Math.min(displayPlans.length, 3)} px-6 pb-6`}>
               {displayPlans.map((plan) => {
                 const planCode = String(plan.code || plan.name).toUpperCase();
                 const isPro = planCode === "PRO";
@@ -211,61 +214,61 @@ export default function PricingModal({ open, onOpenChange, isOpen, onClose }) {
                 return (
                   <div
                     key={plan.code || plan.name}
-                    className={`relative flex flex-col justify-between rounded-3xl p-6 bg-white transition-all duration-300 ${
+                    className={`relative flex flex-col justify-between rounded-2xl p-5 bg-white transition-all duration-300 ${
                       isPro
-                        ? "border-2 border-orange-500 shadow-[0_8px_30px_rgba(242,101,34,0.15)] scale-[1.02] md:scale-105"
+                        ? "border-2 border-orange-500 shadow-[0_8px_30px_rgba(242,101,34,0.15)] scale-[1.01]"
                         : "border border-slate-200/80 shadow-sm"
                     }`}
                   >
                     {isPro && !isCurrent && (
-                      <span className="absolute -top-3.5 right-6 bg-gradient-to-r from-orange-500 to-amber-500 text-white text-[11px] font-extrabold px-3 py-1 rounded-full shadow-sm tracking-wider uppercase flex items-center gap-1">
+                      <span className="absolute -top-3 right-5 bg-gradient-to-r from-orange-500 to-amber-500 text-white text-[10px] font-extrabold px-2.5 py-0.5 rounded-full shadow-sm tracking-wider uppercase flex items-center gap-1">
                         <Crown className="w-3 h-3 fill-white" /> Popular
                       </span>
                     )}
 
                     <div>
-                      <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                      <h3 className="text-lg font-bold text-slate-800 flex items-center gap-1.5">
                         {plan.name}
-                        {isPro && <Crown className="w-5 h-5 text-amber-500 fill-amber-500" />}
+                        {isPro && <Crown className="w-4 h-4 text-amber-500 fill-amber-500" />}
                       </h3>
-                      <p className="mt-1 text-xs text-slate-400">{plan.description}</p>
+                      <p className="mt-0.5 text-[11px] text-slate-400">{plan.description}</p>
                       
-                      <div className="mt-4 flex items-baseline">
-                        <span className="text-3xl font-extrabold text-slate-800 tracking-tight">{plan.price}</span>
-                        <span className="text-xs text-slate-400 ml-1">/ {plan.period}</span>
+                      <div className="mt-3 flex items-baseline">
+                        <span className="text-2xl font-extrabold text-slate-800 tracking-tight">{plan.price}</span>
+                        <span className="text-[11px] text-slate-400 ml-1">/ {plan.period}</span>
                       </div>
 
-                      <ul className="my-6 space-y-3">
+                      <ul className="my-4 space-y-2">
                         {plan.features.map((feature, idx) => (
-                          <li key={idx} className="flex items-start gap-2 text-xs text-slate-600 font-medium">
-                            <Check className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" strokeWidth={3} />
+                          <li key={idx} className="flex items-start gap-2 text-[11px] text-slate-600 font-medium">
+                            <Check className="h-3.5 w-3.5 text-emerald-500 shrink-0 mt-0.5" strokeWidth={3} />
                             <span>{feature}</span>
                           </li>
                         ))}
                       </ul>
                     </div>
 
-                    <div>
+                    <div className="pt-2">
                       {!isFree ? (
                         <Button
-                          className={`w-full rounded-xl py-5 font-bold text-sm shadow-md transition-all duration-300 ${
+                          className={`w-full rounded-xl py-3.5 font-bold text-xs shadow-md transition-all duration-300 ${
                             isCurrent
                               ? "bg-slate-100 hover:bg-slate-100 text-slate-500 cursor-not-allowed border border-slate-200 shadow-none"
-                              : "bg-[#f26522] hover:bg-[#d95316] text-white hover:shadow-orange-500/20 hover:scale-[1.02] cursor-pointer"
+                              : "bg-[#f26522] hover:bg-[#d95316] text-white hover:shadow-orange-500/20 cursor-pointer"
                           }`}
                           disabled={isCurrent || isStartingUpgrade || loading}
                           onClick={handleUpgrade}
                         >
                           {isStartingUpgrade ? (
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
                           ) : (
-                            <Crown className="mr-2 h-4 w-4 fill-amber-300 text-amber-300" />
+                            <Crown className="mr-1.5 h-3.5 w-3.5 fill-amber-300 text-amber-300" />
                           )}
                           {isCurrent ? "Current plan" : plan.action}
                         </Button>
                       ) : (
                         <Button
-                          className="w-full rounded-xl py-5 bg-slate-100 text-slate-500 border border-slate-200 shadow-none font-bold text-sm cursor-not-allowed"
+                          className="w-full rounded-xl py-3.5 bg-slate-100 text-slate-500 border border-slate-200 shadow-none font-bold text-xs cursor-not-allowed"
                           disabled
                         >
                           {isCurrent ? "Current plan" : plan.action}

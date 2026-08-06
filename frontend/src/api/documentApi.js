@@ -99,3 +99,10 @@ export const rejectDocumentVersion = async (documentId, versionId, reason) => {
   );
   return response.data;
 };
+
+export const deleteDocumentVersion = async (documentId, versionId) => {
+  const response = await axiosClient.delete(
+    `/api/documents/${documentId}/versions/${versionId}`
+  );
+  return response.data;
+};

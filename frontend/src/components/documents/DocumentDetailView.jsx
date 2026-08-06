@@ -188,7 +188,7 @@ export default function DocumentDetailView({
       await forceDownload(documentDetail.downloadUrl, documentDetail.title || "document");
     } catch (error) {
       console.error("Failed to download:", error);
-      alert("Error downloading file!");
+      toast.error("Lỗi khi tải tệp xuống!");
     }
   };
 

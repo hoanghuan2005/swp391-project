@@ -60,18 +60,25 @@ export default function UploadVersionDialog({
       return;
     }
 
+    if (!changelog.trim() || changelog.trim().length < 5) {
+      toast.error("Vui lòng nhập lý do thay đổi (Changelog) tối thiểu 5 ký tự!");
+      return;
+    }
+
     setUploading(true);
     const toastId = toast.loading("Uploading new version...");
 
     try {
       const formData = new FormData();
       formData.append("file", selectedFile);
-      if (changelog.trim()) {
-        formData.append("changelog", changelog.trim());
-      }
+      formData.append("changelog", changelog.trim());
 
       const response = await uploadNewVersion(documentId, formData);
       toast.success("New version uploaded successfully!", { id: toastId });
+      
+      // Dispatch quota update event for real-time storage sync
+      window.dispatchEvent(new CustomEvent("subscription:updated"));
+
       onSuccess?.(response);
       handleClose();
     } catch (error) {
@@ -139,7 +146,7 @@ export default function UploadVersionDialog({
                     Click here to choose a new file
                   </p>
                   <p className="text-xs text-slate-400 mt-1">
-                    Supports PDF, DOCX, PPTX formats...
+                    Supports PDF, DOCX, PPTX formats (Must match original document format)
                   </p>
                 </>
               )}
@@ -148,11 +155,16 @@ export default function UploadVersionDialog({
 
           {/* Changelog */}
           <div className="space-y-1">
-            <Label className="text-sm font-semibold text-slate-700">
-              Changelog notes
-            </Label>
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-semibold text-slate-700">
+                Changelog notes / Lý do thay đổi <span className="text-red-500">*</span>
+              </Label>
+              <span className={`text-xs ${changelog.trim().length < 5 ? "text-amber-600 font-medium" : "text-emerald-600 font-medium"}`}>
+                {changelog.trim().length}/5 ký tự tối thiểu
+              </span>
+            </div>
             <Textarea
-              placeholder="e.g. Fixed typos in Chapter 2, added exam solutions for 2025..."
+              placeholder="Vui lòng nhập lý do cập nhật phiên bản mới (tối thiểu 5 ký tự, ví dụ: Đã sửa lỗi chính tả Chương 2, bổ sung lời giải đề thi năm 2025...)"
               value={changelog}
               onChange={(e) => setChangelog(e.target.value)}
               rows={3}
@@ -172,7 +184,7 @@ export default function UploadVersionDialog({
             </Button>
             <Button
               type="submit"
-              disabled={!selectedFile || uploading}
+              disabled={!selectedFile || changelog.trim().length < 5 || uploading}
               className="bg-[#f26522] hover:bg-[#d9531e] text-white rounded-xl"
             >
               {uploading ? "Uploading..." : "Upload New Version"}

@@ -365,4 +365,13 @@ public class DocumentController {
         var rejectedVersion = documentService.rejectVersion(id, versionId, reason, email);
         return ResponseEntity.ok(rejectedVersion);
     }
+
+    @DeleteMapping("/{id}/versions/{versionId}")
+    public ResponseEntity<?> deleteVersion(
+            @PathVariable UUID id,
+            @PathVariable UUID versionId) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        documentService.deleteVersion(id, versionId, email);
+        return ResponseEntity.ok(Map.of("message", "Phiên bản tài liệu đã được xóa thành công."));
+    }
 }

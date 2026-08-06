@@ -26,7 +26,7 @@ public class UserSubscriptionController {
 
     @GetMapping("/plans")
     public ResponseEntity<java.util.List<SubscriptionPlan>> getActivePlans() {
-        return ResponseEntity.ok(subscriptionPlanRepository.findByIsActiveTrue());
+        return ResponseEntity.ok(subscriptionPlanRepository.findByIsActiveTrueOrderByPriceVndAsc());
     }
 
     @GetMapping("/my-subscription")

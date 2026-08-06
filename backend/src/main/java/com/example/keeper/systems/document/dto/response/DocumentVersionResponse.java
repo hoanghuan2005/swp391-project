@@ -19,6 +19,7 @@ public class DocumentVersionResponse {
     private UUID documentId;
     private String versionNumber;
     private String fileUrl;
+    private String previewUrl;
     private String originalFileName;
     private Long fileSize;
     private String mimeType;

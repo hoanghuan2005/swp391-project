@@ -19,8 +19,11 @@ import {
   CheckCircle,
   XCircle,
   AlertCircle,
+  Trash2,
+  Eye,
 } from "lucide-react";
-import { downloadDocumentVersion, approveDocumentVersion, rejectDocumentVersion } from "@/api/documentApi";
+import { downloadDocumentVersion, approveDocumentVersion, rejectDocumentVersion, deleteDocumentVersion } from "@/api/documentApi";
+import FilePreview from "./FilePreview";
 import { toast } from "sonner";
 
 function formatFileSize(bytes) {
@@ -61,6 +64,13 @@ export default function VersionHistoryModal({
   const [processingId, setProcessingId] = useState(null);
   const [rejectDialogVer, setRejectDialogVer] = useState(null);
   const [rejectReason, setRejectReason] = useState("");
+  const [deleteDialogVer, setDeleteDialogVer] = useState(null);
+  const [previewVer, setPreviewVer] = useState(null);
+
+  const handlePreview = (ver) => {
+    if (!ver) return;
+    setPreviewVer(ver);
+  };
 
   const handleDownload = async (ver) => {
     try {
@@ -81,6 +91,7 @@ export default function VersionHistoryModal({
     try {
       await approveDocumentVersion(documentId, ver.id);
       toast.success(`Version ${ver.versionNumber} approved successfully!`);
+      window.dispatchEvent(new CustomEvent("subscription:updated"));
       onRefresh?.();
     } catch (err) {
       toast.error(err?.response?.data?.message || "Failed to approve version");
@@ -97,9 +108,26 @@ export default function VersionHistoryModal({
       toast.success(`Version ${rejectDialogVer.versionNumber} rejected.`);
       setRejectDialogVer(null);
       setRejectReason("");
+      window.dispatchEvent(new CustomEvent("subscription:updated"));
       onRefresh?.();
     } catch (err) {
       toast.error(err?.response?.data?.message || "Failed to reject version");
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleDeleteSubmit = async () => {
+    if (!deleteDialogVer) return;
+    setProcessingId(deleteDialogVer.id);
+    try {
+      await deleteDocumentVersion(documentId, deleteDialogVer.id);
+      toast.success(`Phiên bản ${deleteDialogVer.versionNumber} đã được xóa thành công!`);
+      setDeleteDialogVer(null);
+      window.dispatchEvent(new CustomEvent("subscription:updated"));
+      onRefresh?.();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Không thể xóa phiên bản này!");
     } finally {
       setProcessingId(null);
     }
@@ -150,6 +178,7 @@ export default function VersionHistoryModal({
                 const isPending = status === "PENDING_APPROVAL";
                 const isRejected = status === "REJECTED";
                 const isApproved = status === "APPROVED";
+                const isActive = idx === 0 && isApproved;
 
                 return (
                   <div
@@ -163,14 +192,14 @@ export default function VersionHistoryModal({
                     }`}
                   >
                     <div className="space-y-2">
-                      {/* Header line: Badges + Title + Size on left, Download on right */}
+                      {/* Header line: Badges + Title + Size on left, Actions on right */}
                       <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-3">
                         <div className="flex flex-wrap items-center gap-2 min-w-0">
                           <Badge className="bg-[#f26522] text-white text-xs font-semibold px-2.5 py-0.5 rounded-full shrink-0">
                             {ver.versionNumber || "v1.0"}
                           </Badge>
                           
-                          {idx === 0 && isApproved && (
+                          {isActive && (
                             <Badge
                               variant="outline"
                               className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[11px] px-2 py-0.5 font-medium shrink-0"
@@ -201,14 +230,49 @@ export default function VersionHistoryModal({
                           )}
                         </div>
 
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="rounded-xl border-slate-200 hover:bg-slate-50 text-slate-700 text-xs shrink-0 self-start sm:self-center -mt-6"
-                          onClick={() => handleDownload(ver)}
-                        >
-                          <Download className="w-3.5 h-3.5 mr-1.5" /> Download
-                        </Button>
+                        {/* Action buttons: Preview, Download, Delete */}
+                        {(() => {
+                          const userRole = localStorage.getItem("userRole");
+                          const isAdmin = userRole === "ADMIN";
+                          const canDelete = (isOwner || isAdmin) && !isActive;
+
+                          return (
+                            <div className="flex items-center gap-1.5 shrink-0 self-center">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="rounded-xl border-slate-200 hover:bg-slate-50 text-slate-700 text-xs"
+                                onClick={() => handlePreview(ver)}
+                                title="Xem nhanh phiên bản này (Preview)"
+                              >
+                                <Eye className="w-3.5 h-3.5 mr-1" /> Preview
+                              </Button>
+
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="rounded-xl border-slate-200 hover:bg-slate-50 text-slate-700 text-xs"
+                                onClick={() => handleDownload(ver)}
+                                title="Tải xuống phiên bản này"
+                              >
+                                <Download className="w-3.5 h-3.5 mr-1" /> Download
+                              </Button>
+
+                              {canDelete && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="rounded-xl border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs"
+                                  onClick={() => setDeleteDialogVer(ver)}
+                                  disabled={processingId === ver.id}
+                                  title="Xóa phiên bản này khỏi hệ thống"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5 mr-1" /> Delete
+                                </Button>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </div>
 
                       {ver.changelog && (
@@ -240,34 +304,52 @@ export default function VersionHistoryModal({
                       </div>
                     </div>
 
-                    {/* Actions for Owner when version is PENDING_APPROVAL */}
-                    {isPending && isOwner && (
-                      <div className="pt-2 border-t border-amber-200/60 flex items-center justify-end gap-2">
-                        <span className="text-xs text-amber-800 font-medium mr-auto">
-                          Requires your approval as document owner:
-                        </span>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100 h-8 rounded-lg text-xs"
-                          disabled={processingId === ver.id}
-                          onClick={() => {
-                            setRejectDialogVer(ver);
-                            setRejectReason("");
-                          }}
-                        >
-                          <XCircle className="w-3.5 h-3.5 mr-1" /> Reject
-                        </Button>
-                        <Button
-                          size="sm"
-                          className="bg-emerald-600 hover:bg-emerald-700 text-white h-8 rounded-lg text-xs font-semibold"
-                          disabled={processingId === ver.id}
-                          onClick={() => handleApprove(ver)}
-                        >
-                          <CheckCircle className="w-3.5 h-3.5 mr-1" /> Approve & Activate
-                        </Button>
-                      </div>
-                    )}
+                    {/* Pending Approval Section */}
+                    {isPending && (() => {
+                      const userRole = localStorage.getItem("userRole");
+                      const isAdmin = userRole === "ADMIN";
+                      // If current user is Admin OR (Document Owner reviewing another user's contribution)
+                      const canApprove = isAdmin || (isOwner && ver.uploaderName !== localStorage.getItem("username"));
+                      
+                      if (canApprove) {
+                        return (
+                          <div className="pt-2 border-t border-amber-200/60 flex items-center justify-end gap-2">
+                            <span className="text-xs text-amber-800 font-medium mr-auto">
+                              {isAdmin ? "Requires Admin approval:" : "Requires your approval as document owner:"}
+                            </span>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100 h-8 rounded-lg text-xs"
+                              disabled={processingId === ver.id}
+                              onClick={() => {
+                                setRejectDialogVer(ver);
+                                setRejectReason("");
+                              }}
+                            >
+                              <XCircle className="w-3.5 h-3.5 mr-1" /> Reject
+                            </Button>
+                            <Button
+                              size="sm"
+                              className="bg-emerald-600 hover:bg-emerald-700 text-white h-8 rounded-lg text-xs font-semibold"
+                              disabled={processingId === ver.id}
+                              onClick={() => handleApprove(ver)}
+                            >
+                              <CheckCircle className="w-3.5 h-3.5 mr-1" /> Approve & Activate
+                            </Button>
+                          </div>
+                        );
+                      }
+
+                      // If regular user / owner viewing their own pending upload
+                      return (
+                        <div className="pt-2 border-t border-amber-200/60 flex items-center justify-between gap-2">
+                          <span className="text-xs text-amber-700 font-medium italic">
+                            ⏳ Phiên bản này đang chờ Admin/Quản trị viên duyệt trước khi công khai.
+                          </span>
+                        </div>
+                      );
+                    })()}
                   </div>
                 );
               })
@@ -311,6 +393,88 @@ export default function VersionHistoryModal({
               disabled={!!processingId}
             >
               Confirm Reject
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Version Confirmation Dialog */}
+      <Dialog open={!!deleteDialogVer} onOpenChange={(val) => !val && setDeleteDialogVer(null)}>
+        <DialogContent className="sm:max-w-md rounded-2xl p-5">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold text-slate-800 flex items-center gap-2">
+              <Trash2 className="w-5 h-5 text-rose-500" />
+              Xác nhận xóa phiên bản
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500">
+              Bạn có chắc chắn muốn xóa phiên bản lịch sử{" "}
+              <span className="font-semibold text-slate-700">
+                {deleteDialogVer?.versionNumber} ({deleteDialogVer?.originalFileName})
+              </span>
+              ? Tệp tin sẽ bị xóa khỏi Cloudinary và dung lượng bộ nhớ cá nhân của bạn sẽ được giải phóng ngay lập tức.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2 pt-3">
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-xl"
+              onClick={() => setDeleteDialogVer(null)}
+              disabled={!!processingId}
+            >
+              Hủy
+            </Button>
+            <Button
+              size="sm"
+              className="bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-semibold"
+              onClick={handleDeleteSubmit}
+              disabled={!!processingId}
+            >
+              {processingId ? "Đang xóa..." : "Xóa phiên bản"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Quick Preview Version Popup Dialog */}
+      <Dialog open={!!previewVer} onOpenChange={(val) => !val && setPreviewVer(null)}>
+        <DialogContent className="sm:max-w-4xl max-h-[90vh] rounded-2xl p-6 flex flex-col">
+          <DialogHeader className="pb-3 border-b border-slate-100 flex flex-row items-center justify-between pr-6">
+            <div className="space-y-1">
+              <DialogTitle className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <Eye className="w-5 h-5 text-[#f26522]" />
+                Xem trước phiên bản {previewVer?.versionNumber}
+              </DialogTitle>
+              <DialogDescription className="text-xs text-slate-500">
+                Tệp tin: <span className="font-semibold text-slate-700">{previewVer?.originalFileName}</span> • Lý do cập nhật: <span className="italic">"{previewVer?.changelog || "Không có"}"</span>
+              </DialogDescription>
+            </div>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto py-3 min-h-[450px] flex items-center justify-center">
+            <FilePreview
+              previewUrl={previewVer?.previewUrl || previewVer?.fileUrl}
+              mimeType={previewVer?.mimeType}
+              originalFileName={previewVer?.originalFileName}
+              title={previewVer?.originalFileName}
+            />
+          </div>
+
+          <div className="pt-3 border-t border-slate-100 flex justify-end gap-2 shrink-0">
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-xl"
+              onClick={() => setPreviewVer(null)}
+            >
+              Đóng Xem Trước
+            </Button>
+            <Button
+              size="sm"
+              className="bg-[#f26522] hover:bg-[#d9531e] text-white rounded-xl font-semibold"
+              onClick={() => handleDownload(previewVer)}
+            >
+              <Download className="w-4 h-4 mr-1" /> Tải về tệp này
             </Button>
           </div>
         </DialogContent>

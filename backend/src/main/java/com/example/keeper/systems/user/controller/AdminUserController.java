@@ -21,6 +21,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.example.keeper.systems.auth.repository.SubscriptionPlanRepository;
+
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -34,6 +36,7 @@ public class AdminUserController {
     private final AdminUserService adminUserService;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
+    private final SubscriptionPlanRepository subscriptionPlanRepository;
 
     @GetMapping
     public ResponseEntity<List<AdminUserListItemResponse>> getAllUsers() {
@@ -92,10 +95,19 @@ public class AdminUserController {
             user.setBanned(false);
 
             String tierStr = req.getOrDefault("subscriptionTier", "FREE");
+            com.example.keeper.systems.auth.enums.SubscriptionTier tier;
             try {
-                user.setSubscriptionTier(com.example.keeper.systems.auth.enums.SubscriptionTier.valueOf(tierStr.toUpperCase()));
+                tier = com.example.keeper.systems.auth.enums.SubscriptionTier.valueOf(tierStr.toUpperCase());
             } catch (Exception e) {
-                user.setSubscriptionTier(com.example.keeper.systems.auth.enums.SubscriptionTier.FREE);
+                tier = com.example.keeper.systems.auth.enums.SubscriptionTier.FREE;
+            }
+            user.setSubscriptionTier(tier);
+
+            final String tierCode = tier.name();
+            com.example.keeper.systems.auth.entity.SubscriptionPlan plan = subscriptionPlanRepository.findByCodeAndIsActiveTrue(tierCode)
+                    .orElseGet(() -> subscriptionPlanRepository.findByCode(tierCode).orElse(null));
+            if (plan != null && plan.getTotalStorageBytes() != null) {
+                user.setMaxStorageBytes(plan.getTotalStorageBytes());
             }
 
             userRepository.save(user);

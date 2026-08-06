@@ -51,7 +51,6 @@ export default function PlanManagementPage() {
     maxOwnedProjects: 3,
     maxJoinedProjects: 5,
     maxSelectedDocs: 2,
-    maxPersonalDocs: 2,
     maxWorkspaceDocs: 10,
     isActive: true,
   });
@@ -59,7 +58,8 @@ export default function PlanManagementPage() {
   const fetchPlans = useCallback(async () => {
     try {
       const res = await axiosClient.get("/api/admin/subscription-plans");
-      setPlans(res.data || []);
+      const sorted = (res.data || []).sort((a, b) => (a.priceVnd || 0) - (b.priceVnd || 0));
+      setPlans(sorted);
     } catch (err) {
       console.error("Failed to load plans:", err);
     } finally {
@@ -71,7 +71,10 @@ export default function PlanManagementPage() {
     let isMounted = true;
     axiosClient.get("/api/admin/subscription-plans")
       .then((res) => {
-        if (isMounted) setPlans(res.data || []);
+        if (isMounted) {
+          const sorted = (res.data || []).sort((a, b) => (a.priceVnd || 0) - (b.priceVnd || 0));
+          setPlans(sorted);
+        }
       })
       .catch((err) => {
         console.error("Failed to load plans:", err);
@@ -338,13 +341,6 @@ export default function PlanManagementPage() {
                           <span className="text-slate-500 font-medium">Max Selected Docs / Query:</span>
                           <span className="font-bold text-slate-700">
                             {plan.maxSelectedDocs === -1 ? "Unlimited" : `${plan.maxSelectedDocs ?? (isPro ? 4 : 2)} docs`}
-                          </span>
-                        </div>
-
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-slate-500 font-medium">Max AI Personal Docs:</span>
-                          <span className="font-bold text-slate-700">
-                            {plan.maxPersonalDocs ?? 2} docs
                           </span>
                         </div>
 

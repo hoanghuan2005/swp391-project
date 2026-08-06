@@ -13,9 +13,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Trash2, Search, Plus, FileText, Pencil } from "lucide-react";
+import { Trash2, Search, Plus, FileText, Pencil, History } from "lucide-react";
 import UploadDocumentDialog from "@/components/documents/UploadDocumentDialog";
 import EditDocumentModal from "@/components/share/EditDocumentModal";
+import VersionHistoryModal from "@/components/documents/VersionHistoryModal";
+import { getDocument } from "@/api/documentApi";
 import { useModal } from "@/components/share/useModal";
 import { toast } from "sonner";
 import AdminToolbar from "@/components/admin/AdminToolbar";
@@ -32,12 +34,26 @@ export default function DocumentListPage() {
   const { confirm } = useModal();
   const [currentAdmin, setCurrentAdmin] = useState(null);
   const [editingDocId, setEditingDocId] = useState(null);
+  const [historyDocModal, setHistoryDocModal] = useState(null);
 
   useEffect(() => {
     axiosClient.get("/api/profile")
       .then((res) => setCurrentAdmin(res.data))
       .catch((err) => console.error("Error loading admin profile:", err));
   }, []);
+
+  const handleOpenVersionHistory = async (doc) => {
+    try {
+      const detail = await getDocument(doc.id);
+      setHistoryDocModal({
+        id: doc.id,
+        title: doc.title,
+        versions: detail?.versions || [],
+      });
+    } catch (err) {
+      toast.error("Failed to load version history for this document!");
+    }
+  };
 
   // Lấy danh sách tài liệu từ Backend
   const fetchDocuments = async () => {
@@ -366,6 +382,17 @@ export default function DocumentListPage() {
 
                         <TableCell className="text-right pr-4">
                           <div className="flex justify-end gap-2">
+                            {/* Nút Xem & Phê duyệt Lịch sử Phiên bản (Version History) */}
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => handleOpenVersionHistory(doc)}
+                              className="h-8 w-8 text-slate-500 hover:text-[#f26522] hover:bg-orange-50 rounded-lg cursor-pointer transition-colors"
+                              title="Quản lý & Duyệt các phiên bản (Version History)"
+                            >
+                              <History className="w-4 h-4" />
+                            </Button>
+
                             {/* Nút Sửa (Edit - Hiển thị nếu là tài liệu của chính Admin HOẶC của User/Student, ngoại trừ Admin khác) */}
                             {(() => {
                               const isOwnDocument = currentAdmin?.id && doc.uploadedBy?.id && doc.uploadedBy.id === currentAdmin.id;
@@ -419,6 +446,29 @@ export default function DocumentListPage() {
           onSuccess={() => {
             setEditingDocId(null);
             fetchDocuments();
+          }}
+        />
+      )}
+      {historyDocModal && (
+        <VersionHistoryModal
+          open={Boolean(historyDocModal)}
+          onOpenChange={(open) => !open && setHistoryDocModal(null)}
+          versions={historyDocModal.versions || []}
+          documentTitle={historyDocModal.title}
+          documentId={historyDocModal.id}
+          isOwner={true}
+          onRefresh={async () => {
+            fetchDocuments();
+            if (historyDocModal?.id) {
+              try {
+                const detail = await getDocument(historyDocModal.id);
+                setHistoryDocModal({
+                  id: historyDocModal.id,
+                  title: historyDocModal.title,
+                  versions: detail?.versions || [],
+                });
+              } catch (e) {}
+            }
           }}
         />
       )}

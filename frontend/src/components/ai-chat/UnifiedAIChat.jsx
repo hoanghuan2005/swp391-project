@@ -455,9 +455,9 @@ export default function UnifiedAIChat({
       if (isSelected) {
         return prev.filter((d) => d.id !== doc.id);
       } else {
-        if (prev.length >= maxPersonalDocs) {
+        if (prev.length >= maxSelectedDocs) {
           toast.error(
-            `Maximum ${maxPersonalDocs} document${maxPersonalDocs > 1 ? "s" : ""} allowed.`,
+            `Maximum ${maxSelectedDocs} document${maxSelectedDocs > 1 ? "s" : ""} allowed.`,
           );
           return prev;
         }

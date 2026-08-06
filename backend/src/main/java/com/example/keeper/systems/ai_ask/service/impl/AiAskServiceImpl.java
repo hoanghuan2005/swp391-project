@@ -502,11 +502,11 @@ public class AiAskServiceImpl implements AiAskService {
         boolean isAdmin = user != null && user.getRole() != null && "ADMIN".equalsIgnoreCase(user.getRole().getName());
         if (!isAdmin) {
             String tierCode = user != null && user.getSubscriptionTier() != null ? user.getSubscriptionTier().name() : "FREE";
-            int maxPersonalDocs = subscriptionPlanRepository.findByCode(tierCode)
-                    .map(p -> p.getMaxPersonalDocs() != null ? p.getMaxPersonalDocs() : 2)
+            int maxSelectedDocs = subscriptionPlanRepository.findByCode(tierCode)
+                    .map(p -> p.getMaxSelectedDocs() != null ? p.getMaxSelectedDocs() : 2)
                     .orElse(2);
-            if (targetDocIds.size() > maxPersonalDocs) {
-                throw new IllegalArgumentException("Your current plan allows selecting up to " + maxPersonalDocs + " documents.");
+            if (targetDocIds.size() > maxSelectedDocs) {
+                throw new IllegalArgumentException("Your current plan allows selecting up to " + maxSelectedDocs + " documents.");
             }
         }
 

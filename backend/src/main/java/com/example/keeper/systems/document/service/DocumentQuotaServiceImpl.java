@@ -7,6 +7,7 @@ import com.example.keeper.systems.auth.repository.UserRepository;
 import com.example.keeper.systems.document.dto.response.DocumentQuotaResponse;
 import com.example.keeper.systems.document.exception.DocumentQuotaExceededException;
 import com.example.keeper.systems.document.repository.DocumentRepository;
+import com.example.keeper.systems.document.repository.DocumentVersionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -21,6 +22,7 @@ public class DocumentQuotaServiceImpl implements DocumentQuotaService {
 
     private final UserRepository userRepository;
     private final DocumentRepository documentRepository;
+    private final DocumentVersionRepository documentVersionRepository;
     private final SubscriptionPlanRepository subscriptionPlanRepository;
 
     @Override
@@ -52,6 +54,45 @@ public class DocumentQuotaServiceImpl implements DocumentQuotaService {
         }
 
         validateDocumentCount(user, plan);
+
+        long dailyLimit = plan.getDailyUploadLimit();
+        if (dailyLimit != UNLIMITED && getUploadsToday(user) >= dailyLimit) {
+            String tier = user.getSubscriptionTier() != null ? user.getSubscriptionTier().name() : "FREE";
+            if ("FREE".equals(tier)) {
+                throw new DocumentQuotaExceededException("Tài khoản Free đã đạt giới hạn lượt tải lên trong ngày. Vui lòng nâng cấp lên gói PRO!");
+            } else {
+                throw new DocumentQuotaExceededException("Tài khoản PRO đã đạt giới hạn lượt tải lên trong ngày. Bạn có thể chờ gói mới hoặc liên hệ Quản trị viên.");
+            }
+        }
+    }
+
+    @Override
+    public void validateVersionUpload(String email, long fileSize) {
+        User user = findUser(email);
+        if (isAdmin(user)) {
+            return;
+        }
+
+        SubscriptionPlan plan = getPlanForUser(user);
+
+        long maxFileSize = plan.getMaxFileSizeBytes();
+        if (fileSize > maxFileSize) {
+            throw new DocumentQuotaExceededException(
+                    "Maximum document file size is " + toMegabytes(maxFileSize) + "MB for your subscription tier.");
+        }
+
+        long usedStorage = getUsedStorage(user);
+        long maxStorage = user.getMaxStorageBytes() != null ? user.getMaxStorageBytes() : plan.getTotalStorageBytes();
+        if (maxStorage != UNLIMITED && (usedStorage + fileSize > maxStorage)) {
+            String tier = user.getSubscriptionTier() != null ? user.getSubscriptionTier().name() : "FREE";
+            if ("FREE".equals(tier)) {
+                throw new DocumentQuotaExceededException(
+                        "Tài khoản Free của bạn đã đạt giới hạn dung lượng lưu trữ (" + toMegabytes(maxStorage) + "MB). Vui lòng nâng cấp lên gói PRO để mở rộng thêm dung lượng!");
+            } else {
+                throw new DocumentQuotaExceededException(
+                        "Tài khoản PRO của bạn đã đạt giới hạn dung lượng lưu trữ tối đa (" + toMegabytes(maxStorage) + "MB). Đã hết giới hạn lưu trữ, bạn có thể chờ gói mới hoặc liên hệ Quản trị viên.");
+            }
+        }
 
         long dailyLimit = plan.getDailyUploadLimit();
         if (dailyLimit != UNLIMITED && getUploadsToday(user) >= dailyLimit) {
@@ -110,7 +151,7 @@ public class DocumentQuotaServiceImpl implements DocumentQuotaService {
     }
 
     private long getUsedStorage(User user) {
-        Long sum = documentRepository.sumFileSizeByUploadedById(user.getId());
+        Long sum = documentVersionRepository.sumFileSizeByUploadedById(user.getId());
         return sum != null ? sum : 0L;
     }
 

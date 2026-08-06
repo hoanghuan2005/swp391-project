@@ -97,9 +97,7 @@ public class DocumentServiceImpl implements DocumentService {
 
         Document document = buildDocument(request);
         User u = document.getUploadedBy();
-        String folder = (u != null && u.getId() != null)
-                ? "swp391/users/" + u.getId() + "/documents"
-                : "swp391/documents";
+        String folder = getUserFolderName(u);
 
         FileUploadResult uploadResult = fileStorageService.uploadFile(file, folder);
         String fileUrl = uploadResult.getSecureUrl();
@@ -1192,15 +1190,37 @@ public class DocumentServiceImpl implements DocumentService {
     @Override
     @org.springframework.transaction.annotation.Transactional
     public DocumentVersion uploadNewVersion(UUID documentId, MultipartFile file, String changelog, String email) {
+        if (changelog == null || changelog.trim().length() < 5) {
+            throw new IllegalArgumentException("Lý do thay đổi (changelog) là bắt buộc và phải có tối thiểu 5 ký tự.");
+        }
+
         validateSupportedFileFormat(file);
         User uploader = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
         Document document = getById(documentId);
         checkDocumentAccess(document, email);
 
-        documentQuotaService.validateUpload(email, file.getSize());
+        // Extension check against original document format
+        String docOriginal = document.getOriginalFileName();
+        String docExt = "";
+        if (docOriginal != null && docOriginal.contains(".")) {
+            docExt = docOriginal.substring(docOriginal.lastIndexOf('.') + 1).toLowerCase();
+        }
 
-        FileUploadResult uploadResult = fileStorageService.uploadFile(file, "documents");
+        String inputFilename = file.getOriginalFilename();
+        String inputExt = "";
+        if (inputFilename != null && inputFilename.contains(".")) {
+            inputExt = inputFilename.substring(inputFilename.lastIndexOf('.') + 1).toLowerCase();
+        }
+
+        if (!docExt.isEmpty() && !inputExt.isEmpty() && !docExt.equalsIgnoreCase(inputExt)) {
+            throw new IllegalArgumentException("Phiên bản mới phải có cùng định dạng file với tài liệu ban đầu (." + docExt + ").");
+        }
+
+        documentQuotaService.validateVersionUpload(email, file.getSize());
+
+        String versionFolder = getUserFolderName(uploader);
+        FileUploadResult uploadResult = fileStorageService.uploadFile(file, versionFolder);
         String fileUrl = uploadResult.getSecureUrl();
         String publicId = uploadResult.getPublicId();
         String resourceType = uploadResult.getResourceType();
@@ -1216,9 +1236,13 @@ public class DocumentServiceImpl implements DocumentService {
         }
 
         boolean isOwner = document.getUploadedBy() != null && document.getUploadedBy().getId().equals(uploader.getId());
-        com.example.keeper.systems.document.enums.VersionStatus versionStatus = isOwner ?
-                com.example.keeper.systems.document.enums.VersionStatus.APPROVED :
-                com.example.keeper.systems.document.enums.VersionStatus.PENDING_APPROVAL;
+        boolean isAdmin = uploader.getRole() != null && "ADMIN".equalsIgnoreCase(uploader.getRole().getName());
+        boolean isPublic = document.getVisibility() == com.example.keeper.systems.document.enums.Visibility.PUBLIC;
+
+        // PUBLIC documents uploaded by non-admin require moderation approval
+        com.example.keeper.systems.document.enums.VersionStatus versionStatus = (isPublic && !isAdmin) ?
+                com.example.keeper.systems.document.enums.VersionStatus.PENDING_APPROVAL :
+                com.example.keeper.systems.document.enums.VersionStatus.APPROVED;
 
         DocumentVersion newVersion = new DocumentVersion();
         newVersion.setDocument(document);
@@ -1229,13 +1253,20 @@ public class DocumentServiceImpl implements DocumentService {
         newVersion.setResourceType(resourceType);
         newVersion.setOriginalFileName(originalFilename);
         newVersion.setFileSize(file.getSize());
-        newVersion.setChangelog(changelog != null && !changelog.isBlank() ? changelog.trim() : "New version update");
+        newVersion.setChangelog(changelog.trim());
         newVersion.setStatus(versionStatus);
         newVersion.setUploadedBy(uploader);
         DocumentVersion savedVersion = documentVersionRepository.save(newVersion);
 
-        if (isOwner) {
-            // Update Document active file fields directly only if uploaded by owner
+        if (versionStatus == com.example.keeper.systems.document.enums.VersionStatus.APPROVED) {
+            // Clean up old AI chunks before processing new version
+            try {
+                documentChunkRepository.deleteByDocumentId(documentId);
+            } catch (Exception e) {
+                log.warn("Failed to delete old AI chunks for document {}: {}", documentId, e.getMessage());
+            }
+
+            // Update Document active file fields directly
             document.setFileUrl(fileUrl);
             document.setCloudinaryPublicId(publicId);
             document.setMimeType(uploadResult.getMimeType());
@@ -1274,8 +1305,8 @@ public class DocumentServiceImpl implements DocumentService {
                 });
             }
         } else {
-            // Non-owner upload: Notify Owner A that version is pending approval
-            if (document.getUploadedBy() != null) {
+            // Notify Document Owner ONLY if the version was uploaded by another user
+            if (document.getUploadedBy() != null && !document.getUploadedBy().getId().equals(uploader.getId())) {
                 try {
                     String uploaderName = uploader.getUsername() != null ? uploader.getUsername() : uploader.getEmail();
                     notificationService.createNotification(
@@ -1300,21 +1331,32 @@ public class DocumentServiceImpl implements DocumentService {
     public List<DocumentVersionResponse> getDocumentVersions(UUID documentId) {
         return documentVersionRepository.findByDocumentIdOrderByCreatedAtDesc(documentId)
                 .stream()
-                .map(v -> DocumentVersionResponse.builder()
-                        .id(v.getId())
-                        .documentId(v.getDocument().getId())
-                        .versionNumber(v.getVersionNumber())
-                        .fileUrl(v.getFileUrl())
-                        .originalFileName(v.getOriginalFileName())
-                        .fileSize(v.getFileSize())
-                        .mimeType(v.getMimeType())
-                        .changelog(v.getChangelog())
-                        .status(v.getStatus())
-                        .rejectionReason(v.getRejectionReason())
-                        .uploaderId(v.getUploadedBy() != null ? v.getUploadedBy().getId() : null)
-                        .uploaderName(v.getUploadedBy() != null ? (v.getUploadedBy().getUsername() != null ? v.getUploadedBy().getUsername() : v.getUploadedBy().getEmail()) : "N/A")
-                        .createdAt(v.getCreatedAt())
-                        .build())
+                .map(v -> {
+                    String ext = "";
+                    if (v.getOriginalFileName() != null && v.getOriginalFileName().contains(".")) {
+                        ext = v.getOriginalFileName().substring(v.getOriginalFileName().lastIndexOf('.') + 1).toLowerCase();
+                    }
+                    String pUrl = (v.getCloudinaryPublicId() != null && !v.getCloudinaryPublicId().isBlank()) ?
+                            fileStorageService.generatePreviewUrl(v.getCloudinaryPublicId(), v.getResourceType(), ext) :
+                            v.getFileUrl();
+
+                    return DocumentVersionResponse.builder()
+                            .id(v.getId())
+                            .documentId(v.getDocument().getId())
+                            .versionNumber(v.getVersionNumber())
+                            .fileUrl(v.getFileUrl())
+                            .previewUrl(pUrl)
+                            .originalFileName(v.getOriginalFileName())
+                            .fileSize(v.getFileSize())
+                            .mimeType(v.getMimeType())
+                            .changelog(v.getChangelog())
+                            .status(v.getStatus())
+                            .rejectionReason(v.getRejectionReason())
+                            .uploaderId(v.getUploadedBy() != null ? v.getUploadedBy().getId() : null)
+                            .uploaderName(v.getUploadedBy() != null ? (v.getUploadedBy().getUsername() != null ? v.getUploadedBy().getUsername() : v.getUploadedBy().getEmail()) : "N/A")
+                            .createdAt(v.getCreatedAt())
+                            .build();
+                })
                 .toList();
     }
 
@@ -1370,6 +1412,13 @@ public class DocumentServiceImpl implements DocumentService {
         version.setStatus(com.example.keeper.systems.document.enums.VersionStatus.APPROVED);
         version.setRejectionReason(null);
         DocumentVersion savedVersion = documentVersionRepository.save(version);
+
+        // Clean up old AI chunks before approving new active version
+        try {
+            documentChunkRepository.deleteByDocumentId(documentId);
+        } catch (Exception e) {
+            log.warn("Failed to delete old AI chunks on version approval for document {}: {}", documentId, e.getMessage());
+        }
 
         // Update Document active file fields
         String extension = "";
@@ -1487,6 +1536,51 @@ public class DocumentServiceImpl implements DocumentService {
                 .build();
     }
 
+    @Override
+    @org.springframework.transaction.annotation.Transactional
+    public void deleteVersion(UUID documentId, UUID versionId, String email) {
+        User currentUser = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        Document document = getById(documentId);
+
+        boolean isOwner = document.getUploadedBy() != null && document.getUploadedBy().getId().equals(currentUser.getId());
+        boolean isAdmin = currentUser.getRole() != null && "ADMIN".equalsIgnoreCase(currentUser.getRole().getName());
+
+        if (!isOwner && !isAdmin) {
+            throw new org.springframework.security.access.AccessDeniedException("Bạn không có quyền xóa phiên bản tài liệu này.");
+        }
+
+        DocumentVersion version = documentVersionRepository.findById(versionId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy phiên bản tài liệu."));
+
+        if (!version.getDocument().getId().equals(documentId)) {
+            throw new IllegalArgumentException("Phiên bản không thuộc tài liệu này.");
+        }
+
+        // Prevent deleting active version
+        boolean isActiveVersion = false;
+        if (document.getCurrentVersionNumber() != null && document.getCurrentVersionNumber().equalsIgnoreCase(version.getVersionNumber())) {
+            isActiveVersion = true;
+        } else if (document.getCloudinaryPublicId() != null && document.getCloudinaryPublicId().equals(version.getCloudinaryPublicId())) {
+            isActiveVersion = true;
+        }
+
+        if (isActiveVersion) {
+            throw new IllegalArgumentException("Không thể xóa phiên bản đang hoạt động (Active Version).");
+        }
+
+        // Delete from Cloudinary
+        if (version.getCloudinaryPublicId() != null && !version.getCloudinaryPublicId().isBlank()) {
+            try {
+                fileStorageService.deleteFile(version.getCloudinaryPublicId(), version.getResourceType());
+            } catch (Exception e) {
+                log.error("Failed to delete file on Cloudinary for version {}", versionId, e);
+            }
+        }
+
+        documentVersionRepository.delete(version);
+    }
+
     private void validateSupportedFileFormat(MultipartFile file) {
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("Tệp tin không được để trống.");
@@ -1500,5 +1594,23 @@ public class DocumentServiceImpl implements DocumentService {
                 && !lower.endsWith(".ppt") && !lower.endsWith(".pptx")) {
             throw new IllegalArgumentException("Hệ thống chỉ hỗ trợ các định dạng file: .pdf, .doc, .docx, .ppt, .pptx");
         }
+    }
+
+    private String getUserFolderName(User u) {
+        if (u == null || u.getId() == null) {
+            return "swp391/documents";
+        }
+        String displayName = u.getUsername();
+        if (displayName == null || displayName.isBlank()) {
+            displayName = u.getEmail() != null ? u.getEmail().split("@")[0] : "user";
+        }
+        String cleanName = Normalizer.normalize(displayName, Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "")
+                .replaceAll("[^a-zA-Z0-9_-]", "_")
+                .toLowerCase();
+        if (cleanName.isBlank()) {
+            cleanName = "user";
+        }
+        return "swp391/users/" + cleanName + "_" + u.getId() + "/documents";
     }
 }

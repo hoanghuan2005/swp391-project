@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import { getRecentDocuments } from "@/api/documentApi";
+import { toast } from "sonner";
 import {
   Card,
   CardContent,
@@ -54,7 +55,7 @@ export default function RecentDocuments({ favoritedIds = [], onToggleFavorite })
       }
     } catch (error) {
       console.error("Download failed:", error);
-      alert("Error downloading document!");
+      toast.error("Lỗi khi tải tệp xuống!");
     }
   };
 

@@ -6,6 +6,8 @@ public interface DocumentQuotaService {
 
     void validateUpload(String email, long fileSize);
 
+    void validateVersionUpload(String email, long fileSize);
+
     void validateDocumentCreation(String email);
 
     DocumentQuotaResponse getQuota(String email);

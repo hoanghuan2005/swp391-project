@@ -4,6 +4,9 @@ import com.example.keeper.systems.document.entity.DocumentVersion;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -14,4 +17,8 @@ public interface DocumentVersionRepository extends JpaRepository<DocumentVersion
     List<DocumentVersion> findByDocumentIdOrderByCreatedAtDesc(UUID documentId);
 
     Optional<DocumentVersion> findFirstByDocumentIdOrderByCreatedAtDesc(UUID documentId);
+
+    @Query("select coalesce(sum(v.fileSize), 0) from DocumentVersion v where v.uploadedBy.id = :uploadedById")
+    Long sumFileSizeByUploadedById(@Param("uploadedById") UUID uploadedById);
 }
+

@@ -68,4 +68,6 @@ public interface DocumentService {
     com.example.keeper.systems.document.dto.response.DocumentVersionResponse approveVersion(UUID documentId, UUID versionId, String email);
 
     com.example.keeper.systems.document.dto.response.DocumentVersionResponse rejectVersion(UUID documentId, UUID versionId, String reason, String email);
+
+    void deleteVersion(UUID documentId, UUID versionId, String email);
 }

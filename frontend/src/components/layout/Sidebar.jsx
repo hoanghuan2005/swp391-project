@@ -462,7 +462,7 @@ export default function Sidebar({ isOpen = true }) {
             isOpen ? (
               <Button
                 onClick={() => {
-                  alert("Vui lòng đăng nhập để sử dụng tính năng này!");
+                  toast.error("Vui lòng đăng nhập để sử dụng tính năng này!");
                   navigate("/login");
                 }}
                 className="w-full rounded-full bg-[#f26522] hover:bg-[#fd5101] text-white shadow-sm h-11 text-sm font-bold transition-all flex items-center justify-center gap-2 cursor-pointer hover:scale-[1.02]"
@@ -472,7 +472,7 @@ export default function Sidebar({ isOpen = true }) {
             ) : (
               <Button
                 onClick={() => {
-                  alert("Vui lòng đăng nhập để sử dụng tính năng này!");
+                  toast.error("Vui lòng đăng nhập để sử dụng tính năng này!");
                   navigate("/login");
                 }}
                 className="w-10 h-10 rounded-full p-0 bg-[#f26522] hover:bg-[#fd5101] text-white shadow-sm shrink-0 flex items-center justify-center transition-transform hover:scale-105"

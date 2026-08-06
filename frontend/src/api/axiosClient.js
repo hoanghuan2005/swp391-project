@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { toast } from 'sonner';
 
 export const backendBaseUrl = import.meta.env.VITE_API_URL 
   ? (import.meta.env.VITE_API_URL.endsWith('/api') ? import.meta.env.VITE_API_URL.slice(0, -4) : import.meta.env.VITE_API_URL)
@@ -29,10 +30,16 @@ axiosClient.interceptors.response.use(
   },
   async (error) => {
     const originalRequest = error.config;
+    const isLoggedIn = localStorage.getItem("isLoggedIn") === "true";
 
     const isLoginApi = originalRequest.url.includes("/api/auth/login") || originalRequest.url.includes("/api/auth/google");
 
     if (error.response && error.response.status === 401 && !originalRequest._retry && !isLoginApi) {
+      // Guest users should not be prompted with session expired alerts when accessing public pages
+      if (!isLoggedIn) {
+        return Promise.reject(error);
+      }
+
       originalRequest._retry = true;
 
       try {
@@ -45,14 +52,13 @@ axiosClient.interceptors.response.use(
         }
       } catch (refreshError) {
         console.error("Refresh token expired or invalid:", refreshError);
-        if (refreshError.message === "Guest user accessing protected resource") {
-          // Khách truy cập tính năng cần bảo vệ, không popup alert tự động khi tải trang
-        } else {
-          alert("Phiên đăng nhập đã hết hạn hoàn toàn. Vui lòng đăng nhập lại!");
-          localStorage.removeItem("token");
-          localStorage.removeItem("refreshToken");
-          window.location.href = "/login";
-        }
+        localStorage.removeItem("token");
+        localStorage.removeItem("refreshToken");
+        localStorage.removeItem("isLoggedIn");
+        localStorage.removeItem("userRole");
+
+        toast.error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!");
+        window.location.href = "/login";
         return Promise.reject(refreshError);
       }
     }
