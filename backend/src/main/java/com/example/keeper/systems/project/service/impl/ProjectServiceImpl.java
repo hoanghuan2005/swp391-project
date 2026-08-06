@@ -52,17 +52,17 @@ public class ProjectServiceImpl implements ProjectService {
     private final NotificationService notificationService;
 
     private int getMaxOwnedProjects(User user) {
-        String tierCode = user.getSubscriptionTier() != null ? user.getSubscriptionTier().name() : "FREE";
+        String tierCode = user.getSubscriptionTier() != null ? user.getSubscriptionTier() : "FREE";
         return subscriptionPlanRepository.findByCodeAndIsActiveTrue(tierCode)
-                .map(p -> p.getMaxOwnedProjects() != null ? p.getMaxOwnedProjects() : (tierCode.equalsIgnoreCase("PRO") ? -1 : 3))
-                .orElse(tierCode.equalsIgnoreCase("PRO") ? -1 : 3);
+                .map(p -> p.getMaxOwnedProjects() != null ? p.getMaxOwnedProjects() : 3)
+                .orElse(3);
     }
 
     private int getMaxJoinedProjects(User user) {
-        String tierCode = user.getSubscriptionTier() != null ? user.getSubscriptionTier().name() : "FREE";
+        String tierCode = user.getSubscriptionTier() != null ? user.getSubscriptionTier() : "FREE";
         return subscriptionPlanRepository.findByCodeAndIsActiveTrue(tierCode)
-                .map(p -> p.getMaxJoinedProjects() != null ? p.getMaxJoinedProjects() : (tierCode.equalsIgnoreCase("PRO") ? -1 : 5))
-                .orElse(tierCode.equalsIgnoreCase("PRO") ? -1 : 5);
+                .map(p -> p.getMaxJoinedProjects() != null ? p.getMaxJoinedProjects() : 5)
+                .orElse(5);
     }
 
     @Override
@@ -79,7 +79,7 @@ public class ProjectServiceImpl implements ProjectService {
                 long currentCount = projectRepository.countByOwnerId(user.getId());
                 if (currentCount >= maxOwned) {
                     throw new ProjectQuotaExceededException(
-                            "You have reached the maximum number of workspaces (" + maxOwned + ") for your " + user.getSubscriptionTier().name() + " plan. Upgrade to Pro for unlimited workspaces.");
+                            "You have reached the maximum number of workspaces (" + maxOwned + ") for your " + user.getSubscriptionTier() + " plan. Upgrade to Pro for unlimited workspaces.");
                 }
             }
         }
@@ -129,7 +129,7 @@ public class ProjectServiceImpl implements ProjectService {
                 : null;
         boolean ownerIsAdmin = owner != null && owner.getRole() != null && "ADMIN".equals(owner.getRole().getName());
         if (!ownerIsAdmin) {
-            String tierCode = owner != null && owner.getSubscriptionTier() != null ? owner.getSubscriptionTier().name() : "FREE";
+            String tierCode = owner != null && owner.getSubscriptionTier() != null ? owner.getSubscriptionTier() : "FREE";
             int maxWorkspaceDocs = subscriptionPlanRepository.findByCode(tierCode)
                     .map(p -> p.getMaxWorkspaceDocs() != null ? p.getMaxWorkspaceDocs() : 10)
                     .orElse(10);
@@ -485,7 +485,7 @@ public class ProjectServiceImpl implements ProjectService {
                 long currentCount = projectMemberRepository.countByUserId(user.getId());
                 if (currentCount >= maxJoined) {
                     throw new ProjectQuotaExceededException(
-                            "You have reached the maximum number of workspaces you can join (" + maxJoined + ") for your " + user.getSubscriptionTier().name() + " plan. Upgrade to Pro for unlimited access.");
+                            "You have reached the maximum number of workspaces you can join (" + maxJoined + ") for your " + user.getSubscriptionTier() + " plan. Upgrade to Pro for unlimited access.");
                 }
             }
         }

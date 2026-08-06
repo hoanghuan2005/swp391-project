@@ -2,7 +2,6 @@ package com.example.keeper.systems.auth.controller;
 
 import com.example.keeper.systems.auth.entity.SubscriptionPlan;
 import com.example.keeper.systems.auth.entity.User;
-import com.example.keeper.systems.auth.enums.SubscriptionTier;
 import com.example.keeper.systems.auth.repository.SubscriptionPlanRepository;
 import com.example.keeper.systems.auth.repository.UserRepository;
 import com.example.keeper.systems.notification.service.NotificationService;
@@ -40,9 +39,9 @@ public class UserSubscriptionController {
                 .orElseGet(() -> userRepository.findByUsername(authName)
                         .orElseThrow(() -> new RuntimeException("User not found")));
 
-        SubscriptionTier tier = user.getSubscriptionTier() != null ? user.getSubscriptionTier() : SubscriptionTier.FREE;
+        String tierCode = user.getSubscriptionTier() != null ? user.getSubscriptionTier() : "FREE";
 
-        SubscriptionPlan plan = subscriptionPlanRepository.findByCodeAndIsActiveTrue(tier.name())
+        SubscriptionPlan plan = subscriptionPlanRepository.findByCodeAndIsActiveTrue(tierCode)
                 .orElseGet(() -> subscriptionPlanRepository.findByCode("FREE")
                         .orElse(null));
 
@@ -52,7 +51,7 @@ public class UserSubscriptionController {
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("username", user.getUsername());
-        result.put("subscriptionTier", tier.name());
+        result.put("subscriptionTier", tierCode);
         result.put("planName", plan != null ? plan.getName() : "Gói Miễn Phí");
         result.put("priceVnd", plan != null ? plan.getPriceVnd() : 0);
         result.put("maxFileSizeBytes", plan != null ? plan.getMaxFileSizeBytes() : 5 * 1024 * 1024);
@@ -82,12 +81,12 @@ public class UserSubscriptionController {
                 .orElseGet(() -> userRepository.findByUsername(authName)
                         .orElseThrow(() -> new RuntimeException("User not found")));
 
-        if (user.getSubscriptionTier() == SubscriptionTier.FREE) {
+        if ("FREE".equalsIgnoreCase(user.getSubscriptionTier())) {
             return ResponseEntity.badRequest().body(Map.of("message", "Tài khoản của bạn hiện đã là gói Miễn Phí (FREE)."));
         }
 
         // Downgrade user to FREE tier & snapshot FREE plan storage limit
-        user.setSubscriptionTier(SubscriptionTier.FREE);
+        user.setSubscriptionTier("FREE");
         SubscriptionPlan freePlan = subscriptionPlanRepository.findByCodeAndIsActiveTrue("FREE")
                 .orElseGet(() -> subscriptionPlanRepository.findByCode("FREE").orElse(null));
         if (freePlan != null && freePlan.getTotalStorageBytes() != null) {

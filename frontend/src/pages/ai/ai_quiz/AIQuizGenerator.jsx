@@ -85,10 +85,13 @@ export default function AIQuizGenerator() {
     planName,
     remainingUsage,
     isUnlimited,
-    maxSelectedDocs = 2,
+    tierLimits,
     loading: aiUsageLoading,
     refreshAiUsage,
   } = useAiUsage();
+
+  const maxSelectedDocs = tierLimits?.maxSelectedDocs || 2;
+  const maxQuizQuestions = tierLimits?.maxQuizQuestionsPerGeneration || 20;
   const { refreshDocumentQuota } = useDocumentQuota();
   const [searchDocQuery, setSearchDocQuery] = useState("");
   const [openSettings, setOpenSettings] = useState(false);
@@ -236,10 +239,11 @@ export default function AIQuizGenerator() {
   }, [publishDialogOpen, courses.length]);
 
   useEffect(() => {
-    if (!isUnlimited && questionCount > 20) {
-      setQuestionCount(20);
+    if (maxQuizQuestions !== -1 && questionCount > maxQuizQuestions) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setQuestionCount(maxQuizQuestions);
     }
-  }, [isUnlimited, questionCount]);
+  }, [maxQuizQuestions, questionCount]);
 
   // Derive detected course from the selected quiz's source document
   const detectedCourse = selectedQuiz?.documentCourseId
@@ -935,7 +939,9 @@ export default function AIQuizGenerator() {
               </label>
 
               <div className="grid grid-cols-4 gap-2">
-                {(isUnlimited ? [5, 10, 15, 20, 30, 50] : [5, 10, 15, 20]).map((num) => (
+                {[5, 10, 15, 20, 30, 50]
+                  .filter((num) => maxQuizQuestions === -1 || num <= maxQuizQuestions)
+                  .map((num) => (
                   <Button
                     key={num}
                     variant={questionCount === num ? "default" : "outline"}
@@ -950,9 +956,9 @@ export default function AIQuizGenerator() {
                   </Button>
                 ))}
               </div>
-              {!isUnlimited && (
+              {maxQuizQuestions !== -1 && maxQuizQuestions < 50 && (
                 <p className="text-xs text-slate-400 mt-2">
-                  Upgrade to <span className="font-semibold text-amber-500">PRO</span> to generate up to 50 questions.
+                  Upgrade your plan to generate more questions at once.
                 </p>
               )}
             </div>

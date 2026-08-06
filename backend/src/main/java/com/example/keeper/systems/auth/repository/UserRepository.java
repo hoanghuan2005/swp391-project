@@ -1,7 +1,6 @@
 package com.example.keeper.systems.auth.repository;
 
 import com.example.keeper.systems.auth.entity.User;
-import com.example.keeper.systems.auth.enums.SubscriptionTier;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -20,7 +19,7 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     @Query("select count(user) from User user where user.isBanned = :banned")
     long countByIsBannedValue(@Param("banned") boolean banned);
 
-    long countBySubscriptionTier(SubscriptionTier subscriptionTier);
+    long countBySubscriptionTier(String subscriptionTier);
 
     @Query("SELECT u FROM User u JOIN u.followedCourses c WHERE c.id = :courseId")
     java.util.List<User> findUsersByFollowedCourseId(@Param("courseId") UUID courseId);

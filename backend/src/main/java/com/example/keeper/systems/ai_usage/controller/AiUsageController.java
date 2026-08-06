@@ -4,7 +4,6 @@ import com.example.keeper.systems.ai_usage.dto.UserAiUsageResponse;
 import com.example.keeper.systems.ai_usage.service.AiUsageService;
 import com.example.keeper.systems.auth.entity.SubscriptionPlan;
 import com.example.keeper.systems.auth.entity.User;
-import com.example.keeper.systems.auth.enums.SubscriptionTier;
 import com.example.keeper.systems.auth.repository.SubscriptionPlanRepository;
 import com.example.keeper.systems.auth.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -36,13 +35,13 @@ public class AiUsageController {
                 .orElseGet(() -> userRepository.findByUsername(authName)
                         .orElseThrow(() -> new RuntimeException("User not found")));
 
-        SubscriptionTier tier = user.getSubscriptionTier() != null ? user.getSubscriptionTier() : SubscriptionTier.FREE;
+        String tierCode = user.getSubscriptionTier() != null ? user.getSubscriptionTier() : "FREE";
 
-        SubscriptionPlan plan = subscriptionPlanRepository.findByCodeAndIsActiveTrue(tier.name())
-                .orElseGet(() -> subscriptionPlanRepository.findByCode(tier.name()).orElse(null));
+        SubscriptionPlan plan = subscriptionPlanRepository.findByCodeAndIsActiveTrue(tierCode)
+                .orElseGet(() -> subscriptionPlanRepository.findByCode(tierCode).orElse(null));
 
         // 1. Tên Plan động từ DB
-        String planName = (plan != null && plan.getName() != null) ? plan.getName() : tier.name();
+        String planName = (plan != null && plan.getName() != null) ? plan.getName() : tierCode;
 
         // 2. Lấy giới hạn từ DB (Dùng null-safe getter)
         Map<String, Object> tierLimits = new LinkedHashMap<>();
@@ -63,7 +62,7 @@ public class AiUsageController {
 
         // 3. Response chuẩn cấu trúc cho Frontend Hook
         Map<String, Object> response = new LinkedHashMap<>();
-        response.put("subscriptionTier", tier.name());
+        response.put("subscriptionTier", tierCode);
         response.put("planName", planName);
         response.put("remainingUsage", remainingUsage);
         response.put("isUnlimited", isUnlimited);

@@ -6,7 +6,6 @@ import com.example.keeper.systems.ai_mindmap.repository.MindMapRepository;
 import com.example.keeper.systems.ai_quiz.repository.QuizRepository;
 import com.example.keeper.systems.auth.entity.SubscriptionPlan;
 import com.example.keeper.systems.auth.entity.User;
-import com.example.keeper.systems.auth.enums.SubscriptionTier;
 import com.example.keeper.systems.auth.repository.SubscriptionPlanRepository;
 import com.example.keeper.systems.auth.repository.UserRepository;
 import com.example.keeper.systems.document.entity.Document;
@@ -121,7 +120,7 @@ public class AdminUserServiceImpl implements AdminUserService {
     private AdminUserListItemResponse buildResponse(User user, LocalDateTime start, LocalDateTime end) {
         long aiUsageToday = aiUsageRepository.countByUserIdAndCreatedAtBetween(user.getId(), start, end);
         
-        SubscriptionPlan plan = subscriptionPlanRepository.findByCode(user.getSubscriptionTier() != null ? user.getSubscriptionTier().name() : "FREE").orElse(null);
+        SubscriptionPlan plan = subscriptionPlanRepository.findByCode(user.getSubscriptionTier() != null ? user.getSubscriptionTier() : "FREE").orElse(null);
         
         long aiDailyLimit = (plan != null && plan.getDailyAiLimit() != null) ? plan.getDailyAiLimit() : 5L;
         boolean unlimitedAi = isAdmin(user) || aiDailyLimit == -1;
@@ -133,7 +132,7 @@ public class AdminUserServiceImpl implements AdminUserService {
                 .username(user.getUsername())
                 .email(user.getEmail())
                 .roleName(user.getRole() != null ? user.getRole().getName() : null)
-                .subscriptionTier(user.getSubscriptionTier() != null ? user.getSubscriptionTier().name() : null)
+                .subscriptionTier(user.getSubscriptionTier() != null ? user.getSubscriptionTier() : null)
                 .emailVerified(user.isEmailVerified())
                 .banned(user.isBanned())
                 .createdAt(user.getCreatedAt())
@@ -208,16 +207,8 @@ public class AdminUserServiceImpl implements AdminUserService {
         user.setEmailVerified(true);
         user.setBanned(false);
 
-        SubscriptionTier tier;
-        try {
-            String tierStr = request.getSubscriptionTier() != null ? request.getSubscriptionTier() : "FREE";
-            tier = SubscriptionTier.valueOf(tierStr.toUpperCase());
-        } catch (Exception e) {
-            tier = SubscriptionTier.FREE;
-        }
-        user.setSubscriptionTier(tier);
-
-        final String tierCode = tier.name();
+        String tierCode = request.getSubscriptionTier() != null ? request.getSubscriptionTier().trim().toUpperCase() : "FREE";
+        user.setSubscriptionTier(tierCode);
         SubscriptionPlan plan = subscriptionPlanRepository.findByCodeAndIsActiveTrue(tierCode)
                 .orElseGet(() -> subscriptionPlanRepository.findByCode(tierCode).orElse(null));
         if (plan != null && plan.getTotalStorageBytes() != null) {

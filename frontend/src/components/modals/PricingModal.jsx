@@ -111,7 +111,7 @@ export default function PricingModal({ open, onOpenChange, isOpen, onClose }) {
   const isLoggedIn = localStorage.getItem("isLoggedIn") === "true";
   const canUpgrade = role !== "ADMIN" && subscriptionTier === "FREE";
 
-  const handleUpgrade = async () => {
+  const handleUpgrade = async (planCode) => {
     if (!isLoggedIn) {
       toast.info("Please log in to upgrade to Pro!");
       handleClose();
@@ -123,7 +123,7 @@ export default function PricingModal({ open, onOpenChange, isOpen, onClose }) {
 
     try {
       setIsStartingUpgrade(true);
-      const payment = await createVnpayPayment();
+      const payment = await createVnpayPayment(planCode);
       if (payment?.paymentUrl) {
         window.location.href = payment.paymentUrl;
         return;
@@ -265,7 +265,7 @@ export default function PricingModal({ open, onOpenChange, isOpen, onClose }) {
                               : "bg-[#f26522] hover:bg-[#d95316] text-white hover:shadow-orange-500/20 hover:scale-[1.02] cursor-pointer"
                           }`}
                           disabled={isCurrent || isStartingUpgrade || loading}
-                          onClick={handleUpgrade}
+                          onClick={() => handleUpgrade(plan.code)}
                         >
                           {isStartingUpgrade ? (
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />

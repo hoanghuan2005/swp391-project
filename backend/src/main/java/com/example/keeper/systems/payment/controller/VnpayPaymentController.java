@@ -24,12 +24,12 @@ public class VnpayPaymentController {
     private final VnpayPaymentService vnpayPaymentService;
 
     @PostMapping("/create")
-    public ResponseEntity<CreateVnpayPaymentResponse> create(HttpServletRequest request) {
+    public ResponseEntity<CreateVnpayPaymentResponse> create(@RequestParam String planCode, HttpServletRequest request) {
         String email = SecurityContextHolder.getContext()
                 .getAuthentication()
                 .getName();
 
-        return ResponseEntity.ok(vnpayPaymentService.createProPayment(email, request));
+        return ResponseEntity.ok(vnpayPaymentService.createPayment(email, planCode, request));
     }
 
     @GetMapping("/ipn")

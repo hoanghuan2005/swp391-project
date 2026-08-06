@@ -112,10 +112,12 @@ export default function AIFlashcardGenerator({ contextData }) {
     planName,
     remainingUsage,
     isUnlimited,
-    maxSelectedDocs = 2,
+    tierLimits,
     loading: aiUsageLoading,
     refreshAiUsage,
   } = useAiUsage();
+
+  const maxSelectedDocs = tierLimits?.maxSelectedDocs || 2;
 
   const { publish, loading: publishing } = useMaterialPublish();
 

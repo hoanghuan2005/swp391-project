@@ -25,7 +25,7 @@ export default function LandingPage() {
 
     try {
       setIsStartingUpgrade(true);
-      const payment = await createVnpayPayment();
+      const payment = await createVnpayPayment("PRO");
       if (payment?.paymentUrl) {
         window.location.href = payment.paymentUrl;
         return;

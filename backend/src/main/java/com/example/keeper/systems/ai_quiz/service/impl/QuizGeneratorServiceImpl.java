@@ -58,10 +58,10 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
     private final SubscriptionPlanRepository subscriptionPlanRepository;
 
     private int getMaxQuizQuestions(User user) {
-        String tierCode = user.getSubscriptionTier() != null ? user.getSubscriptionTier().name() : "FREE";
+        String tierCode = user.getSubscriptionTier() != null ? user.getSubscriptionTier() : "FREE";
         return subscriptionPlanRepository.findByCodeAndIsActiveTrue(tierCode)
-                .map(p -> p.getMaxQuizQuestionsPerGeneration() != null ? p.getMaxQuizQuestionsPerGeneration() : (tierCode.equalsIgnoreCase("PRO") ? 50 : 20))
-                .orElse(tierCode.equalsIgnoreCase("PRO") ? 50 : 20);
+                .map(p -> p.getMaxQuizQuestionsPerGeneration() != null ? p.getMaxQuizQuestionsPerGeneration() : 20)
+                .orElse(20);
     }
 
     @Override
@@ -112,7 +112,7 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
 
         // Enforce tier-based question count limit
         int maxQuestions = getMaxQuizQuestions(user);
-        if (!isAdmin && request.getQuestionCount() != null && request.getQuestionCount() > maxQuestions) {
+        if (!isAdmin && maxQuestions != -1 && request.getQuestionCount() != null && request.getQuestionCount() > maxQuestions) {
             request.setQuestionCount(maxQuestions);
             log.info("Clamped quiz question count to {} for tier {}", maxQuestions, user.getSubscriptionTier());
         }
@@ -418,7 +418,7 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
         // Enforce tier-based question count limit
         int maxQuestions = getMaxQuizQuestions(user);
         boolean isAdmin = user.getRole() != null && "ADMIN".equals(user.getRole().getName());
-        if (!isAdmin && questionCount != null && questionCount > maxQuestions) {
+        if (!isAdmin && maxQuestions != -1 && questionCount != null && questionCount > maxQuestions) {
             questionCount = maxQuestions;
             log.info("Clamped quiz question count to {} for tier {}", maxQuestions, user.getSubscriptionTier());
         }

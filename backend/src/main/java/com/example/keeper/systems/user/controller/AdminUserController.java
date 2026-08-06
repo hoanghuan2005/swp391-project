@@ -91,12 +91,8 @@ public class AdminUserController {
             user.setEmailVerified(true);
             user.setBanned(false);
 
-            String tierStr = req.getOrDefault("subscriptionTier", "FREE");
-            try {
-                user.setSubscriptionTier(com.example.keeper.systems.auth.enums.SubscriptionTier.valueOf(tierStr.toUpperCase()));
-            } catch (Exception e) {
-                user.setSubscriptionTier(com.example.keeper.systems.auth.enums.SubscriptionTier.FREE);
-            }
+            String tierStr = req.getOrDefault("subscriptionTier", "FREE").trim().toUpperCase();
+            user.setSubscriptionTier(tierStr);
 
             userRepository.save(user);
         }

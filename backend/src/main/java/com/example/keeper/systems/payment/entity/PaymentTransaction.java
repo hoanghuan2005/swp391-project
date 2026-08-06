@@ -41,6 +41,9 @@ public class PaymentTransaction extends BaseEntity {
     @Column(name = "order_info", nullable = false)
     private String orderInfo;
 
+    @Column(name = "plan_code", nullable = false)
+    private String planCode;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private PaymentStatus status = PaymentStatus.PENDING;

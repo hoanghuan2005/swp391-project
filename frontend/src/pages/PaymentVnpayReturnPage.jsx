@@ -28,7 +28,7 @@ export default function PaymentVnpayReturnPage() {
         icon: CheckCircle2,
         title: "Payment confirmed",
         description:
-          "Your payment was verified successfully. Your PRO plan is now active.",
+          `Your payment was verified successfully. Your ${confirmation?.subscriptionTier || "new"} plan is now active.`,
         tone: "text-emerald-600",
         bg: "bg-emerald-50",
       };
