@@ -23,10 +23,10 @@ export const generateFlashcards = async (formData) => {
   return response.data;
 };
 
-export const generateFlashcardsFromDocument = async (documentId) => {
+export const generateFlashcardsFromDocument = async (documentId, documentIds) => {
   const response = await axiosClient.post(
     "/api/ai_flashcard/generate-from-document",
-    { documentId },
+    documentIds ? { documentIds } : { documentId },
   );
   return response.data;
 };

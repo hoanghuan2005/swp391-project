@@ -40,6 +40,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -283,68 +285,104 @@ public class AiFlashcardService {
 
     @Transactional
     public FlashcardSetResponse generateFlashcardsFromDocument(UUID documentId, String email) throws Exception {
+        return generateFlashcardsFromDocuments(Collections.singletonList(documentId), email);
+    }
+
+    @Transactional
+    public FlashcardSetResponse generateFlashcardsFromDocuments(List<UUID> documentIds, String email) throws Exception {
         aiUsageService.checkQuota(email);
+
+        if (documentIds == null || documentIds.isEmpty()) {
+            throw new IllegalArgumentException("documentIds is required");
+        }
+
+        aiUsageService.checkDocumentSelectionLimit(email, documentIds.size());
 
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
-        Document document = documentRepository.findById(documentId)
-                .orElseThrow(() -> new RuntimeException("Document not found"));
 
-        boolean isOwner = document.getUploadedBy() != null && document.getUploadedBy().getId().equals(user.getId());
-        boolean isAdmin = user.getRole() != null && "ADMIN".equalsIgnoreCase(user.getRole().getName());
-        boolean isPublic = document.getVisibility() == Visibility.PUBLIC;
+        for (UUID docId : documentIds) {
+            Document document = documentRepository.findById(docId)
+                    .orElseThrow(() -> new RuntimeException("Document not found: " + docId));
 
-        if (!isOwner && !isAdmin && !isPublic) {
-            boolean hasProjectAccess = projectRepository.hasUserAccessToDocumentThroughProjects(document.getId(), user.getId());
-            if (!hasProjectAccess) {
-                throw new org.springframework.security.access.AccessDeniedException("You do not have permission to access this document.");
+            boolean isOwner = document.getUploadedBy() != null && document.getUploadedBy().getId().equals(user.getId());
+            boolean isAdmin = user.getRole() != null && "ADMIN".equalsIgnoreCase(user.getRole().getName());
+            boolean isPublic = document.getVisibility() == Visibility.PUBLIC;
+
+            if (!isOwner && !isAdmin && !isPublic) {
+                boolean hasProjectAccess = projectRepository.hasUserAccessToDocumentThroughProjects(document.getId(), user.getId());
+                if (!hasProjectAccess) {
+                    throw new org.springframework.security.access.AccessDeniedException("You do not have permission to access document: " + docId);
+                }
+            }
+
+            documentParserService.ensureChunksExist(docId);
+
+            if (document.getAiParseStatus() == AiParseStatus.PENDING) {
+                throw new RuntimeException("Document is still being processed for AI. Please try again shortly.");
             }
         }
 
-        documentParserService.ensureChunksExist(documentId);
+        int chunksPerDoc = Math.max(1, 8 / documentIds.size());
+        StringBuilder contentBuilder = new StringBuilder();
 
-        if (document.getAiParseStatus() == AiParseStatus.PENDING) {
-            throw new RuntimeException("Document is still being processed for AI. Please try again shortly.");
-        }
-        if (document.getAiParseStatus() == AiParseStatus.FAILED
-                || document.getAiParseStatus() == AiParseStatus.UNSUPPORTED) {
-            log.warn("Document {} parsing status is {}, using metadata fallback for flashcard generation.", documentId,
-                    document.getAiParseStatus());
-        }
+        for (UUID docId : documentIds) {
+            Document document = documentRepository.findById(docId).orElse(null);
+            String docTitle = document != null ? document.getTitle() : "Document";
 
-        List<DocumentChunk> chunks;
-        try {
-            float[] queryEmbedding = embeddingService.embed("key concepts, terms, and important definitions");
-            chunks = documentChunkRepository.findSimilarChunksByDocumentId(documentId,
-                    java.util.Arrays.toString(queryEmbedding), 20);
-        } catch (Exception e) {
-            log.warn("Jina embedding failed for document {}, falling back to sequential chunks. Error: {}", documentId,
-                    e.getMessage());
-            chunks = documentChunkRepository.findByDocumentId(documentId);
-            if (chunks.size() > 20) {
-                chunks = chunks.subList(0, 20);
+            List<DocumentChunk> docChunks;
+            try {
+                float[] queryEmbedding = embeddingService.embed("key concepts, terms, and important definitions");
+                docChunks = documentChunkRepository.findSimilarChunksByDocumentIdWithThreshold(
+                        docId,
+                        java.util.Arrays.toString(queryEmbedding),
+                        chunksPerDoc,
+                        0.35
+                );
+                if (docChunks.isEmpty()) {
+                    List<DocumentChunk> seqChunks = documentChunkRepository.findByDocumentId(docId);
+                    docChunks = seqChunks.size() > chunksPerDoc ? seqChunks.subList(0, chunksPerDoc) : seqChunks;
+                    log.info("Flashcard context search missed threshold, falling back to sequential chunks for document: {}", docId);
+                }
+            } catch (Exception e) {
+                log.warn("Jina embedding failed for document {}, falling back to sequential chunks. Error: {}", docId, e.getMessage());
+                List<DocumentChunk> seqChunks = documentChunkRepository.findByDocumentId(docId);
+                docChunks = seqChunks.size() > chunksPerDoc ? seqChunks.subList(0, chunksPerDoc) : seqChunks;
+            }
+
+            if (!docChunks.isEmpty()) {
+                if (contentBuilder.length() > 0) {
+                    contentBuilder.append("\n\n");
+                }
+                contentBuilder.append("=== FILE: ").append(docTitle).append(" ===\n");
+                for (DocumentChunk chunk : docChunks) {
+                    contentBuilder.append(chunk.getContent()).append("\n");
+                }
             }
         }
 
-        String content = chunks.stream()
-                .map(DocumentChunk::getContent)
-                .collect(Collectors.joining("\n\n"));
+        String content = contentBuilder.toString();
+
+        Document firstDoc = documentRepository.findById(documentIds.get(0)).orElse(null);
+        String defaultTitle = firstDoc != null ? firstDoc.getTitle() : "AI Flashcard Set";
 
         if (content.trim().isEmpty()) {
-            String desc = document.getDescription();
-            if (desc != null && !desc.trim().isEmpty()) {
-                content = "Document Title: " + document.getTitle() + "\nDocument Description: " + desc;
-            } else {
-                content = "Document Title: " + document.getTitle();
+            if (firstDoc != null) {
+                String desc = firstDoc.getDescription();
+                if (desc != null && !desc.trim().isEmpty()) {
+                    content = "Document Title: " + firstDoc.getTitle() + "\nDocument Description: " + desc;
+                } else {
+                    content = "Document Title: " + firstDoc.getTitle();
+                }
             }
-            log.info("Using document metadata fallback content for flashcard generation on document: {}", documentId);
+            log.info("Using document metadata fallback content for flashcard generation on documents: {}", documentIds);
         }
 
-        if (content.length() > 30000) {
-            content = content.substring(0, 30000);
+        if (content.length() > 10000) {
+            content = content.substring(0, 10000);
         }
 
-        return generateFlashcardsFromContent(content, document.getTitle(), document, email);
+        return generateFlashcardsFromContent(content, defaultTitle, firstDoc, email);
     }
 
     private FlashcardSetResponse generateFlashcardsFromContent(String content, String title, Document linkedDocument,
@@ -367,7 +405,8 @@ public class AiFlashcardService {
                 + "Tuyệt đối KHÔNG tự bịa ra nội dung nếu văn bản không có. "
                 + "Luôn trả về duy nhất 1 mảng JSON hợp lệ, không markdown, không giải thích thêm.";
 
-        String userPrompt = "Trích xuất các khái niệm và định nghĩa quan trọng từ văn bản sau để làm flashcard. "
+        String userPrompt = "Trích xuất các khái niệm và định nghĩa quan trọng từ văn bản sau để làm flashcard.\n"
+                + "Chú ý: Văn bản này chứa thông tin từ nhiều file/tài liệu khác nhau (phân cách bởi nhãn '=== FILE: <tên file> ==='). Bạn hãy phân bổ và trích xuất đều các khái niệm từ TẤT CẢ các file này để đảm bảo bộ flashcards có đầy đủ nội dung của từng file.\n\n"
                 + "Văn bản:\n\n"
                 + content;
 

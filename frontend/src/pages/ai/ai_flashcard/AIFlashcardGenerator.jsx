@@ -73,7 +73,7 @@ export default function AIFlashcardGenerator({ contextData }) {
   const [flashcards, setFlashcards] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedFlashcardSet, setSelectedFlashcardSet] = useState(null);
-  const [selectedDoc, setSelectedDoc] = useState(null);
+  const [selectedDocs, setSelectedDocs] = useState([]);
   const [activeSetTitle, setActiveSetTitle] = useState(
     "Generate AI Flashcards"
   );
@@ -112,6 +112,7 @@ export default function AIFlashcardGenerator({ contextData }) {
     planName,
     remainingUsage,
     isUnlimited,
+    maxSelectedDocs = 2,
     loading: aiUsageLoading,
     refreshAiUsage,
   } = useAiUsage();
@@ -401,12 +402,12 @@ export default function AIFlashcardGenerator({ contextData }) {
   };
 
   const handleGenerate = async () => {
-    if (!inputText && !file && !selectedDoc) return;
+    if (!inputText && !file && selectedDocs.length === 0) return;
     setIsGenerating(true);
     try {
       let result;
-      if (selectedDoc) {
-        result = await generateFlashcardsFromDocument(selectedDoc.id);
+      if (selectedDocs.length > 0) {
+        result = await generateFlashcardsFromDocument(null, selectedDocs.map((d) => d.id));
       } else {
         const formData = new FormData();
         if (file) formData.append("document", file);
@@ -418,7 +419,10 @@ export default function AIFlashcardGenerator({ contextData }) {
         setFlashcards(result.flashcards || result);
         if (result.id) {
           setSelectedFlashcardSet(result);
-          const rawTitle = selectedDoc?.title || file?.name || "New Generated Set";
+          const firstDocTitle = selectedDocs[0] ? selectedDocs[0].title || selectedDocs[0].name : "";
+          const rawTitle = selectedDocs.length > 0 
+            ? `${firstDocTitle}${selectedDocs.length > 1 ? ` (+${selectedDocs.length - 1})` : ""}`
+            : file?.name || "New Generated Set";
           const formattedTitle = rawTitle.startsWith("Flashcard: ") ? rawTitle : `Flashcard: ${rawTitle}`;
           setFlashcardHistory((prev) => [
             {
@@ -430,7 +434,10 @@ export default function AIFlashcardGenerator({ contextData }) {
           ]);
         }
 
-        const rawTitle = selectedDoc?.title || file?.name || "New Generated Set";
+        const firstDocTitle = selectedDocs[0] ? selectedDocs[0].title || selectedDocs[0].name : "";
+        const rawTitle = selectedDocs.length > 0 
+          ? `${firstDocTitle}${selectedDocs.length > 1 ? ` (+${selectedDocs.length - 1})` : ""}`
+          : file?.name || "New Generated Set";
         setActiveSetTitle(rawTitle.startsWith("Flashcard: ") ? rawTitle : `Flashcard: ${rawTitle}`);
 
         resetProgress();
@@ -464,7 +471,7 @@ export default function AIFlashcardGenerator({ contextData }) {
     setFlashcards([]);
     setInputText("");
     setFile(null);
-    setSelectedDoc(null);
+    setSelectedDocs([]);
     setSelectedFlashcardSet(null);
     setActiveSetTitle("Generate AI Flashcards");
     setCurrentIndex(0);
@@ -475,14 +482,32 @@ export default function AIFlashcardGenerator({ contextData }) {
     const selectedFile = e.target.files[0];
     if (selectedFile) {
       setFile(selectedFile);
-      setSelectedDoc(null);
+      setSelectedDocs([]);
     }
   };
 
   const handleSelectDocument = (doc) => {
-    setSelectedDoc(doc);
+    if (!doc) return;
     setFile(null);
     setInputText("");
+    setSelectedDocs((prev) => {
+      const alreadyHas = prev.some((d) => d.id === doc.id);
+      if (alreadyHas) {
+        return prev.filter((d) => d.id !== doc.id);
+      } else {
+        if (prev.length >= maxSelectedDocs) {
+          toast.error(`Gói của bạn chỉ cho phép chọn tối đa ${maxSelectedDocs} tài liệu.`);
+          return prev;
+        }
+        return [...prev, doc];
+      }
+    });
+  };
+
+  const clearDocument = () => {
+    setFile(null);
+    setSelectedDocs([]);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const resetProgress = () => {
@@ -527,11 +552,15 @@ export default function AIFlashcardGenerator({ contextData }) {
           histories={flashcardHistory}
           documents={uploadedDocuments}
           selectedItem={selectedFlashcardSet}
-          selectedDoc={selectedDoc}
+          selectedDoc={selectedDocs[0] || null}
+          selectedDocs={selectedDocs}
           onSelectItem={handleSelectFlashcardSet}
           onDeleteItem={handleDeleteFlashcardSet}
           onEditItem={handleEditFlashcardSetClick}
-          onCreate={handleCreateFlashcardSet}
+          onCreate={() => {
+            handleCreateFlashcardSet();
+            setSelectedDocs([]);
+          }}
           onSelectDocument={handleSelectDocument}
           searchDocQuery={searchQuery}
           setSearchDocQuery={setSearchQuery}
@@ -577,14 +606,21 @@ export default function AIFlashcardGenerator({ contextData }) {
                 placeholder="Paste your lesson content..."
                 fileInputRef={fileInputRef}
                 handleFileSelect={handleFileSelect}
-                activeDocument={selectedDoc || file}
-                clearDocument={() => {
-                  setFile(null);
-                  setSelectedDoc(null);
-                }}
+                activeDocument={
+                  file ||
+                  (selectedDocs.length > 0
+                    ? selectedDocs.length === 1
+                      ? selectedDocs[0]
+                      : {
+                          title: `Selected ${selectedDocs.length} documents`,
+                          name: `Selected ${selectedDocs.length} documents`,
+                        }
+                    : null)
+                }
+                clearDocument={clearDocument}
                 onGenerate={handleGenerate}
                 isGenerating={isGenerating}
-                disabled={!inputText && !file && !selectedDoc}
+                disabled={!inputText && !file && selectedDocs.length === 0}
               />
             )}
 

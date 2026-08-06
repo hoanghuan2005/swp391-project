@@ -51,6 +51,8 @@ public class AdminSubscriptionPlanController {
         if (updateData.getMaxJoinedProjects() != null) plan.setMaxJoinedProjects(updateData.getMaxJoinedProjects());
         if (updateData.getMaxSelectedDocs() != null) plan.setMaxSelectedDocs(updateData.getMaxSelectedDocs());
         if (updateData.getMaxWorkspaceDocs() != null) plan.setMaxWorkspaceDocs(updateData.getMaxWorkspaceDocs());
+        if (updateData.getMaxAiContextChunks() != null) plan.setMaxAiContextChunks(updateData.getMaxAiContextChunks());
+        if (updateData.getMaxChunkChars() != null) plan.setMaxChunkChars(updateData.getMaxChunkChars());
         plan.setIsActive(updateData.getIsActive());
 
         SubscriptionPlan updated = subscriptionPlanRepository.save(plan);

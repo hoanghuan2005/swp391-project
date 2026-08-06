@@ -169,6 +169,24 @@ export default function MySubscriptionModal({ open, onOpenChange }) {
 
                 <div className="flex items-center justify-between py-1.5 border-b border-slate-100">
                   <span className="text-slate-500 font-medium flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-slate-400" /> AI Memory & Context
+                  </span>
+                  <span className="font-bold text-slate-800">
+                    {subData.maxAiContextChunks > 4 ? "Extended Context" : "Standard"}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between py-1.5 border-b border-slate-100">
+                  <span className="text-slate-500 font-medium flex items-center gap-2">
+                    <Zap className="w-4 h-4 text-slate-400" /> Document Analysis Depth
+                  </span>
+                  <span className="font-bold text-slate-800">
+                    {subData.maxChunkChars >= 600 ? "Deep Analysis" : "Basic Analysis"}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between py-1.5 border-b border-slate-100">
+                  <span className="text-slate-500 font-medium flex items-center gap-2">
                     <CheckCircle className="w-4 h-4 text-slate-400" /> Quiz Questions / Generation
                   </span>
                   <span className="font-bold text-slate-800">

@@ -31,7 +31,7 @@ export default function useAiUsage() {
     if (!data) return 2;
     if (data.maxSelectedDocs != null) return data.maxSelectedDocs;
     if (data.tierLimits?.maxSelectedDocs != null) return data.tierLimits.maxSelectedDocs;
-    return data.subscriptionTier === "PRO" ? 4 : 2;
+    return 2;
   };
 
   const refreshAiUsage = useCallback(async () => {
@@ -103,7 +103,7 @@ export default function useAiUsage() {
   return {
     ...aiUsage,
     subscriptionTier: aiUsage.subscriptionTier || "FREE",
-    maxSelectedDocs: aiUsage.maxSelectedDocs ?? (aiUsage.subscriptionTier === "PRO" ? 4 : 2),
+    maxSelectedDocs: aiUsage.maxSelectedDocs ?? 2,
     loading,
     error,
     refreshAiUsage,

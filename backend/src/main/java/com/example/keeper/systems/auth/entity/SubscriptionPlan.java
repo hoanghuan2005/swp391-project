@@ -66,6 +66,14 @@ public class SubscriptionPlan extends BaseEntity {
     private Integer maxWorkspaceDocs = 10;
 
     @Builder.Default
+    @Column(name = "max_ai_context_chunks", nullable = false)
+    private Integer maxAiContextChunks = 4;
+
+    @Builder.Default
+    @Column(name = "max_chunk_chars", nullable = false)
+    private Integer maxChunkChars = 400;
+
+    @Builder.Default
     @Column(name = "is_active", nullable = false)
     @com.fasterxml.jackson.annotation.JsonProperty("isActive")
     private boolean isActive = true;

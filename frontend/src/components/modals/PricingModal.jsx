@@ -163,6 +163,15 @@ export default function PricingModal({ open, onOpenChange, isOpen, onClose }) {
   const displayPlans = rawPlans.map((p) => {
     const isPro = p.code === "PRO";
     const isFree = p.code === "FREE";
+
+    const aiMemoryFeature = p.maxAiContextChunks > 4 
+      ? "Better AI memory & smarter responses" 
+      : "Standard AI memory";
+
+    const docAnalysisFeature = p.maxChunkChars >= 600 
+      ? "Deep document analysis with broader context" 
+      : "Basic document analysis";
+
     return {
       code: p.code,
       name: p.name || p.code,

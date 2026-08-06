@@ -48,23 +48,25 @@ public class UserSubscriptionController {
 
         long userTotalStorage = user.getMaxStorageBytes() != null
                 ? user.getMaxStorageBytes()
-                : (plan != null ? plan.getTotalStorageBytes() : (tier == SubscriptionTier.PRO ? 1024 * 1024 * 1024L : 100 * 1024 * 1024L));
+                : (plan != null ? plan.getTotalStorageBytes() : 100 * 1024 * 1024L);
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("username", user.getUsername());
         result.put("subscriptionTier", tier.name());
-        result.put("planName", plan != null ? plan.getName() : (tier == SubscriptionTier.PRO ? "Gói Chuyên Nghiệp (PRO)" : "Gói Miễn Phí"));
-        result.put("priceVnd", plan != null ? plan.getPriceVnd() : (tier == SubscriptionTier.PRO ? 99000 : 0));
-        result.put("maxFileSizeBytes", plan != null ? plan.getMaxFileSizeBytes() : (tier == SubscriptionTier.PRO ? 10 * 1024 * 1024 : 5 * 1024 * 1024));
+        result.put("planName", plan != null ? plan.getName() : "Gói Miễn Phí");
+        result.put("priceVnd", plan != null ? plan.getPriceVnd() : 0);
+        result.put("maxFileSizeBytes", plan != null ? plan.getMaxFileSizeBytes() : 5 * 1024 * 1024);
         result.put("totalStorageBytes", userTotalStorage);
-        result.put("dailyUploadLimit", plan != null ? plan.getDailyUploadLimit() : (tier == SubscriptionTier.PRO ? -1 : 3));
-        result.put("totalDocumentLimit", plan != null ? plan.getTotalDocumentLimit() : (tier == SubscriptionTier.PRO ? -1 : 20));
-        result.put("dailyAiLimit", plan != null && plan.getDailyAiLimit() != null ? plan.getDailyAiLimit() : (tier == SubscriptionTier.PRO ? -1 : 5));
-        result.put("maxFlashcardsPerGeneration", plan != null && plan.getMaxFlashcardsPerGeneration() != null ? plan.getMaxFlashcardsPerGeneration() : (tier == SubscriptionTier.PRO ? -1 : 15));
-        result.put("maxQuizQuestionsPerGeneration", plan != null && plan.getMaxQuizQuestionsPerGeneration() != null ? plan.getMaxQuizQuestionsPerGeneration() : (tier == SubscriptionTier.PRO ? 50 : 20));
-        result.put("maxOwnedProjects", plan != null && plan.getMaxOwnedProjects() != null ? plan.getMaxOwnedProjects() : (tier == SubscriptionTier.PRO ? -1 : 3));
-        result.put("maxJoinedProjects", plan != null && plan.getMaxJoinedProjects() != null ? plan.getMaxJoinedProjects() : (tier == SubscriptionTier.PRO ? -1 : 5));
-        result.put("canCancel", tier == SubscriptionTier.PRO);
+        result.put("dailyUploadLimit", plan != null ? plan.getDailyUploadLimit() : 3);
+        result.put("totalDocumentLimit", plan != null ? plan.getTotalDocumentLimit() : 20);
+        result.put("dailyAiLimit", plan != null && plan.getDailyAiLimit() != null ? plan.getDailyAiLimit() : 5);
+        result.put("maxFlashcardsPerGeneration", plan != null && plan.getMaxFlashcardsPerGeneration() != null ? plan.getMaxFlashcardsPerGeneration() : 15);
+        result.put("maxQuizQuestionsPerGeneration", plan != null && plan.getMaxQuizQuestionsPerGeneration() != null ? plan.getMaxQuizQuestionsPerGeneration() : 20);
+        result.put("maxOwnedProjects", plan != null && plan.getMaxOwnedProjects() != null ? plan.getMaxOwnedProjects() : 3);
+        result.put("maxJoinedProjects", plan != null && plan.getMaxJoinedProjects() != null ? plan.getMaxJoinedProjects() : 5);
+        result.put("maxAiContextChunks", plan != null && plan.getMaxAiContextChunks() != null ? plan.getMaxAiContextChunks() : 4);
+        result.put("maxChunkChars", plan != null && plan.getMaxChunkChars() != null ? plan.getMaxChunkChars() : 400);
+        result.put("canCancel", plan != null && plan.getPriceVnd() != null && plan.getPriceVnd() > 0);
 
         return ResponseEntity.ok(result);
     }

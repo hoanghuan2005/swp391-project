@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.List;
 import java.util.UUID;
 
 @Getter
@@ -17,6 +18,8 @@ public class QuizRequest {
 
     private UUID documentId;
 
+    private List<UUID> documentIds; // for multi-select
+
     private UUID projectId;
 
     private String topic;
@@ -26,8 +29,8 @@ public class QuizRequest {
     private String difficulty;
 
     @JsonIgnore
-    @AssertTrue(message = "Either documentId, projectId, or topic must be provided")
+    @AssertTrue(message = "Either documentId, documentIds, projectId, or topic must be provided")
     public boolean isValidRequest() {
-        return documentId != null || projectId != null || (topic != null && !topic.trim().isEmpty());
+        return documentId != null || (documentIds != null && !documentIds.isEmpty()) || projectId != null || (topic != null && !topic.trim().isEmpty());
     }
 }

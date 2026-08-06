@@ -386,7 +386,7 @@ function EmptyState({ onImport }) {
 function AIMindMapPageInner() {
   const [inputText, setInputText] = useState("");
   const [file, setFile] = useState(null);
-  const [libraryDoc, setLibraryDoc] = useState(null);
+  const [selectedDocs, setSelectedDocs] = useState([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [mindMapHistory, setMindMapHistory] = useState([]);
@@ -415,6 +415,7 @@ function AIMindMapPageInner() {
     planName,
     remainingUsage,
     isUnlimited,
+    maxSelectedDocs = 2,
     loading: aiUsageLoading,
     refreshAiUsage,
   } = useAiUsage();
@@ -450,20 +451,30 @@ function AIMindMapPageInner() {
     const selectedFile = e.target.files[0];
     if (selectedFile) {
       setFile(selectedFile);
-      setLibraryDoc(null);
+      setSelectedDocs([]);
     }
   };
 
-  const handleLibrarySuccess = (selectedDoc) => {
-    if (selectedDoc) {
-      setLibraryDoc(selectedDoc);
-      setFile(null);
-    }
+  const handleSelectDocument = (doc) => {
+    if (!doc) return;
+    setFile(null);
+    setSelectedDocs((prev) => {
+      const alreadyHas = prev.some((d) => d.id === doc.id);
+      if (alreadyHas) {
+        return prev.filter((d) => d.id !== doc.id);
+      } else {
+        if (prev.length >= maxSelectedDocs) {
+          toast.error(`Gói của bạn chỉ cho phép chọn tối đa ${maxSelectedDocs} tài liệu.`);
+          return prev;
+        }
+        return [...prev, doc];
+      }
+    });
   };
 
   const clearDocument = () => {
     setFile(null);
-    setLibraryDoc(null);
+    setSelectedDocs([]);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -634,7 +645,7 @@ function AIMindMapPageInner() {
 
   /* ── Generate ────────────────────────── */
   const handleGenerate = async () => {
-    if (!inputText.trim() && !file && !libraryDoc) {
+    if (!inputText.trim() && !file && selectedDocs.length === 0) {
       toast.error("Please enter a topic, upload a file, or select a document.");
       return;
     }
@@ -643,13 +654,22 @@ function AIMindMapPageInner() {
 
     try {
       let result;
-      if (libraryDoc) {
-        if (libraryDoc.aiParseStatus === "PENDING") {
+      if (selectedDocs.length > 0) {
+        const pendingDoc = selectedDocs.find((d) => d.aiParseStatus === "PENDING");
+        if (pendingDoc) {
           throw new Error(
-            "Document is still being prepared for AI. Please try again shortly.",
+            `Tài liệu "${pendingDoc.title || pendingDoc.name}" đang được xử lý AI, vui lòng đợi một lát rồi thử lại.`
           );
         }
-        result = await generateMindMap(libraryDoc.id);
+        const failedDoc = selectedDocs.find((d) =>
+          ["FAILED", "UNSUPPORTED"].includes(d?.aiParseStatus)
+        );
+        if (failedDoc) {
+          throw new Error(
+            `Tài liệu "${failedDoc.title || failedDoc.name}" không hỗ trợ hoặc xử lý thất bại, vui lòng chọn tài liệu khác.`
+          );
+        }
+        result = await generateMindMap(null, selectedDocs.map((d) => d.id));
       } else if (file) {
         const formData = new FormData();
         formData.append("file", file);
@@ -783,7 +803,11 @@ function AIMindMapPageInner() {
     }
   };
 
-  const activeDocument = file || libraryDoc;
+  const activeDocument = file || (selectedDocs.length > 0 ? (
+    selectedDocs.length === 1 
+      ? selectedDocs[0] 
+      : { title: `Selected ${selectedDocs.length} documents`, name: `Selected ${selectedDocs.length} documents` }
+  ) : null);
 
   /* ── Proactive edge style ──────────── */
   const defaultEdgeOptions = useMemo(
@@ -813,7 +837,9 @@ function AIMindMapPageInner() {
           setNodes([]);
           setEdges([]);
         }}
-        onSelectDocument={handleLibrarySuccess}
+        onSelectDocument={handleSelectDocument}
+        selectedDoc={selectedDocs[0] || null}
+        selectedDocs={selectedDocs}
         searchDocQuery={searchDocQuery}
         setSearchDocQuery={setSearchDocQuery}
         fileInputRef={fileInputRef}
@@ -877,7 +903,7 @@ function AIMindMapPageInner() {
               clearDocument={clearDocument}
               onGenerate={handleGenerate}
               isGenerating={isGenerating}
-              disabled={!file && !libraryDoc}
+              disabled={!file && selectedDocs.length === 0}
               hideTextTab={true}
               footerLeft={
                 <button

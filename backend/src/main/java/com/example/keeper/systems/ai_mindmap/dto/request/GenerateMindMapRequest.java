@@ -10,5 +10,6 @@ import java.util.UUID;
 public class GenerateMindMapRequest {
 
     private UUID documentId;
+    private java.util.List<UUID> documentIds;
 
 }

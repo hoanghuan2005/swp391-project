@@ -50,8 +50,8 @@ import PricingModal from "@/components/modals/PricingModal";
 
 export default function MyLibrary() {
   const { documents, setDocuments, loading: isLoading, refreshDocuments } = useDocuments();
-  const { subscriptionTier, refreshAiUsage } = useAiUsage();
-  const isPro = subscriptionTier === "PRO";
+  const { subscriptionTier, planName, tierLimits, isUnlimited, refreshAiUsage } = useAiUsage();
+  const isPro = subscriptionTier === "PRO"; // Kept only for styling purposes
 
   const [pricingModalOpen, setPricingModalOpen] = useState(false);
   const [confirmCancelOpen, setConfirmCancelOpen] = useState(false);
@@ -59,6 +59,13 @@ export default function MyLibrary() {
   const [projects, setProjects] = useState([]);
   const [isProjectsLoading, setIsProjectsLoading] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
+
+  const formatBytes = (bytes) => {
+    if (!bytes) return "0 MB";
+    const mb = bytes / (1024 * 1024);
+    if (mb >= 1024) return (mb / 1024).toFixed(1) + " GB";
+    return Math.round(mb) + " MB";
+  };
 
   const [favoriteDocs, setFavoriteDocs] = useState([]);
   const [favoriteFlashcards, setFavoriteFlashcards] = useState([]);
@@ -1026,7 +1033,7 @@ export default function MyLibrary() {
                 <div>
                   <div className="flex items-center gap-2">
                     <h2 className="text-2xl font-black text-slate-800">
-                      {isPro ? "Pro Subscription" : "Free Subscription"}
+                      {planName || "Free Subscription"}
                     </h2>
                     {isPro ? (
                       <span className="inline-flex items-center gap-1.5 text-xs font-extrabold px-3 py-1 rounded-full bg-orange-100/80 text-[#f26522] border border-orange-200/80 uppercase tracking-wider shadow-2xs">
@@ -1040,7 +1047,7 @@ export default function MyLibrary() {
                     )}
                   </div>
                   <p className="text-xs text-slate-500 mt-1">
-                    {isPro ? "You currently enjoy all premium features and maximum storage capacity." : "Upgrade to Pro to unlock 1GB storage and unlimited AI requests."}
+                    {isPro ? "You currently enjoy all premium features and maximum storage capacity." : "Upgrade to Pro to unlock higher storage and unlimited AI requests."}
                   </p>
                 </div>
               </div>
@@ -1050,19 +1057,19 @@ export default function MyLibrary() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 py-2">
               <div className="p-4 bg-slate-50/80 rounded-2xl border border-slate-100">
                 <div className="text-xs text-slate-400 font-semibold">Max File Size</div>
-                <div className="text-lg font-black text-slate-800 mt-1">{isPro ? "10 MB" : "5 MB"}</div>
+                <div className="text-lg font-black text-slate-800 mt-1">{formatBytes(tierLimits?.maxFileSizeBytes)}</div>
               </div>
               <div className="p-4 bg-slate-50/80 rounded-2xl border border-slate-100">
                 <div className="text-xs text-slate-400 font-semibold">Total Storage</div>
-                <div className="text-lg font-black text-slate-800 mt-1">{isPro ? "1.0 GB" : "100 MB"}</div>
+                <div className="text-lg font-black text-slate-800 mt-1">{formatBytes(tierLimits?.totalStorageBytes)}</div>
               </div>
               <div className="p-4 bg-slate-50/80 rounded-2xl border border-slate-100">
                 <div className="text-xs text-slate-400 font-semibold">Daily Uploads</div>
-                <div className="text-lg font-black text-slate-800 mt-1">{isPro ? "Unlimited" : "3 per day"}</div>
+                <div className="text-lg font-black text-slate-800 mt-1">{tierLimits?.dailyUploadLimit === -1 ? "Unlimited" : `${tierLimits?.dailyUploadLimit || 3} per day`}</div>
               </div>
               <div className="p-4 bg-slate-50/80 rounded-2xl border border-slate-100">
                 <div className="text-xs text-slate-400 font-semibold">AI Requests</div>
-                <div className="text-lg font-black text-slate-800 mt-1">{isPro ? "Unlimited" : "5 per day"}</div>
+                <div className="text-lg font-black text-slate-800 mt-1">{isUnlimited ? "Unlimited" : `${tierLimits?.dailyAiLimit || 5} per day`}</div>
               </div>
             </div>
 

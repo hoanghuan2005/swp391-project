@@ -72,7 +72,7 @@ export default function AIQuizGenerator() {
   useStudyTimer(setElapsedSeconds);
   const [inputText, setInputText] = useState("");
   const [file, setFile] = useState(null);
-  const [libraryDoc, setLibraryDoc] = useState(null);
+  const [selectedDocs, setSelectedDocs] = useState([]);
   const [questionCount, setQuestionCount] = useState(10);
   const [difficulty, setDifficulty] = useState("Medium");
   const [isGenerating, setIsGenerating] = useState(false);
@@ -85,6 +85,7 @@ export default function AIQuizGenerator() {
     planName,
     remainingUsage,
     isUnlimited,
+    maxSelectedDocs = 2,
     loading: aiUsageLoading,
     refreshAiUsage,
   } = useAiUsage();
@@ -204,15 +205,25 @@ export default function AIQuizGenerator() {
     const selectedFile = e.target.files[0];
     if (selectedFile) {
       setFile(selectedFile);
-      setLibraryDoc(null);
+      setSelectedDocs([]);
     }
   };
 
-  const handleLibrarySuccess = (selectedDoc) => {
-    if (selectedDoc) {
-      setLibraryDoc(selectedDoc);
-      setFile(null);
-    }
+  const handleSelectDocument = (doc) => {
+    if (!doc) return;
+    setFile(null);
+    setSelectedDocs((prev) => {
+      const alreadyHas = prev.some((d) => d.id === doc.id);
+      if (alreadyHas) {
+        return prev.filter((d) => d.id !== doc.id);
+      } else {
+        if (prev.length >= maxSelectedDocs) {
+          toast.error(`Gói của bạn chỉ cho phép chọn tối đa ${maxSelectedDocs} tài liệu.`);
+          return prev;
+        }
+        return [...prev, doc];
+      }
+    });
   };
 
   useEffect(() => {
@@ -241,7 +252,7 @@ export default function AIQuizGenerator() {
 
   const clearDocument = () => {
     setFile(null);
-    setLibraryDoc(null);
+    setSelectedDocs([]);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -389,7 +400,7 @@ export default function AIQuizGenerator() {
   };
 
   const handleGenerateQuiz = async () => {
-    if (!inputText.trim() && !file && !libraryDoc) {
+    if (!inputText.trim() && !file && selectedDocs.length === 0) {
       toast.error("Please enter a topic, upload a file, or select a document.");
       return;
     }
@@ -398,22 +409,27 @@ export default function AIQuizGenerator() {
 
     try {
       let generatedQuiz;
-      if (libraryDoc) {
-        if (libraryDoc.aiParseStatus === "PENDING") {
+      if (selectedDocs.length > 0) {
+        const pendingDoc = selectedDocs.find((d) => d.aiParseStatus === "PENDING");
+        if (pendingDoc) {
           throw new Error(
-            "Document is still being prepared for AI. Please try again shortly.",
+            `Tài liệu "${pendingDoc.title || pendingDoc.name}" đang được xử lý AI, vui lòng đợi một lát rồi thử lại.`
           );
         }
-        if (["FAILED", "UNSUPPORTED"].includes(libraryDoc?.aiParseStatus)) {
+        const failedDoc = selectedDocs.find((d) =>
+          ["FAILED", "UNSUPPORTED"].includes(d?.aiParseStatus)
+        );
+        if (failedDoc) {
           throw new Error(
-            "This document is not available for AI quiz generation.",
+            `Tài liệu "${failedDoc.title || failedDoc.name}" không hỗ trợ hoặc xử lý thất bại, vui lòng chọn tài liệu khác.`
           );
         }
 
-        let title = `Quiz: ${libraryDoc.title || libraryDoc.name}`;
+        const firstDocTitle = selectedDocs[0].title || selectedDocs[0].name || "Document";
+        let title = `Quiz: ${firstDocTitle}${selectedDocs.length > 1 ? ` (+${selectedDocs.length - 1})` : ""}`;
         const payload = {
           title: title,
-          documentId: libraryDoc.id,
+          documentIds: selectedDocs.map((d) => d.id),
           projectId: null,
           questionCount: questionCount,
           difficulty: difficulty,
@@ -527,7 +543,11 @@ export default function AIQuizGenerator() {
     }
   };
 
-  const activeDocument = file || libraryDoc;
+  const activeDocument = file || (selectedDocs.length > 0 ? (
+    selectedDocs.length === 1 
+      ? selectedDocs[0] 
+      : { title: `Selected ${selectedDocs.length} documents`, name: `Selected ${selectedDocs.length} documents` }
+  ) : null);
 
   return (
     <div className="h-[calc(100vh-68px)] overflow-hidden bg-white shadow-sm -mx-8 -my-6 flex">
@@ -545,7 +565,9 @@ export default function AIQuizGenerator() {
           setViewMode(VIEW_MODE.GENERATE);
           setSelectedQuiz(null);
         }}
-        onSelectDocument={handleLibrarySuccess}
+        onSelectDocument={handleSelectDocument}
+        selectedDoc={selectedDocs[0] || null}
+        selectedDocs={selectedDocs}
         searchDocQuery={searchDocQuery}
         setSearchDocQuery={setSearchDocQuery}
         fileInputRef={fileInputRef}
@@ -587,22 +609,14 @@ export default function AIQuizGenerator() {
 
           {viewMode === VIEW_MODE.GENERATE && (
             <>
-              {libraryDoc &&
-                ["FAILED", "UNSUPPORTED"].includes(
-                  libraryDoc.aiParseStatus,
-                ) && (
-                  <div className="mb-4 p-4 border border-red-200 bg-red-50 text-red-700 rounded-2xl flex items-start gap-3">
-                    <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
-                    <div>
-                      <h4 className="font-bold text-sm">
-                        Quiz Generation Disabled
-                      </h4>
-                      <p className="text-xs text-red-700 mt-1">
-                        This document ({libraryDoc.title || libraryDoc.name})
-                        failed to parse or is unsupported. Quiz generation is
-                        disabled for this file.
-                      </p>
-                    </div>
+              {selectedDocs.length > 0 &&
+                selectedDocs.some((d) => d.aiParseStatus && d.aiParseStatus !== "READY") && (
+                  <div className="flex items-center gap-2 p-4 mb-4 rounded-xl border border-yellow-100 bg-yellow-50/50 text-yellow-800 text-sm">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>
+                      Có tài liệu được chọn chưa sẵn sàng cho AI.
+                      Việc tạo câu hỏi có thể bị hạn chế hoặc không thành công.
+                    </span>
                   </div>
                 )}
               <AIGeneratorInput
@@ -616,10 +630,10 @@ export default function AIQuizGenerator() {
                 onGenerate={handleGenerateQuiz}
                 isGenerating={isGenerating}
                 disabled={
-                  (!inputText.trim() && !file && !libraryDoc) ||
-                  (libraryDoc &&
-                    ["FAILED", "UNSUPPORTED"].includes(
-                      libraryDoc.aiParseStatus,
+                  (!inputText.trim() && !file && selectedDocs.length === 0) ||
+                  (selectedDocs.length > 0 &&
+                    selectedDocs.some((d) =>
+                      ["FAILED", "UNSUPPORTED"].includes(d.aiParseStatus)
                     ))
                 }
                 footerLeft={

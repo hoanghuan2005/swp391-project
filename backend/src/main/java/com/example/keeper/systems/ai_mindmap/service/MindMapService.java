@@ -9,7 +9,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 public interface MindMapService {
 
-    MindMapResponse generate(UUID documentId);
+    MindMapResponse generate(UUID documentId, List<UUID> documentIds);
 
     MindMapResponse generateFromFile(MultipartFile file, String text, String title);
 
