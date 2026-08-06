@@ -72,7 +72,7 @@ public class AiUsageServiceImpl implements AiUsageService {
 
         String planName = (plan != null && plan.getName() != null)
                 ? plan.getName()
-                : (tier == SubscriptionTier.PRO ? "Pro Plan" : "Free Plan");
+                : tier.name();
 
         int maxDailyAiRequests;
         if (isAdmin(user) || (plan != null && plan.getDailyAiLimit() != null && plan.getDailyAiLimit() < 0)) {
@@ -80,7 +80,7 @@ public class AiUsageServiceImpl implements AiUsageService {
         } else if (plan != null && plan.getDailyAiLimit() != null) {
             maxDailyAiRequests = plan.getDailyAiLimit().intValue();
         } else {
-            maxDailyAiRequests = (tier == SubscriptionTier.PRO) ? -1 : 5;
+            maxDailyAiRequests = 5;
         }
 
         int usedAiRequestsToday = (int) getTodayUsage(user);
@@ -109,11 +109,11 @@ public class AiUsageServiceImpl implements AiUsageService {
 
         int maxAllowed = plan != null && plan.getMaxSelectedDocs() != null
                 ? plan.getMaxSelectedDocs()
-                : (tier == SubscriptionTier.PRO ? 4 : 2);
+                : 2;
 
         if (maxAllowed != -1 && selectedCount > maxAllowed) {
             throw new DocumentSelectionQuotaExceededException(
-                    "Gói " + tier.name() + " chỉ cho phép chọn tối đa " + maxAllowed + " tài liệu cùng lúc trong phiên bản Demo."
+                    "Gói " + tier.name() + " chỉ cho phép chọn tối đa " + maxAllowed + " tài liệu cùng lúc."
             );
         }
     }

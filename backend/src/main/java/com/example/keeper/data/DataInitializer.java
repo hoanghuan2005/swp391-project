@@ -81,6 +81,8 @@ public class DataInitializer implements CommandLineRunner {
                                                         .maxOwnedProjects(3)
                                                         .maxJoinedProjects(5)
                                                         .maxSelectedDocs(2)
+                                                        .maxAiContextChunks(4)
+                                                        .maxChunkChars(400)
                                                         .isActive(true)
                                                         .build(),
                                         com.example.keeper.systems.auth.entity.SubscriptionPlan.builder()
@@ -97,6 +99,8 @@ public class DataInitializer implements CommandLineRunner {
                                                         .maxOwnedProjects(-1)
                                                         .maxJoinedProjects(-1)
                                                         .maxSelectedDocs(4)
+                                                        .maxAiContextChunks(8)
+                                                        .maxChunkChars(600)
                                                         .isActive(true)
                                                         .build()));
                         System.out.println("Seeded subscription plans");

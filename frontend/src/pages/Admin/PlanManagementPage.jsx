@@ -96,14 +96,16 @@ export default function PlanManagementPage() {
         totalStorageMb: plan.totalStorageBytes ? Math.round(plan.totalStorageBytes / (1024 * 1024)) : 100,
         dailyUploadLimit: plan.dailyUploadLimit ?? 3,
         totalDocumentLimit: plan.totalDocumentLimit ?? 20,
-        dailyAiLimit: plan.dailyAiLimit ?? (plan.code === "PRO" ? -1 : 5),
-        maxFlashcardsPerGen: plan.maxFlashcardsPerGeneration ?? (plan.code === "PRO" ? -1 : 15),
-        maxQuizQuestionsPerGen: plan.maxQuizQuestionsPerGeneration ?? (plan.code === "PRO" ? 50 : 20),
-        maxOwnedProjects: plan.maxOwnedProjects ?? (plan.code === "PRO" ? -1 : 3),
-        maxJoinedProjects: plan.maxJoinedProjects ?? (plan.code === "PRO" ? -1 : 5),
-        maxSelectedDocs: plan.maxSelectedDocs ?? (plan.code === "PRO" ? 4 : 2),
-        maxPersonalDocs: plan.maxPersonalDocs ?? (plan.code === "PRO" ? 5 : 2),
-        maxWorkspaceDocs: plan.maxWorkspaceDocs ?? (plan.code === "PRO" ? 20 : 10),
+        dailyAiLimit: plan.dailyAiLimit ?? 5,
+        maxFlashcardsPerGen: plan.maxFlashcardsPerGeneration ?? 15,
+        maxQuizQuestionsPerGen: plan.maxQuizQuestionsPerGeneration ?? 20,
+        maxOwnedProjects: plan.maxOwnedProjects ?? 3,
+        maxJoinedProjects: plan.maxJoinedProjects ?? 5,
+        maxSelectedDocs: plan.maxSelectedDocs ?? 2,
+        maxPersonalDocs: plan.maxPersonalDocs ?? 2,
+        maxWorkspaceDocs: plan.maxWorkspaceDocs ?? 10,
+        maxAiContextChunks: plan.maxAiContextChunks ?? 4,
+        maxChunkChars: plan.maxChunkChars ?? 400,
         isActive: activeState,
       });
     } else {
@@ -124,6 +126,8 @@ export default function PlanManagementPage() {
         maxSelectedDocs: 2,
         maxPersonalDocs: 2,
         maxWorkspaceDocs: 10,
+        maxAiContextChunks: 4,
+        maxChunkChars: 400,
         isActive: true,
       });
     }
@@ -146,9 +150,11 @@ export default function PlanManagementPage() {
         maxQuizQuestionsPerGeneration: Number(formData.maxQuizQuestionsPerGen),
         maxOwnedProjects: Number(formData.maxOwnedProjects),
         maxJoinedProjects: Number(formData.maxJoinedProjects),
-        maxSelectedDocs: Number(formData.maxSelectedDocs),
-        maxPersonalDocs: Number(formData.maxPersonalDocs),
-        maxWorkspaceDocs: Number(formData.maxWorkspaceDocs),
+        maxSelectedDocs: parseInt(formData.maxSelectedDocs),
+        maxPersonalDocs: parseInt(formData.maxPersonalDocs),
+        maxWorkspaceDocs: parseInt(formData.maxWorkspaceDocs),
+        maxAiContextChunks: parseInt(formData.maxAiContextChunks),
+        maxChunkChars: parseInt(formData.maxChunkChars),
         isActive: formData.isActive,
       };
 
@@ -335,9 +341,23 @@ export default function PlanManagementPage() {
                         </div>
 
                         <div className="flex items-center justify-between text-xs">
+                          <span className="text-slate-500 font-medium">AI Memory & Context:</span>
+                          <span className="font-bold text-slate-700">
+                            {plan.maxAiContextChunks > 4 ? "Extended" : "Standard"}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-slate-500 font-medium">Document Analysis Depth:</span>
+                          <span className="font-bold text-slate-700">
+                            {plan.maxChunkChars >= 600 ? "Deep Analysis" : "Basic Analysis"}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between text-xs">
                           <span className="text-slate-500 font-medium">Max Selected Docs / Query:</span>
                           <span className="font-bold text-slate-700">
-                            {plan.maxSelectedDocs === -1 ? "Unlimited" : `${plan.maxSelectedDocs ?? (isPro ? 4 : 2)} docs`}
+                            {plan.maxSelectedDocs === -1 ? "Unlimited" : `${plan.maxSelectedDocs ?? 2} docs`}
                           </span>
                         </div>
 
@@ -711,6 +731,32 @@ export default function PlanManagementPage() {
                   min={1}
                   value={formData.maxWorkspaceDocs}
                   onChange={(e) => setFormData({ ...formData, maxWorkspaceDocs: e.target.value })}
+                  className="mt-1 rounded-xl"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-bold text-slate-600">Max AI Context Chunks</label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={formData.maxAiContextChunks}
+                  onChange={(e) => setFormData({ ...formData, maxAiContextChunks: e.target.value })}
+                  className="mt-1 rounded-xl"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-600">Max Chunk Chars</label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={formData.maxChunkChars}
+                  onChange={(e) => setFormData({ ...formData, maxChunkChars: e.target.value })}
                   className="mt-1 rounded-xl"
                   required
                 />

@@ -120,9 +120,12 @@ public class AdminUserServiceImpl implements AdminUserService {
 
     private AdminUserListItemResponse buildResponse(User user, LocalDateTime start, LocalDateTime end) {
         long aiUsageToday = aiUsageRepository.countByUserIdAndCreatedAtBetween(user.getId(), start, end);
-        boolean unlimitedAi = isAdmin(user) || user.getSubscriptionTier() == SubscriptionTier.PRO;
-        long aiDailyLimit = unlimitedAi ? UNLIMITED : FREE_AI_DAILY_LIMIT;
-        long aiRemainingToday = unlimitedAi ? UNLIMITED : Math.max(0, FREE_AI_DAILY_LIMIT - aiUsageToday);
+        
+        SubscriptionPlan plan = subscriptionPlanRepository.findByCode(user.getSubscriptionTier() != null ? user.getSubscriptionTier().name() : "FREE").orElse(null);
+        
+        long aiDailyLimit = (plan != null && plan.getDailyAiLimit() != null) ? plan.getDailyAiLimit() : 5L;
+        boolean unlimitedAi = isAdmin(user) || aiDailyLimit == -1;
+        long aiRemainingToday = unlimitedAi ? UNLIMITED : Math.max(0, aiDailyLimit - aiUsageToday);
         Long storageUsedBytes = documentRepository.sumFileSizeByUploadedById(user.getId());
 
         return AdminUserListItemResponse.builder()

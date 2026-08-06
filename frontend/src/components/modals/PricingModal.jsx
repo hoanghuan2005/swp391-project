@@ -159,6 +159,15 @@ export default function PricingModal({ open, onOpenChange, isOpen, onClose }) {
   const displayPlans = dbPlans.length > 0 ? dbPlans.map((p) => {
     const isPro = p.code === "PRO";
     const isFree = p.code === "FREE";
+
+    const aiMemoryFeature = p.maxAiContextChunks > 4 
+      ? "Better AI memory & smarter responses" 
+      : "Standard AI memory";
+
+    const docAnalysisFeature = p.maxChunkChars >= 600 
+      ? "Deep document analysis with broader context" 
+      : "Basic document analysis";
+
     return {
       code: p.code,
       name: p.name || p.code,
@@ -167,8 +176,10 @@ export default function PricingModal({ open, onOpenChange, isOpen, onClose }) {
       period: p.priceVnd === 0 ? "forever" : "month",
       features: [
         p.dailyAiLimit === -1 ? "Unlimited AI requests" : `${p.dailyAiLimit} AI requests per day`,
-        `Select up to ${p.maxPersonalDocs ?? (isFree ? 2 : 5)} personal documents for AI Chat`,
-        `Up to ${p.maxWorkspaceDocs ?? (isFree ? 10 : 20)} documents per workspace`,
+        aiMemoryFeature,
+        docAnalysisFeature,
+        `Select up to ${p.maxPersonalDocs ?? 2} personal documents for AI Chat`,
+        `Up to ${p.maxWorkspaceDocs ?? 10} documents per workspace`,
         p.maxFlashcardsPerGeneration === -1 ? "Unlimited flashcards per generation" : `Up to ${p.maxFlashcardsPerGeneration} flashcards per generation`,
         p.maxQuizQuestionsPerGeneration === -1 ? "Unlimited quiz questions per generation" : `Up to ${p.maxQuizQuestionsPerGeneration} quiz questions per generation`,
         p.maxOwnedProjects === -1 ? "Unlimited workspaces" : `Create up to ${p.maxOwnedProjects} workspaces`,
