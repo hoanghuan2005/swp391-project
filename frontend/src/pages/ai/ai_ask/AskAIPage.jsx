@@ -3,9 +3,11 @@ import { toast } from "sonner";
 import axiosClient from "@/api/axiosClient";
 import useDocuments from "@/hooks/useDocuments";
 import useDocumentQuota from "@/hooks/useDocumentQuota";
+import useAiUsage from "@/hooks/useAiUsage";
 import { isDocumentQuotaExceeded } from "@/api/documentQuotaApi";
 import QuotaExceededDialog from "@/components/quota/QuotaExceededDialog";
 import UnifiedAIChat from "@/components/ai-chat/UnifiedAIChat";
+import AiUsageBadge from "@/components/ai-usage/AiUsageBadge";
 
 export default function AskAIPage() {
   const { documents, refreshDocuments } = useDocuments();
@@ -16,6 +18,13 @@ export default function AskAIPage() {
     type: "DOCUMENT",
     message: "",
   });
+
+  const {
+    planName,
+    remainingUsage,
+    isUnlimited,
+    loading: aiUsageLoading,
+  } = useAiUsage();
 
   const fileInputRef = useRef(null);
 
@@ -94,6 +103,14 @@ export default function AskAIPage() {
         fileInputRef={fileInputRef}
         handleUpload={handleUpload}
         isUploading={isUploading}
+        rightElement={
+          <AiUsageBadge
+            planName={planName}
+            remainingUsage={remainingUsage}
+            isUnlimited={isUnlimited}
+            loading={aiUsageLoading}
+          />
+        }
       />
 
       <QuotaExceededDialog
