@@ -39,7 +39,7 @@ public class MindMapServiceImpl implements MindMapService {
     private final ProjectRepository projectRepository;
 
     @Override
-    public MindMapResponse generate(UUID documentId) {
+    public MindMapResponse generate(UUID documentId, List<UUID> documentIds) {
         String email = SecurityContextHolder.getContext()
                 .getAuthentication()
                 .getName();
@@ -47,37 +47,82 @@ public class MindMapServiceImpl implements MindMapService {
         aiUsageService.checkQuota(email);
 
         User user = userRepository.findByEmail(email).orElse(null);
-        Document document = documentRepository.findById(documentId)
-                .orElseThrow(() -> new RuntimeException("Document not found"));
 
-        if (user != null) {
-            boolean isOwner = document.getUploadedBy() != null && document.getUploadedBy().getId().equals(user.getId());
-            boolean isAdmin = user.getRole() != null && "ADMIN".equalsIgnoreCase(user.getRole().getName());
-            boolean isPublic = document.getVisibility() == com.example.keeper.systems.document.enums.Visibility.PUBLIC;
+        List<UUID> targetDocIds = new java.util.ArrayList<>();
+        if (documentIds != null && !documentIds.isEmpty()) {
+            targetDocIds.addAll(documentIds);
+        } else if (documentId != null) {
+            targetDocIds.add(documentId);
+        }
 
-            if (!isOwner && !isAdmin && !isPublic) {
-                boolean hasProjectAccess = projectRepository.hasUserAccessToDocumentThroughProjects(document.getId(), user.getId());
-                if (!hasProjectAccess) {
-                    throw new org.springframework.security.access.AccessDeniedException("You do not have permission to access this document.");
+        if (targetDocIds.isEmpty()) {
+            throw new RuntimeException("No documents selected");
+        }
+
+        // Limit check based on user subscription tier
+        aiUsageService.checkDocumentSelectionLimit(email, targetDocIds.size());
+
+        // Validate access to all selected documents
+        for (UUID docId : targetDocIds) {
+            Document document = documentRepository.findById(docId)
+                    .orElseThrow(() -> new RuntimeException("Document not found: " + docId));
+
+            if (user != null) {
+                boolean isOwner = document.getUploadedBy() != null && document.getUploadedBy().getId().equals(user.getId());
+                boolean isAdmin = user.getRole() != null && "ADMIN".equalsIgnoreCase(user.getRole().getName());
+                boolean isPublic = document.getVisibility() == com.example.keeper.systems.document.enums.Visibility.PUBLIC;
+
+                if (!isOwner && !isAdmin && !isPublic) {
+                    boolean hasProjectAccess = projectRepository.hasUserAccessToDocumentThroughProjects(document.getId(), user.getId());
+                    if (!hasProjectAccess) {
+                        throw new org.springframework.security.access.AccessDeniedException("You do not have permission to access document: " + docId);
+                    }
                 }
             }
         }
 
-        List<DocumentChunk> chunks =
-                documentChunkRepository.findByDocumentId(documentId);
+        // Gather chunks from each document
+        int chunksPerDoc = Math.max(1, 8 / targetDocIds.size());
+        StringBuilder contentBuilder = new StringBuilder();
 
-        if (chunks.isEmpty()) {
+        for (UUID docId : targetDocIds) {
+            Document document = documentRepository.findById(docId).orElse(null);
+            String docTitle = document != null ? document.getTitle() : "Document";
+
+            List<DocumentChunk> docChunks = documentChunkRepository.findByDocumentId(docId);
+            if (docChunks.size() > chunksPerDoc) {
+                docChunks = docChunks.subList(0, chunksPerDoc);
+            }
+
+            if (!docChunks.isEmpty()) {
+                if (contentBuilder.length() > 0) {
+                    contentBuilder.append("\n\n");
+                }
+                contentBuilder.append("=== FILE: ").append(docTitle).append(" ===\n");
+                for (DocumentChunk chunk : docChunks) {
+                    contentBuilder.append(chunk.getContent()).append("\n");
+                }
+            }
+        }
+
+        String content = contentBuilder.toString();
+        if (content.trim().isEmpty()) {
             throw new RuntimeException("Document content not found");
         }
 
-        String content = chunks.stream()
-                .map(DocumentChunk::getContent)
-                .collect(java.util.stream.Collectors.joining("\n"));
+        // Limit to 10,000 characters
+        if (content.length() > 10000) {
+            content = content.substring(0, 10000);
+        }
 
         String prompt = buildMindMapPrompt(content);
 
-        String aiResponse =
-                groqService.generateContent(prompt);
+        // Instruct AI to balance content if multiple files are present
+        if (targetDocIds.size() > 1) {
+            prompt += "\nNote: The provided content is from multiple different files (separated by '=== FILE: <name> ==='). You MUST represent concepts from ALL the provided files in the generated mindmap, ensuring balanced coverage.";
+        }
+
+        String aiResponse = groqService.generateContent(prompt);
 
         // Strip markdown code blocks if AI wraps JSON in ```json...```
         aiResponse = aiResponse.replaceAll("```json\\s*", "").replaceAll("```\\s*", "").trim();
@@ -87,18 +132,22 @@ public class MindMapServiceImpl implements MindMapService {
 
         String title = "Mindmap: Generated MindMap";
         try {
-            String docTitle = document.getTitle() != null ? document.getTitle() : "Generated MindMap";
-            if (docTitle.startsWith("Mindmap: ")) {
-                title = docTitle;
+            Document firstDoc = documentRepository.findById(targetDocIds.get(0)).orElse(null);
+            String docTitle = firstDoc != null && firstDoc.getTitle() != null ? firstDoc.getTitle() : "Generated MindMap";
+            String rawTitle = targetDocIds.size() > 1 
+                ? docTitle + " (+" + (targetDocIds.size() - 1) + ")"
+                : docTitle;
+            if (rawTitle.startsWith("Mindmap: ")) {
+                title = rawTitle;
             } else {
-                title = "Mindmap: " + docTitle;
+                title = "Mindmap: " + rawTitle;
             }
         } catch (Exception e) {
             // ignore
         }
 
         MindMap mindMap = MindMap.builder()
-                .documentId(documentId)
+                .documentId(targetDocIds.get(0))
                 .title(title)
                 .content(aiResponse)
                 .status(MindMapStatus.COMPLETED)

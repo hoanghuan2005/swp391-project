@@ -31,7 +31,7 @@ public class MindMapController {
     ) {
 
         return ResponseEntity.ok(
-                mindMapService.generate(request.getDocumentId())
+                mindMapService.generate(request.getDocumentId(), request.getDocumentIds())
         );
     }
 

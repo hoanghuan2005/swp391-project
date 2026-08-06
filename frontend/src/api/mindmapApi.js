@@ -1,8 +1,9 @@
 import axiosClient from "./axiosClient";
 
-export const generateMindMap = async (documentId) => {
+export const generateMindMap = async (documentId, documentIds) => {
   const response = await axiosClient.post("/api/v1/mindmaps/generate", {
     documentId,
+    documentIds,
   });
   return response.data;
 };
