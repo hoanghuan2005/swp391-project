@@ -31,6 +31,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -40,6 +41,8 @@ import org.springframework.web.multipart.MultipartFile;
 @Service
 @RequiredArgsConstructor
 public class QuizGeneratorServiceImpl implements QuizGeneratorService {
+
+    private static final double SIMILARITY_THRESHOLD = 0.35;
 
     private final QuizRepository quizRepository;
     private final DocumentChunkRepository documentChunkRepository;
@@ -71,16 +74,27 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
 
         boolean isAdmin = user.getRole() != null && "ADMIN".equals(user.getRole().getName());
 
+        List<UUID> targetDocIds = new ArrayList<>();
+        if (request.getDocumentIds() != null && !request.getDocumentIds().isEmpty()) {
+            targetDocIds.addAll(request.getDocumentIds());
+        } else if (request.getDocumentId() != null) {
+            targetDocIds.add(request.getDocumentId());
+        }
+
+        if (!targetDocIds.isEmpty()) {
+            aiUsageService.checkDocumentSelectionLimit(userEmail, targetDocIds.size());
+        }
+
         // Enforce document permission check
-        if (request.getDocumentId() != null) {
-            Document document = documentRepository.findById(request.getDocumentId())
-                    .orElseThrow(() -> new RuntimeException("Document not found"));
+        for (UUID docId : targetDocIds) {
+            Document document = documentRepository.findById(docId)
+                    .orElseThrow(() -> new RuntimeException("Document not found: " + docId));
             boolean isOwner = document.getUploadedBy() != null && document.getUploadedBy().getId().equals(user.getId());
             boolean isPublic = document.getVisibility() == Visibility.PUBLIC;
             if (!isAdmin && !isOwner && !isPublic) {
                 boolean hasProjectAccess = projectRepository.hasUserAccessToDocumentThroughProjects(document.getId(), user.getId());
                 if (!hasProjectAccess) {
-                    throw new org.springframework.security.access.AccessDeniedException("You do not have permission to access this document.");
+                    throw new org.springframework.security.access.AccessDeniedException("You do not have permission to access document: " + docId);
                 }
             }
         }
@@ -104,7 +118,7 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
         }
 
         String context = "";
-        if (request.getDocumentId() != null || request.getProjectId() != null) {
+        if (request.getDocumentId() != null || (request.getDocumentIds() != null && !request.getDocumentIds().isEmpty()) || request.getProjectId() != null) {
             context = fetchContext(request);
         }
 
@@ -119,6 +133,22 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
                     }
                     log.info("Using document metadata fallback context for document: {}", request.getDocumentId());
                 }
+            } else if (request.getDocumentIds() != null && !request.getDocumentIds().isEmpty()) {
+                StringBuilder fallbackBuilder = new StringBuilder();
+                for (UUID docId : request.getDocumentIds()) {
+                    Document document = documentRepository.findById(docId).orElse(null);
+                    if (document != null) {
+                        if (fallbackBuilder.length() > 0) {
+                            fallbackBuilder.append("\n\n");
+                        }
+                        fallbackBuilder.append("Document Title: ").append(document.getTitle());
+                        if (document.getDescription() != null && !document.getDescription().trim().isEmpty()) {
+                            fallbackBuilder.append("\nDocument Description: ").append(document.getDescription());
+                        }
+                    }
+                }
+                context = fallbackBuilder.toString();
+                log.info("Using document metadata fallback context for documents: {}", request.getDocumentIds());
             } else if (request.getProjectId() != null) {
                 Project project = projectRepository.findById(request.getProjectId()).orElse(null);
                 if (project != null) {
@@ -143,14 +173,15 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
         }
         // ------------------------
 
-        String prompt = buildPrompt(
+        String systemPrompt = buildSystemPrompt();
+        String userPrompt = buildUserPrompt(
                 context,
                 request.getTopic(),
                 request.getQuestionCount(),
                 request.getDifficulty()
         );
 
-        String aiResponse = groqService.generateContent(prompt);
+        String aiResponse = groqService.generateContent(systemPrompt, userPrompt, 0.3);
         aiUsageService.recordUsage(userEmail, AiUsageFeature.QUIZ_GENERATION);
         log.info("Raw AI response for quiz: {}", aiResponse);
 
@@ -164,7 +195,14 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
 
             Quiz quiz = new Quiz();
             quiz.setTitle(request.getTitle());
-            quiz.setDocumentId(request.getDocumentId());
+            
+            UUID finalDocId = null;
+            if (request.getDocumentIds() != null && !request.getDocumentIds().isEmpty()) {
+                finalDocId = request.getDocumentIds().get(0);
+            } else {
+                finalDocId = request.getDocumentId();
+            }
+            quiz.setDocumentId(finalDocId);
             quiz.setProjectId(request.getProjectId());
             quiz.setOwner(user);
 
@@ -205,7 +243,7 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
     }
 
     private String fetchContext(QuizRequest request) {
-        List<DocumentChunk> chunks = null;
+        List<DocumentChunk> chunks = new java.util.ArrayList<>();
         
         String query = request.getTopic() != null && !request.getTopic().trim().isEmpty() 
             ? request.getTopic() 
@@ -220,6 +258,7 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
             embeddingFailed = true;
         }
 
+        List<UUID> docIds = new ArrayList<>();
         if (request.getProjectId() != null) {
             Project project = projectRepository.findById(request.getProjectId())
                     .orElseThrow(() -> new RuntimeException("Project not found"));
@@ -228,46 +267,67 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
             });
             Project updatedProject = projectRepository.findById(request.getProjectId()).orElse(project);
             updatedProject.getDocuments().forEach(this::ensureReadyForAi);
-            List<UUID> docIds = updatedProject.getDocuments().stream()
+            docIds = updatedProject.getDocuments().stream()
                     .filter(d -> d.getAiParseStatus() == AiParseStatus.READY)
                     .map(Document::getId)
                     .collect(Collectors.toList());
-                    
-            if (docIds.isEmpty()) return "";
-            
-            if (embeddingFailed) {
-                chunks = new java.util.ArrayList<>();
-                for (UUID docId : docIds) {
-                    chunks.addAll(documentChunkRepository.findByDocumentId(docId));
-                }
-                if (chunks.size() > 20) {
-                    chunks = chunks.subList(0, 20);
-                }
-            } else {
-                chunks = documentChunkRepository.findSimilarChunksByDocumentIds(docIds, java.util.Arrays.toString(queryEmbedding), 20);
-            }
         } else {
-            documentParserService.ensureChunksExist(request.getDocumentId());
-            Document document = documentRepository.findById(request.getDocumentId())
-                    .orElseThrow(() -> new RuntimeException("Document not found"));
-            ensureReadyForAi(document);
+            if (request.getDocumentIds() != null && !request.getDocumentIds().isEmpty()) {
+                docIds.addAll(request.getDocumentIds());
+            } else if (request.getDocumentId() != null) {
+                docIds.add(request.getDocumentId());
+            }
             
-            if (embeddingFailed) {
-                chunks = documentChunkRepository.findByDocumentId(request.getDocumentId());
-                if (chunks.size() > 20) {
-                    chunks = chunks.subList(0, 20);
-                }
-            } else {
-                chunks = documentChunkRepository.findSimilarChunksByDocumentId(request.getDocumentId(), java.util.Arrays.toString(queryEmbedding), 20);
+            for (UUID docId : docIds) {
+                documentParserService.ensureChunksExist(docId);
+                Document document = documentRepository.findById(docId)
+                        .orElseThrow(() -> new RuntimeException("Document not found: " + docId));
+                ensureReadyForAi(document);
             }
         }
 
-        String combined = chunks.stream()
-                .map(DocumentChunk::getContent)
-                .collect(Collectors.joining("\n\n"));
+        if (docIds.isEmpty()) return "";
 
-        // Limit to 20,000 characters
-        return combined.length() > 20000 ? combined.substring(0, 20000) : combined;
+        int chunksPerDoc = Math.max(1, 8 / docIds.size());
+
+        StringBuilder contextBuilder = new StringBuilder();
+        for (UUID docId : docIds) {
+            Document document = documentRepository.findById(docId).orElse(null);
+            String docTitle = document != null ? document.getTitle() : "Document";
+
+            List<DocumentChunk> docChunks;
+            if (embeddingFailed) {
+                List<DocumentChunk> seqChunks = documentChunkRepository.findByDocumentId(docId);
+                docChunks = seqChunks.size() > chunksPerDoc ? seqChunks.subList(0, chunksPerDoc) : seqChunks;
+            } else {
+                docChunks = documentChunkRepository.findSimilarChunksByDocumentIdWithThreshold(
+                        docId,
+                        java.util.Arrays.toString(queryEmbedding),
+                        chunksPerDoc,
+                        SIMILARITY_THRESHOLD
+                );
+                if (docChunks.isEmpty()) {
+                    List<DocumentChunk> seqChunks = documentChunkRepository.findByDocumentId(docId);
+                    docChunks = seqChunks.size() > chunksPerDoc ? seqChunks.subList(0, chunksPerDoc) : seqChunks;
+                    log.info("Quiz context search missed threshold, falling back to sequential chunks for document: {}", docId);
+                }
+            }
+
+            if (!docChunks.isEmpty()) {
+                if (contextBuilder.length() > 0) {
+                    contextBuilder.append("\n\n");
+                }
+                contextBuilder.append("=== FILE: ").append(docTitle).append(" ===\n");
+                for (DocumentChunk chunk : docChunks) {
+                    contextBuilder.append(chunk.getContent()).append("\n");
+                }
+            }
+        }
+
+        String combined = contextBuilder.toString();
+
+        // Limit to 10,000 characters
+        return combined.length() > 10000 ? combined.substring(0, 10000) : combined;
     }
 
     private void ensureReadyForAi(Document document) {
@@ -303,16 +363,11 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
         }
     }
 
-    private String buildPrompt(String context, String topic, Integer count, String difficulty) {
-        int targetCount = count != null ? count : 5;
-        String targetDifficulty = difficulty != null ? difficulty : "Medium";
-        String targetTopic = topic != null && !topic.trim().isEmpty() ? topic : "the provided document context";
-
+    private String buildSystemPrompt() {
         return """
             You are an expert educator.
-            Create exactly %d multiple-choice questions at "%s" difficulty about %s.
-            %s
-    
+            Your task is to create high-quality multiple-choice questions in valid JSON format.
+            
             IMPORTANT RULES:
             - Return ONLY valid JSON.
             - Do NOT use markdown.
@@ -320,7 +375,7 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
             - Do NOT include explanations outside the JSON array.
             - Each question must have exactly 4 options.
             - correctAnswer must exactly match one of the options.
-    
+            
             Output this exact JSON format:
             [
               {
@@ -330,6 +385,22 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
                 "explanation": "Brief explanation"
               }
             ]
+            """;
+    }
+
+    private String buildUserPrompt(String context, String topic, Integer count, String difficulty) {
+        int targetCount = count != null ? count : 5;
+        String targetDifficulty = difficulty != null ? difficulty : "Medium";
+        String targetTopic = topic != null && !topic.trim().isEmpty() ? topic : "the provided document context";
+
+        return """
+            Create exactly %1$d multiple-choice questions at "%2$s" difficulty about %3$s.
+            %4$s
+            
+            - You MUST generate exactly %1$d questions.
+            - The provided DOCUMENT CONTEXT contains information from different files/documents (marked by "=== FILE: <name> ===" headers). You MUST distribute the generated questions evenly across all the files provided in the DOCUMENT CONTEXT so that all files are represented.
+            - If the provided DOCUMENT CONTEXT does not contain enough information to generate %1$d unique questions, you MUST create the remaining questions yourself. These extra questions MUST be directly based on, inferred from, or closely related to the concepts in the provided DOCUMENT CONTEXT to ensure they remain relevant to the files' subject matter. Under no circumstances should you generate fewer than %1$d questions.
+            - The generated questions, options, and explanations MUST be in the same language as the provided DOCUMENT CONTEXT or topic (e.g., if the document is in Vietnamese, generate questions in Vietnamese).
             """.formatted(
                     targetCount,
                     targetDifficulty,
@@ -359,11 +430,12 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
             context = text;
         }
 
-        if (context.length() > 20000) {
-            context = context.substring(0, 20000);
+        if (context.length() > 10000) {
+            context = context.substring(0, 10000);
         }
 
-        String prompt = buildPrompt(
+        String systemPrompt = buildSystemPrompt();
+        String userPrompt = buildUserPrompt(
                 context,
                 null,
                 questionCount,
@@ -371,7 +443,7 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
         );
 
         aiUsageService.checkQuota(userEmail);
-        String aiResponse = groqService.generateContent(prompt);
+        String aiResponse = groqService.generateContent(systemPrompt, userPrompt, 0.3);
         aiUsageService.recordUsage(userEmail, AiUsageFeature.QUIZ_GENERATION);
         log.info("Raw AI response for quiz from file: {}", aiResponse);
 

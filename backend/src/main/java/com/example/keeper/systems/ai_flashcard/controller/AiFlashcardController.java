@@ -32,14 +32,28 @@ public class AiFlashcardController {
     }
 
     @PostMapping("/generate-from-document")
-    public ResponseEntity<FlashcardSetResponse> generateFromDocument(@RequestBody Map<String, UUID> request) throws Exception {
-        UUID documentId = request.get("documentId");
-        if (documentId == null) {
-            throw new IllegalArgumentException("documentId is required");
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<FlashcardSetResponse> generateFromDocument(@RequestBody Map<String, Object> request) throws Exception {
+        Object documentIdObj = request.get("documentId");
+        Object documentIdsObj = request.get("documentIds");
+        
+        List<UUID> documentIds = new java.util.ArrayList<>();
+        if (documentIdsObj instanceof List) {
+            for (Object id : (List<?>) documentIdsObj) {
+                if (id != null) {
+                    documentIds.add(UUID.fromString(id.toString()));
+                }
+            }
+        } else if (documentIdObj != null) {
+            documentIds.add(UUID.fromString(documentIdObj.toString()));
+        }
+        
+        if (documentIds.isEmpty()) {
+            throw new IllegalArgumentException("At least one documentId or documentIds is required");
         }
 
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
-        FlashcardSetResponse result = aiFlashcardService.generateFlashcardsFromDocument(documentId, email);
+        FlashcardSetResponse result = aiFlashcardService.generateFlashcardsFromDocuments(documentIds, email);
         return ResponseEntity.ok(result);
     }
 
