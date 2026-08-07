@@ -1030,18 +1030,16 @@ export default function MyLibrary() {
                 <div>
                   <div className="flex items-center gap-2">
                     <h2 className="text-2xl font-black text-slate-800">
-                      {planName || "Free Subscription"}
+                      {planName || (subscriptionTier ? `${subscriptionTier} Subscription` : "Free Subscription")}
                     </h2>
-                    {isPro ? (
-                      <span className="inline-flex items-center gap-1.5 text-xs font-extrabold px-3 py-1 rounded-full bg-orange-100/80 text-[#f26522] border border-orange-200/80 uppercase tracking-wider shadow-2xs">
-                        <Crown className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
-                        PRO
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 text-xs font-extrabold px-3 py-1 rounded-full bg-slate-100 text-slate-600 border border-slate-200 uppercase tracking-wider">
-                        FREE
-                      </span>
-                    )}
+                    <span className={`inline-flex items-center gap-1.5 text-xs font-extrabold px-3 py-1 rounded-full uppercase tracking-wider ${
+                      subscriptionTier && subscriptionTier.toUpperCase() !== "FREE"
+                        ? "bg-orange-100/80 text-[#f26522] border border-orange-200/80 shadow-2xs"
+                        : "bg-slate-100 text-slate-600 border border-slate-200"
+                    }`}>
+                      {subscriptionTier && subscriptionTier.toUpperCase() !== "FREE" && <Crown className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />}
+                      {subscriptionTier || "FREE"}
+                    </span>
                   </div>
                   <p className="text-xs text-slate-500 mt-1">
                     {isPro ? "You currently enjoy all premium features and maximum storage capacity." : "Upgrade to Pro to unlock higher storage and unlimited AI requests."}
@@ -1072,8 +1070,8 @@ export default function MyLibrary() {
 
             {/* Action Buttons */}
             <div className="pt-4 flex flex-wrap items-center justify-between gap-4 border-t border-slate-100">
-              {isPro ? (
-                <>
+              <div className="flex items-center gap-3 flex-wrap">
+                {subscriptionTier && subscriptionTier.toUpperCase() !== "FREE" && (
                   <Button
                     variant="outline"
                     onClick={() => setConfirmCancelOpen(true)}
@@ -1081,31 +1079,24 @@ export default function MyLibrary() {
                   >
                     Cancel Subscription
                   </Button>
-                  <Button
-                    onClick={() => setPricingModalOpen(true)}
-                    variant="outline"
-                    className="rounded-xl border-slate-200 text-slate-700 hover:bg-slate-50 font-bold cursor-pointer text-xs py-2.5"
-                  >
-                    Compare All Plans
-                  </Button>
-                </>
-              ) : (
-                <>
+                )}
+                {!isPro && (
                   <Button
                     onClick={() => setPricingModalOpen(true)}
                     className="rounded-xl bg-[#f26522] hover:bg-[#d95316] text-white font-bold cursor-pointer shadow-md shadow-orange-500/20 text-xs py-2.5"
                   >
                     <Crown className="w-4 h-4 mr-2 fill-amber-300 text-amber-300" /> Upgrade to Pro
                   </Button>
-                  <Button
-                    onClick={() => setPricingModalOpen(true)}
-                    variant="outline"
-                    className="rounded-xl border-slate-200 text-slate-700 hover:bg-slate-50 font-bold cursor-pointer text-xs py-2.5"
-                  >
-                    Explore Plan Features
-                  </Button>
-                </>
-              )}
+                )}
+              </div>
+
+              <Button
+                onClick={() => setPricingModalOpen(true)}
+                variant="outline"
+                className="rounded-xl border-slate-200 text-slate-700 hover:bg-slate-50 font-bold cursor-pointer text-xs py-2.5"
+              >
+                {isPro ? "Compare All Plans" : "Explore Plan Features"}
+              </Button>
             </div>
           </div>
         </TabsContent>

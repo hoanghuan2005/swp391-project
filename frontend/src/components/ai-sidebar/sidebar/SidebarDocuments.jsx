@@ -42,7 +42,7 @@ const SidebarDocuments = ({
               const name = file.name.toLowerCase();
               const allowed = [".pdf", ".doc", ".docx", ".ppt", ".pptx"];
               if (!allowed.some((ext) => name.endsWith(ext))) {
-                toast.error("Hệ thống chỉ hỗ trợ các định dạng file: .pdf, .doc, .docx, .ppt, .pptx");
+                toast.error("Supported file formats: .pdf, .doc, .docx, .ppt, .pptx");
                 e.target.value = "";
                 return;
               }

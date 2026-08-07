@@ -30,6 +30,7 @@ public class DocumentResponse {
     private Double averageRating;
     private Integer reviewCount;
     private UserInfo uploadedBy;
+    private Boolean hasPendingVersion;
 
     @Data
     @Builder

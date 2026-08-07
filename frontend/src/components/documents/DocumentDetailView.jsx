@@ -188,7 +188,7 @@ export default function DocumentDetailView({
       await forceDownload(documentDetail.downloadUrl, documentDetail.title || "document");
     } catch (error) {
       console.error("Failed to download:", error);
-      toast.error("Lỗi khi tải tệp xuống!");
+      toast.error("Error downloading file!");
     }
   };
 
@@ -252,13 +252,19 @@ export default function DocumentDetailView({
             <div className="flex flex-wrap items-center gap-2">
               <Button
                 variant="outline"
-                className="rounded-xl border-slate-200 text-slate-700 hover:bg-slate-50"
+                className="relative rounded-xl border-slate-200 text-slate-700 hover:bg-slate-50"
                 onClick={() => setVersionHistoryOpen(true)}
               >
                 <History className="w-4 h-4 mr-1 text-[#f26522]" />
                 Version History
+                {(documentDetail?.hasPendingVersion || documentDetail?.versions?.some((v) => v.status === "PENDING_APPROVAL")) && (
+                  <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-rose-500"></span>
+                  </span>
+                )}
                 {documentDetail?.versions && documentDetail.versions.length > 0 && (
-                  <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-[#f26522]/15 text-[#f26522] text-[11px] font-bold">
+                  <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-[#f26522]/15 text-[#f26522] text-[11px] font-bold ml-1">
                     {documentDetail.versions.length}
                   </span>
                 )}
@@ -470,6 +476,7 @@ export default function DocumentDetailView({
         documentTitle={documentDetail?.title}
         documentId={documentId}
         isOwner={isOwnDocument}
+        visibility={documentDetail?.visibility || "PUBLIC"}
         onRefresh={fetchDetail}
         onUploadNewVersion={() => {
           if (localStorage.getItem("isLoggedIn") !== "true") {

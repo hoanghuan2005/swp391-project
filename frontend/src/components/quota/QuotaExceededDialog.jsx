@@ -23,7 +23,7 @@ const CONTENT = {
   },
   FILE_SIZE: {
     title: "File Size Limit Exceeded",
-    fallback: "This file exceeds the maximum file size limit for your current plan.",
+    fallback: "The system does not support files larger than 10MB.",
   },
   STORAGE: {
     title: "Storage Capacity Exceeded",
@@ -45,8 +45,14 @@ export default function QuotaExceededDialog({
   const role = getTokenRole();
   const canUpgrade = role !== "ADMIN" && subscriptionTier === "FREE";
 
-  const isOverSystemMax = (fileSize && fileSize > 10 * 1024 * 1024) || 
-    (message && (message.includes("10MB") || message.includes("10 MB")));
+  const isOverSystemMax =
+    (fileSize && fileSize > 10 * 1024 * 1024) ||
+    (message &&
+      (message.includes("10MB") ||
+        message.includes("10 MB") ||
+        message.includes("does not support") ||
+        message.includes("không hỗ trợ") ||
+        message.includes("system maximum")));
 
   const isStorageLimit =
     type === "STORAGE" ||
@@ -58,24 +64,15 @@ export default function QuotaExceededDialog({
   let displayTitle = isStorageLimit ? "Storage Capacity Exceeded" : content.title;
   let displayMessage = message || content.fallback;
 
-  if (isStorageLimit && !message) {
+  if (isOverSystemMax) {
+    displayMessage = "The system does not support files larger than 10MB.";
+  } else if (isStorageLimit && !message) {
     if (canUpgrade) {
       displayMessage =
         "Your account has reached its storage capacity limit. Please upgrade your subscription plan to get more storage capacity.";
     } else {
       displayMessage =
         "Your account has reached its maximum storage capacity limit. Please wait for new plan updates from system administrators or manage your existing storage.";
-    }
-  } else if (type === "FILE_SIZE" && !message) {
-    if (isOverSystemMax) {
-      displayMessage =
-        "The file size exceeds the system maximum limit of 10MB.";
-    } else if (canUpgrade) {
-      displayMessage =
-        "The file size exceeds the limit for your current plan. Please upgrade your subscription plan to upload larger files.";
-    } else {
-      displayMessage =
-        "The file size exceeds the limit for your current plan. Please wait for new plan updates from system administrators.";
     }
   }
 

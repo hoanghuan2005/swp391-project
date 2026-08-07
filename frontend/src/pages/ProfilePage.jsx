@@ -685,7 +685,7 @@ export default function ProfilePage() {
                         type={showNewPassword ? "text" : "password"}
                         value={passwordData.newPassword}
                         onChange={(e) => setPasswordData((prev) => ({ ...prev, newPassword: e.target.value }))}
-                        placeholder="Tối thiểu 6 ký tự"
+                        placeholder="Minimum 6 characters"
                         className="h-11 rounded-xl border-orange-100 pr-10 focus-visible:ring-[#f26522]"
                       />
                       <button
@@ -705,7 +705,7 @@ export default function ProfilePage() {
                         type={showConfirmPassword ? "text" : "password"}
                         value={passwordData.confirmPassword}
                         onChange={(e) => setPasswordData((prev) => ({ ...prev, confirmPassword: e.target.value }))}
-                        placeholder="Nhập lại mật khẩu mới"
+                        placeholder="Re-enter new password"
                         className="h-11 rounded-xl border-orange-100 pr-10 focus-visible:ring-[#f26522]"
                       />
                       <button

@@ -60,7 +60,7 @@ const LoginPage = () => {
       console.error("Login error detail:", errorData || error.message);
 
       if (status === 403 && (errorCode === "USER_UNVERIFIED" || errorMessage?.includes("USER_UNVERIFIED"))) {
-        alert("Tài khoản chưa xác thực. Vui lòng nhập OTP đã gửi qua email.");
+        alert("Account unverified. Please enter the OTP sent to your email.");
         navigate("/verify-account", { state: { email, mode: "signup" } });
         return;
       }

@@ -111,7 +111,7 @@ export default function PricingModal({ open, onOpenChange, isOpen, onClose }) {
 
   const role = getTokenRole();
   const isLoggedIn = localStorage.getItem("isLoggedIn") === "true";
-  const canUpgrade = role !== "ADMIN" && subscriptionTier === "FREE";
+  const canUpgrade = role !== "ADMIN" && String(subscriptionTier || "FREE").toUpperCase() !== "PRO";
 
   const handleUpgrade = async (targetPlanCode = "PRO") => {
     if (!isLoggedIn) {
@@ -175,6 +175,7 @@ export default function PricingModal({ open, onOpenChange, isOpen, onClose }) {
     return {
       code: p.code,
       name: p.name || p.code,
+      priceVnd: p.priceVnd || 0,
       description: isFree ? "For trying Study Hub AI features." : (isPro ? "For frequent study sessions." : "Special plan for students and creators."),
       price: formatVndPrice(p.priceVnd),
       period: p.priceVnd === 0 ? "forever" : "month",

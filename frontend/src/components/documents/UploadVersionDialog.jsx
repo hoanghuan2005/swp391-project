@@ -37,7 +37,7 @@ export default function UploadVersionDialog({
     const file = e.target.files?.[0];
     if (file) {
       if (!isSupportedFile(file)) {
-        toast.error("Hệ thống chỉ hỗ trợ các định dạng file: .pdf, .doc, .docx, .ppt, .pptx");
+        toast.error("Supported file formats: .pdf, .doc, .docx, .ppt, .pptx");
         setSelectedFile(null);
         if (e.target) e.target.value = "";
         return;
@@ -56,12 +56,12 @@ export default function UploadVersionDialog({
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!selectedFile || !isSupportedFile(selectedFile)) {
-      toast.error("Hệ thống chỉ hỗ trợ các định dạng file: .pdf, .doc, .docx, .ppt, .pptx");
+      toast.error("Supported file formats: .pdf, .doc, .docx, .ppt, .pptx");
       return;
     }
 
     if (!changelog.trim() || changelog.trim().length < 5) {
-      toast.error("Vui lòng nhập lý do thay đổi (Changelog) tối thiểu 5 ký tự!");
+      toast.error("Please enter changelog notes (minimum 5 characters)!");
       return;
     }
 
@@ -157,14 +157,14 @@ export default function UploadVersionDialog({
           <div className="space-y-1">
             <div className="flex items-center justify-between">
               <Label className="text-sm font-semibold text-slate-700">
-                Changelog notes / Lý do thay đổi <span className="text-red-500">*</span>
+                Changelog notes <span className="text-red-500">*</span>
               </Label>
               <span className={`text-xs ${changelog.trim().length < 5 ? "text-amber-600 font-medium" : "text-emerald-600 font-medium"}`}>
-                {changelog.trim().length}/5 ký tự tối thiểu
+                {changelog.trim().length}/5 characters min
               </span>
             </div>
             <Textarea
-              placeholder="Vui lòng nhập lý do cập nhật phiên bản mới (tối thiểu 5 ký tự, ví dụ: Đã sửa lỗi chính tả Chương 2, bổ sung lời giải đề thi năm 2025...)"
+              placeholder="Please describe what changed in this version (minimum 5 characters, e.g., Corrected Chapter 2 typos, added 2025 exam solutions...)"
               value={changelog}
               onChange={(e) => setChangelog(e.target.value)}
               rows={3}

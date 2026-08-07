@@ -80,16 +80,20 @@ public class FileStorageService {
             return null;
         }
 
+        String safeExtension = extension != null ? extension.toLowerCase() : "";
+        boolean isDocument = safeExtension.equals("pdf") || safeExtension.equals("docx") || safeExtension.equals("doc")
+                || safeExtension.equals("pptx") || safeExtension.equals("ppt") || safeExtension.equals("xlsx")
+                || safeExtension.equals("txt") || safeExtension.equals("csv");
+
+        String effectiveResourceType = isDocument ? "raw" : (resourceType == null || resourceType.isBlank() ? "raw" : resourceType);
+
         String source = publicId;
-        if (extension != null && !extension.isBlank() && !publicId.endsWith("." + extension)) {
-            source += "." + extension;
+        if (!safeExtension.isBlank() && !publicId.toLowerCase().endsWith("." + safeExtension)) {
+            source += "." + safeExtension;
         }
 
         return cloudinary.url()
-                .resourceType(
-                        resourceType == null || resourceType.isBlank()
-                                ? "raw"
-                                : resourceType)
+                .resourceType(effectiveResourceType)
                 .secure(true)
                 .generate(source);
     }
@@ -103,23 +107,27 @@ public class FileStorageService {
             return null;
         }
 
+        String safeExtension = extension != null ? extension.toLowerCase() : "";
+        boolean isDocument = safeExtension.equals("pdf") || safeExtension.equals("docx") || safeExtension.equals("doc")
+                || safeExtension.equals("pptx") || safeExtension.equals("ppt") || safeExtension.equals("xlsx")
+                || safeExtension.equals("txt") || safeExtension.equals("csv");
+
+        String effectiveResourceType = isDocument ? "raw" : (resourceType == null || resourceType.isBlank() ? "raw" : resourceType);
+
         String source = publicId;
-        if (extension != null && !extension.isBlank() && !publicId.endsWith("." + extension)) {
-            source += "." + extension;
+        if (!safeExtension.isBlank() && !publicId.toLowerCase().endsWith("." + safeExtension)) {
+            source += "." + safeExtension;
         }
 
         return cloudinary.url()
-                .resourceType(
-                        resourceType == null || resourceType.isBlank()
-                                ? "raw"
-                                : resourceType)
+                .resourceType(effectiveResourceType)
                 .secure(true)
                 .generate(source);
     }
 
     public String detectResourceType(String contentType) {
         if (contentType == null || contentType.isBlank()) {
-            return "auto";
+            return "raw";
         }
 
         if (contentType.startsWith("image/")) {
@@ -130,7 +138,7 @@ public class FileStorageService {
             return "video";
         }
 
-        return "auto";
+        return "raw";
     }
 
     public String sanitizeFileName(String fileName) {

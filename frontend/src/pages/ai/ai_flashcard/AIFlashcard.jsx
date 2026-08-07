@@ -39,11 +39,11 @@ const AIFlashcard = () => {
                 setCurrentIndex(0);
                 setIsFlipped(false);
             } else {
-                alert("Không tạo được flashcard nào!");
+                alert("Could not generate any flashcards!");
             }
         } catch (error) {
-            console.error("Lỗi:", error);
-            alert("Có lỗi xảy ra, kiểm tra console!");
+            console.error("Error:", error);
+            alert("An error occurred, please check console!");
         } finally {
             setIsLoading(false);
         }
@@ -75,7 +75,7 @@ const AIFlashcard = () => {
                 </h2>
                 <textarea
                     className="w-full p-4 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none transition-all resize-none"
-                    placeholder="Dán nội dung bài học vào đây..."
+                    placeholder="Paste your study material content here..."
                     rows={5}
                     value={inputText}
                     onChange={(e) => setInputText(e.target.value)}
@@ -85,7 +85,7 @@ const AIFlashcard = () => {
                     disabled={isLoading}
                     className="mt-4 w-full bg-[#f26522] text-white py-3 rounded-xl font-medium hover:bg-[#d95316] transition-colors flex items-center justify-center gap-2"
                 >
-                    {isLoading ? <><Loader2 className="animate-spin" /> Đang tạo...</> : 'Tạo Flashcards'}
+                    {isLoading ? <><Loader2 className="animate-spin" /> Generating...</> : 'Generate Flashcards'}
                 </button>
             </div>
 

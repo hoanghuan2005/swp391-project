@@ -26,10 +26,10 @@ const ForgotPasswordPage = () => {
         // MẸO: Nếu error không có response (timeout) nhưng bạn check Gmail thấy mã đã về
         // thì cứ cho người dùng qua trang Verify luôn
         if (!error.response || error.response.status === 500) {
-            alert("Mail có thể đã được gửi (do mạng chậm), hãy kiểm tra Gmail của bạn!");
+            alert("Email may have been sent (slow connection), please check your Inbox!");
             navigate("/verify-account", { state: { email: email } });
         } else {
-            alert("Lỗi thực sự: " + error.message);
+            alert("Error: " + error.message);
         }
     } finally {
         setIsLoading(false);

@@ -35,6 +35,7 @@ public class DocumentDetailResponse {
     private Integer reviewCount;
     private String currentVersionNumber;
     private List<DocumentVersionResponse> versions;
+    private Boolean hasPendingVersion;
 
     @Data
     @Builder

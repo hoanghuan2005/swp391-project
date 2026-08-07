@@ -463,7 +463,7 @@ public class AiAskServiceImpl implements AiAskService {
 
         boolean isAdmin = user != null && user.getRole() != null && "ADMIN".equalsIgnoreCase(user.getRole().getName());
         if (!isAdmin) {
-            String tierCode = user != null && user.getSubscriptionTier() != null ? user.getSubscriptionTier().name() : "FREE";
+            String tierCode = user != null && user.getSubscriptionTier() != null ? user.getSubscriptionTier() : "FREE";
             int maxSelectedDocs = subscriptionPlanRepository.findByCode(tierCode)
                     .map(p -> p.getMaxSelectedDocs() != null ? p.getMaxSelectedDocs() : 2)
                     .orElse(2);

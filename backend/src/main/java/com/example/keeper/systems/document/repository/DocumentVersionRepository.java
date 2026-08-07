@@ -20,5 +20,7 @@ public interface DocumentVersionRepository extends JpaRepository<DocumentVersion
 
     @Query("select coalesce(sum(v.fileSize), 0) from DocumentVersion v where v.uploadedBy.id = :uploadedById")
     Long sumFileSizeByUploadedById(@Param("uploadedById") UUID uploadedById);
+
+    boolean existsByDocumentIdAndStatus(UUID documentId, com.example.keeper.systems.document.enums.VersionStatus status);
 }
 

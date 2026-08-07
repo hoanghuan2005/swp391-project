@@ -347,37 +347,52 @@ public class DocumentServiceImpl implements DocumentService {
     }
 
     private String resolvePreviewUrl(Document document) {
+        String url = null;
         if (document.getPreviewUrl() != null && !document.getPreviewUrl().isBlank()) {
-            return document.getPreviewUrl();
+            url = document.getPreviewUrl();
+        } else {
+            String publicId = document.getCloudinaryPublicId();
+            if (publicId == null || publicId.isBlank()) {
+                url = document.getFileUrl();
+            } else {
+                String resourceType = resolveResourceType(document);
+                url = fileStorageService.generatePreviewUrl(
+                        publicId,
+                        resourceType,
+                        resolveExtension(document));
+            }
         }
-
-        String publicId = document.getCloudinaryPublicId();
-        if (publicId == null || publicId.isBlank()) {
-            return document.getFileUrl();
-        }
-
-        String resourceType = resolveResourceType(document);
-        return fileStorageService.generatePreviewUrl(
-                publicId,
-                resourceType,
-                resolveExtension(document));
+        return fixCloudinaryDocumentUrl(url, resolveExtension(document));
     }
 
     private String resolveDownloadUrl(Document document) {
+        String url = null;
         if (document.getDownloadUrl() != null && !document.getDownloadUrl().isBlank()) {
-            return document.getDownloadUrl();
+            url = document.getDownloadUrl();
+        } else {
+            String publicId = document.getCloudinaryPublicId();
+            if (publicId == null || publicId.isBlank()) {
+                url = document.getFileUrl();
+            } else {
+                String resourceType = resolveResourceType(document);
+                url = fileStorageService.generateDownloadUrl(
+                        publicId,
+                        resourceType,
+                        resolveExtension(document));
+            }
         }
+        return fixCloudinaryDocumentUrl(url, resolveExtension(document));
+    }
 
-        String publicId = document.getCloudinaryPublicId();
-        if (publicId == null || publicId.isBlank()) {
-            return document.getFileUrl();
+    private String fixCloudinaryDocumentUrl(String url, String extension) {
+        if (url == null) return null;
+        String ext = extension != null ? extension.toLowerCase() : "";
+        boolean isDoc = ext.equals("pdf") || ext.equals("docx") || ext.equals("doc")
+                || ext.equals("pptx") || ext.equals("ppt") || ext.equals("xlsx") || ext.equals("txt");
+        if (isDoc && url.contains("res.cloudinary.com") && url.contains("/image/upload/")) {
+            return url.replace("/image/upload/", "/raw/upload/");
         }
-
-        String resourceType = resolveResourceType(document);
-        return fileStorageService.generateDownloadUrl(
-                publicId,
-                resourceType,
-                resolveExtension(document));
+        return url;
     }
 
     @Override
@@ -715,6 +730,7 @@ public class DocumentServiceImpl implements DocumentService {
                 .reviewCount(revCount)
                 .currentVersionNumber(document.getCurrentVersionNumber() != null ? document.getCurrentVersionNumber() : "v1.0")
                 .versions(getDocumentVersions(document.getId()))
+                .hasPendingVersion(documentVersionRepository.existsByDocumentIdAndStatus(document.getId(), com.example.keeper.systems.document.enums.VersionStatus.PENDING_APPROVAL))
                 .build();
     }
 
@@ -788,6 +804,7 @@ public class DocumentServiceImpl implements DocumentService {
                                 .toList())
                 .averageRating(avgRating)
                 .reviewCount(revCount)
+                .hasPendingVersion(documentVersionRepository.existsByDocumentIdAndStatus(document.getId(), com.example.keeper.systems.document.enums.VersionStatus.PENDING_APPROVAL))
                 .build();
     }
 
@@ -822,6 +839,21 @@ public class DocumentServiceImpl implements DocumentService {
 
         String lower = filename.toLowerCase();
         if (lower.endsWith(".pdf") || lower.endsWith(".docx") || lower.endsWith(".doc") 
+                || lower.endsWith(".pptx") || lower.endsWith(".ppt")
+                || lower.endsWith(".txt") || lower.endsWith(".csv") || lower.endsWith(".md") || lower.endsWith(".json")) {
+            return AiParseStatus.PENDING;
+        }
+
+        return AiParseStatus.UNSUPPORTED;
+    }
+
+    private AiParseStatus resolveAiParseStatusFromFilename(String filename) {
+        if (filename == null) {
+            return AiParseStatus.UNSUPPORTED;
+        }
+
+        String lower = filename.toLowerCase();
+        if (lower.endsWith(".pdf") || lower.endsWith(".docx") || lower.endsWith(".doc")
                 || lower.endsWith(".pptx") || lower.endsWith(".ppt")
                 || lower.endsWith(".txt") || lower.endsWith(".csv") || lower.endsWith(".md") || lower.endsWith(".json")) {
             return AiParseStatus.PENDING;
@@ -1021,7 +1053,7 @@ public class DocumentServiceImpl implements DocumentService {
         // Owner or Admin validation
         String currentUserEmail = getCurrentUserEmail();
         User user = userRepository.findByEmail(currentUserEmail)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy user đăng nhập!"));
+                .orElseThrow(() -> new RuntimeException("Logged in user not found!"));
 
         boolean isAdmin = user.getRole() != null &&
                 (user.getRole().getName().equalsIgnoreCase("ADMIN") ||
@@ -1038,7 +1070,7 @@ public class DocumentServiceImpl implements DocumentService {
         boolean canEdit = isOwner || (isAdmin && !uploaderIsAdmin);
 
         if (!canEdit) {
-            throw new RuntimeException("Bạn không có quyền chỉnh sửa tài liệu này!");
+            throw new RuntimeException("You do not have permission to edit this document!");
         }
 
         // Update properties
@@ -1046,6 +1078,18 @@ public class DocumentServiceImpl implements DocumentService {
             document.setTitle(request.getTitle().trim());
         }
         document.setDescription(request.getDescription());
+
+        // Validate visibility change to PUBLIC if latest version is PENDING_APPROVAL
+        if (request.getVisibility() == com.example.keeper.systems.document.enums.Visibility.PUBLIC && !isAdmin) {
+            List<DocumentVersion> versions = documentVersionRepository.findByDocumentIdOrderByCreatedAtDesc(document.getId());
+            if (!versions.isEmpty()) {
+                DocumentVersion latestVersion = versions.get(0);
+                if (latestVersion.getStatus() == com.example.keeper.systems.document.enums.VersionStatus.PENDING_APPROVAL) {
+                    throw new IllegalArgumentException("Cannot change document visibility to PUBLIC because the latest version ("
+                            + latestVersion.getVersionNumber() + ") is pending Admin approval.");
+                }
+            }
+        }
         document.setVisibility(request.getVisibility());
 
         // Category mapping
@@ -1191,7 +1235,7 @@ public class DocumentServiceImpl implements DocumentService {
     @org.springframework.transaction.annotation.Transactional
     public DocumentVersion uploadNewVersion(UUID documentId, MultipartFile file, String changelog, String email) {
         if (changelog == null || changelog.trim().length() < 5) {
-            throw new IllegalArgumentException("Lý do thay đổi (changelog) là bắt buộc và phải có tối thiểu 5 ký tự.");
+            throw new IllegalArgumentException("Changelog is required and must be at least 5 characters long.");
         }
 
         validateSupportedFileFormat(file);
@@ -1214,7 +1258,7 @@ public class DocumentServiceImpl implements DocumentService {
         }
 
         if (!docExt.isEmpty() && !inputExt.isEmpty() && !docExt.equalsIgnoreCase(inputExt)) {
-            throw new IllegalArgumentException("Phiên bản mới phải có cùng định dạng file với tài liệu ban đầu (." + docExt + ").");
+            throw new IllegalArgumentException("The new version must have the same file format as the original document (." + docExt + ").");
         }
 
         documentQuotaService.validateVersionUpload(email, file.getSize());
@@ -1235,14 +1279,12 @@ public class DocumentServiceImpl implements DocumentService {
             extension = originalFilename.substring(originalFilename.lastIndexOf('.') + 1).toLowerCase();
         }
 
-        boolean isOwner = document.getUploadedBy() != null && document.getUploadedBy().getId().equals(uploader.getId());
         boolean isAdmin = uploader.getRole() != null && "ADMIN".equalsIgnoreCase(uploader.getRole().getName());
-        boolean isPublic = document.getVisibility() == com.example.keeper.systems.document.enums.Visibility.PUBLIC;
 
-        // PUBLIC documents uploaded by non-admin require moderation approval
-        com.example.keeper.systems.document.enums.VersionStatus versionStatus = (isPublic && !isAdmin) ?
-                com.example.keeper.systems.document.enums.VersionStatus.PENDING_APPROVAL :
-                com.example.keeper.systems.document.enums.VersionStatus.APPROVED;
+        // Any non-admin upload for new version (whether document is PUBLIC or PRIVATE) gets PENDING_APPROVAL
+        com.example.keeper.systems.document.enums.VersionStatus versionStatus = isAdmin ?
+                com.example.keeper.systems.document.enums.VersionStatus.APPROVED :
+                com.example.keeper.systems.document.enums.VersionStatus.PENDING_APPROVAL;
 
         DocumentVersion newVersion = new DocumentVersion();
         newVersion.setDocument(document);
@@ -1305,7 +1347,28 @@ public class DocumentServiceImpl implements DocumentService {
                 });
             }
         } else {
-            // Notify Document Owner ONLY if the version was uploaded by another user
+            // Notify System Admins about pending version approval
+            try {
+                String uploaderName = uploader.getUsername() != null ? uploader.getUsername() : uploader.getEmail();
+                List<User> admins = userRepository.findAllAdmins();
+                for (User admin : admins) {
+                    if (!admin.getId().equals(uploader.getId())) {
+                        notificationService.createNotification(
+                                admin,
+                                uploader,
+                                com.example.keeper.systems.notification.enums.NotificationType.DOCUMENT_VERSION_PENDING,
+                                "New Version Pending Approval",
+                                uploaderName + " uploaded version " + newVersionStr + " for document '" + document.getTitle() + "' requiring approval.",
+                                document.getId(),
+                                com.example.keeper.systems.notification.enums.ReferenceType.DOCUMENT
+                        );
+                    }
+                }
+            } catch (Exception e) {
+                log.error("Failed to notify admins about pending version", e);
+            }
+
+            // Also notify Document Owner if uploaded by another user
             if (document.getUploadedBy() != null && !document.getUploadedBy().getId().equals(uploader.getId())) {
                 try {
                     String uploaderName = uploader.getUsername() != null ? uploader.getUsername() : uploader.getEmail();
@@ -1395,11 +1458,10 @@ public class DocumentServiceImpl implements DocumentService {
                 .orElseThrow(() -> new RuntimeException("User not found"));
         Document document = getById(documentId);
 
-        boolean isOwner = document.getUploadedBy() != null && document.getUploadedBy().getId().equals(currentUser.getId());
         boolean isAdmin = currentUser.getRole() != null && "ADMIN".equalsIgnoreCase(currentUser.getRole().getName());
 
-        if (!isOwner && !isAdmin) {
-            throw new org.springframework.security.access.AccessDeniedException("Only the document owner can approve version updates.");
+        if (!isAdmin) {
+            throw new org.springframework.security.access.AccessDeniedException("System Admin approval is required for version updates.");
         }
 
         DocumentVersion version = documentVersionRepository.findById(versionId)
@@ -1437,7 +1499,37 @@ public class DocumentServiceImpl implements DocumentService {
             document.setPreviewUrl(fileStorageService.generatePreviewUrl(version.getCloudinaryPublicId(), version.getResourceType(), extension));
             document.setDownloadUrl(fileStorageService.generateDownloadUrl(version.getCloudinaryPublicId(), version.getResourceType(), extension));
         }
-        documentRepository.save(document);
+
+        AiParseStatus parseStatus = resolveAiParseStatusFromFilename(version.getOriginalFileName());
+        document.setAiParseStatus(parseStatus);
+        Document savedDoc = documentRepository.save(document);
+
+        if (parseStatus == AiParseStatus.PENDING && version.getFileUrl() != null) {
+            String vOriginalFileName = version.getOriginalFileName();
+            String vMimeType = version.getMimeType();
+            String vFileUrl = version.getFileUrl();
+            java.util.concurrent.CompletableFuture.runAsync(() -> {
+                try {
+                    byte[] fileBytes = new java.net.URL(vFileUrl).openStream().readAllBytes();
+                    boolean parsed = documentParserService.parseAndChunkDocument(
+                            fileBytes,
+                            vOriginalFileName,
+                            vMimeType,
+                            savedDoc.getId()
+                    );
+                    documentRepository.findById(savedDoc.getId()).ifPresent(d -> {
+                        d.setAiParseStatus(parsed ? AiParseStatus.READY : AiParseStatus.FAILED);
+                        documentRepository.save(d);
+                    });
+                } catch (Exception e) {
+                    log.error("Failed to parse document async for approved version {}: {}", savedDoc.getId(), e.getMessage());
+                    documentRepository.findById(savedDoc.getId()).ifPresent(d -> {
+                        d.setAiParseStatus(AiParseStatus.FAILED);
+                        documentRepository.save(d);
+                    });
+                }
+            });
+        }
 
         // Notify version uploader
         if (version.getUploadedBy() != null && !version.getUploadedBy().getId().equals(currentUser.getId())) {
@@ -1482,8 +1574,11 @@ public class DocumentServiceImpl implements DocumentService {
 
         boolean isOwner = document.getUploadedBy() != null && document.getUploadedBy().getId().equals(currentUser.getId());
         boolean isAdmin = currentUser.getRole() != null && "ADMIN".equalsIgnoreCase(currentUser.getRole().getName());
+        boolean isPublic = document.getVisibility() == com.example.keeper.systems.document.enums.Visibility.PUBLIC;
 
-        if (!isOwner && !isAdmin) {
+        if (isPublic && !isAdmin) {
+            throw new org.springframework.security.access.AccessDeniedException("Public document version updates require System Admin approval.");
+        } else if (!isPublic && !isOwner && !isAdmin) {
             throw new org.springframework.security.access.AccessDeniedException("Only the document owner can reject version updates.");
         }
 
@@ -1547,14 +1642,14 @@ public class DocumentServiceImpl implements DocumentService {
         boolean isAdmin = currentUser.getRole() != null && "ADMIN".equalsIgnoreCase(currentUser.getRole().getName());
 
         if (!isOwner && !isAdmin) {
-            throw new org.springframework.security.access.AccessDeniedException("Bạn không có quyền xóa phiên bản tài liệu này.");
+            throw new org.springframework.security.access.AccessDeniedException("You do not have permission to delete this document version.");
         }
 
         DocumentVersion version = documentVersionRepository.findById(versionId)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy phiên bản tài liệu."));
+                .orElseThrow(() -> new RuntimeException("Document version not found."));
 
         if (!version.getDocument().getId().equals(documentId)) {
-            throw new IllegalArgumentException("Phiên bản không thuộc tài liệu này.");
+            throw new IllegalArgumentException("Version does not belong to this document.");
         }
 
         // Prevent deleting active version
@@ -1566,7 +1661,7 @@ public class DocumentServiceImpl implements DocumentService {
         }
 
         if (isActiveVersion) {
-            throw new IllegalArgumentException("Không thể xóa phiên bản đang hoạt động (Active Version).");
+            throw new IllegalArgumentException("Cannot delete the Active Version.");
         }
 
         // Delete from Cloudinary
@@ -1583,17 +1678,54 @@ public class DocumentServiceImpl implements DocumentService {
 
     private void validateSupportedFileFormat(MultipartFile file) {
         if (file == null || file.isEmpty()) {
-            throw new IllegalArgumentException("Tệp tin không được để trống.");
+            throw new IllegalArgumentException("File cannot be empty.");
         }
         String originalFilename = file.getOriginalFilename();
         if (originalFilename == null || !originalFilename.contains(".")) {
-            throw new IllegalArgumentException("Hệ thống chỉ hỗ trợ các định dạng file: .pdf, .doc, .docx, .ppt, .pptx");
+            throw new IllegalArgumentException("Supported file formats: .pdf, .doc, .docx, .ppt, .pptx");
         }
         String lower = originalFilename.toLowerCase();
-        if (!lower.endsWith(".pdf") && !lower.endsWith(".doc") && !lower.endsWith(".docx")
-                && !lower.endsWith(".ppt") && !lower.endsWith(".pptx")) {
-            throw new IllegalArgumentException("Hệ thống chỉ hỗ trợ các định dạng file: .pdf, .doc, .docx, .ppt, .pptx");
+        boolean isSupported = lower.endsWith(".pdf") || lower.endsWith(".doc") || lower.endsWith(".docx")
+                || lower.endsWith(".ppt") || lower.endsWith(".pptx");
+        if (!isSupported) {
+            throw new IllegalArgumentException("Supported file formats: .pdf, .doc, .docx, .ppt, .pptx");
         }
+
+        // Validate actual binary Magic Bytes to prevent extension spoofing (e.g. renaming .txt to .pdf or .docx)
+        try {
+            byte[] header = new byte[8];
+            try (java.io.InputStream is = file.getInputStream()) {
+                int bytesRead = is.read(header, 0, header.length);
+                if (bytesRead < 4) {
+                    throw new IllegalArgumentException("Invalid or empty file content.");
+                }
+            }
+
+            boolean isPdf = lower.endsWith(".pdf") && isPdfHeader(header);
+            boolean isDocxOrPptx = (lower.endsWith(".docx") || lower.endsWith(".pptx")) && isZipHeader(header);
+            boolean isDocOrPpt = (lower.endsWith(".doc") || lower.endsWith(".ppt")) && isOle2Header(header);
+
+            if (!isPdf && !isDocxOrPptx && !isDocOrPpt) {
+                throw new IllegalArgumentException("File content does not match extension (" 
+                        + originalFilename + "). Please upload a genuine PDF, Word, or PowerPoint file!");
+            }
+        } catch (java.io.IOException e) {
+            log.error("Failed to read magic bytes for file validation", e);
+            throw new IllegalArgumentException("Failed to read file content for format validation.");
+        }
+    }
+
+    private boolean isPdfHeader(byte[] header) {
+        return header[0] == 0x25 && header[1] == 0x50 && header[2] == 0x44 && header[3] == 0x46; // %PDF
+    }
+
+    private boolean isZipHeader(byte[] header) {
+        return header[0] == 0x50 && header[1] == 0x4B && header[2] == 0x03 && header[3] == 0x04; // PK\x03\x04
+    }
+
+    private boolean isOle2Header(byte[] header) {
+        return (header[0] & 0xFF) == 0xD0 && (header[1] & 0xFF) == 0xCF
+                && (header[2] & 0xFF) == 0x11 && (header[3] & 0xFF) == 0xE0;
     }
 
     private String getUserFolderName(User u) {

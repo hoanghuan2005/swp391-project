@@ -210,7 +210,7 @@ export default function ProjectWorkspacePage() {
     const doc = project?.documents?.find((d) => d.id === documentId);
     setConfirmTarget({
       id: documentId,
-      name: doc?.title || doc?.name || "tài liệu này",
+      name: doc?.title || doc?.name || "this document",
     });
     setConfirmDialogOpen(true);
   };
@@ -219,11 +219,13 @@ export default function ProjectWorkspacePage() {
     if (!confirmTarget) return;
     setIsConfirming(true);
     try {
-      await removeDocumentFromProject(projectId, confirmTarget.id);
-      toast.success("Document removed");
-      fetchProject(true);
-    } catch (error) {
-      console.error("Delete document failed:", error);
+      await axiosClient.delete(
+        `/api/projects/${projectId}/documents/${confirmTarget.id}`
+      );
+      toast.success("Document removed from workspace");
+      await fetchProject();
+    } catch (err) {
+      console.error(err);
       toast.error("Failed to remove document");
     } finally {
       setIsConfirming(false);
@@ -234,8 +236,19 @@ export default function ProjectWorkspacePage() {
 
   if (loading) {
     return (
-      <div className="h-[calc(100vh-100px)] flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-[#f26522]" />
+      <div className="flex h-screen items-center justify-center bg-slate-50">
+        <Loader2 className="h-8 w-8 animate-spin text-[#f26522]" />
+      </div>
+    );
+  }
+
+  if (error || !project) {
+    return (
+      <div className="flex h-screen flex-col items-center justify-center gap-4 bg-slate-50">
+        <p className="text-[#f26522]">{error || "Workspace not found"}</p>
+        <Button onClick={() => navigate("/workspace")}>
+          Back to Workspaces
+        </Button>
       </div>
     );
   }
@@ -251,17 +264,9 @@ export default function ProjectWorkspacePage() {
     );
   }
 
-  if (!project) return null;
-
   return (
-    <div
-      className={`flex overflow-hidden bg-[#fafafa] ${
-        isSharedView
-          ? "h-screen w-full absolute inset-0 z-50"
-          : "h-[calc(100vh-73px)] rounded-b-xl -mx-8 -my-6"
-      }`}
-    >
-      {chatMode === "ai" ? (
+    <div className="flex h-screen overflow-hidden bg-slate-50">
+      {activeTab === "documents" ? (
         <UnifiedAIChat
           mode="WORKSPACE"
           workspaceId={projectId}
@@ -282,7 +287,7 @@ export default function ProjectWorkspacePage() {
         <WorkspaceGroupChat
           projectId={project.id}
           title={project.name}
-          subtitle="Phòng thảo luận Workspace"
+          subtitle="Workspace Discussion Room"
           messages={groupMessages}
           isChatConnected={isGroupChatConnected}
           currentUser={currentUser}

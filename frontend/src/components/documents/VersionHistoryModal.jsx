@@ -58,6 +58,7 @@ export default function VersionHistoryModal({
   documentTitle = "",
   documentId,
   isOwner = false,
+  visibility = "PUBLIC",
   onUploadNewVersion,
   onRefresh,
 }) {
@@ -78,11 +79,12 @@ export default function VersionHistoryModal({
       if (res?.downloadUrl) {
         await forceDownload(
           res.downloadUrl,
-          ver.originalFileName || `document_${ver.versionNumber}`
+          ver.originalFileName || "version"
         );
       }
     } catch (err) {
-      toast.error("Failed to download this version!");
+      console.error("Download version failed", err);
+      toast.error("Error downloading file!");
     }
   };
 
@@ -90,11 +92,11 @@ export default function VersionHistoryModal({
     setProcessingId(ver.id);
     try {
       await approveDocumentVersion(documentId, ver.id);
-      toast.success(`Version ${ver.versionNumber} approved successfully!`);
+      toast.success(`Version ${ver.versionNumber} approved & activated!`);
       window.dispatchEvent(new CustomEvent("subscription:updated"));
       onRefresh?.();
     } catch (err) {
-      toast.error(err?.response?.data?.message || "Failed to approve version");
+      toast.error(err?.response?.data?.message || "Failed to approve version!");
     } finally {
       setProcessingId(null);
     }
@@ -108,10 +110,9 @@ export default function VersionHistoryModal({
       toast.success(`Version ${rejectDialogVer.versionNumber} rejected.`);
       setRejectDialogVer(null);
       setRejectReason("");
-      window.dispatchEvent(new CustomEvent("subscription:updated"));
       onRefresh?.();
     } catch (err) {
-      toast.error(err?.response?.data?.message || "Failed to reject version");
+      toast.error(err?.response?.data?.message || "Failed to reject version!");
     } finally {
       setProcessingId(null);
     }
@@ -122,12 +123,12 @@ export default function VersionHistoryModal({
     setProcessingId(deleteDialogVer.id);
     try {
       await deleteDocumentVersion(documentId, deleteDialogVer.id);
-      toast.success(`Phiên bản ${deleteDialogVer.versionNumber} đã được xóa thành công!`);
+      toast.success(`Version ${deleteDialogVer.versionNumber} deleted successfully!`);
       setDeleteDialogVer(null);
       window.dispatchEvent(new CustomEvent("subscription:updated"));
       onRefresh?.();
     } catch (err) {
-      toast.error(err?.response?.data?.message || "Không thể xóa phiên bản này!");
+      toast.error(err?.response?.data?.message || "Failed to delete this version!");
     } finally {
       setProcessingId(null);
     }
@@ -243,7 +244,7 @@ export default function VersionHistoryModal({
                                 size="sm"
                                 className="rounded-xl border-slate-200 hover:bg-slate-50 text-slate-700 text-xs"
                                 onClick={() => handlePreview(ver)}
-                                title="Xem nhanh phiên bản này (Preview)"
+                                title="Preview this version"
                               >
                                 <Eye className="w-3.5 h-3.5 mr-1" /> Preview
                               </Button>
@@ -253,7 +254,7 @@ export default function VersionHistoryModal({
                                 size="sm"
                                 className="rounded-xl border-slate-200 hover:bg-slate-50 text-slate-700 text-xs"
                                 onClick={() => handleDownload(ver)}
-                                title="Tải xuống phiên bản này"
+                                title="Download this version"
                               >
                                 <Download className="w-3.5 h-3.5 mr-1" /> Download
                               </Button>
@@ -265,7 +266,7 @@ export default function VersionHistoryModal({
                                   className="rounded-xl border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs"
                                   onClick={() => setDeleteDialogVer(ver)}
                                   disabled={processingId === ver.id}
-                                  title="Xóa phiên bản này khỏi hệ thống"
+                                  title="Delete this version"
                                 >
                                   <Trash2 className="w-3.5 h-3.5 mr-1" /> Delete
                                 </Button>
@@ -308,19 +309,17 @@ export default function VersionHistoryModal({
                     {isPending && (() => {
                       const userRole = localStorage.getItem("userRole");
                       const isAdmin = userRole === "ADMIN";
-                      // If current user is Admin OR (Document Owner reviewing another user's contribution)
-                      const canApprove = isAdmin || (isOwner && ver.uploaderName !== localStorage.getItem("username"));
                       
-                      if (canApprove) {
+                      if (isAdmin) {
                         return (
                           <div className="pt-2 border-t border-amber-200/60 flex items-center justify-end gap-2">
                             <span className="text-xs text-amber-800 font-medium mr-auto">
-                              {isAdmin ? "Requires Admin approval:" : "Requires your approval as document owner:"}
+                              Requires Admin approval:
                             </span>
                             <Button
                               size="sm"
                               variant="outline"
-                              className="bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100 h-8 rounded-lg text-xs"
+                              className="bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100 h-8 rounded-lg text-xs cursor-pointer"
                               disabled={processingId === ver.id}
                               onClick={() => {
                                 setRejectDialogVer(ver);
@@ -331,7 +330,7 @@ export default function VersionHistoryModal({
                             </Button>
                             <Button
                               size="sm"
-                              className="bg-emerald-600 hover:bg-emerald-700 text-white h-8 rounded-lg text-xs font-semibold"
+                              className="bg-emerald-600 hover:bg-emerald-700 text-white h-8 rounded-lg text-xs font-semibold cursor-pointer"
                               disabled={processingId === ver.id}
                               onClick={() => handleApprove(ver)}
                             >
@@ -341,11 +340,10 @@ export default function VersionHistoryModal({
                         );
                       }
 
-                      // If regular user / owner viewing their own pending upload
                       return (
                         <div className="pt-2 border-t border-amber-200/60 flex items-center justify-between gap-2">
                           <span className="text-xs text-amber-700 font-medium italic">
-                            ⏳ Phiên bản này đang chờ Admin/Quản trị viên duyệt trước khi công khai.
+                            ⏳ This version is pending System Admin approval before becoming active.
                           </span>
                         </div>
                       );
@@ -422,7 +420,7 @@ export default function VersionHistoryModal({
               onClick={() => setDeleteDialogVer(null)}
               disabled={!!processingId}
             >
-              Hủy
+              Cancel
             </Button>
             <Button
               size="sm"
@@ -430,7 +428,7 @@ export default function VersionHistoryModal({
               onClick={handleDeleteSubmit}
               disabled={!!processingId}
             >
-              {processingId ? "Đang xóa..." : "Xóa phiên bản"}
+              {processingId ? "Deleting..." : "Delete Version"}
             </Button>
           </div>
         </DialogContent>
@@ -443,10 +441,10 @@ export default function VersionHistoryModal({
             <div className="space-y-1">
               <DialogTitle className="text-lg font-bold text-slate-800 flex items-center gap-2">
                 <Eye className="w-5 h-5 text-[#f26522]" />
-                Xem trước phiên bản {previewVer?.versionNumber}
+                Preview Version {previewVer?.versionNumber}
               </DialogTitle>
               <DialogDescription className="text-xs text-slate-500">
-                Tệp tin: <span className="font-semibold text-slate-700">{previewVer?.originalFileName}</span> • Lý do cập nhật: <span className="italic">"{previewVer?.changelog || "Không có"}"</span>
+                File: <span className="font-semibold text-slate-700">{previewVer?.originalFileName}</span> • Changelog: <span className="italic">"{previewVer?.changelog || "None"}"</span>
               </DialogDescription>
             </div>
           </DialogHeader>

@@ -229,7 +229,7 @@ export default function WorkspaceGroupChat({
                   <div className="flex-1 flex gap-1.5 items-center">
                     <Input
                       ref={(el) => (replyInputRefs.current[msg.id] = el)}
-                      placeholder="Viết câu trả lời..."
+                      placeholder="Write a reply..."
                       value={replyMessages[msg.id] || ""}
                       onChange={(e) =>
                         setReplyMessages((prev) => ({

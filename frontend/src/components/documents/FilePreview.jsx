@@ -35,6 +35,14 @@ const toOfficeViewerUrl = (fileUrl) => {
   return `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(fileUrl)}`;
 };
 
+const fixCloudinaryPdfUrl = (url) => {
+  if (!url) return url;
+  if (typeof url === "string" && (url.toLowerCase().includes(".pdf") || url.toLowerCase().includes("pdf")) && url.includes("/image/upload/")) {
+    return url.replace("/image/upload/", "/raw/upload/");
+  }
+  return url;
+};
+
 export default function FilePreview({
   previewUrl,
   mimeType,
@@ -42,12 +50,14 @@ export default function FilePreview({
   originalFileName,
   height = 420,
 }) {
+  const safePreviewUrl = useMemo(() => fixCloudinaryPdfUrl(previewUrl), [previewUrl]);
+
   const previewType = useMemo(
-    () => resolvePreviewType({ mimeType, previewUrl, originalFileName }),
-    [mimeType, previewUrl, originalFileName],
+    () => resolvePreviewType({ mimeType, previewUrl: safePreviewUrl, originalFileName }),
+    [mimeType, safePreviewUrl, originalFileName],
   );
 
-  if (!previewUrl) {
+  if (!safePreviewUrl) {
     return (
       <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-slate-200 bg-slate-50 px-6 py-10 text-center">
         <FileText className="h-8 w-8 text-slate-400" />
@@ -66,7 +76,7 @@ export default function FilePreview({
   if (previewType === "image") {
     return (
       <img
-        src={previewUrl}
+        src={safePreviewUrl}
         alt={title || "Document preview"}
         className="w-full max-h-[420px] object-contain rounded-xl border border-slate-100 bg-white"
       />
@@ -76,7 +86,7 @@ export default function FilePreview({
   if (previewType === "pdf") {
     return (
       <div className="w-full">
-        <PdfViewer url={previewUrl} />
+        <PdfViewer url={safePreviewUrl} />
       </div>
     );
   }

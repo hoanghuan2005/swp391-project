@@ -57,7 +57,7 @@ axiosClient.interceptors.response.use(
         localStorage.removeItem("isLoggedIn");
         localStorage.removeItem("userRole");
 
-        toast.error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!");
+        toast.error("Session expired. Please log in again!");
         window.location.href = "/login";
         return Promise.reject(refreshError);
       }

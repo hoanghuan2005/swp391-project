@@ -4,6 +4,7 @@ import com.example.keeper.systems.auth.entity.User;
 import com.example.keeper.systems.auth.repository.UserRepository;
 import com.example.keeper.systems.auth.repository.RoleRepository;
 import com.example.keeper.systems.auth.entity.Role;
+import com.example.keeper.systems.auth.entity.SubscriptionPlan;
 import com.example.keeper.systems.user.dto.AdminUserCreateRequest;
 import com.example.keeper.systems.user.dto.AdminUserDetailResponse;
 import com.example.keeper.systems.user.dto.AdminUserListItemResponse;
@@ -97,7 +98,7 @@ public class AdminUserController {
             String tierStr = req.getOrDefault("subscriptionTier", "FREE").toUpperCase();
             user.setSubscriptionTier(tierStr);
 
-            com.example.keeper.systems.auth.entity.SubscriptionPlan plan = subscriptionPlanRepository.findByCodeAndIsActiveTrue(tierStr)
+            SubscriptionPlan plan = subscriptionPlanRepository.findByCodeAndIsActiveTrue(tierStr)
                     .orElseGet(() -> subscriptionPlanRepository.findByCode(tierStr).orElse(null));
             if (plan != null && plan.getTotalStorageBytes() != null) {
                 user.setMaxStorageBytes(plan.getTotalStorageBytes());

@@ -387,10 +387,16 @@ export default function DocumentListPage() {
                               size="icon"
                               variant="ghost"
                               onClick={() => handleOpenVersionHistory(doc)}
-                              className="h-8 w-8 text-slate-500 hover:text-[#f26522] hover:bg-orange-50 rounded-lg cursor-pointer transition-colors"
-                              title="Quản lý & Duyệt các phiên bản (Version History)"
+                              className="relative h-8 w-8 text-slate-500 hover:text-[#f26522] hover:bg-orange-50 rounded-lg cursor-pointer transition-colors"
+                              title="Manage & Review Version History"
                             >
                               <History className="w-4 h-4" />
+                              {doc.hasPendingVersion && (
+                                <span className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5">
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
+                                </span>
+                              )}
                             </Button>
 
                             {/* Nút Sửa (Edit - Hiển thị nếu là tài liệu của chính Admin HOẶC của User/Student, ngoại trừ Admin khác) */}
@@ -457,6 +463,7 @@ export default function DocumentListPage() {
           documentTitle={historyDocModal.title}
           documentId={historyDocModal.id}
           isOwner={true}
+          visibility={historyDocModal.visibility || "PUBLIC"}
           onRefresh={async () => {
             fetchDocuments();
             if (historyDocModal?.id) {

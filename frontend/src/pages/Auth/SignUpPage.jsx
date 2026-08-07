@@ -73,7 +73,7 @@ const SignUpPage = () => {
       const serverMessage =
         error.response?.data?.message ||
         "Sign up failed! Please check your connection.";
-      alert("Lỗi: " + serverMessage);
+      alert("Error: " + serverMessage);
     } finally {
       setIsLoading(false);
     }

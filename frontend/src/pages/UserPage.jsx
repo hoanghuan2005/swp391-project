@@ -505,11 +505,11 @@ export default function UserPage() {
           >
             {userProfile.isFollowedByCurrentUser ? (
               <span className="flex items-center gap-2">
-                <UserCheck size={16} /> Bỏ theo dõi
+                <UserCheck size={16} /> Unfollow
               </span>
             ) : (
               <span className="flex items-center gap-2">
-                <UserPlus size={16} /> Theo dõi
+                <UserPlus size={16} /> Follow
               </span>
             )}
           </Button>
@@ -1017,11 +1017,11 @@ export default function UserPage() {
                         >
                           {item.isFollowedByCurrentUser ? (
                             <span className="flex items-center gap-1">
-                              <UserCheck size={12} /> Đang theo dõi
+                              <UserCheck size={12} /> Following
                             </span>
                           ) : (
                             <span className="flex items-center gap-1">
-                              <UserPlus size={12} /> Theo dõi
+                              <UserPlus size={12} /> Follow
                             </span>
                           )}
                         </Button>

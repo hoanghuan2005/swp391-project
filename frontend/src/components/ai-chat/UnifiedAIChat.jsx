@@ -304,7 +304,7 @@ export default function UnifiedAIChat({
     const conv = conversations.find((c) => c.id === convId);
     setConfirmTarget({
       id: convId,
-      name: conv?.title || "phiên trò chuyện",
+      name: conv?.title || "this conversation",
     });
     setConfirmDialogOpen(true);
   };
@@ -439,7 +439,7 @@ export default function UnifiedAIChat({
         });
         await refreshAiUsage();
       } else if (error.code === "ECONNABORTED" || error.message?.includes("timeout")) {
-        toast.error("Phản hồi AI bị quá giờ (timeout). Vui lòng thử lại!");
+        toast.error("AI response timed out. Please try again!");
       } else {
         toast.error("AI failed to respond. Please try again.");
       }

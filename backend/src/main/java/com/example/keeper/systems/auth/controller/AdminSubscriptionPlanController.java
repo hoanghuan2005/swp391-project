@@ -2,7 +2,6 @@ package com.example.keeper.systems.auth.controller;
 
 import com.example.keeper.systems.auth.entity.SubscriptionPlan;
 import com.example.keeper.systems.auth.entity.User;
-import com.example.keeper.systems.auth.enums.SubscriptionTier;
 import com.example.keeper.systems.auth.repository.SubscriptionPlanRepository;
 import com.example.keeper.systems.auth.repository.UserRepository;
 import com.example.keeper.systems.auth.service.EmailService;
@@ -96,8 +95,7 @@ public class AdminSubscriptionPlanController {
         if (plan == null || plan.getCode() == null) return;
         try {
             String cleanCode = plan.getCode().trim().toUpperCase();
-            SubscriptionTier tier = SubscriptionTier.valueOf(cleanCode);
-            List<User> affectedUsers = userRepository.findBySubscriptionTier(tier);
+            List<User> affectedUsers = userRepository.findBySubscriptionTier(cleanCode);
 
             log.info("Sending plan update notification for plan {} to {} affected users", plan.getName(), affectedUsers.size());
 

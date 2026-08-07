@@ -55,7 +55,7 @@ export default function RecentDocuments({ favoritedIds = [], onToggleFavorite })
       }
     } catch (error) {
       console.error("Download failed:", error);
-      toast.error("Lỗi khi tải tệp xuống!");
+      toast.error("Error downloading file!");
     }
   };
 

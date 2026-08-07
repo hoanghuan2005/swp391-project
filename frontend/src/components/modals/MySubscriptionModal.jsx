@@ -69,6 +69,7 @@ export default function MySubscriptionModal({ open, onOpenChange }) {
     }
   };
 
+  const isPaidPlan = subData?.priceVnd > 0 || (subData?.subscriptionTier && subData?.subscriptionTier !== "FREE");
   const isPro = subData?.subscriptionTier === "PRO";
 
   return (
@@ -100,7 +101,7 @@ export default function MySubscriptionModal({ open, onOpenChange }) {
               {/* Main Plan Card */}
               <div
                 className={`p-5 rounded-2xl border transition-all ${
-                  isPro
+                  isPaidPlan
                     ? "bg-gradient-to-br from-orange-50/60 via-white to-amber-50/30 border-orange-300 shadow-md shadow-orange-500/10"
                     : "bg-slate-50/80 border-slate-200"
                 }`}
@@ -109,7 +110,7 @@ export default function MySubscriptionModal({ open, onOpenChange }) {
                   <div className="flex items-center gap-2">
                     <Badge
                       className={`font-black text-xs px-3 py-1 rounded-full ${
-                        isPro
+                        isPaidPlan
                           ? "bg-[#fff0e5] text-[#f26522] border border-orange-200"
                           : "bg-slate-200 text-slate-700 border-slate-300"
                       }`}
@@ -129,7 +130,7 @@ export default function MySubscriptionModal({ open, onOpenChange }) {
                 </div>
 
                 <h3 className="text-lg font-bold text-slate-800 mt-3 flex items-center gap-1.5">
-                  {subData.planName} {isPro && <Sparkles className="w-4 h-4 text-amber-500 fill-amber-500" />}
+                  {subData.planName} {isPaidPlan && <Sparkles className="w-4 h-4 text-amber-500 fill-amber-500" />}
                 </h3>
               </div>
 
@@ -207,27 +208,31 @@ export default function MySubscriptionModal({ open, onOpenChange }) {
           ) : null}
 
           <DialogFooter className="pt-2 flex flex-col sm:flex-row gap-2 sm:justify-between">
-            {isPro ? (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setCancelConfirmOpen(true)}
-                className="rounded-xl text-rose-600 hover:bg-rose-50 border-rose-200 font-bold text-xs"
-              >
-                <ShieldAlert className="w-4 h-4 mr-1.5" /> Cancel Pro Plan
-              </Button>
-            ) : (
-              <Button
-                type="button"
-                onClick={() => {
-                  onOpenChange(false);
-                  setPricingModalOpen(true);
-                }}
-                className="rounded-xl bg-[#f26522] hover:bg-[#d95316] text-white font-bold text-xs"
-              >
-                <Crown className="w-4 h-4 mr-1.5 fill-amber-300 text-amber-300" /> Upgrade to PRO
-              </Button>
-            )}
+            <div className="flex items-center gap-2 flex-wrap">
+              {isPaidPlan && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setCancelConfirmOpen(true)}
+                  className="rounded-xl text-rose-600 hover:bg-rose-50 border-rose-200 font-bold text-xs"
+                >
+                  <ShieldAlert className="w-4 h-4 mr-1.5" /> Cancel Subscription
+                </Button>
+              )}
+
+              {!isPro && (
+                <Button
+                  type="button"
+                  onClick={() => {
+                    onOpenChange(false);
+                    setPricingModalOpen(true);
+                  }}
+                  className="rounded-xl bg-[#f26522] hover:bg-[#d95316] text-white font-bold text-xs"
+                >
+                  <Crown className="w-4 h-4 mr-1.5 fill-amber-300 text-amber-300" /> Upgrade to PRO
+                </Button>
+              )}
+            </div>
 
             <Button
               type="button"
@@ -246,10 +251,10 @@ export default function MySubscriptionModal({ open, onOpenChange }) {
         <DialogContent className="sm:max-w-md rounded-3xl p-6 bg-white">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold text-slate-800">
-              Cancel Pro Subscription?
+              Cancel Subscription?
             </DialogTitle>
             <DialogDescription className="text-slate-500 text-sm mt-1">
-              Are you sure you want to cancel your <strong>Pro Subscription</strong>? Your account will revert to the <strong>Free Plan</strong> with standard resource limits.
+              Are you sure you want to cancel your <strong>{subData?.planName || subData?.subscriptionTier || "Paid"} Subscription</strong>? Your account will revert to the <strong>Free Plan</strong> with standard resource limits.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="pt-4 gap-2">

@@ -761,7 +761,7 @@ ${
             {/* Quick Pricing Icon */}
             <button
               onClick={() => setPricingModalOpen(true)}
-              title={subscriptionTier === "PRO" ? "Gói Chuyên Nghiệp (PRO)" : "Xem Các Gói Dịch Vụ"}
+              title={subscriptionTier === "PRO" ? "Pro Subscription" : "View Subscription Plans"}
               className="h-10 w-10 rounded-full flex items-center justify-center transition-all cursor-pointer hover:bg-slate-100"
             >
               <Crown

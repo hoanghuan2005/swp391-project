@@ -50,6 +50,10 @@ public class AiUsageController {
         tierLimits.put("maxQuizQuestionsPerGeneration", plan != null ? plan.getMaxQuizQuestionsPerGeneration() : 20);
         tierLimits.put("maxOwnedProjects", plan != null ? plan.getMaxOwnedProjects() : 3);
         tierLimits.put("maxJoinedProjects", plan != null ? plan.getMaxJoinedProjects() : 5);
+        long userTotalStorage = user.getMaxStorageBytes() != null
+                ? user.getMaxStorageBytes()
+                : (plan != null && plan.getTotalStorageBytes() != null ? plan.getTotalStorageBytes() : 100 * 1024 * 1024L);
+        tierLimits.put("totalStorageBytes", userTotalStorage);
         tierLimits.put("maxFileSizeBytes", plan != null ? plan.getMaxFileSizeBytes() : 5 * 1024 * 1024L);
         tierLimits.put("dailyUploadLimit", plan != null ? plan.getDailyUploadLimit() : 3L);
         tierLimits.put("totalDocumentLimit", plan != null ? plan.getTotalDocumentLimit() : 20L);

@@ -321,7 +321,7 @@ export default function CourseDetailPage() {
                   userReactionType ? "text-[#f66810]" : "text-slate-500 hover:text-slate-800"
                 }`}
               >
-                {userReactionType ? `${REACTION_EMOJIS[userReactionType]} ${userReactionType.toLowerCase()}` : "Thích"}
+                {userReactionType ? `${REACTION_EMOJIS[userReactionType]} ${userReactionType.toLowerCase()}` : "Like"}
               </button>
 
               {activeReactionPicker === msg.id && (
@@ -355,7 +355,7 @@ export default function CourseDetailPage() {
                   onClick={() => handleReplyClick(msg.id)}
                   className="font-bold text-slate-500 hover:text-slate-800 transition-colors hover:underline cursor-pointer"
                 >
-                  Phản hồi
+                  Reply
                 </button>
               </>
             )}
@@ -384,7 +384,7 @@ export default function CourseDetailPage() {
                   <div className="flex-1 flex gap-1.5 items-center">
                     <Input
                       ref={(el) => (replyInputRefs.current[msg.id] = el)}
-                      placeholder="Viết câu trả lời..."
+                      placeholder="Write a reply..."
                       value={replyMessages[msg.id] || ""}
                       onChange={(e) =>
                         setReplyMessages((prev) => ({
@@ -643,7 +643,7 @@ export default function CourseDetailPage() {
   if (!course) {
     return (
       <div className="text-center py-20 text-slate-500 font-medium">
-        Không tìm thấy thông tin môn học.
+        Course information not found.
       </div>
     );
   }
@@ -1048,10 +1048,10 @@ export default function CourseDetailPage() {
             <div className="">
               <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
                 <MessageSquare className="w-5 h-5 text-[#f66810]" />
-                Phòng thảo luận - {course.code}
+                Discussion Room - {course.code}
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                Hỏi đáp, trao đổi bài tập và tài liệu học tập cùng bạn bè cùng lớp.
+                Ask questions, discuss assignments, and share study materials with classmates.
               </p>
             </div>
             <div className="flex items-center gap-1.5">

@@ -27,6 +27,11 @@ public class DocumentQuotaServiceImpl implements DocumentQuotaService {
 
     @Override
     public void validateUpload(String email, long fileSize) {
+        long systemMaxFileSize = 10L * 1024 * 1024;
+        if (fileSize > systemMaxFileSize) {
+            throw new DocumentQuotaExceededException("The system does not support files larger than 10MB.");
+        }
+
         User user = findUser(email);
         if (isAdmin(user)) {
             return;
@@ -56,6 +61,11 @@ public class DocumentQuotaServiceImpl implements DocumentQuotaService {
 
     @Override
     public void validateVersionUpload(String email, long fileSize) {
+        long systemMaxFileSize = 10L * 1024 * 1024;
+        if (fileSize > systemMaxFileSize) {
+            throw new DocumentQuotaExceededException("The system does not support files larger than 10MB.");
+        }
+
         User user = findUser(email);
         if (isAdmin(user)) {
             return;

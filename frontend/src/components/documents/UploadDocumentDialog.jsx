@@ -22,6 +22,7 @@ import {
   Eye,
   Lock,
   AlignLeft,
+  AlertCircle,
 } from "lucide-react";
 import {
   Select,
@@ -228,7 +229,7 @@ export default function UploadDocumentDialog({
     const file = event.target.files?.[0];
     if (file) {
       if (!isSupportedFile(file)) {
-        toast.error("Hệ thống chỉ hỗ trợ các định dạng file: .pdf, .doc, .docx, .ppt, .pptx");
+        toast.error("Supported file formats: .pdf, .doc, .docx, .ppt, .pptx");
         setSelectedFile(null);
         if (event.target) event.target.value = "";
         return;
@@ -374,8 +375,13 @@ export default function UploadDocumentDialog({
         return;
       }
 
-      toast.error("Upload failed", { id: toastId });
-      setUploadError("Upload failed. Please try again.");
+      toast.error(
+        error.response?.data?.message || "Upload failed. Please try again.",
+        { id: toastId },
+      );
+      setUploadError(
+        error.response?.data?.message || "Upload failed. Please try again.",
+      );
     } finally {
       setUploading(false);
     }
@@ -383,7 +389,7 @@ export default function UploadDocumentDialog({
 
   const handleUploadDocument = async () => {
     if (!selectedFile || !isSupportedFile(selectedFile)) {
-      const message = "Hệ thống chỉ hỗ trợ các định dạng file: .pdf, .doc, .docx, .ppt, .pptx";
+      const message = "Supported file formats: .pdf, .doc, .docx, .ppt, .pptx";
       setUploadError(message);
       toast.error(message);
       return;
@@ -410,14 +416,26 @@ export default function UploadDocumentDialog({
       return;
     }
 
-    if (maxFileSizeBytes && selectedFile.size > maxFileSizeBytes) {
-      setQuotaDialog({
-        open: true,
-        type: "FILE_SIZE",
-        message: `Maximum file size for your plan is ${maxFileSizeMb}MB.`,
-        fileSize: selectedFile.size,
-      });
-      return;
+    if (selectedFile) {
+      const SYSTEM_MAX_BYTES = 10 * 1024 * 1024;
+      if (selectedFile.size > SYSTEM_MAX_BYTES) {
+        setQuotaDialog({
+          open: true,
+          type: "FILE_SIZE",
+          message: "The system does not support files larger than 10MB.",
+          fileSize: selectedFile.size,
+        });
+        return;
+      }
+      if (maxFileSizeBytes && selectedFile.size > maxFileSizeBytes) {
+        setQuotaDialog({
+          open: true,
+          type: "FILE_SIZE",
+          message: `Maximum file size for your plan is ${maxFileSizeMb}MB.`,
+          fileSize: selectedFile.size,
+        });
+        return;
+      }
     }
 
     if (!selectedSubject && !subjectNameOpen) {
@@ -731,19 +749,20 @@ export default function UploadDocumentDialog({
               </Select>
             </div>
           </div>
-          <DialogFooter className="pt-4 flex-shrink-0">
-            {uploadError && (
-              <p className="text-xs text-red-500 w-full text-left mb-2 font-medium">
-                {uploadError}
-              </p>
-            )}
+          <DialogFooter className="pt-4 flex-shrink-0 !flex-col !space-x-0 sm:!flex-col gap-2.5 w-full">
             <Button
-              className="w-full h-10 bg-[#f26522] hover:bg-[#f44d00] text-white font-bold rounded-xl cursor-pointer hover:scale-[1.01] active:scale-[0.99] transition-all duration-200"
+              className="w-full h-11 bg-[#f26522] hover:bg-[#f44d00] text-white font-bold rounded-xl cursor-pointer hover:scale-[1.005] active:scale-[0.995] transition-all duration-200"
               onClick={handleUploadDocument}
               disabled={uploading}
             >
               {uploading ? "Uploading..." : "Upload"}
             </Button>
+            {uploadError && (
+              <div className="flex items-center gap-2 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium w-full animate-in fade-in slide-in-from-top-1 duration-200">
+                <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+                <span className="leading-snug break-words flex-1">{uploadError}</span>
+              </div>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

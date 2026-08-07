@@ -21,8 +21,13 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     long countBySubscriptionTier(String subscriptionTier);
 
-    java.util.List<User> findBySubscriptionTier(SubscriptionTier subscriptionTier);
+    java.util.List<User> findBySubscriptionTier(String subscriptionTier);
 
     @Query("SELECT u FROM User u JOIN u.followedCourses c WHERE c.id = :courseId")
     java.util.List<User> findUsersByFollowedCourseId(@Param("courseId") UUID courseId);
+
+    java.util.List<User> findByRole_Name(String roleName);
+
+    @Query("SELECT u FROM User u WHERE UPPER(u.role.name) = 'ADMIN' OR UPPER(u.role.name) = 'ROLE_ADMIN'")
+    java.util.List<User> findAllAdmins();
 }

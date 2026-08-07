@@ -80,7 +80,7 @@ export default function LandingPage() {
 
   const handleUpgrade = async (targetPlanCode = "PRO") => {
     if (!isLoggedIn) {
-      alert("Vui lòng đăng nhập để nâng cấp!");
+      alert("Please log in to upgrade!");
       navigate("/login");
       return;
     }

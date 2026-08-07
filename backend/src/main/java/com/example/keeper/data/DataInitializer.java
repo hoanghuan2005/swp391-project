@@ -2,6 +2,7 @@ package com.example.keeper.data;
 
 import com.example.keeper.systems.auth.entity.Language;
 import com.example.keeper.systems.auth.entity.Role;
+import com.example.keeper.systems.auth.entity.SubscriptionPlan;
 import com.example.keeper.systems.auth.entity.User;
 import com.example.keeper.systems.auth.repository.LanguageRepository;
 import com.example.keeper.systems.auth.repository.RoleRepository;
@@ -67,7 +68,7 @@ public class DataInitializer implements CommandLineRunner {
                  */
                 if (subscriptionPlanRepository.count() == 0) {
                         subscriptionPlanRepository.saveAll(List.of(
-                                         com.example.keeper.systems.auth.entity.SubscriptionPlan.builder()
+                                        SubscriptionPlan.builder()
                                                         .code("FREE")
                                                         .name("Free Plan")
                                                         .priceVnd(0L)
@@ -85,7 +86,7 @@ public class DataInitializer implements CommandLineRunner {
                                                         .maxChunkChars(400)
                                                         .isActive(true)
                                                         .build(),
-                                        com.example.keeper.systems.auth.entity.SubscriptionPlan.builder()
+                                        SubscriptionPlan.builder()
                                                         .code("PRO")
                                                         .name("Pro Plan")
                                                         .priceVnd(99000L)
@@ -105,6 +106,22 @@ public class DataInitializer implements CommandLineRunner {
                                                         .build()));
                         System.out.println("Seeded subscription plans");
                 }
+
+                subscriptionPlanRepository.findByCode("FREE").ifPresent(freePlan -> {
+                        if (freePlan.getMaxFileSizeBytes() == null || freePlan.getMaxFileSizeBytes() != 5L * 1024 * 1024) {
+                                freePlan.setMaxFileSizeBytes(5L * 1024 * 1024);
+                                subscriptionPlanRepository.save(freePlan);
+                                System.out.println("Updated FREE plan maxFileSizeBytes to 5MB");
+                        }
+                });
+
+                subscriptionPlanRepository.findByCode("PRO").ifPresent(proPlan -> {
+                        if (proPlan.getMaxFileSizeBytes() == null || proPlan.getMaxFileSizeBytes() != 10L * 1024 * 1024) {
+                                proPlan.setMaxFileSizeBytes(10L * 1024 * 1024);
+                                subscriptionPlanRepository.save(proPlan);
+                                System.out.println("Updated PRO plan maxFileSizeBytes to 10MB");
+                        }
+                });
 
                 /*
                  * =========================
