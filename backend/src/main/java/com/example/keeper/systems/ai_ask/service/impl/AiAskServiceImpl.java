@@ -57,7 +57,7 @@ public class AiAskServiceImpl implements AiAskService {
     private final DocumentParserService documentParserService;
     private final SubscriptionPlanRepository subscriptionPlanRepository;
 
-    private static final double SIMILARITY_THRESHOLD = 0.35;
+    private static final double SIMILARITY_THRESHOLD = 0.25;
 
     @Override
     @Transactional
@@ -65,8 +65,8 @@ public class AiAskServiceImpl implements AiAskService {
         var auth = SecurityContextHolder.getContext().getAuthentication();
         String email = (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getName())) ? auth.getName() : null;
 
-        int maxAiContextChunks = 4;
-        int maxChunkChars = 400;
+        int maxAiContextChunks = 8;
+        int maxChunkChars = 800;
 
         if (email != null) {
             if (request.getDocumentIds() != null && !request.getDocumentIds().isEmpty()) {
@@ -87,7 +87,7 @@ public class AiAskServiceImpl implements AiAskService {
             }
         }
         
-        int maxIntroFallbackChunks = Math.max(1, maxAiContextChunks / 3);
+        int maxIntroFallbackChunks = maxAiContextChunks;
 
         AiConversation conversation = null;
         List<AiMessage> history = new ArrayList<>();
@@ -121,10 +121,20 @@ public class AiAskServiceImpl implements AiAskService {
         List<AskAIResponse.SourceReference> sources = new ArrayList<>();
 
         boolean isProjectRequest = (request.getShareToken() != null && !request.getShareToken().isBlank()) || request.getProjectId() != null;
-        boolean hasDocumentSelection = request.getDocumentIds() != null && !request.getDocumentIds().isEmpty();
+
+        // Nhận diện User chủ động click bỏ chọn tất cả file (Mảng rỗng)
+        boolean explicitlyUnselected = request.getDocumentIds() != null && request.getDocumentIds().isEmpty();
+        boolean hasDocumentSelection = !explicitlyUnselected && request.getDocumentIds() != null;
+
+        if (!isProjectRequest) {
+            // Chỉ lấy context từ Conversation ID cũ nếu User KHÔNG chủ động bỏ chọn
+            if (!explicitlyUnselected) {
+                hasDocumentSelection = hasDocumentSelection || request.getDocumentId() != null || (conversation != null && conversation.getDocumentId() != null);
+            }
+        }
 
         if (isProjectRequest) {
-            if (hasDocumentSelection) {
+            if (hasDocumentSelection) { // Chỉ lấy context nếu User CÓ chọn file
                 boolean hasRelevantProjectContext = appendProjectContext(contextBlock, request, sources, maxAiContextChunks, maxChunkChars, maxIntroFallbackChunks);
                 if (!hasRelevantProjectContext) {
                     appendNoRelevantProjectContextInstruction(contextBlock);
@@ -133,7 +143,9 @@ public class AiAskServiceImpl implements AiAskService {
         } else if (request.getMode() == AiAskMode.HOMEPAGE_ASSISTANT) {
             appendHomepageAssistantContext(contextBlock, request.getMessage(), sources);
         } else {
-            appendDocumentContext(contextBlock, request, conversation, sources, maxAiContextChunks, maxChunkChars, maxIntroFallbackChunks);
+            if (hasDocumentSelection) { // Chỉ lấy context nếu User CÓ chọn file
+                appendDocumentContext(contextBlock, request, conversation, sources, maxAiContextChunks, maxChunkChars, maxIntroFallbackChunks);
+            }
         }
 
         String systemPrompt = buildSystemInstruction(request, isProjectRequest, hasDocumentSelection);
@@ -172,7 +184,7 @@ public class AiAskServiceImpl implements AiAskService {
                 3. Do NOT use past history to guess or fabricate facts about unselected documents.
                 4. Answer general knowledge or conversational questions normally.
                 5. Respond naturally in the same language as the user's latest message.
-                6. Do NOT invent citations, source numbers, or bracketed references.
+                6. CRITICAL: Do NOT invent citations, source numbers, or bracketed references. DO NOT copy or reuse citations (like [1], [2]) from the chat history.
                 """;
             }
         } else if (request.getMode() == AiAskMode.HOMEPAGE_ASSISTANT) {
@@ -206,6 +218,7 @@ public class AiAskServiceImpl implements AiAskService {
                 3. Do NOT hallucinate or guess details from the Conversation History if the user asks for specific document facts.
                 4. Answer general knowledge questions normally.
                 5. Respond in the same language as the user's latest message.
+                6. CRITICAL: Do NOT invent citations, source numbers, or bracketed references. DO NOT copy or reuse citations (like [1], [2]) from the chat history.
                 """;
             }
         }
@@ -215,19 +228,26 @@ public class AiAskServiceImpl implements AiAskService {
     private String buildUserContent(AskAIRequest request, List<AiMessage> history, StringBuilder contextBlock) {
         StringBuilder sb = new StringBuilder();
 
+        // 1. Nhét History lên đầu (Để AI đọc bối cảnh cũ trước mà không bị nhiễu)
+        if (!history.isEmpty()) {
+            sb.append("--- PREVIOUS CHAT HISTORY ---\n");
+            for (AiMessage message : history) {
+                sb.append(message.getRole()).append(": ").append(message.getContent()).append("\n");
+            }
+            sb.append("--- END CHAT HISTORY ---\n\n");
+        }
+
+        // 2. Nhét Context vào giữa (Để nó gần với câu hỏi hiện tại)
         if (contextBlock != null && contextBlock.length() > 0) {
             sb.append(contextBlock);
         }
 
-        if (!history.isEmpty()) {
-            sb.append("\n--- CHAT CONVERSATION HISTORY ---\n");
-            for (AiMessage message : history) {
-                sb.append(message.getRole()).append(": ").append(message.getContent()).append("\n");
-            }
-        }
-
+        // 3. Câu hỏi mới nhất đặt ở cuối cùng, đóng khung rõ ràng để ép AI phải focus
         String userQuery = request.getMessage() != null ? request.getMessage() : "Please introduce yourself and summarize these files.";
-        sb.append("\nUSER: ").append(userQuery).append("\nASSISTANT: ");
+        sb.append("\n=== CURRENT USER QUESTION ===\n");
+        sb.append(userQuery).append("\n");
+        sb.append("=============================\n");
+        sb.append("ASSISTANT: ");
 
         return sb.toString();
     }
@@ -419,6 +439,19 @@ public class AiAskServiceImpl implements AiAskService {
                         }
                         hasReadyContext = true;
                         log.info("Using intro-fallback chunks ({}) for generic project query", introSample.size());
+                    } else {
+                        // Metadata fallback for empty chunks
+                        for (Document doc : project.getDocuments()) {
+                            if (validDocIds.contains(doc.getId())) {
+                                String desc = doc.getDescription();
+                                String text = (desc != null && !desc.trim().isEmpty()) ? "Document Title: " + doc.getTitle() + "\nDocument Description: " + desc : "Document Title: " + doc.getTitle();
+                                int sourceIdx = sources.size() + 1;
+                                contextBlock.append("\n[Source ").append(sourceIdx).append(": ").append(doc.getTitle()).append("]\n");
+                                contextBlock.append(text).append("\n");
+                                addSourceWithExcerpt(sources, sourceIdx, doc, text);
+                            }
+                        }
+                        hasReadyContext = !validDocIds.isEmpty();
                     }
                 }
             }
@@ -432,11 +465,11 @@ public class AiAskServiceImpl implements AiAskService {
     }
 
     private void appendNoRelevantProjectContextInstruction(StringBuilder prompt) {
-        prompt.append("No clearly relevant workspace source excerpts were found for this question.\n");
+        prompt.append("I searched the requested workspace documents but could not find relevant information.\n");
         prompt.append("You are still in Project Workspace mode.\n");
         prompt.append("Respond in the same language as the user's latest message.\n");
         prompt.append("Do not invent factual answers that are not supported by workspace sources.\n");
-        prompt.append("If the user asks about document/workspace content and the sources are insufficient, ").append("say that the workspace sources do not contain enough information.\n");
+        prompt.append("If the user asks about document/workspace content and the sources are insufficient, say that you could not find the answer in the selected documents.\n");
         prompt.append("If the user is asking a conversational, clarification, or capability question, ").append("answer naturally and briefly.\n");
     }
 

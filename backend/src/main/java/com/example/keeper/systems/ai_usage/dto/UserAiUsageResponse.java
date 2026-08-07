@@ -11,7 +11,13 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class UserAiUsageResponse {
     private String planName;
+    private String subscriptionTier;
     private Integer maxDailyAiRequests;
     private Integer usedAiRequestsToday;
     private Integer remainingUsage;
+    private Integer maxSelectedDocs;
+    private Integer maxPersonalDocs;
+    private Integer maxWorkspaceDocs;
+    private Integer maxAiContextChunks;
+    private Integer maxChunkChars;
 }

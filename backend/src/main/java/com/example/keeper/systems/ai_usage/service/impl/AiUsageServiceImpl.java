@@ -87,11 +87,23 @@ public class AiUsageServiceImpl implements AiUsageService {
                 ? -1
                 : Math.max(0, maxDailyAiRequests - usedAiRequestsToday);
 
+        int maxSelectedDocs = (plan != null && plan.getMaxSelectedDocs() != null) ? plan.getMaxSelectedDocs() : 2;
+        int maxPersonalDocs = (plan != null && plan.getMaxPersonalDocs() != null) ? plan.getMaxPersonalDocs() : 2;
+        int maxWorkspaceDocs = (plan != null && plan.getMaxWorkspaceDocs() != null) ? plan.getMaxWorkspaceDocs() : 10;
+        int maxAiContextChunks = (plan != null && plan.getMaxAiContextChunks() != null) ? plan.getMaxAiContextChunks() : 4;
+        int maxChunkChars = (plan != null && plan.getMaxChunkChars() != null) ? plan.getMaxChunkChars() : 400;
+
         return UserAiUsageResponse.builder()
                 .planName(planName)
+                .subscriptionTier(tierCode)
                 .maxDailyAiRequests(maxDailyAiRequests)
                 .usedAiRequestsToday(usedAiRequestsToday)
                 .remainingUsage(remainingUsage)
+                .maxSelectedDocs(maxSelectedDocs)
+                .maxPersonalDocs(maxPersonalDocs)
+                .maxWorkspaceDocs(maxWorkspaceDocs)
+                .maxAiContextChunks(maxAiContextChunks)
+                .maxChunkChars(maxChunkChars)
                 .build();
     }
 
