@@ -220,7 +220,8 @@ public class AiFlashcardService {
         return mapToFlashcardSetResponse(set);
     }
 
-    public void publishFlashcardSet(UUID id, UUID courseId, String visibility, String userEmail) {
+    @Transactional
+    public void publishFlashcardSet(UUID id, List<UUID> courseIds, String visibility, String userEmail) {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
@@ -231,12 +232,41 @@ public class AiFlashcardService {
             throw new RuntimeException("You do not have permission to publish this flashcard set");
         }
 
-        set.setCourseId(courseId);
+        if (courseIds == null || courseIds.isEmpty()) {
+            throw new IllegalArgumentException("At least one courseId is required for publishing");
+        }
+
+        UUID firstCourseId = courseIds.get(0);
+        set.setCourseId(firstCourseId);
         set.setVisibility(visibility != null ? visibility : "PRIVATE");
         set.setStatus("PUBLISHED");
         set.setSavedToLibrary(true);
-
         flashcardSetRepository.save(set);
+
+        // Clones for subsequent courses
+        for (int i = 1; i < courseIds.size(); i++) {
+            UUID cId = courseIds.get(i);
+            FlashcardSet clonedSet = new FlashcardSet();
+            clonedSet.setTitle(set.getTitle());
+            clonedSet.setSourceText(set.getSourceText());
+            clonedSet.setStatus("PUBLISHED");
+            clonedSet.setVisibility(visibility != null ? visibility : "PRIVATE");
+            clonedSet.setSavedToLibrary(true);
+            clonedSet.setCourseId(cId);
+            clonedSet.setUser(set.getUser());
+            clonedSet.setDocument(set.getDocument());
+            FlashcardSet savedClone = flashcardSetRepository.save(clonedSet);
+
+            List<Flashcard> originalCards = flashcardRepository.findByFlashcardSetId(set.getId());
+            List<Flashcard> clonedCards = originalCards.stream().map(card -> {
+                Flashcard clonedCard = new Flashcard();
+                clonedCard.setTerm(card.getTerm());
+                clonedCard.setDefinition(card.getDefinition());
+                clonedCard.setFlashcardSet(savedClone);
+                return clonedCard;
+            }).collect(Collectors.toList());
+            flashcardRepository.saveAll(clonedCards);
+        }
     }
 
     public List<FlashcardSetResponse> getCourseFlashcardSets(UUID courseId) {
@@ -324,7 +354,7 @@ public class AiFlashcardService {
         }
 
         int chunksPerDoc = Math.max(1, 8 / documentIds.size());
-        StringBuilder contentBuilder = new StringBuilder();
+        List<String> rawDocContents = new java.util.ArrayList<>();
 
         for (UUID docId : documentIds) {
             Document document = documentRepository.findById(docId).orElse(null);
@@ -351,20 +381,35 @@ public class AiFlashcardService {
             }
 
             if (!docChunks.isEmpty()) {
+                StringBuilder docContentBuilder = new StringBuilder();
+                docContentBuilder.append("=== FILE: ").append(docTitle).append(" ===\n");
+                for (DocumentChunk chunk : docChunks) {
+                    docContentBuilder.append(chunk.getContent()).append("\n");
+                }
+                rawDocContents.add(docContentBuilder.toString());
+            } else {
+                rawDocContents.add("");
+            }
+        }
+
+        List<String> satisfies = com.example.keeper.util.ContentBudgetUtils.distributeBudget(rawDocContents, 10000);
+        StringBuilder contentBuilder = new StringBuilder();
+        for (String docContent : satisfies) {
+            if (docContent != null && !docContent.trim().isEmpty()) {
                 if (contentBuilder.length() > 0) {
                     contentBuilder.append("\n\n");
                 }
-                contentBuilder.append("=== FILE: ").append(docTitle).append(" ===\n");
-                for (DocumentChunk chunk : docChunks) {
-                    contentBuilder.append(chunk.getContent()).append("\n");
-                }
+                contentBuilder.append(docContent);
             }
         }
 
         String content = contentBuilder.toString();
 
         Document firstDoc = documentRepository.findById(documentIds.get(0)).orElse(null);
-        String defaultTitle = firstDoc != null ? firstDoc.getTitle() : "AI Flashcard Set";
+        String docTitle = firstDoc != null ? firstDoc.getTitle() : "AI Flashcard Set";
+        String defaultTitle = documentIds.size() > 1 
+                ? docTitle + " (+" + (documentIds.size() - 1) + ")" 
+                : docTitle;
 
         if (content.trim().isEmpty()) {
             if (firstDoc != null) {
@@ -376,10 +421,6 @@ public class AiFlashcardService {
                 }
             }
             log.info("Using document metadata fallback content for flashcard generation on documents: {}", documentIds);
-        }
-
-        if (content.length() > 10000) {
-            content = content.substring(0, 10000);
         }
 
         return generateFlashcardsFromContent(content, defaultTitle, firstDoc, email);
@@ -398,10 +439,16 @@ public class AiFlashcardService {
                 ? "Tạo tối đa " + maxCards + " flashcards. "
                 : "";
 
+        String distributionInstruction = "";
+        if (content.contains("=== FILE: ")) {
+            distributionInstruction = "Văn bản cung cấp chứa thông tin từ nhiều file khác nhau (được ngăn cách bởi '=== FILE: <tên file> ==='). Bạn BẮT BUỘC phải trích xuất đều các khái niệm từ TẤT CẢ các file này để đảm bảo mỗi file đều có flashcard đại diện. ";
+        }
+
         String systemPrompt = "Bạn là trợ lý AI chuyên tạo flashcard. "
                 + "Nhiệm vụ: Trích xuất các khái niệm (term) và định nghĩa (definition) "
                 + "TỪ ĐÚNG NỘI DUNG VĂN BẢN MÀ USER CUNG CẤP. "
                 + cardLimitInstruction
+                + distributionInstruction
                 + "Tuyệt đối KHÔNG tự bịa ra nội dung nếu văn bản không có. "
                 + "Luôn trả về duy nhất 1 mảng JSON hợp lệ, không markdown, không giải thích thêm.";
 

@@ -1,4 +1,4 @@
-import { Search, Loader2, FileText, CheckCircle2, Trash2, Globe } from "lucide-react";
+import { Search, Loader2, FileText, CheckCircle2, Trash2, Globe, Eye } from "lucide-react";
 import { toast } from "sonner";
 
 const SidebarDocuments = ({
@@ -8,6 +8,7 @@ const SidebarDocuments = ({
   onSelectDocument,
   onDeleteDocument,
   onOpenPublicModal,
+  onPreviewDocument,
   searchDocQuery,
   setSearchDocQuery,
   fileInputRef,
@@ -171,25 +172,45 @@ const SidebarDocuments = ({
                         </span>
                       )}
                     </div>
+                    {doc.description && (
+                      <p className="mt-1 text-[9px] text-slate-500 line-clamp-1 italic text-left">
+                        {doc.description}
+                      </p>
+                    )}
                   </div>
 
-                  {isSelected && !onDeleteDocument && (
+                  {isSelected && !onDeleteDocument && !onPreviewDocument && (
                     <CheckCircle2 className="w-4 h-4 text-[#f26522] shrink-0" />
                   )}
                 </button>
 
-                {/* DELETE ACTIONS BUTTON */}
-                {onDeleteDocument && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDeleteDocument(doc.id);
-                    }}
-                    className="absolute right-2 opacity-0 group-hover:opacity-100 p-1.5 bg-white/80 backdrop-blur-sm shadow-sm hover:bg-red-50 rounded-lg text-slate-400 hover:text-red-500 transition-all border border-slate-100 cursor-pointer z-10"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                )}
+                {/* ACTIONS BUTTONS */}
+                <div className="absolute right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all z-10">
+                  {onPreviewDocument && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onPreviewDocument(doc);
+                      }}
+                      className="p-1.5 bg-white/90 backdrop-blur-sm shadow-sm hover:bg-orange-50 rounded-lg text-slate-400 hover:text-[#f26522] transition-colors border border-slate-100 cursor-pointer"
+                      title="Preview Document"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                  {onDeleteDocument && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteDocument(doc.id);
+                      }}
+                      className="p-1.5 bg-white/90 backdrop-blur-sm shadow-sm hover:bg-red-50 rounded-lg text-slate-400 hover:text-red-500 transition-colors border border-slate-100 cursor-pointer"
+                      title="Remove Document"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
               </div>
             );
           })

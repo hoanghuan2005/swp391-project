@@ -66,8 +66,7 @@ export default function UnifiedAIChat({
     }
   }, [mode]);
 
-  const { tierLimits } = useAiUsage();
-  const maxPersonalDocs = tierLimits?.maxPersonalDocs ?? 2;
+  const { maxSelectedDocs = 2, refreshAiUsage } = useAiUsage();
 
   const [quotaDialog, setQuotaDialog] = useState({
     open: false,
@@ -84,7 +83,6 @@ export default function UnifiedAIChat({
   const [confirmTarget, setConfirmTarget] = useState(null);
   const [isConfirming, setIsConfirming] = useState(false);
 
-  const { refreshAiUsage } = useAiUsage();
   const documentsRef = useRef([]);
   const userSelectedDocumentRef = useRef(false);
   const restoredRef = useRef(false);
@@ -260,6 +258,7 @@ export default function UnifiedAIChat({
       const payload = {
         title: targetDoc ? `Chat: ${docTitle}` : "New Chat",
         documentId: targetDoc ? targetDoc.id : null,
+        documentIds: targetDoc ? [targetDoc.id] : [],
         projectId: isWorkspace && workspaceId ? workspaceId : null,
       };
 
@@ -393,7 +392,7 @@ export default function UnifiedAIChat({
       const payload = {
         conversationId: currentConv && currentConv.id !== "main" ? currentConv.id : null,
         message: userMessageContent,
-        documentIds: selectedDocIds.length > 0 ? selectedDocIds : null,
+        documentIds: selectedDocIds, // Send empty array to signify explicit unselection
         documentId: selectedDocIds[0] || null,
         projectId: isWorkspace && workspaceId ? workspaceId : null,
         shareToken: shareToken || null,
@@ -474,7 +473,7 @@ export default function UnifiedAIChat({
     userSelectedDocumentRef.current = true;
     const userDocIds = new Set(documents.map((d) => d.id));
     const userSelectedUserDocs = selectedDocs.filter((sd) => userDocIds.has(sd.id));
-    const combined = [...userSelectedUserDocs, ...newPublicDocs].slice(0, maxPersonalDocs);
+    const combined = [...userSelectedUserDocs, ...newPublicDocs].slice(0, maxSelectedDocs);
     setSelectedDocs(combined);
   };
 
@@ -562,6 +561,7 @@ export default function UnifiedAIChat({
           className="h-full shrink-0 flex flex-col relative min-w-0"
         >
           <AISidebar
+            className="w-full"
             type={sidebarType}
             histories={conversations}
             documents={filteredDocuments}
@@ -574,6 +574,7 @@ export default function UnifiedAIChat({
             onSelectDocument={handleSelectDocument}
             onDeleteDocument={onDeleteDocument}
             onOpenPublicModal={!isWorkspace ? () => setPublicModalOpen(true) : null}
+            onPreviewDocument={(doc) => setPreviewModalState({ open: true, documentId: doc.id, title: doc.title || doc.name })}
             onCreate={() => handleCreateNewChat(null)}
             searchDocQuery={searchDocQuery}
             setSearchDocQuery={setSearchDocQuery}
@@ -608,10 +609,10 @@ export default function UnifiedAIChat({
           }
           subtitle={
             selectedDocs.length > 0
-              ? `Focused on ${selectedDocs.length} document${selectedDocs.length > 1 ? "s" : ""} (${selectedDocs.length}/${maxPersonalDocs})`
+              ? `Focused on ${selectedDocs.length} document${selectedDocs.length > 1 ? "s" : ""} (${selectedDocs.length}/${maxSelectedDocs})`
               : isWorkspace
-                ? `Workspace General Knowledge mode (Select up to ${maxPersonalDocs} document${maxPersonalDocs > 1 ? "s" : ""} to filter context)`
-                : `General AI Assistant mode (Select up to ${maxPersonalDocs} document${maxPersonalDocs > 1 ? "s" : ""} to ask about them)`
+                ? `Workspace AI Assistant (Select up to ${maxSelectedDocs} document${maxSelectedDocs > 1 ? "s" : ""} to provide context)`
+                : `General AI Assistant mode (Select up to ${maxSelectedDocs} document${maxSelectedDocs > 1 ? "s" : ""} to ask about them)`
           }
           messages={messages}
           isLoadingMessages={isLoadingMessages}
@@ -635,7 +636,7 @@ export default function UnifiedAIChat({
             <p className="text-xs text-slate-500 leading-relaxed mb-6">
               {isWorkspace
                 ? "Select specific project documents from the sidebar to query them with citations, or ask general questions directly using AI General Knowledge."
-                : `Upload or select up to ${maxPersonalDocs} course document${maxPersonalDocs > 1 ? "s" : ""} from the sidebar to ask questions with notebook-style citations, or start typing below for a general chat.`}
+                : `Upload or select up to ${maxSelectedDocs} course document${maxSelectedDocs > 1 ? "s" : ""} from the sidebar to ask questions with notebook-style citations, or start typing below for a general chat.`}
             </p>
           </div>
         }
@@ -646,7 +647,7 @@ export default function UnifiedAIChat({
               <div className="flex items-center gap-1.5 px-3 py-1 bg-orange-50 border border-orange-100 rounded-md text-[10px] text-slate-600 font-semibold w-fit">
                 <CheckSquare className="w-3.5 h-3.5 text-[#f26522]" />
                 <span>
-                  Focused on <strong className="text-[#f26522]">{selectedDocs.length} / {maxPersonalDocs}</strong> documents
+                  Focused on <strong className="text-[#f26522]">{selectedDocs.length} / {maxSelectedDocs}</strong> documents
                 </span>
                 <button
                   onClick={handleClearSelection}
@@ -719,13 +720,23 @@ export default function UnifiedAIChat({
         </DialogContent>
       </Dialog>
 
+      <DocumentPreviewModal
+        open={previewModalState.open}
+        onOpenChange={(open) =>
+          setPreviewModalState((prev) => ({ ...prev, open }))
+        }
+        documentId={previewModalState.documentId}
+        documentTitle={previewModalState.title}
+      />
+
       <PublicDocumentModal
         open={publicModalOpen}
         onOpenChange={setPublicModalOpen}
         userDocuments={documents}
         alreadySelectedDocs={selectedDocs}
         onAddPublicDocs={handleAddPublicDocs}
-        maxPersonalDocs={maxPersonalDocs}
+        maxPersonalDocs={maxSelectedDocs}
+        onPreviewDocument={(doc) => setPreviewModalState({ open: true, documentId: doc.id, title: doc.title || doc.name })}
       />
     </div>
   );

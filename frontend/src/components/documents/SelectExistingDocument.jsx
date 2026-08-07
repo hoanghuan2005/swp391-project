@@ -21,6 +21,8 @@ export default function SelectExistingDocumentModal({
   projectId, // Optional: if provided, works as multi-select project linker
   existingWorkspaceDocIds = [], // Optional: Array of document IDs or document objects already in current workspace
   onSuccess, // Passes data back to parent component upon completion
+  maxWorkspaceDocs = 10,
+  currentWorkspaceDocCount = 0,
 }) {
   const { documents, loading, refreshDocuments } = useDocuments();
   const [searchQuery, setSearchQuery] = useState("");
@@ -60,9 +62,15 @@ export default function SelectExistingDocumentModal({
         return prev.includes(docId) ? [] : [docId];
       } else {
         // Multi selection behavior (original project workspace logic)
-        return prev.includes(docId)
-          ? prev.filter((id) => id !== docId)
-          : [...prev, docId];
+        if (prev.includes(docId)) {
+          return prev.filter((id) => id !== docId);
+        } else {
+          if (currentWorkspaceDocCount + prev.length >= maxWorkspaceDocs) {
+            toast.error(`Workspace document limit reached (${maxWorkspaceDocs} docs).`);
+            return prev;
+          }
+          return [...prev, docId];
+        }
       }
     });
   };
@@ -223,24 +231,33 @@ export default function SelectExistingDocumentModal({
           </ScrollArea>
         </div>
 
-        <DialogFooter className="mt-2">
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            className="rounded-xl h-10 font-semibold"
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={handleAction}
-            disabled={isLinking || selectedDocIds.length === 0}
-            className="rounded-xl h-10 bg-[#f26522] hover:bg-[#de5b0b] text-white font-bold px-6"
-          >
-            {isLinking && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-            {isSelectionOnlyMode
-              ? "Select Document"
-              : `Add (${selectedDocIds.length})`}
-          </Button>
+        <DialogFooter className="mt-2 flex items-center justify-between sm:justify-between w-full">
+          {!isSelectionOnlyMode ? (
+            <div className="text-sm font-medium text-slate-500">
+              {maxWorkspaceDocs - currentWorkspaceDocCount} slots remaining
+            </div>
+          ) : (
+            <div></div> // Placeholder to keep buttons on the right
+          )}
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              className="rounded-xl h-10 font-semibold"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleAction}
+              disabled={isLinking || selectedDocIds.length === 0}
+              className="rounded-xl h-10 bg-[#f26522] hover:bg-[#de5b0b] text-white font-bold px-6"
+            >
+              {isLinking && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+              {isSelectionOnlyMode
+                ? "Select Document"
+                : `Add (${selectedDocIds.length})`}
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -113,6 +113,7 @@ function App() {
           />
           <Route path="/courses/:id" element={<CourseDetailPage />} />
           <Route path="/quiz/:id" element={<AIQuizTakePage />} />
+          <Route path="/quiz/attempts/:attemptId" element={<AIQuizTakePage />} />
           <Route path="/flashcard" element={<AIFlashcard />} />
           <Route path="/flashcard/:id" element={<AIFlashcardStudyPage />} />
           <Route

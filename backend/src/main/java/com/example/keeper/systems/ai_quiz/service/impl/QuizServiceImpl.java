@@ -194,7 +194,7 @@ public class QuizServiceImpl implements QuizService {
 
     @Override
     @Transactional
-    public void publishQuiz(UUID id, UUID courseId, String visibility, String userEmail) {
+    public void publishQuiz(UUID id, List<UUID> courseIds, String visibility, String userEmail) {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
@@ -205,12 +205,43 @@ public class QuizServiceImpl implements QuizService {
             throw new RuntimeException("You do not have permission to publish this quiz");
         }
 
-        quiz.setCourseId(courseId);
+        if (courseIds == null || courseIds.isEmpty()) {
+            throw new IllegalArgumentException("At least one courseId is required for publishing");
+        }
+
+        UUID firstCourseId = courseIds.get(0);
+        quiz.setCourseId(firstCourseId);
         quiz.setVisibility(visibility != null ? visibility : "PRIVATE");
         quiz.setStatus("PUBLISHED");
         quiz.setSavedToLibrary(true);
-        
         quizRepository.save(quiz);
+
+        // Clones for subsequent courses
+        for (int i = 1; i < courseIds.size(); i++) {
+            UUID cId = courseIds.get(i);
+            Quiz clonedQuiz = new Quiz();
+            clonedQuiz.setTitle(quiz.getTitle());
+            clonedQuiz.setDocumentId(quiz.getDocumentId());
+            clonedQuiz.setProjectId(quiz.getProjectId());
+            clonedQuiz.setCourseId(cId);
+            clonedQuiz.setStatus("PUBLISHED");
+            clonedQuiz.setVisibility(visibility != null ? visibility : "PRIVATE");
+            clonedQuiz.setSavedToLibrary(true);
+            clonedQuiz.setOwner(quiz.getOwner());
+            Quiz savedClone = quizRepository.save(clonedQuiz);
+
+            List<Question> clonedQuestions = quiz.getQuestions().stream().map(q -> {
+                Question clonedQ = new Question();
+                clonedQ.setQuiz(savedClone);
+                clonedQ.setContent(q.getContent());
+                clonedQ.setOptions(new java.util.ArrayList<>(q.getOptions()));
+                clonedQ.setCorrectAnswer(q.getCorrectAnswer());
+                clonedQ.setExplanation(q.getExplanation());
+                return clonedQ;
+            }).collect(Collectors.toList());
+            savedClone.setQuestions(clonedQuestions);
+            quizRepository.save(savedClone);
+        }
     }
 
     @Override

@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getFlashcardSet } from "@/api/flashcardApi";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 import FlashcardItem from "./FlashcardItem";
 import axiosClient from "@/api/axiosClient";
 import useStudyTimer from "@/hooks/useStudyTimer";

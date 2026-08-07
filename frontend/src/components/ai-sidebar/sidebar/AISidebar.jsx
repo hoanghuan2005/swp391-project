@@ -25,6 +25,7 @@ const AISidebar = ({
   onSelectDocument,
   onDeleteDocument,
   onOpenPublicModal,
+  onPreviewDocument,
 
   onCreate,
 
@@ -35,11 +36,12 @@ const AISidebar = ({
   handleUpload,
   isUploading,
   onToggleSidebar,
+  className = "w-80",
 }) => {
   const config = sidebarConfig[type];
 
   return (
-    <div className="w-80 shrink-0 h-full border-r border-slate-200 bg-white flex flex-col min-w-0">
+    <div className={`${className} shrink-0 h-full border-r border-slate-200 bg-white flex flex-col min-w-0`}>
       {/* HEADER */}
       <SidebarHeader config={config} onToggleSidebar={onToggleSidebar} />
 
@@ -72,6 +74,7 @@ const AISidebar = ({
         onSelectDocument={onSelectDocument}
         onDeleteDocument={onDeleteDocument}
         onOpenPublicModal={onOpenPublicModal}
+        onPreviewDocument={onPreviewDocument}
         searchDocQuery={searchDocQuery}
         setSearchDocQuery={setSearchDocQuery}
         fileInputRef={fileInputRef}

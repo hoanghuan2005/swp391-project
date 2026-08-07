@@ -247,7 +247,7 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
         
         String query = request.getTopic() != null && !request.getTopic().trim().isEmpty() 
             ? request.getTopic() 
-            : request.getTitle();
+            : "key concepts, terms, important definitions, and core subject matter";
             
         float[] queryEmbedding = null;
         boolean embeddingFailed = false;
@@ -290,7 +290,8 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
 
         int chunksPerDoc = Math.max(1, 8 / docIds.size());
 
-        StringBuilder contextBuilder = new StringBuilder();
+        List<String> rawDocContents = new java.util.ArrayList<>();
+
         for (UUID docId : docIds) {
             Document document = documentRepository.findById(docId).orElse(null);
             String docTitle = document != null ? document.getTitle() : "Document";
@@ -314,20 +315,29 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
             }
 
             if (!docChunks.isEmpty()) {
-                if (contextBuilder.length() > 0) {
-                    contextBuilder.append("\n\n");
-                }
-                contextBuilder.append("=== FILE: ").append(docTitle).append(" ===\n");
+                StringBuilder docContentBuilder = new StringBuilder();
+                docContentBuilder.append("=== FILE: ").append(docTitle).append(" ===\n");
                 for (DocumentChunk chunk : docChunks) {
-                    contextBuilder.append(chunk.getContent()).append("\n");
+                    docContentBuilder.append(chunk.getContent()).append("\n");
                 }
+                rawDocContents.add(docContentBuilder.toString());
+            } else {
+                rawDocContents.add("");
             }
         }
 
-        String combined = contextBuilder.toString();
+        List<String> satisfies = com.example.keeper.util.ContentBudgetUtils.distributeBudget(rawDocContents, 10000);
+        StringBuilder contextBuilder = new StringBuilder();
+        for (String docContent : satisfies) {
+            if (docContent != null && !docContent.trim().isEmpty()) {
+                if (contextBuilder.length() > 0) {
+                    contextBuilder.append("\n\n");
+                }
+                contextBuilder.append(docContent);
+            }
+        }
 
-        // Limit to 10,000 characters
-        return combined.length() > 10000 ? combined.substring(0, 10000) : combined;
+        return contextBuilder.toString();
     }
 
     private void ensureReadyForAi(Document document) {

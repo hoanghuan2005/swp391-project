@@ -3,57 +3,15 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Bot, Send, Loader2, Plus, Sparkles, FileText, Info, PanelLeftOpen, PanelLeftClose } from "lucide-react";
 import CitationModal from "@/components/citation/CitationModal";
 import { sanitizeTitle } from "@/lib/utils";
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 const MotionDiv = motion.div;
 
-const renderMessageWithCitations = (content, sources, onCitationClick) => {
-  if (!content) return null;
-  if (!sources || sources.length === 0) return content;
-
-  // Flexible citation regex matching [1], [Source 1], [doc 1], or (1)
+const preprocessCitations = (content) => {
+  if (!content) return "";
   const citationRegex = /(?:\[|\()(?:\s*Source\s*|\s*doc\s*)?(\d+)(?:\]|\))/gi;
-  const parts = [];
-  let lastIndex = 0;
-  let match;
-
-  while ((match = citationRegex.exec(content)) !== null) {
-    const matchIndex = match.index;
-    const sourceNum = parseInt(match[1], 10);
-    const source = sources.find(
-      (s) => s.index === sourceNum || s.index === Number(sourceNum),
-    ) || sources[sourceNum - 1];
-
-    if (matchIndex > lastIndex) {
-      parts.push(content.substring(lastIndex, matchIndex));
-    }
-
-    if (source) {
-      parts.push(
-        <button
-          key={`cite-${matchIndex}`}
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            onCitationClick(source);
-          }}
-          title={`Click to view source [${sourceNum}]: ${source.title || "Document"}`}
-          className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 mx-0.5 text-[10px] font-extrabold text-[#f26522] bg-orange-100/90 border border-orange-200 rounded-md hover:bg-[#f26522] hover:text-white transition-all cursor-pointer shadow-2xs align-middle"
-        >
-          {sourceNum}
-        </button>,
-      );
-    } else {
-      parts.push(match[0]);
-    }
-
-    lastIndex = citationRegex.lastIndex;
-  }
-
-  if (lastIndex < content.length) {
-    parts.push(content.substring(lastIndex));
-  }
-
-  return parts;
+  return content.replace(citationRegex, '[$1](citation-$1)');
 };
 
 export default function ChatInterface({
@@ -169,14 +127,42 @@ export default function ChatInterface({
                         MinDocu AI
                       </div>
                     )}
-                    <div className="whitespace-pre-wrap leading-relaxed text-[13px] font-medium">
+                    <div className="ai-message-content whitespace-pre-wrap leading-relaxed text-[13px] font-medium prose prose-sm max-w-none dark:prose-invert">
                       {isUser
                         ? msg.content
-                        : renderMessageWithCitations(
-                            msg.content,
-                            sources,
-                            handleCitationClick,
-                          )}
+                        : <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
+                            components={{
+                              a: ({node, href, children}) => {
+                                if (href && href.startsWith('citation-')) {
+                                  const sourceNum = parseInt(href.replace('citation-', ''), 10);
+                                  const source = sources?.find(
+                                    (s) => s.index === sourceNum || s.index === Number(sourceNum),
+                                  ) || (sources && sources[sourceNum - 1]);
+                                  
+                                  if (source) {
+                                    return (
+                                      <button
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          handleCitationClick(source);
+                                        }}
+                                        title={`Click to view source [${sourceNum}]: ${source.title || "Document"}`}
+                                        className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 mx-0.5 text-[10px] font-extrabold text-[#f26522] bg-orange-100/90 border border-orange-200 rounded-md hover:bg-[#f26522] hover:text-white transition-all cursor-pointer shadow-2xs align-middle"
+                                      >
+                                        {sourceNum}
+                                      </button>
+                                    );
+                                  }
+                                }
+                                return <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>;
+                              }
+                            }}
+                          >
+                            {preprocessCitations(msg.content)}
+                          </ReactMarkdown>
+                      }
                     </div>
                     {shouldShowSources ? (
                       <div className="mt-3 border-t border-slate-100 pt-2">

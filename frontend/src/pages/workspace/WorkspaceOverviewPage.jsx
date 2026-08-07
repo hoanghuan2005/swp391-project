@@ -52,7 +52,8 @@ import {
   requestToJoinProject,
   requestToJoinByShareToken,
   approveMemberRequest,
-  rejectMemberRequest
+  rejectMemberRequest,
+  addDocumentToProject
 } from "@/api/projectApi";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -78,6 +79,9 @@ import { forceDownload } from "@/lib/downloadHelper";
 import { getFileExtension } from "@/lib/utils";
 import UploadDocumentDialog from "@/components/documents/UploadDocumentDialog";
 import SelectExistingDocument from "@/components/documents/SelectExistingDocument";
+import PublicDocumentModal from "@/components/documents/PublicDocumentModal";
+import DocumentPreviewModal from "@/components/documents/DocumentPreviewModal";
+import useAiUsage from "@/hooks/useAiUsage";
 
 export default function WorkspaceOverviewPage() {
   const { projectId, token } = useParams();
@@ -92,7 +96,13 @@ export default function WorkspaceOverviewPage() {
 
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [isLibraryModalOpen, setIsLibraryModalOpen] = useState(false);
+  const [isPublicDocModalOpen, setIsPublicDocModalOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [previewModalState, setPreviewModalState] = useState({
+    open: false,
+    documentId: null,
+    title: "",
+  });
 
   // Collaboration State
   const [isMembersOpen, setIsMembersOpen] = useState(false);
@@ -122,6 +132,8 @@ export default function WorkspaceOverviewPage() {
   const [isGroupChatConnected, setIsGroupChatConnected] = useState(false);
   const [groupSocket, setGroupSocket] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
+
+  const { maxWorkspaceDocs = 10 } = useAiUsage();
 
   // Derived role checks (Declared before useEffect hooks to avoid TDZ ReferenceError)
   const currentUserRole = project?.currentUserRole;
@@ -488,6 +500,9 @@ export default function WorkspaceOverviewPage() {
     );
   }
 
+  const activeMemberCount = project?.members?.filter(m => m.status === "ACTIVE").length || 0;
+  const pendingMemberCount = project?.members?.filter(m => m.status === "PENDING").length || 0;
+
   const filteredDocuments = project?.documents?.filter((doc) => {
     const searchTarget = [
       doc.title,
@@ -532,17 +547,28 @@ export default function WorkspaceOverviewPage() {
 
               {/* Members Button / Badge at top-right */}
               {isActiveMember ? (
-                <button
-                  onClick={() => setIsMembersOpen(true)}
-                  className="flex items-center gap-1.5 px-4.5 py-2 rounded-full border border-orange-200/80 bg-white hover:bg-orange-50 text-slate-700 text-xs font-bold shadow-sm transition-all cursor-pointer"
-                >
-                  <Users className="w-4 h-4 text-[#f66810]" />
-                  <span>Members ({project?.members?.length || 0})</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setIsMembersOpen(true)}
+                    className="flex items-center gap-1.5 px-4.5 py-2 rounded-full border border-orange-200/80 bg-white hover:bg-orange-50 text-slate-700 text-xs font-bold shadow-sm transition-all cursor-pointer"
+                  >
+                    <Users className="w-4 h-4 text-[#f66810]" />
+                    <span>Members ({activeMemberCount})</span>
+                  </button>
+                  {isOwner && pendingMemberCount > 0 && (
+                    <button
+                      onClick={() => setIsMembersOpen(true)}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-full border border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-700 text-[11px] font-bold shadow-sm transition-all cursor-pointer animate-pulse"
+                      title="Pending join requests"
+                    >
+                      <span>+{pendingMemberCount} pending</span>
+                    </button>
+                  )}
+                </div>
               ) : (
                 <div className="flex items-center gap-1.5 px-4 py-2 rounded-full border border-slate-200 bg-slate-50 text-slate-500 text-xs font-semibold shadow-xs select-none" title="Workspace member count">
                   <Users className="w-4 h-4 text-slate-400" />
-                  <span>{project?.members?.length || 0} Members</span>
+                  <span>{activeMemberCount} Members</span>
                 </div>
               )}
             </div>
@@ -689,6 +715,13 @@ export default function WorkspaceOverviewPage() {
                         >
                           <Library className="w-5 h-5 mr-2.5 text-slate-455" />
                           Select from Library
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => setIsPublicDocModalOpen(true)}
+                          className="cursor-pointer rounded-xl hover:bg-orange-50 hover:text-[#f26522] font-semibold transition-colors p-3 mt-1"
+                        >
+                          <Globe className="w-5 h-5 mr-2.5 text-slate-455" />
+                          Browse Public Library
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -934,6 +967,44 @@ export default function WorkspaceOverviewPage() {
             projectId={projectId}
             existingWorkspaceDocIds={project?.documents?.map((d) => d.id) || []}
             onSuccess={fetchProject}
+            maxWorkspaceDocs={maxWorkspaceDocs}
+            currentWorkspaceDocCount={project?.documents?.length || 0}
+          />
+
+          <PublicDocumentModal
+            open={isPublicDocModalOpen}
+            onOpenChange={setIsPublicDocModalOpen}
+            userDocuments={project?.documents || []} // This is just for filtering already selected in UI
+            alreadySelectedDocs={project?.documents || []}
+            onAddPublicDocs={async (newDocs) => {
+              const currentCount = project?.documents?.length || 0;
+              if (currentCount + newDocs.length > maxWorkspaceDocs) {
+                toast.error(`Workspace document limit reached (${maxWorkspaceDocs} docs).`);
+                return;
+              }
+
+              try {
+                for (const doc of newDocs) {
+                  await addDocumentToProject(projectId, doc.id);
+                }
+                toast.success("Public documents successfully added to workspace!");
+                fetchProject();
+              } catch (err) {
+                console.error("Failed to add public docs", err);
+                toast.error("Failed to add some public documents.");
+              }
+            }}
+            maxPersonalDocs={maxWorkspaceDocs}
+            onPreviewDocument={(doc) => setPreviewModalState({ open: true, documentId: doc.id, title: doc.title || doc.name })}
+          />
+
+          <DocumentPreviewModal
+            open={previewModalState.open}
+            onOpenChange={(open) =>
+              setPreviewModalState((prev) => ({ ...prev, open }))
+            }
+            documentId={previewModalState.documentId}
+            documentTitle={previewModalState.title}
           />
 
           {/* Share & Visibility Modal (with nested Invite option) */}

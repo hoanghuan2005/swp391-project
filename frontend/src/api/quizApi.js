@@ -42,3 +42,24 @@ export const getCourseQuizzes = async (courseId) => {
   const response = await axiosClient.get(`/api/quizzes/course/${courseId}`);
   return response.data;
 };
+
+export const submitQuiz = async (quizId, request) => {
+  const response = await axiosClient.post(`/api/quizzes/${quizId}/submit`, request);
+  return response.data;
+};
+
+export const getMyQuizAttempts = async () => {
+  const response = await axiosClient.get("/api/quizzes/attempts/my");
+  return response.data;
+};
+
+export const getQuizAttempts = async (quizId) => {
+  const response = await axiosClient.get(`/api/quizzes/${quizId}/attempts`);
+  return response.data;
+};
+
+export const getQuizAttemptById = async (attemptId) => {
+  const response = await axiosClient.get(`/api/quizzes/attempts/${attemptId}`);
+  return response.data;
+};
+

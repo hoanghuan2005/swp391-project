@@ -83,7 +83,7 @@ public class MindMapServiceImpl implements MindMapService {
 
         // Gather chunks from each document
         int chunksPerDoc = Math.max(1, 8 / targetDocIds.size());
-        StringBuilder contentBuilder = new StringBuilder();
+        List<String> rawDocContents = new java.util.ArrayList<>();
 
         for (UUID docId : targetDocIds) {
             Document document = documentRepository.findById(docId).orElse(null);
@@ -95,24 +95,31 @@ public class MindMapServiceImpl implements MindMapService {
             }
 
             if (!docChunks.isEmpty()) {
+                StringBuilder docContentBuilder = new StringBuilder();
+                docContentBuilder.append("=== FILE: ").append(docTitle).append(" ===\n");
+                for (DocumentChunk chunk : docChunks) {
+                    docContentBuilder.append(chunk.getContent()).append("\n");
+                }
+                rawDocContents.add(docContentBuilder.toString());
+            } else {
+                rawDocContents.add("");
+            }
+        }
+
+        List<String> satisfies = com.example.keeper.util.ContentBudgetUtils.distributeBudget(rawDocContents, 10000);
+        StringBuilder contentBuilder = new StringBuilder();
+        for (String docContent : satisfies) {
+            if (docContent != null && !docContent.trim().isEmpty()) {
                 if (contentBuilder.length() > 0) {
                     contentBuilder.append("\n\n");
                 }
-                contentBuilder.append("=== FILE: ").append(docTitle).append(" ===\n");
-                for (DocumentChunk chunk : docChunks) {
-                    contentBuilder.append(chunk.getContent()).append("\n");
-                }
+                contentBuilder.append(docContent);
             }
         }
 
         String content = contentBuilder.toString();
         if (content.trim().isEmpty()) {
             throw new RuntimeException("Document content not found");
-        }
-
-        // Limit to 10,000 characters
-        if (content.length() > 10000) {
-            content = content.substring(0, 10000);
         }
 
         String prompt = buildMindMapPrompt(content);

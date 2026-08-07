@@ -48,6 +48,19 @@ import StorageProgressBar from "@/components/storage/StorageProgressBar";
 import useAiUsage from "@/hooks/useAiUsage";
 import PricingModal from "@/components/modals/PricingModal";
 
+const formatSessionTime = (seconds) => {
+  if (seconds === undefined || seconds === null) return "00:00";
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  const mStr = m.toString().padStart(2, "0");
+  const sStr = s.toString().padStart(2, "0");
+  if (h > 0) {
+    return `${h}:${mStr}:${sStr}`;
+  }
+  return `${mStr}:${sStr}`;
+};
+
 export default function MyLibrary() {
   const { documents, setDocuments, loading: isLoading, refreshDocuments } = useDocuments();
   const { subscriptionTier, planName, tierLimits, isUnlimited, refreshAiUsage } = useAiUsage();
@@ -79,6 +92,10 @@ export default function MyLibrary() {
   const [isFlashcardsLoading, setIsFlashcardsLoading] = useState(false);
   const [myQuizzes, setMyQuizzes] = useState([]);
   const [isQuizzesLoading, setIsQuizzesLoading] = useState(false);
+
+  const [activeQuizSubTab, setActiveQuizSubTab] = useState("saved");
+  const [quizAttempts, setQuizAttempts] = useState([]);
+  const [isAttemptsLoading, setIsAttemptsLoading] = useState(false);
 
   const navigate = useNavigate();
 
@@ -175,6 +192,24 @@ export default function MyLibrary() {
       setIsQuizzesLoading(false);
     }
   }, []);
+
+  const fetchAttempts = useCallback(async () => {
+    try {
+      setIsAttemptsLoading(true);
+      const res = await axiosClient.get("/api/quizzes/attempts/my");
+      setQuizAttempts(res.data || []);
+    } catch (error) {
+      console.error("Error fetching attempts:", error);
+    } finally {
+      setIsAttemptsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeQuizSubTab === "history") {
+      fetchAttempts();
+    }
+  }, [activeQuizSubTab, fetchAttempts]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -877,76 +912,167 @@ export default function MyLibrary() {
 
         {/* QUIZZES CONTENT */}
         <TabsContent value="quizzes" className="mt-0">
-          {isQuizzesLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[1, 2, 3].map((i) => (
-                <Skeleton key={i} className="h-48 w-full rounded-3xl" />
-              ))}
-            </div>
-          ) : myQuizzes.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-center bg-slate-50 rounded-[32px] border border-dashed border-slate-200">
-              <div className="w-16 h-16 rounded-3xl bg-white shadow-sm flex items-center justify-center mb-4">
-                <ListChecks className="w-8 h-8 text-slate-300" />
+          <div className="flex gap-2 mb-6 border-b border-slate-100 pb-4">
+            <button
+              onClick={() => setActiveQuizSubTab("saved")}
+              className={`px-4 py-2 rounded-xl text-sm font-bold transition-all cursor-pointer ${
+                activeQuizSubTab === "saved"
+                  ? "bg-[#f26522] text-white shadow-sm"
+                  : "bg-slate-100/80 text-slate-600 hover:bg-slate-200/50"
+              }`}
+            >
+              Saved Quizzes
+            </button>
+            <button
+              onClick={() => setActiveQuizSubTab("history")}
+              className={`px-4 py-2 rounded-xl text-sm font-bold transition-all cursor-pointer ${
+                activeQuizSubTab === "history"
+                  ? "bg-[#f26522] text-white shadow-sm"
+                  : "bg-slate-100/80 text-slate-600 hover:bg-slate-200/50"
+              }`}
+            >
+              Quiz History
+            </button>
+          </div>
+
+          {activeQuizSubTab === "saved" ? (
+            isQuizzesLoading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {[1, 2, 3].map((i) => (
+                  <Skeleton key={i} className="h-48 w-full rounded-3xl" />
+                ))}
               </div>
-              <h3 className="text-xl font-bold text-slate-800 mb-1">
-                No Quizzes Saved
-              </h3>
-              <p className="text-slate-500 mb-6 max-w-sm text-sm">
-                Generate quizzes from documents and save them to your library to test yourself.
-              </p>
-              <Button
-                onClick={() => navigate("/ai-tools/ai-quiz")}
-                variant="outline"
-                className="rounded-xl border-slate-200 gap-2"
-              >
-                <Plus className="w-4 h-4" /> Generate Quiz
-              </Button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {myQuizzes.map((quiz) => (
-                <Card key={quiz.id} className="rounded-3xl border-slate-100 hover:border-[#f26522]/20 hover:shadow-md transition-all group overflow-hidden bg-white">
-                  <CardContent className="py-4 px-6 flex flex-col h-full">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="w-12 h-12 rounded-2xl bg-orange-50 flex items-center justify-center group-hover:bg-[#f26522] transition-colors">
-                        <ListChecks className="w-6 h-6 text-[#f26522] group-hover:text-white transition-colors" />
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteClick(quiz.id, "QUIZ", quiz.title);
-                          }}
-                          className="opacity-0 group-hover:opacity-100 p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all cursor-pointer"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                        <div className="flex items-center gap-1 text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100">
-                          {quiz.questions?.length || 0} Questions
+            ) : myQuizzes.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-center bg-slate-50 rounded-[32px] border border-dashed border-slate-200">
+                <div className="w-16 h-16 rounded-3xl bg-white shadow-sm flex items-center justify-center mb-4">
+                  <ListChecks className="w-8 h-8 text-slate-300" />
+                </div>
+                <h3 className="text-xl font-bold text-slate-800 mb-1">
+                  No Quizzes Saved
+                </h3>
+                <p className="text-slate-500 mb-6 max-w-sm text-sm">
+                  Generate quizzes from documents and save them to your library to test yourself.
+                </p>
+                <Button
+                  onClick={() => navigate("/ai-tools/ai-quiz")}
+                  variant="outline"
+                  className="rounded-xl border-slate-200 gap-2"
+                >
+                  <Plus className="w-4 h-4" /> Generate Quiz
+                </Button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {myQuizzes.map((quiz) => (
+                  <Card key={quiz.id} className="rounded-3xl border-slate-100 hover:border-[#f26522]/20 hover:shadow-md transition-all group overflow-hidden bg-white">
+                    <CardContent className="py-4 px-6 flex flex-col h-full">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="w-12 h-12 rounded-2xl bg-orange-50 flex items-center justify-center group-hover:bg-[#f26522] transition-colors">
+                          <ListChecks className="w-6 h-6 text-[#f26522] group-hover:text-white transition-colors" />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteClick(quiz.id, "QUIZ", quiz.title);
+                            }}
+                            className="opacity-0 group-hover:opacity-100 p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all cursor-pointer"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                          <div className="flex items-center gap-1 text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100">
+                            {quiz.questions?.length || 0} Questions
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <h3 className="text-lg font-bold text-slate-800 group-hover:text-[#f26522] transition-colors mb-2 truncate">
-                      {quiz.title}
-                    </h3>
-                    <p className="text-sm text-slate-500 line-clamp-2 mb-5 flex-1">
-                      Test your understanding of the material.
-                    </p>
-                    <div className="pt-4 border-t border-slate-50 flex items-center justify-between text-xs text-slate-400 -mb-2">
-                      <Button
-                        asChild
-                        variant="secondary"
-                        className="bg-[#f26522]/10 text-[#f26522] hover:bg-[#f26522] hover:text-white font-semibold text-xs rounded-xl h-8 w-full"
-                      >
-                        <Link to={`/quiz/${quiz.id}`}>
-                          <Eye className="w-3.5 h-3.5 mr-1.5" /> Start Quiz
-                        </Link>
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                      <h3 className="text-lg font-bold text-slate-800 group-hover:text-[#f26522] transition-colors mb-2 truncate">
+                        {quiz.title}
+                      </h3>
+                      <p className="text-sm text-slate-500 line-clamp-2 mb-5 flex-1">
+                        Test your understanding of the material.
+                      </p>
+                      <div className="pt-4 border-t border-slate-50 flex items-center justify-between text-xs text-slate-400 -mb-2">
+                        <Button
+                          asChild
+                          variant="secondary"
+                          className="bg-[#f26522]/10 text-[#f26522] hover:bg-[#f26522] hover:text-white font-semibold text-xs rounded-xl h-8 w-full"
+                        >
+                          <Link to={`/quiz/${quiz.id}`}>
+                            <Eye className="w-3.5 h-3.5 mr-1.5" /> Start Quiz
+                          </Link>
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )
+          ) : (
+            isAttemptsLoading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {[1, 2, 3].map((i) => (
+                  <Skeleton key={i} className="h-48 w-full rounded-3xl" />
+                ))}
+              </div>
+            ) : quizAttempts.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-center bg-slate-50 rounded-[32px] border border-dashed border-slate-200">
+                <div className="w-16 h-16 rounded-3xl bg-white shadow-sm flex items-center justify-center mb-4">
+                  <Calendar className="w-8 h-8 text-slate-300" />
+                </div>
+                <h3 className="text-xl font-bold text-slate-800 mb-1">
+                  No Quiz History Yet
+                </h3>
+                <p className="text-slate-500 mb-6 max-w-sm text-sm">
+                  Take a quiz to see your scores and attempts history here.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {quizAttempts.map((attempt) => (
+                  <Card key={attempt.id} className="rounded-3xl border-slate-100 hover:border-[#f26522]/20 hover:shadow-md transition-all group overflow-hidden bg-white">
+                    <CardContent className="py-4 px-6 flex flex-col h-full justify-between">
+                      <div>
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="w-12 h-12 rounded-2xl bg-orange-50 flex items-center justify-center">
+                            <ListChecks className="w-6 h-6 text-[#f26522]" />
+                          </div>
+                          <div className="flex items-center gap-1.5 text-xs font-bold text-[#f26522] bg-orange-50 border border-orange-100 rounded-xl px-2.5 py-1">
+                            ⏱️ {formatSessionTime(attempt.elapsedSeconds)}
+                          </div>
+                        </div>
+                        <h3 className="text-lg font-bold text-slate-800 hover:text-[#f26522] transition-colors mb-2 line-clamp-2">
+                          {attempt.quizTitle}
+                        </h3>
+                        <p className="text-sm font-semibold text-slate-600 mb-2">
+                          Score: <span className="text-[#f26522] text-lg font-black">{attempt.score}</span> / {attempt.totalQuestions}
+                        </p>
+                        <p className="text-xs text-slate-400 mb-4 flex items-center gap-1">
+                          <Calendar className="w-3.5 h-3.5" />
+                          {new Date(attempt.createdAt).toLocaleDateString("en-GB", {
+                            day: "2-digit",
+                            month: "2-digit",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit"
+                          })}
+                        </p>
+                      </div>
+                      <div className="pt-4 border-t border-slate-50">
+                        <Button
+                          asChild
+                          variant="secondary"
+                          className="bg-[#f26522]/10 text-[#f26522] hover:bg-[#f26522] hover:text-white font-semibold text-xs rounded-xl h-8 w-full cursor-pointer"
+                        >
+                          <Link to={`/quiz/attempts/${attempt.id}`}>
+                            <Eye className="w-3.5 h-3.5 mr-1.5" /> Review Attempt
+                          </Link>
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )
           )}
         </TabsContent>
 
