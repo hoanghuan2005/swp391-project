@@ -43,11 +43,10 @@ export default function AIGeneratorInput({
           <button
             type="button"
             onClick={() => setActiveTab("document")}
-            className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
-              activeTab === "document"
+            className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${activeTab === "document"
                 ? "bg-white text-[#f26522] shadow-sm border border-slate-200/50"
                 : "text-slate-500 hover:bg-slate-100 hover:text-slate-700"
-            }`}
+              }`}
           >
             <FileText className="w-4 h-4" />
             <span>Upload File / Library</span>
@@ -55,11 +54,10 @@ export default function AIGeneratorInput({
           <button
             type="button"
             onClick={() => setActiveTab("text")}
-            className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
-              activeTab === "text"
+            className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${activeTab === "text"
                 ? "bg-white text-[#f26522] shadow-sm border border-slate-200/50"
                 : "text-slate-500 hover:bg-slate-100 hover:text-slate-700"
-            }`}
+              }`}
           >
             <Sparkles className="w-4 h-4" />
             <span>Paste Study Notes</span>
@@ -114,7 +112,7 @@ export default function AIGeneratorInput({
                   Drag & drop file here, or click to upload
                 </h4>
                 <p className="text-xs text-slate-400 mt-1 max-w-sm leading-relaxed font-semibold">
-                  Supports PDF, DOCX, TXT. Or select a document from the left sidebar library.
+                  Supports PDF, DOCX, PPT. Or select a document from the left sidebar library.
                 </p>
               </div>
             )}
@@ -164,4 +162,4 @@ export default function AIGeneratorInput({
       </div>
     </div>
   );
-}
+}

@@ -457,10 +457,13 @@ public class AiFlashcardService {
                 + "Văn bản:\n\n"
                 + content;
 
+        int targetCards = maxCards > 0 ? maxCards : 15;
+        int maxTokens = Math.min(4000, Math.max(1024, targetCards * 130 + 300));
         String raw = groqService.generateContent(
                 systemPrompt,
                 userPrompt,
-                0.1);
+                0.1,
+                maxTokens);
 
         String cleanJson = raw
                 .replaceAll("(?s).*(\\[.*\\]).*", "$1")
