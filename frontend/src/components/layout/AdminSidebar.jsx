@@ -13,6 +13,7 @@ import {
   CreditCard,
   Brain,
   ShieldAlert,
+  Monitor,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -67,6 +68,7 @@ export default function AdminSidebar({ isOpen = true }) {
     <aside
       className={cn(
         "h-full flex flex-col bg-white border-r border-slate-200/80 transition-all duration-300 ease-in-out shadow-xs",
+        "min-h-0",
         isOpen ? "w-[280px] px-3 pt-3" : "w-[72px] px-2 pt-3",
         "hidden lg:block shrink-0 transition-all duration-300 ease-in-out",
       )}
@@ -104,8 +106,8 @@ export default function AdminSidebar({ isOpen = true }) {
       </div>
 
       {/* Chỉ cuộn danh sách menu ở dưới */}
-      <div className="flex-1 overflow-y-auto pb-8 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-        <nav className={cn("w-full flex flex-col", !isOpen && "items-center")}>
+      <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
+        <nav className={cn("w-full flex flex-col pb-6", !isOpen && "items-center")}>
           <AdminNavItem
             to="/admin/dashboard"
             icon={LayoutDashboard}
@@ -187,6 +189,16 @@ export default function AdminSidebar({ isOpen = true }) {
             to="/admin/catalog/languages"
             icon={Globe}
             label="Languages"
+            isOpen={isOpen}
+            pathname={location.pathname}
+          />
+          
+          <div className="w-full h-px bg-slate-100 my-4 shrink-0" />
+          
+          <AdminNavItem
+            to="/home"
+            icon={Monitor}
+            label="Switch to User App"
             isOpen={isOpen}
             pathname={location.pathname}
           />

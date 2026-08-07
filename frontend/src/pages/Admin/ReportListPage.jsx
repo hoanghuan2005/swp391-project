@@ -5,7 +5,7 @@ import axiosClient from "@/api/axiosClient";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
-import { CheckCircle, ShieldAlert } from "lucide-react";
+import { CheckCircle, ShieldAlert, XCircle } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -41,6 +41,16 @@ export default function ReportListPage() {
     try {
       await resolveDocumentReport(reportId, "RESOLVED");
       toast.success("Report resolved successfully!");
+      loadReports();
+    } catch (err) {
+      toast.error("Action failed");
+    }
+  };
+
+  const handleDismiss = async (reportId) => {
+    try {
+      await resolveDocumentReport(reportId, "DISMISSED");
+      toast.success("Report dismissed successfully!");
       loadReports();
     } catch (err) {
       toast.error("Action failed");
@@ -149,6 +159,15 @@ export default function ReportListPage() {
                           >
                             <CheckCircle className="w-3.5 h-3.5 mr-1" />
                             Resolve
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="rounded-xl h-8 text-xs font-semibold text-red-600 border-red-200 hover:bg-red-50"
+                            onClick={() => handleDismiss(report.id)}
+                          >
+                            <XCircle className="w-3.5 h-3.5 mr-1" />
+                            Dismiss
                           </Button>
                         </div>
                       </TableCell>
