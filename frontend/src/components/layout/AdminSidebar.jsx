@@ -2,6 +2,7 @@ import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
+  Home,
   LayoutDashboard,
   Users,
   FileText,
@@ -19,7 +20,7 @@ import { cn } from "@/lib/utils";
 // Tách riêng NavItem giống Vercel Best Practices (Rerender optimization)
 function AdminNavItem({ to, icon: Icon, label, isOpen, pathname }) {
   // Check active state
-  const isActive = pathname === to || pathname.startsWith(`${to}/`);
+  const isActive = pathname === to || (to !== "/" && pathname.startsWith(`${to}/`));
 
   return (
     <Link
@@ -66,7 +67,7 @@ export default function AdminSidebar({ isOpen = true }) {
   return (
     <aside
       className={cn(
-        "h-full flex flex-col bg-white border-r border-slate-200/80 transition-all duration-300 ease-in-out shadow-xs",
+        "h-[calc(100vh-68px)] overflow-y-auto pb-10 bg-white [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] border-r border-slate-200/80 transition-all duration-300 ease-in-out shadow-xs",
         isOpen ? "w-[280px] px-3 pt-3" : "w-[72px] px-2 pt-3",
         "hidden lg:block shrink-0 transition-all duration-300 ease-in-out",
       )}
@@ -103,9 +104,15 @@ export default function AdminSidebar({ isOpen = true }) {
         </div>
       </div>
 
-      {/* Chỉ cuộn danh sách menu ở dưới */}
-      <div className="flex-1 overflow-y-auto pb-8 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-        <nav className={cn("w-full flex flex-col", !isOpen && "items-center")}>
+      {/* Danh sách menu có thể cuộn độc lập */}
+      <nav className={cn("w-full flex flex-col pb-8", !isOpen && "items-center")}>
+          <AdminNavItem
+            to="/home"
+            icon={Home}
+            label="Back to Home"
+            isOpen={isOpen}
+            pathname={location.pathname}
+          />
           <AdminNavItem
             to="/admin/dashboard"
             icon={LayoutDashboard}
@@ -191,7 +198,6 @@ export default function AdminSidebar({ isOpen = true }) {
             pathname={location.pathname}
           />
         </nav>
-      </div>
     </aside>
   );
 }

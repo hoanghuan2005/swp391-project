@@ -6,5 +6,6 @@ public enum ReferenceType {
     FLASHCARD,
     GROUP,
     USER,
-    WORKSPACE
+    WORKSPACE,
+    REPORT
 }

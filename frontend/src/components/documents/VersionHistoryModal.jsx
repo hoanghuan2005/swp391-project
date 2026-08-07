@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import {
   Dialog,
   DialogContent,
@@ -22,7 +22,12 @@ import {
   Trash2,
   Eye,
 } from "lucide-react";
-import { downloadDocumentVersion, approveDocumentVersion, rejectDocumentVersion, deleteDocumentVersion } from "@/api/documentApi";
+import {
+  downloadDocumentVersion,
+  approveDocumentVersion,
+  rejectDocumentVersion,
+  deleteDocumentVersion,
+} from "@/api/documentApi";
 import FilePreview from "./FilePreview";
 import { toast } from "sonner";
 
@@ -68,41 +73,50 @@ export default function VersionHistoryModal({
   const [deleteDialogVer, setDeleteDialogVer] = useState(null);
   const [previewVer, setPreviewVer] = useState(null);
 
-  const handlePreview = (ver) => {
+  const userRole = useMemo(() => localStorage.getItem("userRole") || "", []);
+  const isAdmin = useMemo(() => userRole === "ADMIN" || userRole === "ROLE_ADMIN", [userRole]);
+
+  const handlePreview = useCallback((ver) => {
     if (!ver) return;
     setPreviewVer(ver);
-  };
+  }, []);
 
-  const handleDownload = async (ver) => {
-    try {
-      const res = await downloadDocumentVersion(documentId, ver.id);
-      if (res?.downloadUrl) {
-        await forceDownload(
-          res.downloadUrl,
-          ver.originalFileName || "version"
-        );
+  const handleDownload = useCallback(
+    async (ver) => {
+      try {
+        const res = await downloadDocumentVersion(documentId, ver.id);
+        if (res?.downloadUrl) {
+          await forceDownload(
+            res.downloadUrl,
+            ver.originalFileName || "version"
+          );
+        }
+      } catch (err) {
+        console.error("Download version failed", err);
+        toast.error("Error downloading file!");
       }
-    } catch (err) {
-      console.error("Download version failed", err);
-      toast.error("Error downloading file!");
-    }
-  };
+    },
+    [documentId]
+  );
 
-  const handleApprove = async (ver) => {
-    setProcessingId(ver.id);
-    try {
-      await approveDocumentVersion(documentId, ver.id);
-      toast.success(`Version ${ver.versionNumber} approved & activated!`);
-      window.dispatchEvent(new CustomEvent("subscription:updated"));
-      onRefresh?.();
-    } catch (err) {
-      toast.error(err?.response?.data?.message || "Failed to approve version!");
-    } finally {
-      setProcessingId(null);
-    }
-  };
+  const handleApprove = useCallback(
+    async (ver) => {
+      setProcessingId(ver.id);
+      try {
+        await approveDocumentVersion(documentId, ver.id);
+        toast.success(`Version ${ver.versionNumber} approved & activated!`);
+        window.dispatchEvent(new CustomEvent("subscription:updated"));
+        onRefresh?.();
+      } catch (err) {
+        toast.error(err?.response?.data?.message || "Failed to approve version!");
+      } finally {
+        setProcessingId(null);
+      }
+    },
+    [documentId, onRefresh]
+  );
 
-  const handleRejectSubmit = async () => {
+  const handleRejectSubmit = useCallback(async () => {
     if (!rejectDialogVer) return;
     setProcessingId(rejectDialogVer.id);
     try {
@@ -116,9 +130,9 @@ export default function VersionHistoryModal({
     } finally {
       setProcessingId(null);
     }
-  };
+  }, [documentId, rejectDialogVer, rejectReason, onRefresh]);
 
-  const handleDeleteSubmit = async () => {
+  const handleDeleteSubmit = useCallback(async () => {
     if (!deleteDialogVer) return;
     setProcessingId(deleteDialogVer.id);
     try {
@@ -132,7 +146,7 @@ export default function VersionHistoryModal({
     } finally {
       setProcessingId(null);
     }
-  };
+  }, [documentId, deleteDialogVer, onRefresh]);
 
   return (
     <>
@@ -180,6 +194,7 @@ export default function VersionHistoryModal({
                 const isRejected = status === "REJECTED";
                 const isApproved = status === "APPROVED";
                 const isActive = idx === 0 && isApproved;
+                const canDelete = (isOwner || isAdmin) && !isActive;
 
                 return (
                   <div
@@ -193,13 +208,13 @@ export default function VersionHistoryModal({
                     }`}
                   >
                     <div className="space-y-2">
-                      {/* Header line: Badges + Title + Size on left, Actions on right */}
+                      {/* Header line */}
                       <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-3">
                         <div className="flex flex-wrap items-center gap-2 min-w-0">
                           <Badge className="bg-[#f26522] text-white text-xs font-semibold px-2.5 py-0.5 rounded-full shrink-0">
                             {ver.versionNumber || "v1.0"}
                           </Badge>
-                          
+
                           {isActive && (
                             <Badge
                               variant="outline"
@@ -231,49 +246,41 @@ export default function VersionHistoryModal({
                           )}
                         </div>
 
-                        {/* Action buttons: Preview, Download, Delete */}
-                        {(() => {
-                          const userRole = localStorage.getItem("userRole");
-                          const isAdmin = userRole === "ADMIN";
-                          const canDelete = (isOwner || isAdmin) && !isActive;
+                        {/* Actions */}
+                        <div className="flex items-center gap-1.5 shrink-0 self-center">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="rounded-xl border-slate-200 hover:bg-slate-50 text-slate-700 text-xs"
+                            onClick={() => handlePreview(ver)}
+                            title="Preview this version"
+                          >
+                            <Eye className="w-3.5 h-3.5 mr-1" /> Preview
+                          </Button>
 
-                          return (
-                            <div className="flex items-center gap-1.5 shrink-0 self-center">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="rounded-xl border-slate-200 hover:bg-slate-50 text-slate-700 text-xs"
-                                onClick={() => handlePreview(ver)}
-                                title="Preview this version"
-                              >
-                                <Eye className="w-3.5 h-3.5 mr-1" /> Preview
-                              </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="rounded-xl border-slate-200 hover:bg-slate-50 text-slate-700 text-xs"
+                            onClick={() => handleDownload(ver)}
+                            title="Download this version"
+                          >
+                            <Download className="w-3.5 h-3.5 mr-1" /> Download
+                          </Button>
 
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="rounded-xl border-slate-200 hover:bg-slate-50 text-slate-700 text-xs"
-                                onClick={() => handleDownload(ver)}
-                                title="Download this version"
-                              >
-                                <Download className="w-3.5 h-3.5 mr-1" /> Download
-                              </Button>
-
-                              {canDelete && (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="rounded-xl border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs"
-                                  onClick={() => setDeleteDialogVer(ver)}
-                                  disabled={processingId === ver.id}
-                                  title="Delete this version"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5 mr-1" /> Delete
-                                </Button>
-                              )}
-                            </div>
-                          );
-                        })()}
+                          {canDelete && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="rounded-xl border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs"
+                              onClick={() => setDeleteDialogVer(ver)}
+                              disabled={processingId === ver.id}
+                              title="Delete this version"
+                            >
+                              <Trash2 className="w-3.5 h-3.5 mr-1" /> Delete
+                            </Button>
+                          )}
+                        </div>
                       </div>
 
                       {ver.changelog && (
@@ -306,13 +313,10 @@ export default function VersionHistoryModal({
                     </div>
 
                     {/* Pending Approval Section */}
-                    {isPending && (() => {
-                      const userRole = localStorage.getItem("userRole");
-                      const isAdmin = userRole === "ADMIN";
-                      
-                      if (isAdmin) {
-                        return (
-                          <div className="pt-2 border-t border-amber-200/60 flex items-center justify-end gap-2">
+                    {isPending && (
+                      <div className="pt-2 border-t border-amber-200/60 flex items-center justify-between gap-2">
+                        {isAdmin ? (
+                          <>
                             <span className="text-xs text-amber-800 font-medium mr-auto">
                               Requires Admin approval:
                             </span>
@@ -336,18 +340,14 @@ export default function VersionHistoryModal({
                             >
                               <CheckCircle className="w-3.5 h-3.5 mr-1" /> Approve & Activate
                             </Button>
-                          </div>
-                        );
-                      }
-
-                      return (
-                        <div className="pt-2 border-t border-amber-200/60 flex items-center justify-between gap-2">
+                          </>
+                        ) : (
                           <span className="text-xs text-amber-700 font-medium italic">
                             ⏳ This version is pending System Admin approval before becoming active.
                           </span>
-                        </div>
-                      );
-                    })()}
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })
@@ -379,14 +379,14 @@ export default function VersionHistoryModal({
             <Button
               variant="outline"
               size="sm"
-              className="rounded-xl"
+              className="rounded-xl cursor-pointer"
               onClick={() => setRejectDialogVer(null)}
             >
               Cancel
             </Button>
             <Button
               size="sm"
-              className="bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-semibold"
+              className="bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-semibold cursor-pointer"
               onClick={handleRejectSubmit}
               disabled={!!processingId}
             >
@@ -402,21 +402,21 @@ export default function VersionHistoryModal({
           <DialogHeader>
             <DialogTitle className="text-lg font-bold text-slate-800 flex items-center gap-2">
               <Trash2 className="w-5 h-5 text-rose-500" />
-              Xác nhận xóa phiên bản
+              Confirm Delete Version
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-500">
-              Bạn có chắc chắn muốn xóa phiên bản lịch sử{" "}
+              Are you sure you want to delete version{" "}
               <span className="font-semibold text-slate-700">
                 {deleteDialogVer?.versionNumber} ({deleteDialogVer?.originalFileName})
               </span>
-              ? Tệp tin sẽ bị xóa khỏi Cloudinary và dung lượng bộ nhớ cá nhân của bạn sẽ được giải phóng ngay lập tức.
+              ? The file will be removed from cloud storage and your personal storage capacity will be freed up immediately.
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-2 pt-3">
             <Button
               variant="outline"
               size="sm"
-              className="rounded-xl"
+              className="rounded-xl cursor-pointer"
               onClick={() => setDeleteDialogVer(null)}
               disabled={!!processingId}
             >
@@ -424,7 +424,7 @@ export default function VersionHistoryModal({
             </Button>
             <Button
               size="sm"
-              className="bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-semibold"
+              className="bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-semibold cursor-pointer"
               onClick={handleDeleteSubmit}
               disabled={!!processingId}
             >
@@ -462,17 +462,17 @@ export default function VersionHistoryModal({
             <Button
               variant="outline"
               size="sm"
-              className="rounded-xl"
+              className="rounded-xl cursor-pointer"
               onClick={() => setPreviewVer(null)}
             >
-              Đóng Xem Trước
+              Close Preview
             </Button>
             <Button
               size="sm"
-              className="bg-[#f26522] hover:bg-[#d9531e] text-white rounded-xl font-semibold"
+              className="bg-[#f26522] hover:bg-[#d9531e] text-white rounded-xl font-semibold cursor-pointer"
               onClick={() => handleDownload(previewVer)}
             >
-              <Download className="w-4 h-4 mr-1" /> Tải về tệp này
+              <Download className="w-4 h-4 mr-1" /> Download File
             </Button>
           </div>
         </DialogContent>
