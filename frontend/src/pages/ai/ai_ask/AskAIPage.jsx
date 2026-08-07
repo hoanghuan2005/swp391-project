@@ -23,6 +23,7 @@ export default function AskAIPage() {
     planName,
     remainingUsage,
     isUnlimited,
+    tierLimits,
     loading: aiUsageLoading,
   } = useAiUsage();
 
@@ -99,6 +100,7 @@ export default function AskAIPage() {
         mode="PERSONAL"
         documents={documents}
         onRefreshDocuments={refreshDocuments}
+        maxSelectedDocs={tierLimits?.maxSelectedDocs || 2}
         showUploadButton={true}
         fileInputRef={fileInputRef}
         handleUpload={handleUpload}

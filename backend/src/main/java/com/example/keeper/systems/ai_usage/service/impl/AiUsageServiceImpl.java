@@ -9,7 +9,6 @@ import com.example.keeper.systems.ai_usage.repository.AiUsageRepository;
 import com.example.keeper.systems.ai_usage.service.AiUsageService;
 import com.example.keeper.systems.auth.entity.SubscriptionPlan;
 import com.example.keeper.systems.auth.entity.User;
-import com.example.keeper.systems.auth.enums.SubscriptionTier;
 import com.example.keeper.systems.auth.repository.SubscriptionPlanRepository;
 import com.example.keeper.systems.auth.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -65,14 +64,14 @@ public class AiUsageServiceImpl implements AiUsageService {
     @Override
     public UserAiUsageResponse getUserAiUsage(String email) {
         User user = findUser(email);
-        SubscriptionTier tier = user.getSubscriptionTier() != null ? user.getSubscriptionTier() : SubscriptionTier.FREE;
+        String tierCode = user.getSubscriptionTier() != null ? user.getSubscriptionTier() : "FREE";
 
-        SubscriptionPlan plan = subscriptionPlanRepository.findByCodeAndIsActiveTrue(tier.name())
-                .orElseGet(() -> subscriptionPlanRepository.findByCode(tier.name()).orElse(null));
+        SubscriptionPlan plan = subscriptionPlanRepository.findByCodeAndIsActiveTrue(tierCode)
+                .orElseGet(() -> subscriptionPlanRepository.findByCode(tierCode).orElse(null));
 
         String planName = (plan != null && plan.getName() != null)
                 ? plan.getName()
-                : tier.name();
+                : tierCode;
 
         int maxDailyAiRequests;
         if (isAdmin(user) || (plan != null && plan.getDailyAiLimit() != null && plan.getDailyAiLimit() < 0)) {
@@ -103,9 +102,9 @@ public class AiUsageServiceImpl implements AiUsageService {
             return;
         }
 
-        SubscriptionTier tier = user.getSubscriptionTier() != null ? user.getSubscriptionTier() : SubscriptionTier.FREE;
-        SubscriptionPlan plan = subscriptionPlanRepository.findByCodeAndIsActiveTrue(tier.name())
-                .orElseGet(() -> subscriptionPlanRepository.findByCode(tier.name()).orElse(null));
+        String tierCode = user.getSubscriptionTier() != null ? user.getSubscriptionTier() : "FREE";
+        SubscriptionPlan plan = subscriptionPlanRepository.findByCodeAndIsActiveTrue(tierCode)
+                .orElseGet(() -> subscriptionPlanRepository.findByCode(tierCode).orElse(null));
 
         int maxAllowed = plan != null && plan.getMaxSelectedDocs() != null
                 ? plan.getMaxSelectedDocs()
@@ -113,7 +112,7 @@ public class AiUsageServiceImpl implements AiUsageService {
 
         if (maxAllowed != -1 && selectedCount > maxAllowed) {
             throw new DocumentSelectionQuotaExceededException(
-                    "Gói " + tier.name() + " chỉ cho phép chọn tối đa " + maxAllowed + " tài liệu cùng lúc."
+                    "Gói " + tierCode + " chỉ cho phép chọn tối đa " + maxAllowed + " tài liệu cùng lúc."
             );
         }
     }

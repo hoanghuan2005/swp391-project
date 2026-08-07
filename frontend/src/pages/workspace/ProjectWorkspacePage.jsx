@@ -47,6 +47,7 @@ export default function ProjectWorkspacePage() {
     planName,
     remainingUsage,
     isUnlimited,
+    tierLimits,
     loading: aiUsageLoading,
   } = useAiUsage();
 
@@ -266,6 +267,7 @@ export default function ProjectWorkspacePage() {
           workspaceId={projectId}
           shareToken={token}
           documents={project.documents || []}
+          maxSelectedDocs={tierLimits?.maxSelectedDocs || 2}
           onDeleteDocument={isSharedView ? null : handleDeleteDocument}
           rightElement={
             <AiUsageBadge

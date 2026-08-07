@@ -40,7 +40,7 @@ public class AdminPaymentController {
                 map.put("userId", t.getUser().getId());
                 map.put("username", t.getUser().getUsername());
                 map.put("email", t.getUser().getEmail());
-                map.put("subscriptionTier", t.getUser().getSubscriptionTier().name());
+                map.put("subscriptionTier", t.getUser().getSubscriptionTier());
             }
             return map;
         }).collect(Collectors.toList());

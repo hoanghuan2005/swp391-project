@@ -3,7 +3,6 @@ package com.example.keeper.systems.payment.service.impl;
 import com.example.keeper.config.VnpayConfig;
 import com.example.keeper.systems.auth.entity.SubscriptionPlan;
 import com.example.keeper.systems.auth.entity.User;
-import com.example.keeper.systems.auth.enums.SubscriptionTier;
 import com.example.keeper.systems.auth.repository.SubscriptionPlanRepository;
 import com.example.keeper.systems.auth.repository.UserRepository;
 import com.example.keeper.systems.auth.service.EmailService;
@@ -17,6 +16,8 @@ import com.example.keeper.systems.payment.repository.PaymentTransactionRepositor
 import com.example.keeper.systems.payment.service.VnpayPaymentService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -50,13 +51,13 @@ public class VnpayPaymentServiceImpl implements VnpayPaymentService {
     private final EmailService emailService;
     private final NotificationService notificationService;
 
-    @org.springframework.beans.factory.annotation.Value("${app.frontend.url:http://localhost:5173}")
+    @Value("${app.frontend.url:http://localhost:5173}")
     private String frontendUrl;
 
     @Override
     @Transactional
-    public CreateVnpayPaymentResponse createProPayment(String userEmail, HttpServletRequest request) {
-        return createProPayment(userEmail, "PRO", request);
+    public CreateVnpayPaymentResponse createPayment(String userEmail, String planCode, HttpServletRequest request) {
+        return createProPayment(userEmail, planCode, request);
     }
 
     @Override
@@ -77,7 +78,7 @@ public class VnpayPaymentServiceImpl implements VnpayPaymentService {
         long targetPrice = plan.getPriceVnd();
         String planName = plan.getName() != null ? plan.getName() : targetCode;
 
-        String txnRef = generateTxnRef();
+        String txnRef = generateTxnRef(targetCode);
         String orderInfo = "Upgrade_MinDocu_AI_account_to_" + targetCode;
 
         PaymentTransaction transaction = new PaymentTransaction();
@@ -85,6 +86,7 @@ public class VnpayPaymentServiceImpl implements VnpayPaymentService {
         transaction.setTxnRef(txnRef);
         transaction.setAmountVnd(targetPrice);
         transaction.setOrderInfo(orderInfo);
+        transaction.setPlanCode(targetCode);
         transaction.setStatus(PaymentStatus.PENDING);
         paymentTransactionRepository.save(transaction);
 
@@ -152,7 +154,7 @@ public class VnpayPaymentServiceImpl implements VnpayPaymentService {
             transaction.setProcessedAt(LocalDateTime.now());
 
             User user = transaction.getUser();
-            snapshotProTierUpgrade(user);
+            snapshotTierUpgrade(user, transaction.getPlanCode());
             paymentTransactionRepository.save(transaction);
 
             try {
@@ -166,8 +168,8 @@ public class VnpayPaymentServiceImpl implements VnpayPaymentService {
                         user,
                         null,
                         NotificationType.PRO_UPGRADE_SUCCESS,
-                        "Upgrade to PRO Successful",
-                        "Congratulations! Your account has been successfully upgraded to the PRO plan. You now have access to unlimited AI requests and advanced features.",
+                        "Upgrade to " + transaction.getPlanCode() + " Successful",
+                        "Congratulations! Your account has been successfully upgraded to the " + transaction.getPlanCode() + " plan.",
                         null,
                         null
                 );
@@ -228,7 +230,7 @@ public class VnpayPaymentServiceImpl implements VnpayPaymentService {
         transaction.setProcessedAt(LocalDateTime.now());
         if (successful) {
             transaction.setStatus(PaymentStatus.SUCCESS);
-            snapshotProTierUpgrade(transactionUser);
+            snapshotTierUpgrade(transactionUser, transaction.getPlanCode());
 
             try {
                 emailService.sendSubscriptionSuccessEmail(transactionUser.getEmail(), transactionUser.getUsername());
@@ -241,8 +243,8 @@ public class VnpayPaymentServiceImpl implements VnpayPaymentService {
                         transactionUser,
                         null,
                         NotificationType.PRO_UPGRADE_SUCCESS,
-                        "Upgrade to PRO Successful",
-                        "Congratulations! Your account has been successfully upgraded to the PRO plan. You now have access to unlimited AI requests and advanced features.",
+                        "Upgrade to " + transaction.getPlanCode() + " Successful",
+                        "Congratulations! Your account has been successfully upgraded to the " + transaction.getPlanCode() + " plan.",
                         null,
                         null
                 );
@@ -397,8 +399,8 @@ public class VnpayPaymentServiceImpl implements VnpayPaymentService {
         }
     }
 
-    private String generateTxnRef() {
-        return "PRO"
+    private String generateTxnRef(String planCode) {
+        return planCode.toUpperCase()
                 + VNP_DATE_FORMAT.format(LocalDateTime.now())
                 + UUID.randomUUID().toString().replace("-", "").substring(0, 8);
     }
@@ -433,16 +435,17 @@ public class VnpayPaymentServiceImpl implements VnpayPaymentService {
         return ConfirmVnpayReturnResponse.builder()
                 .txnRef(transaction.getTxnRef())
                 .status(transaction.getStatus().name())
-                .subscriptionTier(transaction.getUser().getSubscriptionTier().name())
+                .subscriptionTier(transaction.getUser().getSubscriptionTier())
                 .build();
     }
 
-    private void snapshotProTierUpgrade(User user) {
-        user.setSubscriptionTier(SubscriptionTier.PRO);
-        SubscriptionPlan proPlan = subscriptionPlanRepository.findByCodeAndIsActiveTrue("PRO")
-                .orElseGet(() -> subscriptionPlanRepository.findByCode("PRO").orElse(null));
-        if (proPlan != null && proPlan.getTotalStorageBytes() != null) {
-            user.setMaxStorageBytes(proPlan.getTotalStorageBytes());
+    private void snapshotTierUpgrade(User user, String planCode) {
+        user.setSubscriptionTier(planCode.trim().toUpperCase());
+
+        SubscriptionPlan plan = subscriptionPlanRepository.findByCodeAndIsActiveTrue(planCode)
+                .orElseGet(() -> subscriptionPlanRepository.findByCode(planCode).orElse(null));
+        if (plan != null && plan.getTotalStorageBytes() != null) {
+            user.setMaxStorageBytes(plan.getTotalStorageBytes());
         }
         userRepository.save(user);
     }

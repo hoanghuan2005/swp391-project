@@ -77,9 +77,9 @@ public class AiAskServiceImpl implements AiAskService {
             User user = userRepository.findByEmail(email)
                 .orElseGet(() -> userRepository.findByUsername(email).orElse(null));
             if (user != null) {
-                com.example.keeper.systems.auth.enums.SubscriptionTier tier = user.getSubscriptionTier() != null ? user.getSubscriptionTier() : com.example.keeper.systems.auth.enums.SubscriptionTier.FREE;
-                com.example.keeper.systems.auth.entity.SubscriptionPlan plan = subscriptionPlanRepository.findByCodeAndIsActiveTrue(tier.name())
-                    .orElseGet(() -> subscriptionPlanRepository.findByCode(tier.name()).orElse(null));
+                String tierCode = user.getSubscriptionTier() != null ? user.getSubscriptionTier() : "FREE";
+                com.example.keeper.systems.auth.entity.SubscriptionPlan plan = subscriptionPlanRepository.findByCodeAndIsActiveTrue(tierCode)
+                    .orElseGet(() -> subscriptionPlanRepository.findByCode(tierCode).orElse(null));
                 if (plan != null) {
                     if (plan.getMaxAiContextChunks() != null) maxAiContextChunks = plan.getMaxAiContextChunks();
                     if (plan.getMaxChunkChars() != null) maxChunkChars = plan.getMaxChunkChars();

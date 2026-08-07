@@ -103,7 +103,7 @@ public class DocumentQuotaServiceImpl implements DocumentQuotaService {
         long maxStorage = user.getMaxStorageBytes() != null ? user.getMaxStorageBytes() : plan.getTotalStorageBytes();
 
         return DocumentQuotaResponse.builder()
-                .subscriptionTier(user.getSubscriptionTier() != null ? user.getSubscriptionTier().name() : "FREE")
+                .subscriptionTier(user.getSubscriptionTier() != null ? user.getSubscriptionTier() : "FREE")
                 .uploadsToday(getUploadsToday(user))
                 .dailyUploadLimit(admin ? UNLIMITED : plan.getDailyUploadLimit())
                 .totalDocuments(documentRepository.countByUploadedById(user.getId()))
@@ -198,7 +198,7 @@ public class DocumentQuotaServiceImpl implements DocumentQuotaService {
     }
 
     private SubscriptionPlan getPlanForUser(User user) {
-        String tierCode = user.getSubscriptionTier() != null ? user.getSubscriptionTier().name() : "FREE";
+        String tierCode = user.getSubscriptionTier() != null ? user.getSubscriptionTier() : "FREE";
         return subscriptionPlanRepository.findByCodeAndIsActiveTrue(tierCode)
                 .orElseGet(() -> subscriptionPlanRepository.findTopByPriceVndAndIsActiveTrueOrderByCreatedAtAsc(0L)
                         .orElseGet(() -> subscriptionPlanRepository.findByCode("FREE")

@@ -94,18 +94,11 @@ public class AdminUserController {
             user.setEmailVerified(true);
             user.setBanned(false);
 
-            String tierStr = req.getOrDefault("subscriptionTier", "FREE");
-            com.example.keeper.systems.auth.enums.SubscriptionTier tier;
-            try {
-                tier = com.example.keeper.systems.auth.enums.SubscriptionTier.valueOf(tierStr.toUpperCase());
-            } catch (Exception e) {
-                tier = com.example.keeper.systems.auth.enums.SubscriptionTier.FREE;
-            }
-            user.setSubscriptionTier(tier);
+            String tierStr = req.getOrDefault("subscriptionTier", "FREE").toUpperCase();
+            user.setSubscriptionTier(tierStr);
 
-            final String tierCode = tier.name();
-            com.example.keeper.systems.auth.entity.SubscriptionPlan plan = subscriptionPlanRepository.findByCodeAndIsActiveTrue(tierCode)
-                    .orElseGet(() -> subscriptionPlanRepository.findByCode(tierCode).orElse(null));
+            com.example.keeper.systems.auth.entity.SubscriptionPlan plan = subscriptionPlanRepository.findByCodeAndIsActiveTrue(tierStr)
+                    .orElseGet(() -> subscriptionPlanRepository.findByCode(tierStr).orElse(null));
             if (plan != null && plan.getTotalStorageBytes() != null) {
                 user.setMaxStorageBytes(plan.getTotalStorageBytes());
             }

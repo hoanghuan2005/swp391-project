@@ -32,7 +32,7 @@ public class AdminAiUsageController {
             map.put("userId", u.getId());
             map.put("username", u.getUsername());
             map.put("email", u.getEmail());
-            map.put("subscriptionTier", u.getSubscriptionTier().name());
+            map.put("subscriptionTier", u.getSubscriptionTier());
             
             // Calculate remaining usage
             long remaining = aiUsageService.getRemainingUsage(u.getEmail());

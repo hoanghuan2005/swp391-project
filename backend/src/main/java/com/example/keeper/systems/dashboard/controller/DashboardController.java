@@ -1,7 +1,6 @@
 package com.example.keeper.systems.dashboard.controller;
 
 import com.example.keeper.systems.auth.repository.UserRepository;
-import com.example.keeper.systems.auth.enums.SubscriptionTier;
 import com.example.keeper.systems.dashboard.dto.DashboardStatsResponse;
 import com.example.keeper.systems.document.enums.AiParseStatus;
 import com.example.keeper.systems.document.enums.Visibility;
@@ -34,8 +33,8 @@ public class DashboardController {
                 .totalUsers(userRepository.count())
                 .activeUsers(userRepository.countByIsBannedValue(false))
                 .bannedUsers(userRepository.countByIsBannedValue(true))
-                .freeUsers(userRepository.countBySubscriptionTier(SubscriptionTier.FREE))
-                .proUsers(userRepository.countBySubscriptionTier(SubscriptionTier.PRO))
+                .freeUsers(userRepository.countBySubscriptionTier("FREE"))
+                .proUsers(userRepository.countBySubscriptionTier("PRO"))
                 .totalCourses(courseRepository.count())
                 .totalDocuments(documentRepository.count())
                 .publicDocuments(documentRepository.countByVisibility(Visibility.PUBLIC))

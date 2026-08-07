@@ -1,6 +1,5 @@
 package com.example.keeper.systems.auth.entity;
 
-import com.example.keeper.systems.auth.enums.SubscriptionTier;
 import com.example.keeper.systems.base.BaseEntity;
 import com.example.keeper.systems.course.entity.Course;
 import com.example.keeper.systems.profile.entity.UserProfile;
@@ -71,9 +70,8 @@ public class User extends BaseEntity {
     )
     private Set<com.example.keeper.systems.document.entity.Document> favoriteDocuments = new HashSet<>();
 
-    @Enumerated(EnumType.STRING)
     @Column(name = "subscription_tier")
-    private SubscriptionTier subscriptionTier = SubscriptionTier.FREE;
+    private String subscriptionTier = "FREE";
 
     @Column(name = "max_storage_bytes")
     private Long maxStorageBytes;

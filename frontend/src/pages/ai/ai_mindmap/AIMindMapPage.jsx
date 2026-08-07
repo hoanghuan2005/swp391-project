@@ -415,10 +415,12 @@ function AIMindMapPageInner() {
     planName,
     remainingUsage,
     isUnlimited,
-    maxSelectedDocs = 2,
+    tierLimits,
     loading: aiUsageLoading,
     refreshAiUsage,
   } = useAiUsage();
+  
+  const maxSelectedDocs = tierLimits?.maxSelectedDocs || 2;
   const { refreshDocumentQuota } = useDocumentQuota();
   const [searchDocQuery, setSearchDocQuery] = useState("");
 

@@ -67,10 +67,10 @@ public class AiFlashcardService {
     private final SubscriptionPlanRepository subscriptionPlanRepository;
 
     private int getMaxFlashcards(User user) {
-        String tierCode = user.getSubscriptionTier() != null ? user.getSubscriptionTier().name() : "FREE";
+        String tierCode = user.getSubscriptionTier() != null ? user.getSubscriptionTier() : "FREE";
         return subscriptionPlanRepository.findByCodeAndIsActiveTrue(tierCode)
-                .map(p -> p.getMaxFlashcardsPerGeneration() != null ? p.getMaxFlashcardsPerGeneration() : (tierCode.equalsIgnoreCase("PRO") ? -1 : 15))
-                .orElse(tierCode.equalsIgnoreCase("PRO") ? -1 : 15);
+                .map(p -> p.getMaxFlashcardsPerGeneration() != null ? p.getMaxFlashcardsPerGeneration() : 15)
+                .orElse(15);
     }
 
     // Helper method to map entities to FlashcardSetResponse
