@@ -83,7 +83,7 @@ public class MindMapServiceImpl implements MindMapService {
 
         // Gather chunks from each document
         int chunksPerDoc = Math.max(1, 8 / targetDocIds.size());
-        StringBuilder contentBuilder = new StringBuilder();
+        List<String> rawDocContents = new java.util.ArrayList<>();
 
         for (UUID docId : targetDocIds) {
             Document document = documentRepository.findById(docId).orElse(null);
@@ -100,13 +100,16 @@ public class MindMapServiceImpl implements MindMapService {
                 for (DocumentChunk chunk : docChunks) {
                     docContentBuilder.append(chunk.getContent()).append("\n");
                 }
+                rawDocContents.add(docContentBuilder.toString());
+            } else {
+                rawDocContents.add("");
+            }
+        }
 
-                String docContent = docContentBuilder.toString();
-                int maxDocLength = 10000 / Math.max(1, targetDocIds.size());
-                if (docContent.length() > maxDocLength) {
-                    docContent = docContent.substring(0, maxDocLength);
-                }
-
+        List<String> satisfies = com.example.keeper.util.ContentBudgetUtils.distributeBudget(rawDocContents, 10000);
+        StringBuilder contentBuilder = new StringBuilder();
+        for (String docContent : satisfies) {
+            if (docContent != null && !docContent.trim().isEmpty()) {
                 if (contentBuilder.length() > 0) {
                     contentBuilder.append("\n\n");
                 }

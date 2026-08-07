@@ -290,7 +290,8 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
 
         int chunksPerDoc = Math.max(1, 8 / docIds.size());
 
-        StringBuilder contextBuilder = new StringBuilder();
+        List<String> rawDocContents = new java.util.ArrayList<>();
+
         for (UUID docId : docIds) {
             Document document = documentRepository.findById(docId).orElse(null);
             String docTitle = document != null ? document.getTitle() : "Document";
@@ -319,13 +320,16 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
                 for (DocumentChunk chunk : docChunks) {
                     docContentBuilder.append(chunk.getContent()).append("\n");
                 }
+                rawDocContents.add(docContentBuilder.toString());
+            } else {
+                rawDocContents.add("");
+            }
+        }
 
-                String docContent = docContentBuilder.toString();
-                int maxDocLength = 10000 / Math.max(1, docIds.size());
-                if (docContent.length() > maxDocLength) {
-                    docContent = docContent.substring(0, maxDocLength);
-                }
-
+        List<String> satisfies = com.example.keeper.util.ContentBudgetUtils.distributeBudget(rawDocContents, 10000);
+        StringBuilder contextBuilder = new StringBuilder();
+        for (String docContent : satisfies) {
+            if (docContent != null && !docContent.trim().isEmpty()) {
                 if (contextBuilder.length() > 0) {
                     contextBuilder.append("\n\n");
                 }
