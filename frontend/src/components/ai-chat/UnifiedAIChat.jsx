@@ -735,7 +735,7 @@ export default function UnifiedAIChat({
         userDocuments={documents}
         alreadySelectedDocs={selectedDocs}
         onAddPublicDocs={handleAddPublicDocs}
-        maxPersonalDocs={maxSelectedDocs}
+        maxSelectedDocs={maxSelectedDocs}
         onPreviewDocument={(doc) => setPreviewModalState({ open: true, documentId: doc.id, title: doc.title || doc.name })}
       />
     </div>

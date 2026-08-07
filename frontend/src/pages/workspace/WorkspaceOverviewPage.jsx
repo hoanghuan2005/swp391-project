@@ -994,7 +994,7 @@ export default function WorkspaceOverviewPage() {
                 toast.error("Failed to add some public documents.");
               }
             }}
-            maxPersonalDocs={maxWorkspaceDocs}
+            maxSelectedDocs={maxWorkspaceDocs}
             onPreviewDocument={(doc) => setPreviewModalState({ open: true, documentId: doc.id, title: doc.title || doc.name })}
           />
 

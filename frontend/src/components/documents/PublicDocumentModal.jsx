@@ -97,7 +97,7 @@ export default function PublicDocumentModal({
             Browse Public Library
           </DialogTitle>
           <DialogDescription className="text-xs text-slate-500 mt-1">
-            Search and add public study documents to your collection (Up to {maxPersonalDocs} total).
+            Search and add public study documents to your collection (Up to {maxSelectedDocs} total).
           </DialogDescription>
         </DialogHeader>
 
