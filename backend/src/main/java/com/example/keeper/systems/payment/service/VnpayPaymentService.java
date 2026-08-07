@@ -9,6 +9,8 @@ import java.util.Map;
 public interface VnpayPaymentService {
     CreateVnpayPaymentResponse createProPayment(String userEmail, HttpServletRequest request);
 
+    CreateVnpayPaymentResponse createProPayment(String userEmail, String planCode, HttpServletRequest request);
+
     Map<String, String> handleIpn(Map<String, String> params);
 
     ConfirmVnpayReturnResponse confirmReturn(Map<String, String> params);

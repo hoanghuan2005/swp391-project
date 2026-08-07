@@ -113,9 +113,9 @@ export default function PricingModal({ open, onOpenChange, isOpen, onClose }) {
   const isLoggedIn = localStorage.getItem("isLoggedIn") === "true";
   const canUpgrade = role !== "ADMIN" && subscriptionTier === "FREE";
 
-  const handleUpgrade = async () => {
+  const handleUpgrade = async (targetPlanCode = "PRO") => {
     if (!isLoggedIn) {
-      toast.info("Please log in to upgrade to Pro!");
+      toast.info("Please log in to upgrade!");
       handleClose();
       navigate("/login");
       return;
@@ -125,7 +125,7 @@ export default function PricingModal({ open, onOpenChange, isOpen, onClose }) {
 
     try {
       setIsStartingUpgrade(true);
-      const payment = await createVnpayPayment();
+      const payment = await createVnpayPayment(targetPlanCode);
       if (payment?.paymentUrl) {
         window.location.href = payment.paymentUrl;
         return;
@@ -218,7 +218,26 @@ export default function PricingModal({ open, onOpenChange, isOpen, onClose }) {
                 const isFree = planCode === "FREE";
                 const currentTier = String(subscriptionTier || "FREE").toUpperCase();
                 const effectiveTier = role === "ADMIN" ? "PRO" : currentTier;
+                
+                // Dynamic tier comparison based on plan price (priceVnd)
+                const userCurrentPlanObj = rawPlans.find(
+                  (p) => String(p.code || p.name).toUpperCase() === effectiveTier
+                );
+                const currentUserPrice = userCurrentPlanObj ? (userCurrentPlanObj.priceVnd || 0) : 0;
+                const cardPrice = plan.priceVnd || 0;
+
                 const isCurrent = isLoggedIn && effectiveTier === planCode;
+                const isLowerTier = isLoggedIn && !isCurrent && currentUserPrice > cardPrice;
+                const isDisabled = isCurrent || isLowerTier || isStartingUpgrade || loading;
+
+                let buttonLabel = plan.action;
+                if (isCurrent) {
+                  buttonLabel = "Current plan";
+                } else if (isLowerTier) {
+                  buttonLabel = `Included in ${effectiveTier}`;
+                } else if (!isFree) {
+                  buttonLabel = `Upgrade to ${plan.name || plan.code}`;
+                }
 
                 return (
                   <div
@@ -229,7 +248,7 @@ export default function PricingModal({ open, onOpenChange, isOpen, onClose }) {
                         : "border border-slate-200/80 shadow-sm"
                     }`}
                   >
-                    {isPro && !isCurrent && (
+                    {isPro && !isCurrent && !isLowerTier && (
                       <span className="absolute -top-3 right-5 bg-gradient-to-r from-orange-500 to-amber-500 text-white text-[10px] font-extrabold px-2.5 py-0.5 rounded-full shadow-sm tracking-wider uppercase flex items-center gap-1">
                         <Crown className="w-3 h-3 fill-white" /> Popular
                       </span>
@@ -258,31 +277,22 @@ export default function PricingModal({ open, onOpenChange, isOpen, onClose }) {
                     </div>
 
                     <div className="pt-2">
-                      {!isFree ? (
-                        <Button
-                          className={`w-full rounded-xl py-3.5 font-bold text-xs shadow-md transition-all duration-300 ${
-                            isCurrent
-                              ? "bg-slate-100 hover:bg-slate-100 text-slate-500 cursor-not-allowed border border-slate-200 shadow-none"
-                              : "bg-[#f26522] hover:bg-[#d95316] text-white hover:shadow-orange-500/20 cursor-pointer"
-                          }`}
-                          disabled={isCurrent || isStartingUpgrade || loading}
-                          onClick={handleUpgrade}
-                        >
-                          {isStartingUpgrade ? (
-                            <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <Crown className="mr-1.5 h-3.5 w-3.5 fill-amber-300 text-amber-300" />
-                          )}
-                          {isCurrent ? "Current plan" : plan.action}
-                        </Button>
-                      ) : (
-                        <Button
-                          className="w-full rounded-xl py-3.5 bg-slate-100 text-slate-500 border border-slate-200 shadow-none font-bold text-xs cursor-not-allowed"
-                          disabled
-                        >
-                          {isCurrent ? "Current plan" : plan.action}
-                        </Button>
-                      )}
+                      <Button
+                        className={`w-full rounded-xl py-3.5 font-bold text-xs shadow-md transition-all duration-300 ${
+                          isCurrent || isLowerTier
+                            ? "bg-slate-100 hover:bg-slate-100 text-slate-500 cursor-not-allowed border border-slate-200 shadow-none"
+                            : "bg-[#f26522] hover:bg-[#d95316] text-white hover:shadow-orange-500/20 cursor-pointer"
+                        }`}
+                        disabled={isDisabled}
+                        onClick={() => handleUpgrade(plan.code)}
+                      >
+                        {isStartingUpgrade ? (
+                          <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                        ) : !isCurrent && !isLowerTier ? (
+                          <Crown className="mr-1.5 h-3.5 w-3.5 fill-amber-300 text-amber-300" />
+                        ) : null}
+                        {buttonLabel}
+                      </Button>
                     </div>
                   </div>
                 );

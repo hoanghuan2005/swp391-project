@@ -4,19 +4,83 @@ import { Button } from "@/components/ui/button";
 import { ArrowRight, BookOpen, BrainCircuit, Users, CheckCircle2, Sparkles, BookMarked, ShieldCheck, Loader2, Check } from "lucide-react";
 import studyImage from '../assets/picture-study.png';
 import useAiUsage from "@/hooks/useAiUsage";
-import { createVnpayPayment } from "@/api/paymentApi";
+import axiosClient from "@/api/axiosClient";
+
+function formatBytes(bytes) {
+  if (bytes === null || bytes === undefined || bytes === -1) return "Unlimited";
+  if (bytes === 0) return "0 MB";
+  const mb = bytes / (1024 * 1024);
+  if (mb >= 1024) return (mb / 1024).toFixed(0) + "GB";
+  return mb.toFixed(0) + "MB";
+}
+
+function formatVndPrice(priceVnd) {
+  if (!priceVnd || priceVnd === 0) return "0đ";
+  return new Intl.NumberFormat("vi-VN").format(priceVnd) + "đ";
+}
+
+const defaultPlans = [
+  {
+    code: "FREE",
+    name: "Free",
+    priceVnd: 0,
+    description: "For trying Study Hub AI features.",
+    features: [
+      "5 AI requests per day",
+      "Up to 15 flashcards per generation",
+      "Up to 20 quiz questions per generation",
+      "Create up to 3 workspaces",
+      "5MB max file size",
+      "100MB total storage capacity",
+      "3 document uploads per day",
+    ],
+  },
+  {
+    code: "PRO",
+    name: "Pro",
+    priceVnd: 99000,
+    description: "For frequent study sessions.",
+    features: [
+      "Unlimited AI requests",
+      "Unlimited flashcards per generation",
+      "Up to 50 quiz questions per generation",
+      "Unlimited workspaces",
+      "10MB max file size",
+      "1GB total storage capacity",
+      "Unlimited document uploads",
+    ],
+  },
+];
 
 export default function LandingPage() {
   const isLoggedIn = localStorage.getItem("isLoggedIn") === "true";
   const navigate = useNavigate();
   const [isStartingUpgrade, setIsStartingUpgrade] = useState(false);
+  const [dbPlans, setDbPlans] = useState([]);
   const { subscriptionTier, loading } = useAiUsage();
   const role = getTokenRole();
   const canUpgrade = role !== "ADMIN" && subscriptionTier === "FREE";
 
-  const handleUpgrade = async () => {
+  React.useEffect(() => {
+    let isMounted = true;
+    axiosClient.get("/api/subscription/plans")
+      .then((res) => {
+        if (isMounted && res.data && res.data.length > 0) {
+          const sorted = (res.data || []).sort((a, b) => (a.priceVnd || 0) - (b.priceVnd || 0));
+          setDbPlans(sorted);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to fetch active plans on landing page:", err);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const handleUpgrade = async (targetPlanCode = "PRO") => {
     if (!isLoggedIn) {
-      alert("Vui lòng đăng nhập để nâng cấp lên Pro!");
+      alert("Vui lòng đăng nhập để nâng cấp!");
       navigate("/login");
       return;
     }
@@ -25,7 +89,7 @@ export default function LandingPage() {
 
     try {
       setIsStartingUpgrade(true);
-      const payment = await createVnpayPayment();
+      const payment = await createVnpayPayment(targetPlanCode);
       if (payment?.paymentUrl) {
         window.location.href = payment.paymentUrl;
         return;
@@ -243,125 +307,98 @@ export default function LandingPage() {
           </div>
 
           <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-            {/* Free Plan */}
-            <div className="bg-slate-50/50 p-8 rounded-xl border border-slate-200/80 shadow-sm flex flex-col justify-between hover:bg-white hover:shadow-md transition-all duration-300">
-              <div>
-                <h3 className="text-2xl font-black text-slate-800">Free</h3>
-                <p className="mt-2 text-sm text-slate-400">For trying Study Hub AI features.</p>
-                <div className="mt-6 flex items-baseline">
-                  <span className="text-4xl font-black text-slate-800">0đ</span>
-                  <span className="text-slate-400 text-xs ml-1">/ forever</span>
-                </div>
-                <ul className="my-8 space-y-3.5">
-                  <li className="flex items-start gap-2.5 text-sm text-slate-600 font-semibold">
-                    <Check className="h-5 w-5 text-green-500 shrink-0" strokeWidth={3} />
-                    <span>5 AI requests per day</span>
-                  </li>
-                  <li className="flex items-start gap-2.5 text-sm text-slate-600 font-semibold">
-                    <Check className="h-5 w-5 text-green-500 shrink-0" strokeWidth={3} />
-                    <span>Up to 15 flashcards per generation</span>
-                  </li>
-                  <li className="flex items-start gap-2.5 text-sm text-slate-600 font-semibold">
-                    <Check className="h-5 w-5 text-green-500 shrink-0" strokeWidth={3} />
-                    <span>Up to 20 quiz questions per generation</span>
-                  </li>
-                  <li className="flex items-start gap-2.5 text-sm text-slate-600 font-semibold">
-                    <Check className="h-5 w-5 text-green-500 shrink-0" strokeWidth={3} />
-                    <span>Create up to 3 workspaces</span>
-                  </li>
-                  <li className="flex items-start gap-2.5 text-sm text-slate-600 font-semibold">
-                    <Check className="h-5 w-5 text-green-500 shrink-0" strokeWidth={3} />
-                    <span>10MB max file size</span>
-                  </li>
-                  <li className="flex items-start gap-2.5 text-sm text-slate-600 font-semibold">
-                    <Check className="h-5 w-5 text-green-500 shrink-0" strokeWidth={3} />
-                    <span>100MB total storage capacity</span>
-                  </li>
-                  <li className="flex items-start gap-2.5 text-sm text-slate-600 font-semibold">
-                    <Check className="h-5 w-5 text-green-500 shrink-0" strokeWidth={3} />
-                    <span>3 document uploads per day</span>
-                  </li>
-                </ul>
-              </div>
-              <Button
-                className="w-full rounded-xl py-6 bg-slate-105 text-slate-500 border border-slate-200 shadow-none font-bold text-sm cursor-not-allowed"
-                disabled
-              >
-                {isLoggedIn && subscriptionTier === "FREE" && role !== "ADMIN" ? "Current plan" : "Free Forever"}
-              </Button>
-            </div>
+            {(dbPlans.length > 0 ? dbPlans : defaultPlans).map((p) => {
+              const planCode = String(p.code || p.name).toUpperCase();
+              const isPro = planCode === "PRO";
+              const isFree = planCode === "FREE" || p.priceVnd === 0;
+              const currentTier = String(subscriptionTier || "FREE").toUpperCase();
+              const effectiveTier = role === "ADMIN" ? "PRO" : currentTier;
 
-            {/* Pro Plan */}
-            <div className="bg-white p-8 rounded-xl border-2 border-orange-500 shadow-md flex flex-col justify-between transition-all duration-300 relative scale-[1.01] md:scale-105">
-              {(!isLoggedIn || subscriptionTier !== "PRO") && (
-                <span className="absolute -top-3.5 right-8 bg-gradient-to-r from-orange-500 to-amber-500 text-white text-[11px] font-extrabold px-3 py-1.5 rounded-full shadow-sm tracking-wider uppercase">
-                  Popular
-                </span>
-              )}
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="text-2xl font-black text-slate-800">Pro</h3>
-                  <Sparkles className="h-5 w-5 text-amber-500 fill-amber-500 animate-pulse" />
+              // Dynamic tier comparison based on plan price (priceVnd)
+              const allPlansList = dbPlans.length > 0 ? dbPlans : defaultPlans;
+              const userCurrentPlanObj = allPlansList.find(
+                (plan) => String(plan.code || plan.name).toUpperCase() === effectiveTier
+              );
+              const currentUserPrice = userCurrentPlanObj ? (userCurrentPlanObj.priceVnd || 0) : 0;
+              const cardPrice = p.priceVnd || 0;
+
+              const isCurrent = isLoggedIn && effectiveTier === planCode;
+              const isLowerTier = isLoggedIn && !isCurrent && currentUserPrice > cardPrice;
+              const isDisabled = isCurrent || isLowerTier || isStartingUpgrade || loading;
+
+              let buttonLabel = `Upgrade to ${p.name || p.code}`;
+              if (isCurrent) {
+                buttonLabel = "Current plan";
+              } else if (isLowerTier) {
+                buttonLabel = `Included in ${effectiveTier}`;
+              } else if (isFree) {
+                buttonLabel = "Free Forever";
+              }
+
+              const features = p.features || [
+                p.dailyAiLimit === -1 ? "Unlimited AI requests" : `${p.dailyAiLimit} AI requests per day`,
+                p.maxFlashcardsPerGeneration === -1 ? "Unlimited flashcards per generation" : `Up to ${p.maxFlashcardsPerGeneration} flashcards per generation`,
+                p.maxQuizQuestionsPerGeneration === -1 ? "Unlimited quiz questions per generation" : `Up to ${p.maxQuizQuestionsPerGeneration} quiz questions per generation`,
+                p.maxOwnedProjects === -1 ? "Unlimited workspaces" : `Create up to ${p.maxOwnedProjects} workspaces`,
+                `${formatBytes(p.maxFileSizeBytes)} max file size`,
+                `${formatBytes(p.totalStorageBytes)} total storage capacity`,
+                p.dailyUploadLimit === -1 ? "Unlimited document uploads" : `${p.dailyUploadLimit} document uploads per day`,
+              ];
+
+              return (
+                <div
+                  key={p.code || p.name}
+                  className={`p-8 rounded-xl flex flex-col justify-between transition-all duration-300 relative ${
+                    isPro
+                      ? "bg-white border-2 border-orange-500 shadow-md scale-[1.01] md:scale-105"
+                      : "bg-slate-50/50 border border-slate-200/80 shadow-sm hover:bg-white hover:shadow-md"
+                  }`}
+                >
+                  {isPro && (!isLoggedIn || (!isCurrent && !isLowerTier)) && (
+                    <span className="absolute -top-3.5 right-8 bg-gradient-to-r from-orange-500 to-amber-500 text-white text-[11px] font-extrabold px-3 py-1.5 rounded-full shadow-sm tracking-wider uppercase">
+                      Popular
+                    </span>
+                  )}
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-2xl font-black text-slate-800">{p.name || p.code}</h3>
+                      {isPro && <Sparkles className="h-5 w-5 text-amber-500 fill-amber-500 animate-pulse" />}
+                    </div>
+                    <p className="mt-2 text-sm text-slate-400">
+                      {p.description || (isFree ? "For trying Study Hub AI features." : "For frequent study sessions.")}
+                    </p>
+                    <div className="mt-6 flex items-baseline">
+                      <span className="text-4xl font-black text-slate-800">{formatVndPrice(p.priceVnd)}</span>
+                      <span className="text-slate-400 text-xs ml-1">/ {p.priceVnd === 0 ? "forever" : "month"}</span>
+                    </div>
+                    <ul className="my-8 space-y-3.5">
+                      {features.map((feat, idx) => (
+                        <li key={idx} className="flex items-start gap-2.5 text-sm text-slate-600 font-semibold">
+                          <Check className="h-5 w-5 text-green-500 shrink-0" strokeWidth={3} />
+                          <span>{feat}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <Button
+                    className={`w-full rounded-xl py-6 font-bold text-sm shadow-md transition-all duration-300 ${
+                      isCurrent || isLowerTier || isFree
+                        ? "bg-slate-100 hover:bg-slate-100 text-slate-500 cursor-not-allowed border border-slate-200 shadow-none"
+                        : "bg-[#f26522] hover:bg-[#d95316] text-white hover:shadow-orange-500/20 hover:scale-[1.02] cursor-pointer"
+                    }`}
+                    disabled={isDisabled || isFree}
+                    onClick={() => handleUpgrade(p.code)}
+                  >
+                    {isStartingUpgrade ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : !isCurrent && !isLowerTier && !isFree ? (
+                      <Sparkles className="mr-2 h-4 w-4 fill-white" />
+                    ) : null}
+                    {buttonLabel}
+                  </Button>
                 </div>
-                <p className="mt-2 text-sm text-slate-400">For frequent study sessions.</p>
-                <div className="mt-6 flex items-baseline">
-                  <span className="text-4xl font-black text-slate-800">99.000đ</span>
-                  <span className="text-slate-400 text-xs ml-1">/ month</span>
-                </div>
-                <ul className="my-8 space-y-3.5">
-                  <li className="flex items-start gap-2.5 text-sm text-slate-600 font-semibold">
-                    <Check className="h-5 w-5 text-green-500 shrink-0" strokeWidth={3} />
-                    <span>Unlimited AI requests</span>
-                  </li>
-                  <li className="flex items-start gap-2.5 text-sm text-slate-600 font-semibold">
-                    <Check className="h-5 w-5 text-green-500 shrink-0" strokeWidth={3} />
-                    <span>Unlimited flashcards per generation</span>
-                  </li>
-                  <li className="flex items-start gap-2.5 text-sm text-slate-600 font-semibold">
-                    <Check className="h-5 w-5 text-green-500 shrink-0" strokeWidth={3} />
-                    <span>Up to 50 quiz questions per generation</span>
-                  </li>
-                  <li className="flex items-start gap-2.5 text-sm text-slate-600 font-semibold">
-                    <Check className="h-5 w-5 text-green-500 shrink-0" strokeWidth={3} />
-                    <span>Unlimited workspaces</span>
-                  </li>
-                  <li className="flex items-start gap-2.5 text-sm text-slate-600 font-semibold">
-                    <Check className="h-5 w-5 text-green-500 shrink-0" strokeWidth={3} />
-                    <span>50MB max file size</span>
-                  </li>
-                  <li className="flex items-start gap-2.5 text-sm text-slate-600 font-semibold">
-                    <Check className="h-5 w-5 text-green-500 shrink-0" strokeWidth={3} />
-                    <span>1GB total storage capacity</span>
-                  </li>
-                  <li className="flex items-start gap-2.5 text-sm text-slate-600 font-semibold">
-                    <Check className="h-5 w-5 text-green-500 shrink-0" strokeWidth={3} />
-                    <span>Unlimited document uploads</span>
-                  </li>
-                  <li className="flex items-start gap-2.5 text-sm text-slate-600 font-semibold">
-                    <Check className="h-5 w-5 text-green-500 shrink-0" strokeWidth={3} />
-                    <span>Priority support</span>
-                  </li>
-                </ul>
-              </div>
-              <Button
-                className={`w-full rounded-xl py-6 font-bold text-sm shadow-md transition-all duration-300 ${
-                  isLoggedIn && (subscriptionTier === "PRO" || role === "ADMIN")
-                    ? "bg-slate-100 hover:bg-slate-100 text-slate-500 cursor-not-allowed border border-slate-200 shadow-none"
-                    : "bg-[#f26522] hover:bg-[#d95316] text-white hover:shadow-orange-500/20 hover:scale-[1.02] cursor-pointer"
-                }`}
-                disabled={(isLoggedIn && !canUpgrade) || isStartingUpgrade || loading}
-                onClick={handleUpgrade}
-              >
-                {isStartingUpgrade ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Sparkles className="mr-2 h-4 w-4 fill-white" />
-                )}
-                {isLoggedIn && (subscriptionTier === "PRO" || role === "ADMIN")
-                  ? "Current plan"
-                  : "Upgrade to Pro"}
-              </Button>
-            </div>
+              );
+            })}
           </div>
         </div>
       </section>

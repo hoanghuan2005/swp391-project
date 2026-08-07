@@ -18,4 +18,8 @@ public interface SubscriptionPlanRepository extends JpaRepository<SubscriptionPl
     List<SubscriptionPlan> findByIsActiveTrueOrderByPriceVndAsc();
 
     List<SubscriptionPlan> findAllByOrderByPriceVndAsc();
+
+    Optional<SubscriptionPlan> findTopByPriceVndAndIsActiveTrueOrderByCreatedAtAsc(Long priceVnd);
+
+    Optional<SubscriptionPlan> findTopByPriceVndOrderByCreatedAtAsc(Long priceVnd);
 }

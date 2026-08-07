@@ -2,7 +2,9 @@ package com.example.keeper.systems.auth.service;
 
 import com.example.keeper.systems.auth.dto.RegisterRequest;
 import com.example.keeper.systems.auth.dto.LoginRequest;
+import com.example.keeper.systems.auth.entity.SubscriptionPlan;
 import com.example.keeper.systems.auth.entity.User;
+import com.example.keeper.systems.auth.repository.SubscriptionPlanRepository;
 import com.example.keeper.systems.auth.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
@@ -14,6 +16,7 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class AuthService {
     private final UserRepository userRepository;
+    private final SubscriptionPlanRepository subscriptionPlanRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final EmailService emailService;
@@ -28,6 +31,13 @@ public class AuthService {
         user.setEmail(request.getEmail());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setEmailVerified(false);
+
+        // Snapshot current active FREE plan storage limit
+        SubscriptionPlan freePlan = subscriptionPlanRepository.findByCodeAndIsActiveTrue("FREE")
+                .orElseGet(() -> subscriptionPlanRepository.findByCode("FREE").orElse(null));
+        if (freePlan != null && freePlan.getTotalStorageBytes() != null) {
+            user.setMaxStorageBytes(freePlan.getTotalStorageBytes());
+        }
 
         String otp = String.valueOf((int) (Math.random() * 900000) + 100000);
         user.setResetToken(otp);

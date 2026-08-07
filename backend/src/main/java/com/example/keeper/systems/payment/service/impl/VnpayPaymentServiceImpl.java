@@ -17,7 +17,6 @@ import com.example.keeper.systems.payment.repository.PaymentTransactionRepositor
 import com.example.keeper.systems.payment.service.VnpayPaymentService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,7 +36,6 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class VnpayPaymentServiceImpl implements VnpayPaymentService {
 
-    private static final long PRO_PRICE_VND = 99_000L;
     private static final String VNP_VERSION = "2.1.0";
     private static final String VNP_COMMAND = "pay";
     private static final String VNP_CURRENCY = "VND";
@@ -58,16 +56,34 @@ public class VnpayPaymentServiceImpl implements VnpayPaymentService {
     @Override
     @Transactional
     public CreateVnpayPaymentResponse createProPayment(String userEmail, HttpServletRequest request) {
+        return createProPayment(userEmail, "PRO", request);
+    }
+
+    @Override
+    @Transactional
+    public CreateVnpayPaymentResponse createProPayment(String userEmail, String planCode, HttpServletRequest request) {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
+        String targetCode = (planCode != null && !planCode.isBlank()) ? planCode.toUpperCase().trim() : "PRO";
+        SubscriptionPlan plan = subscriptionPlanRepository.findByCodeAndIsActiveTrue(targetCode)
+                .orElseGet(() -> subscriptionPlanRepository.findByCode(targetCode)
+                        .orElseThrow(() -> new IllegalArgumentException("Subscription plan not found: " + targetCode)));
+
+        if (plan.getPriceVnd() == null) {
+            throw new IllegalArgumentException("Price is not defined for subscription plan: " + targetCode);
+        }
+
+        long targetPrice = plan.getPriceVnd();
+        String planName = plan.getName() != null ? plan.getName() : targetCode;
+
         String txnRef = generateTxnRef();
-        String orderInfo = "Upgrade_MinDocu_AI_account_to_PRO";
+        String orderInfo = "Upgrade_MinDocu_AI_account_to_" + targetCode;
 
         PaymentTransaction transaction = new PaymentTransaction();
         transaction.setUser(user);
         transaction.setTxnRef(txnRef);
-        transaction.setAmountVnd(PRO_PRICE_VND);
+        transaction.setAmountVnd(targetPrice);
         transaction.setOrderInfo(orderInfo);
         transaction.setStatus(PaymentStatus.PENDING);
         paymentTransactionRepository.save(transaction);
@@ -76,7 +92,7 @@ public class VnpayPaymentServiceImpl implements VnpayPaymentService {
         params.put("vnp_Version", VNP_VERSION);
         params.put("vnp_Command", VNP_COMMAND);
         params.put("vnp_TmnCode", vnpayConfig.getTmnCode());
-        params.put("vnp_Amount", String.valueOf(PRO_PRICE_VND * 100));
+        params.put("vnp_Amount", String.valueOf(targetPrice * 100));
         params.put("vnp_CurrCode", VNP_CURRENCY);
         params.put("vnp_TxnRef", txnRef);
         params.put("vnp_OrderInfo", orderInfo);

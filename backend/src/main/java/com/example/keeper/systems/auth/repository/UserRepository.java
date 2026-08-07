@@ -22,6 +22,8 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     long countBySubscriptionTier(SubscriptionTier subscriptionTier);
 
+    java.util.List<User> findBySubscriptionTier(SubscriptionTier subscriptionTier);
+
     @Query("SELECT u FROM User u JOIN u.followedCourses c WHERE c.id = :courseId")
     java.util.List<User> findUsersByFollowedCourseId(@Param("courseId") UUID courseId);
 }

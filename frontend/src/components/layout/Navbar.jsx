@@ -792,10 +792,10 @@ ${
                     <User size={15} /> My Profile
                   </Link>
                   <Link
-                    to={currentUserId ? `/users/${currentUserId}` : "/profile"}
+                    to="/notifications"
                     className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 flex items-center gap-2"
                   >
-                    <Globe size={15} /> My Public Channel
+                    <Bell size={15} /> My Notifications
                   </Link>
                   <Link
                     to="/my-library"
@@ -811,7 +811,7 @@ ${
                     className="border-t w-full px-4 py-3 text-left text-xs font-bold text-[#f26522] hover:bg-orange-50 flex items-center gap-2 cursor-pointer"
                   >
                     <Sparkles size={15} />
-                    {subscriptionTier === "PRO" ? "Gói Đăng Ký (PRO)" : "Nâng cấp lên PRO"}
+                    {subscriptionTier === "PRO" ? "Subscription (PRO)" : "Upgrade to PRO"}
                   </button>
 
                   <button

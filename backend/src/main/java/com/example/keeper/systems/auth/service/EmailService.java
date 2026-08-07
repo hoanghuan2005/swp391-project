@@ -106,4 +106,16 @@ public class EmailService {
                         "Best regards,\n" +
                         "The MinDoCu Team");
     }
+
+    @Async
+    public void sendPlanUpdateEmail(String to, String planName, String username) {
+        sendEmail(to,
+                "Subscription Plan Updated: " + (planName != null ? planName : "MinDoCu") + " - MinDoCu App",
+                "Hello " + (username != null ? username : "there") + ",\n\n" +
+                        "MinDoCu system administrators have updated the operational policy and limits for the \"" + (planName != null ? planName : "service") + "\" plan.\n" +
+                        "Your account has been automatically synchronized with the updated limits. Please review details in the Subscription & Pricing section on MinDoCu App.\n\n" +
+                        "Thank you for choosing MinDoCu to elevate your learning!\n\n" +
+                        "Best regards,\n" +
+                        "The MinDoCu Team");
+    }
 }

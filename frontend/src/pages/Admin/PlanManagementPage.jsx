@@ -432,346 +432,231 @@ export default function PlanManagementPage() {
 
       {/* Edit / Create Modal */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="sm:max-w-lg rounded-3xl p-0 bg-white max-h-[85vh] flex flex-col overflow-hidden">
-          <DialogHeader className="p-6 pb-4 border-b border-slate-100 flex-shrink-0">
-            <DialogTitle className="text-xl font-bold text-slate-800">
+        <DialogContent className="sm:max-w-3xl rounded-2xl p-0 bg-white max-h-[90vh] flex flex-col overflow-hidden shadow-xl border-none">
+          <DialogHeader className="px-5 py-3.5 border-b border-slate-100 flex-shrink-0 bg-slate-50/50">
+            <DialogTitle className="text-lg font-extrabold text-slate-800 flex items-center gap-2">
+              <Layers className="w-4 h-4 text-[#f26522]" />
               {editingPlan ? `Configure ${editingPlan.code} Plan` : "Create New Subscription Plan"}
             </DialogTitle>
+            <DialogDescription className="text-[11px] text-slate-400 mt-0.5">
+              Configure pricing, limits, AI requests, and storage quotas for this plan.
+            </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleSave} className="flex flex-col flex-1 overflow-hidden min-h-0">
-            <div className="p-6 space-y-4 overflow-y-auto flex-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-bold text-slate-600">Plan Code</label>
-                  <Input
-                    disabled={!!editingPlan}
-                    value={formData.code}
-                    onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
-                    placeholder="FREE, PRO, STUDENT..."
-                    className="mt-1 rounded-xl uppercase"
-                    required
-                  />
-                </div>
+            <div className="p-5 space-y-3.5 overflow-y-auto flex-1 max-h-[72vh] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+              {/* Section 1: Basic Information */}
+              <div className="space-y-1.5">
+                <h4 className="text-[11px] font-black uppercase text-[#f26522] tracking-wider">General Information</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="flex flex-col justify-end">
+                    <label className="min-h-[22px] flex items-end pb-0.5 text-[11px] font-bold text-slate-700 leading-tight">Plan Code</label>
+                    <Input
+                      disabled={!!editingPlan}
+                      value={formData.code}
+                      onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
+                      placeholder="FREE, PRO..."
+                      className="h-8.5 rounded-lg uppercase font-bold text-xs"
+                      required
+                    />
+                  </div>
 
-                <div>
-                  <label className="text-xs font-bold text-slate-600">Plan Name</label>
-                  <Input
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="Free Plan, Pro Plan..."
-                    className="mt-1 rounded-xl"
-                    required
-                  />
-                </div>
-              </div>
+                  <div className="flex flex-col justify-end">
+                    <label className="min-h-[22px] flex items-end pb-0.5 text-[11px] font-bold text-slate-700 leading-tight">Plan Name</label>
+                    <Input
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      placeholder="Pro Plan..."
+                      className="h-8.5 rounded-lg text-xs"
+                      required
+                    />
+                  </div>
 
-              <div>
-                <label className="text-xs font-bold text-slate-600">Price (VND)</label>
-                <Input
-                  type="number"
-                  value={formData.priceVnd}
-                  onChange={(e) => setFormData({ ...formData, priceVnd: e.target.value })}
-                  placeholder="0"
-                  className="mt-1 rounded-xl"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-bold text-slate-600">Max File Size (MB)</label>
-                  <Input
-                    type="number"
-                    value={formData.maxFileMb}
-                    onChange={(e) => setFormData({ ...formData, maxFileMb: e.target.value })}
-                    placeholder="10"
-                    className="mt-1 rounded-xl"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold text-slate-600">Total Storage (MB)</label>
-                  <Input
-                    type="number"
-                    value={formData.totalStorageMb}
-                    onChange={(e) => setFormData({ ...formData, totalStorageMb: e.target.value })}
-                    placeholder="100"
-                    className="mt-1 rounded-xl"
-                    required
-                  />
+                  <div className="flex flex-col justify-end">
+                    <label className="min-h-[22px] flex items-end pb-0.5 text-[11px] font-bold text-slate-700 leading-tight">Price (VND)</label>
+                    <Input
+                      type="number"
+                      value={formData.priceVnd}
+                      onChange={(e) => setFormData({ ...formData, priceVnd: e.target.value })}
+                      placeholder="0"
+                      className="h-8.5 rounded-lg text-xs"
+                      required
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-bold text-slate-600">Daily Uploads (-1 = Unlimited)</label>
-                  <Input
-                    type="number"
-                    value={formData.dailyUploadLimit}
-                    onChange={(e) => setFormData({ ...formData, dailyUploadLimit: e.target.value })}
-                    className="mt-1 rounded-xl"
-                    required
-                  />
-                </div>
+              {/* Section 2: Storage & File Quotas */}
+              <div className="space-y-1.5 pt-2 border-t border-slate-100">
+                <h4 className="text-[11px] font-black uppercase text-[#f26522] tracking-wider">Storage & Upload Limits</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="flex flex-col justify-end">
+                    <label className="min-h-[22px] flex items-end pb-0.5 text-[11px] font-bold text-slate-700 leading-tight">Max File Size (MB)</label>
+                    <Input
+                      type="number"
+                      value={formData.maxFileMb}
+                      onChange={(e) => setFormData({ ...formData, maxFileMb: e.target.value })}
+                      placeholder="10"
+                      className="h-8.5 rounded-lg text-xs"
+                      required
+                    />
+                  </div>
 
-                <div>
-                  <label className="text-xs font-bold text-slate-600">Daily AI Requests (-1 = Unlimited)</label>
-                  <Input
-                    type="number"
-                    value={formData.dailyAiLimit}
-                    onChange={(e) => setFormData({ ...formData, dailyAiLimit: e.target.value })}
-                    className="mt-1 rounded-xl"
-                    required
-                  />
-                </div>
-              </div>
+                  <div className="flex flex-col justify-end">
+                    <label className="min-h-[22px] flex items-end pb-0.5 text-[11px] font-bold text-slate-700 leading-tight">Total Storage (MB)</label>
+                    <Input
+                      type="number"
+                      value={formData.totalStorageMb}
+                      onChange={(e) => setFormData({ ...formData, totalStorageMb: e.target.value })}
+                      placeholder="100"
+                      className="h-8.5 rounded-lg text-xs"
+                      required
+                    />
+                  </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-bold text-slate-600">Flashcards / Gen (-1 = Unlimited)</label>
-                  <Input
-                    type="number"
-                    value={formData.maxFlashcardsPerGen}
-                    onChange={(e) => setFormData({ ...formData, maxFlashcardsPerGen: e.target.value })}
-                    className="mt-1 rounded-xl"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold text-slate-600">Quiz Questions / Gen (-1 = Unlimited)</label>
-                  <Input
-                    type="number"
-                    value={formData.maxQuizQuestionsPerGen}
-                    onChange={(e) => setFormData({ ...formData, maxQuizQuestionsPerGen: e.target.value })}
-                    className="mt-1 rounded-xl"
-                    required
-                  />
+                  <div className="flex flex-col justify-end">
+                    <label className="min-h-[22px] flex items-end pb-0.5 text-[11px] font-bold text-slate-700 leading-tight">Daily Uploads (-1 = Unlimited)</label>
+                    <Input
+                      type="number"
+                      value={formData.dailyUploadLimit}
+                      onChange={(e) => setFormData({ ...formData, dailyUploadLimit: e.target.value })}
+                      className="h-8.5 rounded-lg text-xs"
+                      required
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-bold text-slate-600">Owned Workspaces (-1 = Unlimited)</label>
-                  <Input
-                    type="number"
-                    value={formData.maxOwnedProjects}
-                    onChange={(e) => setFormData({ ...formData, maxOwnedProjects: e.target.value })}
-                    className="mt-1 rounded-xl"
-                    required
-                  />
-                </div>
+              {/* Section 3: AI Quotas */}
+              <div className="space-y-1.5 pt-2 border-t border-slate-100">
+                <h4 className="text-[11px] font-black uppercase text-[#f26522] tracking-wider">AI Generation Quotas</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="flex flex-col justify-end">
+                    <label className="min-h-[22px] flex items-end pb-0.5 text-[11px] font-bold text-slate-700 leading-tight">Daily AI Requests (-1 = Unlimited)</label>
+                    <Input
+                      type="number"
+                      value={formData.dailyAiLimit}
+                      onChange={(e) => setFormData({ ...formData, dailyAiLimit: e.target.value })}
+                      className="h-8.5 rounded-lg text-xs"
+                      required
+                    />
+                  </div>
 
-                <div>
-                  <label className="text-xs font-bold text-slate-600">Joined Workspaces (-1 = Unlimited)</label>
-                  <Input
-                    type="number"
-                    value={formData.maxJoinedProjects}
-                    onChange={(e) => setFormData({ ...formData, maxJoinedProjects: e.target.value })}
-                    className="mt-1 rounded-xl"
-                    required
-                  />
+                  <div className="flex flex-col justify-end">
+                    <label className="min-h-[22px] flex items-end pb-0.5 text-[11px] font-bold text-slate-700 leading-tight">Flashcards / Gen (-1 = Unlimited)</label>
+                    <Input
+                      type="number"
+                      value={formData.maxFlashcardsPerGen}
+                      onChange={(e) => setFormData({ ...formData, maxFlashcardsPerGen: e.target.value })}
+                      className="h-8.5 rounded-lg text-xs"
+                      required
+                    />
+                  </div>
+
+                  <div className="flex flex-col justify-end">
+                    <label className="min-h-[22px] flex items-end pb-0.5 text-[11px] font-bold text-slate-700 leading-tight">Quiz Questions / Gen (-1 = Unlimited)</label>
+                    <Input
+                      type="number"
+                      value={formData.maxQuizQuestionsPerGen}
+                      onChange={(e) => setFormData({ ...formData, maxQuizQuestionsPerGen: e.target.value })}
+                      className="h-8.5 rounded-lg text-xs"
+                      required
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div>
-                <label className="text-xs font-bold text-slate-600">Max Selected Docs / Query (-1 = Unlimited)</label>
-                <Input
-                  type="number"
-                  value={formData.maxSelectedDocs}
-                  onChange={(e) => setFormData({ ...formData, maxSelectedDocs: e.target.value })}
-                  className="mt-1 rounded-xl"
-                  required
-                />
+              {/* Section 4: Workspaces & AI Context */}
+              <div className="space-y-1.5 pt-2 border-t border-slate-100">
+                <h4 className="text-[11px] font-black uppercase text-[#f26522] tracking-wider">Workspaces & AI Context Depth</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="flex flex-col justify-end">
+                    <label className="min-h-[22px] flex items-end pb-0.5 text-[11px] font-bold text-slate-700 leading-tight">Owned Workspaces (-1 = Unlimited)</label>
+                    <Input
+                      type="number"
+                      value={formData.maxOwnedProjects}
+                      onChange={(e) => setFormData({ ...formData, maxOwnedProjects: e.target.value })}
+                      className="h-8.5 rounded-lg text-xs"
+                      required
+                    />
+                  </div>
+
+                  <div className="flex flex-col justify-end">
+                    <label className="min-h-[22px] flex items-end pb-0.5 text-[11px] font-bold text-slate-700 leading-tight">Joined Workspaces (-1 = Unlimited)</label>
+                    <Input
+                      type="number"
+                      value={formData.maxJoinedProjects}
+                      onChange={(e) => setFormData({ ...formData, maxJoinedProjects: e.target.value })}
+                      className="h-8.5 rounded-lg text-xs"
+                      required
+                    />
+                  </div>
+
+                  <div className="flex flex-col justify-end">
+                    <label className="min-h-[22px] flex items-end pb-0.5 text-[11px] font-bold text-slate-700 leading-tight">Max Workspace Docs</label>
+                    <Input
+                      type="number"
+                      value={formData.maxWorkspaceDocs}
+                      onChange={(e) => setFormData({ ...formData, maxWorkspaceDocs: e.target.value })}
+                      className="h-8.5 rounded-lg text-xs"
+                      required
+                    />
+                  </div>
+
+                  <div className="flex flex-col justify-end">
+                    <label className="min-h-[22px] flex items-end pb-0.5 text-[11px] font-bold text-slate-700 leading-tight">Max Selected Docs / Query</label>
+                    <Input
+                      type="number"
+                      value={formData.maxSelectedDocs}
+                      onChange={(e) => setFormData({ ...formData, maxSelectedDocs: e.target.value })}
+                      className="h-8.5 rounded-lg text-xs"
+                      required
+                    />
+                  </div>
+
+                  <div className="flex flex-col justify-end">
+                    <label className="min-h-[22px] flex items-end pb-0.5 text-[11px] font-bold text-slate-700 leading-tight">Max AI Context Chunks</label>
+                    <Input
+                      type="number"
+                      value={formData.maxAiContextChunks}
+                      onChange={(e) => setFormData({ ...formData, maxAiContextChunks: e.target.value })}
+                      className="h-8.5 rounded-lg text-xs"
+                      required
+                    />
+                  </div>
+
+                  <div className="flex flex-col justify-end">
+                    <label className="min-h-[22px] flex items-end pb-0.5 text-[11px] font-bold text-slate-700 leading-tight">Max Chunk Chars</label>
+                    <Input
+                      type="number"
+                      value={formData.maxChunkChars}
+                      onChange={(e) => setFormData({ ...formData, maxChunkChars: e.target.value })}
+                      className="h-8.5 rounded-lg text-xs"
+                      required
+                    />
+                  </div>
+                </div>
               </div>
 
-              <div className="flex items-center justify-between pt-2">
-                <span className="text-xs font-bold text-slate-600">Activate Plan</span>
+              {/* Section 5: Activation Switch */}
+              <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                <div>
+                  <span className="text-xs font-bold text-slate-800 block">Activate Plan</span>
+                  <span className="text-[10px] text-slate-400">Make this plan active and visible to users</span>
+                </div>
                 <Switch
                   checked={formData.isActive}
                   onCheckedChange={(checked) => setFormData({ ...formData, isActive: checked })}
-                  className="data-[state=checked]:bg-[#f26522]"
+                  className="data-[state=checked]:bg-[#f26522] cursor-pointer scale-90"
                 />
               </div>
             </div>
 
-            <div>
-              <label className="text-xs font-bold text-slate-600">Price (VND)</label>
-              <Input
-                type="number"
-                value={formData.priceVnd}
-                onChange={(e) => setFormData({ ...formData, priceVnd: e.target.value })}
-                placeholder="0"
-                className="mt-1 rounded-xl"
-                required
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs font-bold text-slate-600">Max File Size (MB)</label>
-                <Input
-                  type="number"
-                  value={formData.maxFileMb}
-                  onChange={(e) => setFormData({ ...formData, maxFileMb: e.target.value })}
-                  placeholder="10"
-                  className="mt-1 rounded-xl"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-600">Total Storage (MB)</label>
-                <Input
-                  type="number"
-                  value={formData.totalStorageMb}
-                  onChange={(e) => setFormData({ ...formData, totalStorageMb: e.target.value })}
-                  placeholder="100"
-                  className="mt-1 rounded-xl"
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs font-bold text-slate-600">Daily Uploads (-1 = Unlimited)</label>
-                <Input
-                  type="number"
-                  value={formData.dailyUploadLimit}
-                  onChange={(e) => setFormData({ ...formData, dailyUploadLimit: e.target.value })}
-                  className="mt-1 rounded-xl"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-600">Daily AI Requests (-1 = Unlimited)</label>
-                <Input
-                  type="number"
-                  value={formData.dailyAiLimit}
-                  onChange={(e) => setFormData({ ...formData, dailyAiLimit: e.target.value })}
-                  className="mt-1 rounded-xl"
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs font-bold text-slate-600">Flashcards / Gen (-1 = Unlimited)</label>
-                <Input
-                  type="number"
-                  value={formData.maxFlashcardsPerGen}
-                  onChange={(e) => setFormData({ ...formData, maxFlashcardsPerGen: e.target.value })}
-                  className="mt-1 rounded-xl"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-600">Quiz Questions / Gen (-1 = Unlimited)</label>
-                <Input
-                  type="number"
-                  value={formData.maxQuizQuestionsPerGen}
-                  onChange={(e) => setFormData({ ...formData, maxQuizQuestionsPerGen: e.target.value })}
-                  className="mt-1 rounded-xl"
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs font-bold text-slate-600">Owned Workspaces (-1 = Unlimited)</label>
-                <Input
-                  type="number"
-                  value={formData.maxOwnedProjects}
-                  onChange={(e) => setFormData({ ...formData, maxOwnedProjects: e.target.value })}
-                  className="mt-1 rounded-xl"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-600">Joined Workspaces (-1 = Unlimited)</label>
-                <Input
-                  type="number"
-                  value={formData.maxJoinedProjects}
-                  onChange={(e) => setFormData({ ...formData, maxJoinedProjects: e.target.value })}
-                  className="mt-1 rounded-xl"
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs font-bold text-slate-600">Max AI Personal Docs</label>
-                <Input
-                  type="number"
-                  min={1}
-                  value={formData.maxPersonalDocs}
-                  onChange={(e) => setFormData({ ...formData, maxPersonalDocs: e.target.value })}
-                  className="mt-1 rounded-xl"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-600">Max Workspace Docs</label>
-                <Input
-                  type="number"
-                  min={1}
-                  value={formData.maxWorkspaceDocs}
-                  onChange={(e) => setFormData({ ...formData, maxWorkspaceDocs: e.target.value })}
-                  className="mt-1 rounded-xl"
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs font-bold text-slate-600">Max AI Context Chunks</label>
-                <Input
-                  type="number"
-                  min={1}
-                  value={formData.maxAiContextChunks}
-                  onChange={(e) => setFormData({ ...formData, maxAiContextChunks: e.target.value })}
-                  className="mt-1 rounded-xl"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-600">Max Chunk Chars</label>
-                <Input
-                  type="number"
-                  min={1}
-                  value={formData.maxChunkChars}
-                  onChange={(e) => setFormData({ ...formData, maxChunkChars: e.target.value })}
-                  className="mt-1 rounded-xl"
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between pt-2">
-              <span className="text-xs font-bold text-slate-600">Activate Plan</span>
-              <Switch
-                checked={formData.isActive}
-                onCheckedChange={(checked) => setFormData({ ...formData, isActive: checked })}
-              />
-            </div>
-
-            <DialogFooter className="pt-4 gap-2">
-              <Button type="button" variant="outline" onClick={() => setModalOpen(false)} className="rounded-xl font-bold">
+            <DialogFooter className="p-3 px-5 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2 flex-shrink-0">
+              <Button type="button" variant="outline" onClick={() => setModalOpen(false)} className="h-8.5 text-xs rounded-lg font-bold border-slate-200 cursor-pointer">
                 Cancel
               </Button>
-              <Button type="submit" className="rounded-xl bg-[#f26522] hover:bg-[#d95316] text-white font-bold">
+              <Button type="submit" className="h-8.5 text-xs rounded-lg bg-[#f26522] hover:bg-[#d95316] text-white font-bold cursor-pointer px-5">
                 Save Changes
               </Button>
             </DialogFooter>

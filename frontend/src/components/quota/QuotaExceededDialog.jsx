@@ -14,20 +14,20 @@ import useAiUsage from "@/hooks/useAiUsage";
 
 const CONTENT = {
   AI: {
-    title: "Daily AI limit reached",
+    title: "Daily AI Limit Reached",
     fallback: "You have reached your daily AI request limit.",
   },
   DOCUMENT: {
-    title: "Giới hạn tài liệu / dung lượng",
-    fallback: "You have reached your document upload or storage limit.",
+    title: "Document Quota Reached",
+    fallback: "You have reached your document count or storage limit.",
   },
   FILE_SIZE: {
-    title: "Kích thước tệp quá lớn",
-    fallback: "This file exceeds the maximum size for your current plan.",
+    title: "File Size Limit Exceeded",
+    fallback: "This file exceeds the maximum file size limit for your current plan.",
   },
   STORAGE: {
-    title: "Đã hết dung lượng lưu trữ",
-    fallback: "Bạn đã dùng hết hạn mức dung lượng lưu trữ của tài khoản.",
+    title: "Storage Capacity Exceeded",
+    fallback: "You have reached the maximum storage capacity limit for your account.",
   },
 };
 
@@ -55,26 +55,27 @@ export default function QuotaExceededDialog({
         message.toLowerCase().includes("lưu trữ") ||
         message.toLowerCase().includes("dung lượng")));
 
-  let displayTitle = isStorageLimit ? "Đã hết dung lượng lưu trữ" : content.title;
+  let displayTitle = isStorageLimit ? "Storage Capacity Exceeded" : content.title;
   let displayMessage = message || content.fallback;
 
-  if (isStorageLimit) {
-    if (subscriptionTier === "FREE") {
+  if (isStorageLimit && !message) {
+    if (canUpgrade) {
       displayMessage =
-        message ||
-        "Tài khoản Free của bạn đã đạt giới hạn dung lượng lưu trữ. Vui lòng nâng cấp lên gói PRO để mở rộng thêm dung lượng lưu trữ!";
+        "Your account has reached its storage capacity limit. Please upgrade your subscription plan to get more storage capacity.";
     } else {
       displayMessage =
-        message ||
-        "Tài khoản PRO của bạn đã đạt giới hạn dung lượng lưu trữ tối đa. Bạn có thể chờ gói dịch vụ mới hoặc liên hệ Quản trị viên.";
+        "Your account has reached its maximum storage capacity limit. Please wait for new plan updates from system administrators or manage your existing storage.";
     }
-  } else if (type === "FILE_SIZE") {
+  } else if (type === "FILE_SIZE" && !message) {
     if (isOverSystemMax) {
       displayMessage =
-        "Kích thước tệp vượt quá giới hạn tối đa 10MB của hệ thống. Tệp lớn hơn 10MB bị giới hạn bởi máy chủ.";
+        "The file size exceeds the system maximum limit of 10MB.";
+    } else if (canUpgrade) {
+      displayMessage =
+        "The file size exceeds the limit for your current plan. Please upgrade your subscription plan to upload larger files.";
     } else {
       displayMessage =
-        "Kích thước tệp vượt quá 5MB cho tài khoản Free. Vui lòng nâng cấp lên gói PRO để tải lên tệp tối đa 10MB.";
+        "The file size exceeds the limit for your current plan. Please wait for new plan updates from system administrators.";
     }
   }
 

@@ -89,7 +89,8 @@ public class UserSubscriptionController {
         // Downgrade user to FREE tier & snapshot FREE plan storage limit
         user.setSubscriptionTier(SubscriptionTier.FREE);
         SubscriptionPlan freePlan = subscriptionPlanRepository.findByCodeAndIsActiveTrue("FREE")
-                .orElseGet(() -> subscriptionPlanRepository.findByCode("FREE").orElse(null));
+                .orElseGet(() -> subscriptionPlanRepository.findTopByPriceVndAndIsActiveTrueOrderByCreatedAtAsc(0L)
+                        .orElseGet(() -> subscriptionPlanRepository.findByCode("FREE").orElse(null)));
         if (freePlan != null && freePlan.getTotalStorageBytes() != null) {
             user.setMaxStorageBytes(freePlan.getTotalStorageBytes());
         }
@@ -101,8 +102,8 @@ public class UserSubscriptionController {
                     user,
                     null,
                     NotificationType.PRO_CANCELLED,
-                    "Hủy gói PRO thành công",
-                    "Gói dịch vụ PRO của bạn đã được hủy. Tài khoản của bạn đã quay trở lại gói Miễn Phí (FREE).",
+                    "PRO Subscription Cancelled",
+                    "Your PRO subscription has been cancelled. Your account has reverted to the Free tier.",
                     null,
                     null
             );

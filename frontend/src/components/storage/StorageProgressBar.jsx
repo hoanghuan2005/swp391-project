@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import useDocumentQuota from "@/hooks/useDocumentQuota";
-import { HardDrive, Crown } from "lucide-react";
+import { HardDrive, Crown, FileText, UploadCloud } from "lucide-react";
 import PricingModal from "@/components/modals/PricingModal";
 import { cn } from "@/lib/utils";
 
@@ -14,8 +14,17 @@ function formatBytes(bytes) {
   return mb.toFixed(1) + " MB";
 }
 
-export default function StorageProgressBar({ isOpen = true }) {
-  const { usedStorageBytes, maxStorageBytes, subscriptionTier, refreshDocumentQuota } = useDocumentQuota();
+export default function StorageProgressBar({ isOpen = true, variant = "default" }) {
+  const {
+    usedStorageBytes,
+    maxStorageBytes,
+    subscriptionTier,
+    totalDocuments,
+    totalDocumentLimit,
+    uploadsToday,
+    dailyUploadLimit,
+    refreshDocumentQuota,
+  } = useDocumentQuota();
   const [pricingOpen, setPricingOpen] = useState(false);
 
   useEffect(() => {
@@ -61,6 +70,97 @@ export default function StorageProgressBar({ isOpen = true }) {
           <HardDrive className={cn("w-5 h-5", percentage >= 90 ? "text-rose-500" : "text-[#f26522]")} />
           <span className="text-[10px] font-extrabold text-slate-700 mt-1">{percentage}%</span>
         </div>
+        <PricingModal open={pricingOpen} onOpenChange={setPricingOpen} />
+      </>
+    );
+  }
+
+  if (variant === "banner") {
+    return (
+      <>
+        <div className="mb-6 -mt-2 p-4 rounded-2xl bg-gradient-to-r from-orange-50/40 via-white to-slate-50/80 border border-slate-200/70 shadow-xs transition-all flex flex-col md:flex-row md:items-center justify-between gap-4">
+          {/* Left Column: Storage Details & Bar */}
+          <div className="flex-1 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-orange-100/80 flex items-center justify-center text-[#f26522] shadow-2xs">
+                  <HardDrive className="w-4.5 h-4.5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-black text-slate-800 uppercase tracking-wider">Storage Capacity</span>
+                    <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-orange-100/90 text-[#f26522] border border-orange-200/60">
+                      {isPro && <Crown className="w-2.5 h-2.5 fill-amber-500 text-amber-500" />}
+                      {subscriptionTier || "FREE"}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 font-medium mt-0.5">
+                    Used <span className="font-bold text-[#f26522]">{formatBytes(usedStorageBytes)}</span> of <span className="font-bold text-slate-700">{formatBytes(maxStorageBytes)}</span> ({percentage}% used)
+                  </p>
+                </div>
+              </div>
+
+              {!isPro && (
+                <button
+                  onClick={() => setPricingOpen(true)}
+                  className="hidden md:flex items-center gap-1.5 text-xs font-bold text-white bg-[#f26522] hover:bg-[#d95316] px-3.5 py-1.5 rounded-xl shadow-xs transition-all cursor-pointer"
+                >
+                  <Crown className="w-3.5 h-3.5 fill-amber-300 text-amber-300" />
+                  Upgrade Plan
+                </button>
+              )}
+            </div>
+
+            <div className="w-full bg-slate-200/70 h-2.5 rounded-full overflow-hidden p-0.5 border border-slate-100">
+              <div
+                className={cn("h-full transition-all duration-500 rounded-full", barColor)}
+                style={{ width: `${Math.max(percentage, isUnlimited ? 0 : 3)}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Right Column: Statistics Badges */}
+          <div className="flex items-center gap-3 pt-3 md:pt-0 border-t md:border-t-0 md:border-l border-slate-200/60 md:pl-5 flex-wrap">
+            <div className="flex items-center gap-2.5 bg-white/90 px-3.5 py-2 rounded-xl border border-slate-200/70 shadow-2xs">
+              <FileText className="w-4 h-4 text-[#f26522]" />
+              <div>
+                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block leading-tight">Total Documents</span>
+                <span className="text-xs font-extrabold text-slate-800">
+                  {totalDocuments !== null ? totalDocuments : 0}{" "}
+                  <span className="font-normal text-slate-400 text-[11px]">
+                    / {totalDocumentLimit && totalDocumentLimit !== -1 ? `${totalDocumentLimit}` : "Unlimited"}
+                  </span>
+                </span>
+              </div>
+            </div>
+
+            {dailyUploadLimit !== null && (
+              <div className="flex items-center gap-2.5 bg-white/90 px-3.5 py-2 rounded-xl border border-slate-200/70 shadow-2xs">
+                <UploadCloud className="w-4 h-4 text-teal-600" />
+                <div>
+                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block leading-tight">Daily Uploads</span>
+                  <span className="text-xs font-extrabold text-slate-800">
+                    {uploadsToday !== null ? uploadsToday : 0}{" "}
+                    <span className="font-normal text-slate-400 text-[11px]">
+                      / {dailyUploadLimit !== -1 ? `${dailyUploadLimit}` : "Unlimited"}
+                    </span>
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {!isPro && (
+              <button
+                onClick={() => setPricingOpen(true)}
+                className="md:hidden w-full mt-1 flex items-center justify-center gap-1.5 text-xs font-bold text-white bg-[#f26522] hover:bg-[#d95316] px-3 py-2 rounded-xl shadow-xs transition-all cursor-pointer"
+              >
+                <Crown className="w-3.5 h-3.5 fill-amber-300 text-amber-300" />
+                Upgrade Plan
+              </button>
+            )}
+          </div>
+        </div>
+
         <PricingModal open={pricingOpen} onOpenChange={setPricingOpen} />
       </>
     );
@@ -115,6 +215,35 @@ export default function StorageProgressBar({ isOpen = true }) {
               {remainingBytes !== null ? `Free: ${formatBytes(remainingBytes)}` : "Unlimited storage"}
             </span>
           </div>
+        </div>
+
+        {/* Document & Upload Statistics */}
+        <div className="mt-2.5 pt-2 border-t border-slate-200/60 space-y-1 text-[11px]">
+          <div className="flex items-center justify-between text-slate-600">
+            <span className="flex items-center gap-1 font-medium">
+              <FileText className="w-3 h-3 text-[#f26522]" /> Documents:
+            </span>
+            <span className="font-bold text-slate-800">
+              {totalDocuments !== null ? totalDocuments : 0}{" "}
+              <span className="font-normal text-slate-400">
+                / {totalDocumentLimit && totalDocumentLimit !== -1 ? `${totalDocumentLimit} docs` : "Unlimited"}
+              </span>
+            </span>
+          </div>
+
+          {dailyUploadLimit !== null && (
+            <div className="flex items-center justify-between text-slate-600">
+              <span className="flex items-center gap-1 font-medium">
+                <UploadCloud className="w-3 h-3 text-slate-400" /> Daily Uploads:
+              </span>
+              <span className="font-semibold text-slate-700">
+                {uploadsToday !== null ? uploadsToday : 0}{" "}
+                <span className="font-normal text-slate-400">
+                  / {dailyUploadLimit !== -1 ? `${dailyUploadLimit}` : "Unlimited"}
+                </span>
+              </span>
+            </div>
+          )}
         </div>
       </div>
 
