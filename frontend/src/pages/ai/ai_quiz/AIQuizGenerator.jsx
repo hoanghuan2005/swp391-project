@@ -609,7 +609,7 @@ export default function AIQuizGenerator() {
   ) : null);
 
   return (
-    <div className="h-[calc(100vh-68px)] overflow-hidden bg-white shadow-sm -mx-8 -my-6 flex">
+    <div className="h-[calc(100vh-68px)] overflow-hidden bg-white shadow-sm -mx-4 sm:-mx-6 lg:-mx-8 -my-6 flex">
       {/* SIDEBAR */}
       <AISidebar
         type="quiz"
@@ -850,11 +850,11 @@ export default function AIQuizGenerator() {
                       </div>
                     )}
                   </div>
-                  <div className="flex items-start gap-4">
+                  <div className="flex items-start gap-4 flex-1 min-w-0">
                     <div className="w-14 h-14 rounded-2xl bg-[#f66810] flex items-center justify-center text-white shadow-sm shrink-0">
                       <ListChecks className="w-7 h-7" />
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <h1 className="text-2xl font-bold text-slate-800 tracking-tight leading-tight">
                         {selectedQuiz.title}
                       </h1>

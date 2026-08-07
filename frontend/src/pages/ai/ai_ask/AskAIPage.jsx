@@ -88,7 +88,7 @@ export default function AskAIPage() {
   };
 
   return (
-    <div className="h-[calc(100vh-73px)] flex overflow-hidden bg-[#fafafa] rounded-b-xl -mx-8 -my-6">
+    <div className="h-[calc(100vh-73px)] flex overflow-hidden bg-[#fafafa] rounded-b-xl -mx-4 sm:-mx-6 lg:-mx-8 -my-6">
       <input
         type="file"
         ref={fileInputRef}
