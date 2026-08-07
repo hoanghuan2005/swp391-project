@@ -4,34 +4,33 @@ import { getMyAiUsage } from "@/api/aiUsageApi";
 export default function useAiUsage() {
   const [aiUsage, setAiUsage] = useState({
     subscriptionTier: "FREE",
-    remainingUsage: null,
-    tierLimits: null,
+    planName: "Free Plan",
+    maxUsage: 5,
+    remainingUsage: 5,
+    usedAiRequestsToday: 0,
+    isUnlimited: false,
     maxSelectedDocs: 2,
+    maxPersonalDocs: 2,
+    maxWorkspaceDocs: 10,
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const parseAiUsageResponse = (res) => {
-    const planName = res?.planName || "Free Plan";
-    const maxUsage = res?.maxDailyAiRequests ?? 0;
-    const remainingUsage = res?.remainingUsage ?? 0;
-    const usedAiRequestsToday = res?.usedAiRequestsToday ?? 0;
+  const processUsage = (usageData) => {
+    if (!usageData) return;
+    
+    const maxUsage = usageData.maxDailyAiRequests ?? 0;
+    const remainingUsage = usageData.remainingUsage ?? 0;
     const isUnlimited = maxUsage === -1 || remainingUsage === -1;
 
-    return {
-      planName,
+    setAiUsage({
+      ...usageData,
       maxUsage,
-      remainingUsage,
-      usedAiRequestsToday,
       isUnlimited,
-    };
-  };
-
-  const calculateMaxSelectedDocs = (data) => {
-    if (!data) return 2;
-    if (data.maxSelectedDocs != null) return data.maxSelectedDocs;
-    if (data.tierLimits?.maxSelectedDocs != null) return data.tierLimits.maxSelectedDocs;
-    return 2;
+      maxSelectedDocs: usageData.maxSelectedDocs ?? 2,
+      maxPersonalDocs: usageData.maxPersonalDocs ?? 2,
+      maxWorkspaceDocs: usageData.maxWorkspaceDocs ?? 10,
+    });
   };
 
   const refreshAiUsage = useCallback(async () => {
@@ -43,8 +42,7 @@ export default function useAiUsage() {
       setLoading(true);
       setError(null);
       const usage = await getMyAiUsage();
-      const maxSelectedDocs = calculateMaxSelectedDocs(usage);
-      setAiUsage({ ...usage, maxSelectedDocs });
+      processUsage(usage);
       return usage;
     } catch (error) {
       console.error("Failed to load AI usage:", error);
@@ -67,8 +65,7 @@ export default function useAiUsage() {
       getMyAiUsage()
         .then((usage) => {
           if (active) {
-            const maxSelectedDocs = calculateMaxSelectedDocs(usage);
-            setAiUsage({ ...usage, maxSelectedDocs });
+            processUsage(usage);
           }
         })
         .catch((err) => {
@@ -103,7 +100,6 @@ export default function useAiUsage() {
   return {
     ...aiUsage,
     subscriptionTier: aiUsage.subscriptionTier || "FREE",
-    maxSelectedDocs: aiUsage.maxSelectedDocs ?? 2,
     loading,
     error,
     refreshAiUsage,

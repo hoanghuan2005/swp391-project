@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Search, Loader2, FileText, Globe, CheckCircle2, Plus } from "lucide-react";
+import { Search, Loader2, FileText, Globe, CheckCircle2, Plus, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,6 +19,7 @@ export default function PublicDocumentModal({
   alreadySelectedDocs = [],
   onAddPublicDocs,
   maxPersonalDocs = 2,
+  onPreviewDocument,
 }) {
   const [publicDocs, setPublicDocs] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -65,7 +66,7 @@ export default function PublicDocumentModal({
         ).length;
 
         if (userSelectedCount + prev.length >= maxPersonalDocs) {
-          toast.error(`You can select at most ${maxPersonalDocs} document${maxPersonalDocs > 1 ? "s" : ""} total for AI context.`);
+          toast.error(`You can select at most ${maxPersonalDocs} document${maxPersonalDocs > 1 ? "s" : ""} total.`);
           return prev;
         }
         return [...prev, doc];
@@ -96,7 +97,7 @@ export default function PublicDocumentModal({
             Browse Public Library
           </DialogTitle>
           <DialogDescription className="text-xs text-slate-500 mt-1">
-            Search and add public study documents to your AI chat context (Up to 5 total).
+            Search and add public study documents to your collection (Up to {maxPersonalDocs} total).
           </DialogDescription>
         </DialogHeader>
 
@@ -164,10 +165,31 @@ export default function PublicDocumentModal({
                           Uploaded by {doc.uploadedBy?.username || "Community"}
                         </span>
                       </div>
+                      {doc.description ? (
+                        <p className="mt-1 text-[10px] text-slate-500 line-clamp-1 italic text-left">
+                          {doc.description}
+                        </p>
+                      ) : (
+                        <p className="mt-1 text-[10px] text-slate-400 line-clamp-1 italic text-left opacity-70">
+                          No description available
+                        </p>
+                      )}
                     </div>
                   </div>
 
-                  <div className="shrink-0">
+                  <div className="shrink-0 flex items-center gap-3">
+                    {onPreviewDocument && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onPreviewDocument(doc);
+                        }}
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-[#f26522] hover:bg-orange-100 transition-colors cursor-pointer border border-transparent hover:border-orange-200"
+                        title="Preview Document"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                    )}
                     {isSelected ? (
                       <CheckCircle2 className="w-5 h-5 text-[#f26522]" />
                     ) : (
