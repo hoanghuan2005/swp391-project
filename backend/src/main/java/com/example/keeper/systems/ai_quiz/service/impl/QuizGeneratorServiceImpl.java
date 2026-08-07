@@ -330,7 +330,9 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
             }
         }
 
-        List<String> satisfies = com.example.keeper.util.ContentBudgetUtils.distributeBudget(rawDocContents, 10000);
+        int targetQuestionCount = request.getQuestionCount() != null ? request.getQuestionCount() : 5;
+        int budget = targetQuestionCount > 15 ? 4000 : 8000;
+        List<String> satisfies = com.example.keeper.util.ContentBudgetUtils.distributeBudget(rawDocContents, budget);
         StringBuilder contextBuilder = new StringBuilder();
         for (String docContent : satisfies) {
             if (docContent != null && !docContent.trim().isEmpty()) {
@@ -475,6 +477,7 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
             - Do NOT include explanations outside the JSON array.
             - Each question must have exactly 4 options.
             - correctAnswer must exactly match one of the options.
+            - Keep explanations very brief (maximum 10 words).
             
             Output this exact JSON format:
             [
@@ -530,8 +533,10 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
             context = text;
         }
 
-        if (context.length() > 10000) {
-            context = context.substring(0, 10000);
+        int targetQuestionCount = questionCount != null ? questionCount : 5;
+        int budget = targetQuestionCount > 15 ? 4000 : 8000;
+        if (context.length() > budget) {
+            context = context.substring(0, budget);
         }
 
         String systemPrompt = buildSystemPrompt();
@@ -543,7 +548,6 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
         );
 
         aiUsageService.checkQuota(userEmail);
-        int targetQuestionCount = questionCount != null ? questionCount : 5;
         int maxTokens = Math.min(4000, Math.max(1024, targetQuestionCount * 130 + 300));
         String aiResponse = groqService.generateContent(systemPrompt, userPrompt, 0.3, maxTokens);
         aiUsageService.recordUsage(userEmail, AiUsageFeature.QUIZ_GENERATION);
