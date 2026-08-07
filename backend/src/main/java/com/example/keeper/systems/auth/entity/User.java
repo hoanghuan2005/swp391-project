@@ -75,4 +75,11 @@ public class User extends BaseEntity {
 
     @Column(name = "max_storage_bytes")
     private Long maxStorageBytes;
+
+    public String getSubscriptionTier() {
+        if (role != null && "ADMIN".equalsIgnoreCase(role.getName())) {
+            return "PRO";
+        }
+        return subscriptionTier;
+    }
 }

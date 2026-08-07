@@ -181,13 +181,16 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
                 request.getDifficulty()
         );
 
-        String aiResponse = groqService.generateContent(systemPrompt, userPrompt, 0.3);
+        int targetQuestionCount = request.getQuestionCount() != null ? request.getQuestionCount() : 5;
+        int maxTokens = Math.min(4000, Math.max(1024, targetQuestionCount * 130 + 300));
+        String aiResponse = groqService.generateContent(systemPrompt, userPrompt, 0.3, maxTokens);
         aiUsageService.recordUsage(userEmail, AiUsageFeature.QUIZ_GENERATION);
         log.info("Raw AI response for quiz: {}", aiResponse);
 
 
         try {
             String jsonContent = extractJsonArray(aiResponse);
+            jsonContent = jsonContent.replaceAll(",\\s*([\\]\\}])", "$1");
             List<ParsedQuestion> parsedQuestions =
                     objectMapper.readValue(jsonContent, new TypeReference<List<ParsedQuestion>>() {});
             validateQuestions(parsedQuestions, request.getQuestionCount());
@@ -223,7 +226,8 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
 
         } catch (Exception e) {
             log.error("Failed to parse AI generated quiz. AI Response: {}", aiResponse, e);
-            throw new RuntimeException("AI failed to generate a valid quiz structure. Please try again.");
+            String snippet = (aiResponse != null && aiResponse.length() > 500) ? aiResponse.substring(0, 500) + "..." : aiResponse;
+            throw new RuntimeException("AI failed to generate quiz: " + e.getMessage() + ". Raw Response: " + snippet, e);
         }
     }
 
@@ -326,7 +330,9 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
             }
         }
 
-        List<String> satisfies = com.example.keeper.util.ContentBudgetUtils.distributeBudget(rawDocContents, 10000);
+        int targetQuestionCount = request.getQuestionCount() != null ? request.getQuestionCount() : 5;
+        int budget = targetQuestionCount > 15 ? 4000 : 8000;
+        List<String> satisfies = com.example.keeper.util.ContentBudgetUtils.distributeBudget(rawDocContents, budget);
         StringBuilder contextBuilder = new StringBuilder();
         for (String docContent : satisfies) {
             if (docContent != null && !docContent.trim().isEmpty()) {
@@ -360,15 +366,101 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
             log.warn("AI returned {} questions while {} were requested.", questions.size(), expectedCount);
         }
 
+        if (questions.size() > expectedCount) {
+            log.info("Trimming AI generated questions from {} to requested {}", questions.size(), expectedCount);
+            while (questions.size() > expectedCount) {
+                questions.remove(questions.size() - 1);
+            }
+        }
+
         for (ParsedQuestion question : questions) {
             if (question.getContent() == null || question.getContent().isBlank()) {
                 throw new RuntimeException("AI returned a question without content.");
             }
-            if (question.getOptions() == null || question.getOptions().size() != 4) {
-                throw new RuntimeException("AI returned a question without exactly 4 options.");
+            if (question.getOptions() == null) {
+                throw new RuntimeException("AI returned a question without options.");
             }
-            if (question.getCorrectAnswer() == null || !question.getOptions().contains(question.getCorrectAnswer())) {
-                throw new RuntimeException("AI returned a correctAnswer that does not match any option.");
+
+            // Create a mutable copy of options to ensure we can modify/sanitize them
+            List<String> opts = new ArrayList<>(question.getOptions());
+
+            // If options size is not 4, try to adjust it
+            if (opts.size() < 4) {
+                throw new RuntimeException("AI returned a question with less than 4 options.");
+            }
+            if (opts.size() > 4) {
+                opts = new ArrayList<>(opts.subList(0, 4));
+            }
+            
+            // Clean up options (strip whitespace)
+            for (int i = 0; i < opts.size(); i++) {
+                if (opts.get(i) != null) {
+                    opts.set(i, opts.get(i).trim());
+                } else {
+                    opts.set(i, "");
+                }
+            }
+            question.setOptions(opts);
+
+            String ans = question.getCorrectAnswer();
+            if (ans == null || ans.isBlank()) {
+                throw new RuntimeException("AI returned a question without a correct answer.");
+            }
+            ans = ans.trim();
+
+            // 1. Direct match check
+            if (opts.contains(ans)) {
+                question.setCorrectAnswer(ans);
+                continue;
+            }
+
+            // 2. Case-insensitive direct match check
+            boolean matched = false;
+            for (String opt : opts) {
+                if (opt.equalsIgnoreCase(ans)) {
+                    question.setCorrectAnswer(opt);
+                    matched = true;
+                    break;
+                }
+            }
+            if (matched) continue;
+
+            // 3. Check if answer is a choice indicator like "A", "B", "C", "D" or "1", "2", "3", "4"
+            String cleanAns = ans.replaceAll("[^a-zA-Z0-9]", "").toUpperCase();
+            if (cleanAns.equals("A") || cleanAns.equals("1")) {
+                question.setCorrectAnswer(opts.get(0));
+                continue;
+            } else if (cleanAns.equals("B") || cleanAns.equals("2")) {
+                question.setCorrectAnswer(opts.get(1));
+                continue;
+            } else if (cleanAns.equals("C") || cleanAns.equals("3")) {
+                question.setCorrectAnswer(opts.get(2));
+                continue;
+            } else if (cleanAns.equals("D") || cleanAns.equals("4")) {
+                question.setCorrectAnswer(opts.get(3));
+                continue;
+            }
+
+            // 4. Try to match options that start with/contain the answer or vice-versa, removing prefixes like "A. ", "B) ", etc.
+            for (String opt : opts) {
+                String cleanOpt = opt.toLowerCase();
+                String cleanTarget = ans.toLowerCase();
+
+                // Remove prefixes like "a. ", "1. ", "a) ", etc.
+                String optNoPrefix = cleanOpt.replaceFirst("^[a-d1-4][\\.\\)\\s:-]+", "").trim();
+                String ansNoPrefix = cleanTarget.replaceFirst("^[a-d1-4][\\.\\)\\s:-]+", "").trim();
+
+                if (optNoPrefix.equals(ansNoPrefix) || cleanOpt.contains(ansNoPrefix) || cleanTarget.contains(optNoPrefix)) {
+                    question.setCorrectAnswer(opt);
+                    matched = true;
+                    break;
+                }
+            }
+
+            if (!matched) {
+                // Default fallback: assign the first option as the correct answer and log a warning
+                log.warn("Could not match correct answer '{}' to any of the options {}. Defaulting to first option.", ans, opts);
+                question.setCorrectAnswer(opts.get(0));
             }
         }
     }
@@ -385,6 +477,7 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
             - Do NOT include explanations outside the JSON array.
             - Each question must have exactly 4 options.
             - correctAnswer must exactly match one of the options.
+            - Keep explanations very brief (maximum 10 words).
             
             Output this exact JSON format:
             [
@@ -440,8 +533,10 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
             context = text;
         }
 
-        if (context.length() > 10000) {
-            context = context.substring(0, 10000);
+        int targetQuestionCount = questionCount != null ? questionCount : 5;
+        int budget = targetQuestionCount > 15 ? 4000 : 8000;
+        if (context.length() > budget) {
+            context = context.substring(0, budget);
         }
 
         String systemPrompt = buildSystemPrompt();
@@ -453,12 +548,14 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
         );
 
         aiUsageService.checkQuota(userEmail);
-        String aiResponse = groqService.generateContent(systemPrompt, userPrompt, 0.3);
+        int maxTokens = Math.min(4000, Math.max(1024, targetQuestionCount * 130 + 300));
+        String aiResponse = groqService.generateContent(systemPrompt, userPrompt, 0.3, maxTokens);
         aiUsageService.recordUsage(userEmail, AiUsageFeature.QUIZ_GENERATION);
         log.info("Raw AI response for quiz from file: {}", aiResponse);
 
         try {
             String jsonContent = extractJsonArray(aiResponse);
+            jsonContent = jsonContent.replaceAll(",\\s*([\\]\\}])", "$1");
             List<ParsedQuestion> parsedQuestions =
                     objectMapper.readValue(jsonContent, new TypeReference<List<ParsedQuestion>>() {});
             validateQuestions(parsedQuestions, questionCount);
@@ -486,7 +583,8 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
 
         } catch (Exception e) {
             log.error("Failed to parse AI generated quiz from file. AI Response: {}", aiResponse, e);
-            throw new RuntimeException("AI failed to generate a valid quiz structure. Please try again.");
+            String snippet = (aiResponse != null && aiResponse.length() > 500) ? aiResponse.substring(0, 500) + "..." : aiResponse;
+            throw new RuntimeException("AI failed to generate quiz from file: " + e.getMessage() + ". Raw Response: " + snippet, e);
         }
     }
 

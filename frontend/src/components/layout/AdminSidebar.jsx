@@ -14,6 +14,7 @@ import {
   CreditCard,
   Brain,
   ShieldAlert,
+  Monitor,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -194,6 +195,16 @@ export default function AdminSidebar({ isOpen = true }) {
             to="/admin/catalog/languages"
             icon={Globe}
             label="Languages"
+            isOpen={isOpen}
+            pathname={location.pathname}
+          />
+          
+          <div className="w-full h-px bg-slate-100 my-4 shrink-0" />
+          
+          <AdminNavItem
+            to="/home"
+            icon={Monitor}
+            label="Switch to User App"
             isOpen={isOpen}
             pathname={location.pathname}
           />

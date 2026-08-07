@@ -182,7 +182,7 @@ export default function AIQuizTakePage() {
     totalQuestions === 0 ? 0 : (answeredCount / totalQuestions) * 100;
 
   return (
-    <div className="min-h-[calc(100vh-68px)] w-full overflow-y-auto bg-slate-50/50 -mx-8 -my-6 flex flex-col items-center">
+    <div className="min-h-[calc(100vh-68px)] w-full overflow-y-auto bg-slate-50/50 -mx-4 sm:-mx-6 lg:-mx-8 -my-6 flex flex-col items-center">
       {/* PROGRESS BAR STICKY TOP */}
       {!isSubmitted && quiz && (
         <div className="sticky top-0 z-50 w-full bg-white/80 backdrop-blur-md border-b border-slate-200 px-8 py-3 flex items-center justify-between shadow-sm animate-in fade-in slide-in-from-top duration-300">
@@ -213,7 +213,7 @@ export default function AIQuizTakePage() {
 
       <div
         id="quiz-content-area"
-        className="p-8 w-full max-w-4xl flex-1 flex flex-col justify-start scroll-smooth"
+        className="p-4 sm:p-6 md:p-8 w-full max-w-4xl flex-1 flex flex-col justify-start scroll-smooth"
       >
         {!quiz ? (
           <div className="flex h-full items-center justify-center flex-1">
@@ -240,8 +240,8 @@ export default function AIQuizTakePage() {
             {/* Header / Score Board */}
             <div className="rounded-[28px] border border-orange-100 bg-gradient-to-br from-[#fffaf7] to-[#fff3eb] overflow-hidden mb-8 shadow-sm">
               <div className="p-6">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                  <div className="flex items-start gap-4">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                  <div className="flex items-start gap-4 flex-1 min-w-0">
                     <div className="w-14 h-14 rounded-2xl bg-[#f66810] flex items-center justify-center text-white shadow-sm shrink-0">
                       <BrainCircuit className="w-7 h-7" />
                     </div>
@@ -256,7 +256,7 @@ export default function AIQuizTakePage() {
                   </div>
 
                   {isSubmitted ? (
-                    <div className="flex items-center gap-3 self-start md:self-auto">
+                    <div className="flex items-center gap-3 self-start lg:self-auto">
                       <Button
                         variant="outline"
                         className="rounded-full border-orange-200 hover:bg-orange-50 h-10 px-4 text-sm cursor-pointer"
@@ -277,7 +277,7 @@ export default function AIQuizTakePage() {
                       </div>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-2 self-start md:self-auto">
+                    <div className="flex items-center gap-2 self-start lg:self-auto">
                       <Button
                         variant="outline"
                         className="rounded-full border-orange-200 hover:bg-orange-50 h-10 px-4 text-sm cursor-pointer"

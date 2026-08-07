@@ -55,7 +55,7 @@ export default function AdminLayout() {
       />
 
       {/* Main Content Area */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden min-h-0">
         {/* Render Admin Sidebar thay vì Sidebar thường */}
         <AdminSidebar isOpen={isSidebarOpen} />
 

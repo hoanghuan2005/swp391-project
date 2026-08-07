@@ -195,11 +195,14 @@ export default function DashboardPage() {
   const maxCatalogVal = Math.max(...catalogData.map((d) => d.val), 5);
 
   // 4. Calculations for Report Resolution Overview (Pending vs Resolved)
+  // 4. Calculations for Report Resolution Overview
   const pendingReportsCount = reports.filter((r) => r.status === "PENDING").length;
   const resolvedReportsCount = reports.filter((r) => r.status === "RESOLVED").length;
-  const totalReportsCount = pendingReportsCount + resolvedReportsCount || 1;
+  const dismissedReportsCount = reports.filter((r) => r.status === "DISMISSED").length;
+  const totalReportsCount = pendingReportsCount + resolvedReportsCount + dismissedReportsCount || 1;
   const pendingPercent = Math.round((pendingReportsCount / totalReportsCount) * 100);
   const resolvedPercent = Math.round((resolvedReportsCount / totalReportsCount) * 100);
+  const dismissedPercent = Math.round((dismissedReportsCount / totalReportsCount) * 100);
 
   return (
     <div className="space-y-6">
@@ -488,14 +491,14 @@ export default function DashboardPage() {
                     />
                   )}
 
-                  {/* Pending slice - Orange/Red */}
+                  {/* Pending slice - Yellow */}
                   {pendingPercent > 0 && (
                     <circle
                       cx="50"
                       cy="50"
                       r="38"
                       fill="none"
-                      stroke="#ef4444"
+                      stroke="#f59e0b"
                       strokeWidth="12"
                       strokeDasharray={`${pendingPercent * 2.38} 238`}
                       strokeDashoffset={-(resolvedPercent * 2.38)}
@@ -505,24 +508,37 @@ export default function DashboardPage() {
                     />
                   )}
 
-                  {/* Center Text */}
-                  <text x="50%" y="47%" textAnchor="middle" className="text-[7px] font-extrabold fill-slate-400 uppercase">
-                    RESOLVED
-                  </text>
-                  <text x="50%" y="61%" textAnchor="middle" className="text-[14px] font-black fill-slate-800">
-                    {resolvedPercent}%
-                  </text>
+                  {/* Dismissed slice - Red */}
+                  {dismissedPercent > 0 && (
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="38"
+                      fill="none"
+                      stroke="#ef4444"
+                      strokeWidth="12"
+                      strokeDasharray={`${dismissedPercent * 2.38} 238`}
+                      strokeDashoffset={-((resolvedPercent + pendingPercent) * 2.38)}
+                      transform="rotate(-90 50 50)"
+                      strokeLinecap="round"
+                      className="transition-all duration-300"
+                    />
+                  )}
                 </svg>
 
                 {/* Legend */}
-                <div className="flex gap-4 mt-6">
+                <div className="flex flex-wrap justify-center gap-4 mt-6">
                   <div className="flex items-center gap-1.5">
                     <span className="w-3 h-3 rounded-full bg-[#10b981]" />
                     <span className="text-xs font-semibold text-slate-500">Resolved ({resolvedReportsCount})</span>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <span className="w-3 h-3 rounded-full bg-[#ef4444]" />
+                    <span className="w-3 h-3 rounded-full bg-[#f59e0b]" />
                     <span className="text-xs font-semibold text-slate-500">Pending ({pendingReportsCount})</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-3 h-3 rounded-full bg-[#ef4444]" />
+                    <span className="text-xs font-semibold text-slate-500">Dismissed ({dismissedReportsCount})</span>
                   </div>
                 </div>
               </div>

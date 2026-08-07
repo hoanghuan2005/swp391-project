@@ -160,7 +160,7 @@ export default function AIFlashcardStudyPage() {
   const progressPercentage = totalCards === 0 ? 0 : (isCompleted ? 100 : ((currentIndex + 1) / totalCards) * 100);
 
   return (
-    <div className="min-h-[calc(100vh-68px)] w-full overflow-y-auto bg-slate-50/50 -mx-8 -my-6 flex flex-col items-center">
+    <div className="min-h-[calc(100vh-68px)] w-full overflow-y-auto bg-slate-50/50 -mx-4 sm:-mx-6 lg:-mx-8 -my-6 flex flex-col items-center">
       {/* PROGRESS BAR STICKY TOP */}
       {!isCompleted && totalCards > 0 && (
         <div className="sticky top-0 z-50 w-full bg-white/80 backdrop-blur-md border-b border-slate-200 px-8 py-3.5 flex items-center justify-between shadow-sm animate-in fade-in slide-in-from-top duration-300">
@@ -189,7 +189,7 @@ export default function AIFlashcardStudyPage() {
         </div>
       )}
 
-      <div className="p-8 w-full max-w-3xl flex-1 flex flex-col justify-start">
+      <div className="p-4 sm:p-6 md:p-8 w-full max-w-3xl flex-1 flex flex-col justify-start">
         <div className="animate-in fade-in duration-500">
           <Button
             variant="ghost"
@@ -208,12 +208,12 @@ export default function AIFlashcardStudyPage() {
           {/* Header Area */}
           <div className="rounded-[28px] border border-orange-100 bg-gradient-to-br from-[#fffaf7] to-[#fff3eb] overflow-hidden mb-8 shadow-sm">
             <div className="p-6">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div className="flex items-start gap-4">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div className="flex items-start gap-4 flex-1 min-w-0">
                   <div className="w-14 h-14 rounded-2xl bg-[#f66810] flex items-center justify-center text-white shadow-sm shrink-0">
                     <Layers className="w-7 h-7" />
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <h1 className="text-2xl font-bold text-slate-800 tracking-tight leading-tight">
                       {flashcardSet?.title || "AI Flashcards Set"}
                     </h1>
@@ -223,7 +223,7 @@ export default function AIFlashcardStudyPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 self-start sm:self-auto">
+                <div className="flex items-center gap-2 self-start md:self-auto">
                   <Button
                     variant="outline"
                     className="rounded-full border-orange-200 hover:bg-orange-50 h-10 px-4 text-sm transition-all cursor-pointer"

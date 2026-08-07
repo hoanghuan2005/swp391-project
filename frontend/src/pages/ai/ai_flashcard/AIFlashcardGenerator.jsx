@@ -592,7 +592,7 @@ export default function AIFlashcardGenerator({ contextData }) {
   }, [currentIndex, isCompleted, selectedFlashcardSet, flashcards]);
 
   return (
-    <div className="h-[calc(100vh-68px)] overflow-hidden bg-white shadow-sm -mx-8 -my-6">
+    <div className="h-[calc(100vh-68px)] overflow-hidden bg-white shadow-sm -mx-4 sm:-mx-6 lg:-mx-8 -my-6">
       <div className="flex h-full">
         <AISidebar
           type="flashcard"

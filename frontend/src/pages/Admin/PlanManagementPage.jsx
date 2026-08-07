@@ -278,7 +278,8 @@ export default function PlanManagementPage() {
                           <Switch
                             checked={active}
                             onCheckedChange={() => handleToggleStatus(plan.id)}
-                            className="data-[state=checked]:bg-[#f26522] cursor-pointer"
+                            disabled={plan.code === "FREE"}
+                            className="data-[state=checked]:bg-[#f26522] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                           />
                         </div>
                       </div>
@@ -380,9 +381,10 @@ export default function PlanManagementPage() {
                       </Button>
                       <Button
                         onClick={() => handleOpenDeleteDialog(plan)}
-                        title="Delete Plan"
+                        title={isCorePlan ? "Core plans cannot be deleted" : "Delete Plan"}
+                        disabled={isCorePlan}
                         variant="outline"
-                        className="rounded-xl px-3 border-slate-200 font-bold text-xs cursor-pointer hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 text-slate-500"
+                        className="rounded-xl px-3 border-slate-200 font-bold text-xs cursor-pointer hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 text-slate-500 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
@@ -644,7 +646,8 @@ export default function PlanManagementPage() {
                 <Switch
                   checked={formData.isActive}
                   onCheckedChange={(checked) => setFormData({ ...formData, isActive: checked })}
-                  className="data-[state=checked]:bg-[#f26522] cursor-pointer scale-90"
+                  disabled={formData.code === "FREE"}
+                  className="data-[state=checked]:bg-[#f26522] cursor-pointer scale-90 disabled:opacity-50 disabled:cursor-not-allowed"
                 />
               </div>
             </div>

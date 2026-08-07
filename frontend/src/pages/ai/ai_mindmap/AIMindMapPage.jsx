@@ -10,6 +10,8 @@ import {
   ReactFlowProvider,
   Handle,
   Position,
+  getNodesBounds,
+  getViewportForBounds,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import dagre from "@dagrejs/dagre";
@@ -517,13 +519,55 @@ function AIMindMapPageInner() {
   /* ── Export: PNG ──────────────────────── */
   const handleExportPNG = useCallback(async () => {
     const viewport = document.querySelector(".react-flow__viewport");
-    if (!viewport) { toast.error("Nothing to export"); return; }
+    if (!viewport || !nodes || nodes.length === 0) { toast.error("Nothing to export"); return; }
 
     setIsExporting(true);
     try {
+      // Calculate perfect mathematical bounds of the mindmap nodes manually
+      let minX = Infinity;
+      let minY = Infinity;
+      let maxX = -Infinity;
+      let maxY = -Infinity;
+
+      nodes.forEach((node) => {
+        const x = node.position.x;
+        const y = node.position.y;
+        const w = node.width || NODE_WIDTH;
+        const h = node.height || NODE_HEIGHT;
+
+        if (x < minX) minX = x;
+        if (y < minY) minY = y;
+        if (x + w > maxX) maxX = x + w;
+        if (y + h > maxY) maxY = y + h;
+      });
+
+      const nodesBounds = {
+        x: minX,
+        y: minY,
+        width: maxX - minX,
+        height: maxY - minY,
+      };
+
+      // Calculate viewport transform to fit all nodes, allowing minZoom down to 0.01
+      const transform = getViewportForBounds(
+        nodesBounds,
+        1200,
+        800,
+        0.01,
+        2,
+        0.1
+      );
+
       const dataUrl = await toPng(viewport, {
         backgroundColor: "#fafbfc",
         pixelRatio: 2,
+        width: 1200,
+        height: 800,
+        style: {
+          width: "1200px",
+          height: "800px",
+          transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.zoom})`,
+        },
         filter: (node) => {
           // hide minimap & controls from the export
           if (node?.classList?.contains("react-flow__minimap")) return false;
@@ -543,18 +587,60 @@ function AIMindMapPageInner() {
     } finally {
       setIsExporting(false);
     }
-  }, [selectedMindMap]);
+  }, [selectedMindMap, nodes]);
 
   /* ── Export: PDF ──────────────────────── */
   const handleExportPDF = useCallback(async () => {
     const viewport = document.querySelector(".react-flow__viewport");
-    if (!viewport) { toast.error("Nothing to export"); return; }
+    if (!viewport || !nodes || nodes.length === 0) { toast.error("Nothing to export"); return; }
 
     setIsExporting(true);
     try {
+      // Calculate perfect mathematical bounds of the mindmap nodes manually
+      let minX = Infinity;
+      let minY = Infinity;
+      let maxX = -Infinity;
+      let maxY = -Infinity;
+
+      nodes.forEach((node) => {
+        const x = node.position.x;
+        const y = node.position.y;
+        const w = node.width || NODE_WIDTH;
+        const h = node.height || NODE_HEIGHT;
+
+        if (x < minX) minX = x;
+        if (y < minY) minY = y;
+        if (x + w > maxX) maxX = x + w;
+        if (y + h > maxY) maxY = y + h;
+      });
+
+      const nodesBounds = {
+        x: minX,
+        y: minY,
+        width: maxX - minX,
+        height: maxY - minY,
+      };
+
+      // Calculate viewport transform to fit all nodes, allowing minZoom down to 0.01
+      const transform = getViewportForBounds(
+        nodesBounds,
+        1200,
+        800,
+        0.01,
+        2,
+        0.1
+      );
+
       const dataUrl = await toPng(viewport, {
         backgroundColor: "#fafbfc",
         pixelRatio: 2,
+        width: 1200,
+        height: 800,
+        style: {
+          width: "1200px",
+          height: "800px",
+          transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.zoom})`,
+        },
         filter: (node) => {
           if (node?.classList?.contains("react-flow__minimap")) return false;
           if (node?.classList?.contains("react-flow__controls")) return false;
@@ -585,7 +671,7 @@ function AIMindMapPageInner() {
     } finally {
       setIsExporting(false);
     }
-  }, [selectedMindMap]);
+  }, [selectedMindMap, nodes]);
 
   /* ── Export: JSON ─────────────────────── */
   const handleExportJSON = useCallback(() => {
@@ -821,7 +907,7 @@ function AIMindMapPageInner() {
   );
 
   return (
-    <div className="h-[calc(100vh-68px)] overflow-hidden bg-white shadow-sm -mx-8 -my-6 flex">
+    <div className="h-[calc(100vh-68px)] overflow-hidden bg-white shadow-sm -mx-4 sm:-mx-6 lg:-mx-8 -my-6 flex">
       {/* SIDEBAR */}
       <AISidebar
         type="mindmap"
