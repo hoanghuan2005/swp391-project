@@ -351,20 +351,32 @@ public class AiFlashcardService {
             }
 
             if (!docChunks.isEmpty()) {
+                StringBuilder docContentBuilder = new StringBuilder();
+                docContentBuilder.append("=== FILE: ").append(docTitle).append(" ===\n");
+                for (DocumentChunk chunk : docChunks) {
+                    docContentBuilder.append(chunk.getContent()).append("\n");
+                }
+
+                String docContent = docContentBuilder.toString();
+                int maxDocLength = 10000 / Math.max(1, documentIds.size());
+                if (docContent.length() > maxDocLength) {
+                    docContent = docContent.substring(0, maxDocLength);
+                }
+
                 if (contentBuilder.length() > 0) {
                     contentBuilder.append("\n\n");
                 }
-                contentBuilder.append("=== FILE: ").append(docTitle).append(" ===\n");
-                for (DocumentChunk chunk : docChunks) {
-                    contentBuilder.append(chunk.getContent()).append("\n");
-                }
+                contentBuilder.append(docContent);
             }
         }
 
         String content = contentBuilder.toString();
 
         Document firstDoc = documentRepository.findById(documentIds.get(0)).orElse(null);
-        String defaultTitle = firstDoc != null ? firstDoc.getTitle() : "AI Flashcard Set";
+        String docTitle = firstDoc != null ? firstDoc.getTitle() : "AI Flashcard Set";
+        String defaultTitle = documentIds.size() > 1 
+                ? docTitle + " (+" + (documentIds.size() - 1) + ")" 
+                : docTitle;
 
         if (content.trim().isEmpty()) {
             if (firstDoc != null) {
@@ -376,10 +388,6 @@ public class AiFlashcardService {
                 }
             }
             log.info("Using document metadata fallback content for flashcard generation on documents: {}", documentIds);
-        }
-
-        if (content.length() > 10000) {
-            content = content.substring(0, 10000);
         }
 
         return generateFlashcardsFromContent(content, defaultTitle, firstDoc, email);
@@ -398,10 +406,16 @@ public class AiFlashcardService {
                 ? "Tạo tối đa " + maxCards + " flashcards. "
                 : "";
 
+        String distributionInstruction = "";
+        if (content.contains("=== FILE: ")) {
+            distributionInstruction = "Văn bản cung cấp chứa thông tin từ nhiều file khác nhau (được ngăn cách bởi '=== FILE: <tên file> ==='). Bạn BẮT BUỘC phải trích xuất đều các khái niệm từ TẤT CẢ các file này để đảm bảo mỗi file đều có flashcard đại diện. ";
+        }
+
         String systemPrompt = "Bạn là trợ lý AI chuyên tạo flashcard. "
                 + "Nhiệm vụ: Trích xuất các khái niệm (term) và định nghĩa (definition) "
                 + "TỪ ĐÚNG NỘI DUNG VĂN BẢN MÀ USER CUNG CẤP. "
                 + cardLimitInstruction
+                + distributionInstruction
                 + "Tuyệt đối KHÔNG tự bịa ra nội dung nếu văn bản không có. "
                 + "Luôn trả về duy nhất 1 mảng JSON hợp lệ, không markdown, không giải thích thêm.";
 

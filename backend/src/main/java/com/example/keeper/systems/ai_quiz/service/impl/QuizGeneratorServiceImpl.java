@@ -314,20 +314,26 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
             }
 
             if (!docChunks.isEmpty()) {
+                StringBuilder docContentBuilder = new StringBuilder();
+                docContentBuilder.append("=== FILE: ").append(docTitle).append(" ===\n");
+                for (DocumentChunk chunk : docChunks) {
+                    docContentBuilder.append(chunk.getContent()).append("\n");
+                }
+
+                String docContent = docContentBuilder.toString();
+                int maxDocLength = 10000 / Math.max(1, docIds.size());
+                if (docContent.length() > maxDocLength) {
+                    docContent = docContent.substring(0, maxDocLength);
+                }
+
                 if (contextBuilder.length() > 0) {
                     contextBuilder.append("\n\n");
                 }
-                contextBuilder.append("=== FILE: ").append(docTitle).append(" ===\n");
-                for (DocumentChunk chunk : docChunks) {
-                    contextBuilder.append(chunk.getContent()).append("\n");
-                }
+                contextBuilder.append(docContent);
             }
         }
 
-        String combined = contextBuilder.toString();
-
-        // Limit to 10,000 characters
-        return combined.length() > 10000 ? combined.substring(0, 10000) : combined;
+        return contextBuilder.toString();
     }
 
     private void ensureReadyForAi(Document document) {

@@ -95,24 +95,28 @@ public class MindMapServiceImpl implements MindMapService {
             }
 
             if (!docChunks.isEmpty()) {
+                StringBuilder docContentBuilder = new StringBuilder();
+                docContentBuilder.append("=== FILE: ").append(docTitle).append(" ===\n");
+                for (DocumentChunk chunk : docChunks) {
+                    docContentBuilder.append(chunk.getContent()).append("\n");
+                }
+
+                String docContent = docContentBuilder.toString();
+                int maxDocLength = 10000 / Math.max(1, targetDocIds.size());
+                if (docContent.length() > maxDocLength) {
+                    docContent = docContent.substring(0, maxDocLength);
+                }
+
                 if (contentBuilder.length() > 0) {
                     contentBuilder.append("\n\n");
                 }
-                contentBuilder.append("=== FILE: ").append(docTitle).append(" ===\n");
-                for (DocumentChunk chunk : docChunks) {
-                    contentBuilder.append(chunk.getContent()).append("\n");
-                }
+                contentBuilder.append(docContent);
             }
         }
 
         String content = contentBuilder.toString();
         if (content.trim().isEmpty()) {
             throw new RuntimeException("Document content not found");
-        }
-
-        // Limit to 10,000 characters
-        if (content.length() > 10000) {
-            content = content.substring(0, 10000);
         }
 
         String prompt = buildMindMapPrompt(content);
