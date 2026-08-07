@@ -11,7 +11,7 @@ import {
   Download,
 } from "lucide-react";
 import ExportModal from "@/components/modals/ExportModal";
-import { toast } from "react-hot-toast"; // Đã thêm import toast
+import { toast } from "sonner";
 import axiosClient from "@/api/axiosClient";
 import useDocuments from "@/hooks/useDocuments";
 import useMaterialPublish from "@/hooks/useMaterialPublish";
@@ -132,6 +132,9 @@ export default function AIFlashcardGenerator({ contextData }) {
   const [publishConfirmOpen, setPublishConfirmOpen] = useState(false);
   const [courses, setCourses] = useState([]);
   const [publishCourseId, setPublishCourseId] = useState("");
+  const [multiPublishDialogOpen, setMultiPublishDialogOpen] = useState(false);
+  const [publishCourseIds, setPublishCourseIds] = useState([]);
+  const [detectedCourses, setDetectedCourses] = useState([]);
 
   useEffect(() => {
     if (contextData && contextData.id) {
@@ -373,7 +376,26 @@ export default function AIFlashcardGenerator({ contextData }) {
       return;
     }
 
-    if (detectedCourse) {
+    // Extract unique courses from selectedDocs
+    const selectedCourses = selectedDocs
+      .map(doc => doc.course)
+      .filter(course => course && course.id);
+
+    const uniqueCourses = [];
+    const courseIdsSet = new Set();
+    selectedCourses.forEach(c => {
+      if (!courseIdsSet.has(c.id)) {
+        courseIdsSet.add(c.id);
+        uniqueCourses.push(c);
+      }
+    });
+
+    if (uniqueCourses.length > 1) {
+      // Multiple courses detected!
+      setDetectedCourses(uniqueCourses);
+      setPublishCourseIds(uniqueCourses.map(c => c.id));
+      setMultiPublishDialogOpen(true);
+    } else if (detectedCourse) {
       // Smart publish: document belongs to a course — show confirmation
       setPublishCourseId(detectedCourse.id);
       setPublishConfirmOpen(true);
@@ -392,11 +414,34 @@ export default function AIFlashcardGenerator({ contextData }) {
         type: "FLASHCARD",
         id: selectedFlashcardSet.id,
         courseId,
+        courseIds: courseId ? [courseId] : [],
         visibility: "PUBLIC",
       });
       toast.success("Flashcard set published successfully!");
       setPublishDialogOpen(false);
       setPublishConfirmOpen(false);
+    } catch (e) {
+      toast.error("Failed to publish flashcard set.");
+      console.error(e);
+    }
+  };
+
+  const handleMultiPublish = async (selectedIds) => {
+    if (!selectedIds || selectedIds.length === 0) {
+      toast.error("Please select at least one course.");
+      return;
+    }
+
+    try {
+      await publish({
+        type: "FLASHCARD",
+        id: selectedFlashcardSet.id,
+        courseId: selectedIds[0],
+        courseIds: selectedIds,
+        visibility: "PUBLIC",
+      });
+      toast.success("Flashcard set published successfully!");
+      setMultiPublishDialogOpen(false);
     } catch (e) {
       toast.error("Failed to publish flashcard set.");
       console.error(e);
@@ -892,6 +937,73 @@ export default function AIFlashcardGenerator({ contextData }) {
             >
               {publishing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Publish
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Multi-Publish Course Selection Dialog */}
+      <Dialog open={multiPublishDialogOpen} onOpenChange={setMultiPublishDialogOpen}>
+        <DialogContent className="sm:max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-slate-800">
+              Publish to Multiple Courses
+            </DialogTitle>
+            <DialogDescription className="text-slate-500 pt-2">
+              This set was generated from documents belonging to different courses. Choose where you want to publish it:
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-4 space-y-3">
+            {detectedCourses.map((c) => {
+              const isChecked = publishCourseIds.includes(c.id);
+              return (
+                <div
+                  key={c.id}
+                  onClick={() => {
+                    setPublishCourseIds(prev =>
+                      prev.includes(c.id)
+                        ? prev.filter(id => id !== c.id)
+                        : [...prev, c.id]
+                    );
+                  }}
+                  className={`p-4 rounded-xl border-2 transition-all cursor-pointer flex items-center justify-between ${
+                    isChecked
+                      ? "border-[#f26522] bg-orange-50/50 ring-1 ring-[#f26522]"
+                      : "border-slate-200 bg-white hover:border-[#f26522]/30 hover:bg-orange-50/20"
+                  }`}
+                >
+                  <div>
+                    <p className="text-sm font-semibold text-slate-800">
+                      {c.code} - {c.name}
+                    </p>
+                  </div>
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                    isChecked ? "border-[#f26522] bg-[#f26522] text-white" : "border-slate-300"
+                  }`}>
+                    {isChecked && <span className="text-[10px] font-black">✓</span>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <DialogFooter className="mt-6 flex gap-3 sm:justify-end">
+            <Button
+              variant="outline"
+              onClick={() => setMultiPublishDialogOpen(false)}
+              className="rounded-xl"
+              disabled={publishing}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => handleMultiPublish(publishCourseIds)}
+              className="rounded-xl bg-[#f26522] hover:bg-[#d95316] text-white"
+              disabled={publishing || publishCourseIds.length === 0}
+            >
+              {publishing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Publish ({publishCourseIds.length})
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -38,7 +38,7 @@ import AIGeneratorInput from "@/components/ai-sidebar/AIGeneratorInput";
 import useDocuments from "@/hooks/useDocuments";
 import axiosClient, { backendBaseUrl } from "@/api/axiosClient";
 import { generateMindMap, getMindMapByDocument, getUserMindMaps, renameMindMap, generateMindMapFromFile } from "@/api/mindmapApi";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import useAiUsage from "@/hooks/useAiUsage";
 import AiUsageBadge from "@/components/ai-usage/AiUsageBadge";

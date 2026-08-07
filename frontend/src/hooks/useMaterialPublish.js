@@ -5,7 +5,7 @@ import axiosClient from "@/api/axiosClient";
 export default function useMaterialPublish() {
   const [loading, setLoading] = useState(false);
 
-  const publish = async ({ type, id, courseId, visibility }) => {
+  const publish = async ({ type, id, courseId, courseIds, visibility }) => {
     setLoading(true);
 
     try {
@@ -16,6 +16,7 @@ export default function useMaterialPublish() {
 
       await axiosClient.post(endpoint, {
         courseId,
+        courseIds,
         visibility,
       });
     } finally {

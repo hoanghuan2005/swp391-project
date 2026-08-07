@@ -247,7 +247,7 @@ public class QuizGeneratorServiceImpl implements QuizGeneratorService {
         
         String query = request.getTopic() != null && !request.getTopic().trim().isEmpty() 
             ? request.getTopic() 
-            : request.getTitle();
+            : "key concepts, terms, important definitions, and core subject matter";
             
         float[] queryEmbedding = null;
         boolean embeddingFailed = false;

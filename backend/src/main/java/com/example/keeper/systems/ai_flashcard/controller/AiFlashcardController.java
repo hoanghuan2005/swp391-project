@@ -129,7 +129,15 @@ public class AiFlashcardController {
             @PathVariable UUID id,
             @RequestBody PublishMaterialRequest request) {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
-        aiFlashcardService.publishFlashcardSet(id, request.getCourseId(), request.getVisibility(), email);
+        List<UUID> courseIds = request.getCourseIds();
+        if (courseIds == null || courseIds.isEmpty()) {
+            if (request.getCourseId() != null) {
+                courseIds = java.util.Collections.singletonList(request.getCourseId());
+            } else {
+                courseIds = java.util.Collections.emptyList();
+            }
+        }
+        aiFlashcardService.publishFlashcardSet(id, courseIds, request.getVisibility(), email);
         return ResponseEntity.ok(Map.of("success", true));
     }
 

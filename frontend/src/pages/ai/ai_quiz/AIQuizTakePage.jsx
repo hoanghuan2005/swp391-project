@@ -11,8 +11,8 @@ import {
   Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { getQuizById } from "@/api/quizApi";
-import { toast } from "react-hot-toast";
+import { getQuizById, submitQuiz, getQuizAttemptById } from "@/api/quizApi";
+import { toast } from "sonner";
 import axiosClient from "@/api/axiosClient";
 import useStudyTimer from "@/hooks/useStudyTimer";
 import ExportModal from "@/components/modals/ExportModal";
@@ -30,9 +30,7 @@ const formatSessionTime = (seconds) => {
 };
 
 export default function AIQuizTakePage() {
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  useStudyTimer(setElapsedSeconds);
-  const { id } = useParams();
+  const { id, attemptId } = useParams();
   const navigate = useNavigate();
   const [quiz, setQuiz] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -41,6 +39,9 @@ export default function AIQuizTakePage() {
   const [score, setScore] = useState(0);
   const [currentUser, setCurrentUser] = useState(null);
   const [exportModalOpen, setExportModalOpen] = useState(false);
+
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  useStudyTimer(setElapsedSeconds, !attemptId && !isSubmitted);
 
   useEffect(() => {
     const fetchProfileAndQuiz = async () => {
@@ -57,13 +58,36 @@ export default function AIQuizTakePage() {
           }
         }
 
-        // 2. Fetch quiz details
-        const quizData = await getQuizById(id);
-
-        setQuiz(quizData);
-        setIsSubmitted(false);
-        setAnswers({});
-        setScore(0);
+        // 2. Fetch quiz or attempt details
+        if (attemptId) {
+          const attemptData = await getQuizAttemptById(attemptId);
+          setQuiz({
+            id: attemptData.quizId,
+            title: attemptData.quizTitle,
+            courseId: attemptData.courseId,
+            questions: attemptData.details.map((d, idx) => ({
+              id: d.questionId || `q-${idx}`,
+              content: d.content,
+              options: d.options,
+              correctAnswer: d.correctAnswer,
+              explanation: d.explanation
+            }))
+          });
+          const loadedAnswers = {};
+          attemptData.details.forEach((d, idx) => {
+            loadedAnswers[d.questionId || `q-${idx}`] = d.selectedAnswer;
+          });
+          setAnswers(loadedAnswers);
+          setScore(attemptData.score);
+          setElapsedSeconds(attemptData.elapsedSeconds);
+          setIsSubmitted(true);
+        } else {
+          const quizData = await getQuizById(id);
+          setQuiz(quizData);
+          setIsSubmitted(false);
+          setAnswers({});
+          setScore(0);
+        }
       } catch (error) {
         console.error("Failed to load quiz study session", error);
         toast.error("Failed to load quiz data.");
@@ -74,7 +98,7 @@ export default function AIQuizTakePage() {
     };
 
     fetchProfileAndQuiz();
-  }, [id, navigate]);
+  }, [id, attemptId, navigate]);
 
   const handleSelectOption = (questionId, option) => {
     if (isSubmitted) return;
@@ -83,6 +107,10 @@ export default function AIQuizTakePage() {
 
   // Retake quiz
   const handleRetake = () => {
+    if (attemptId) {
+      navigate(`/quiz/${quiz.id}`);
+      return;
+    }
     setAnswers({});
     setIsSubmitted(false);
     setScore(0);
@@ -92,7 +120,7 @@ export default function AIQuizTakePage() {
   };
 
   // Submit quiz
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const totalQuestions = quiz?.questions?.length || 0;
 
     if (Object.keys(answers).length < totalQuestions) {
@@ -118,17 +146,23 @@ export default function AIQuizTakePage() {
       return;
     }
 
-    let calculatedScore = 0;
-    quiz.questions.forEach((q) => {
-      if (answers[q.id] === q.correctAnswer) {
-        calculatedScore++;
-      }
-    });
-
-    setScore(calculatedScore);
-    setIsSubmitted(true);
-    const contentArea = document.getElementById("quiz-content-area");
-    if (contentArea) contentArea.scrollTo({ top: 0, behavior: "smooth" });
+    try {
+      setLoading(true);
+      const attemptRes = await submitQuiz(quiz.id, {
+        elapsedSeconds,
+        answers
+      });
+      toast.success("Quiz submitted successfully!");
+      setScore(attemptRes.score);
+      setIsSubmitted(true);
+      const contentArea = document.getElementById("quiz-content-area");
+      if (contentArea) contentArea.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (error) {
+      console.error("Failed to submit quiz:", error);
+      toast.error("Failed to submit quiz. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (loading && !quiz) {
@@ -190,7 +224,9 @@ export default function AIQuizTakePage() {
             <Button
               variant="ghost"
               onClick={() => {
-                if (quiz?.courseId) {
+                if (attemptId) {
+                  navigate("/my-library");
+                } else if (quiz?.courseId) {
                   navigate(`/courses/${quiz.courseId}`);
                 } else {
                   navigate("/ai-tools");
@@ -198,7 +234,7 @@ export default function AIQuizTakePage() {
               }}
               className="mb-6 text-slate-500 hover:text-[#f26522] rounded-xl cursor-pointer"
             >
-              <ArrowLeft className="w-4 h-4 mr-2" /> {quiz?.courseId ? "Back to Course" : "Back to Dashboard"}
+              <ArrowLeft className="w-4 h-4 mr-2" /> {attemptId ? "Back to Library" : (quiz?.courseId ? "Back to Course" : "Back to Dashboard")}
             </Button>
 
             {/* Header / Score Board */}

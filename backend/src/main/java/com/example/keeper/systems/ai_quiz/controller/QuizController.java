@@ -2,9 +2,12 @@ package com.example.keeper.systems.ai_quiz.controller;
 
 import com.example.keeper.systems.ai_quiz.dto.request.QuizRequest;
 import com.example.keeper.systems.ai_quiz.dto.request.QuizUpdateRequest;
+import com.example.keeper.systems.ai_quiz.dto.request.QuizSubmitRequest;
 import com.example.keeper.systems.ai_quiz.dto.response.QuizResponse;
+import com.example.keeper.systems.ai_quiz.dto.response.QuizAttemptResponse;
 import com.example.keeper.systems.ai_quiz.service.QuizGeneratorService;
 import com.example.keeper.systems.ai_quiz.service.QuizService;
+import com.example.keeper.systems.ai_quiz.service.QuizAttemptService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -22,6 +25,7 @@ public class QuizController {
 
     private final QuizGeneratorService quizGeneratorService;
     private final QuizService quizService;
+    private final QuizAttemptService quizAttemptService;
 
     @PostMapping("/generate")
     public ResponseEntity<QuizResponse> generateQuiz(@RequestBody @Valid QuizRequest request) {
@@ -91,7 +95,15 @@ public class QuizController {
             @PathVariable UUID id,
             @RequestBody com.example.keeper.systems.ai_quiz.dto.request.PublishMaterialRequest request) {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
-        quizService.publishQuiz(id, request.getCourseId(), request.getVisibility(), email);
+        List<UUID> courseIds = request.getCourseIds();
+        if (courseIds == null || courseIds.isEmpty()) {
+            if (request.getCourseId() != null) {
+                courseIds = java.util.Collections.singletonList(request.getCourseId());
+            } else {
+                courseIds = java.util.Collections.emptyList();
+            }
+        }
+        quizService.publishQuiz(id, courseIds, request.getVisibility(), email);
         return ResponseEntity.ok().build();
     }
 
@@ -111,5 +123,31 @@ public class QuizController {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         quizService.toggleFavorite(id, email);
         return ResponseEntity.ok(java.util.Map.of("message", "Favorite status updated"));
+    }
+
+    @PostMapping("/{id}/submit")
+    public ResponseEntity<QuizAttemptResponse> submitQuiz(
+            @PathVariable UUID id,
+            @RequestBody @Valid QuizSubmitRequest request) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        return ResponseEntity.ok(quizAttemptService.submitQuiz(id, request, email));
+    }
+
+    @GetMapping("/attempts/my")
+    public ResponseEntity<List<QuizAttemptResponse>> getMyAttempts() {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        return ResponseEntity.ok(quizAttemptService.getMyAttempts(email));
+    }
+
+    @GetMapping("/{id}/attempts")
+    public ResponseEntity<List<QuizAttemptResponse>> getQuizAttempts(@PathVariable UUID id) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        return ResponseEntity.ok(quizAttemptService.getQuizAttempts(id, email));
+    }
+
+    @GetMapping("/attempts/{attemptId}")
+    public ResponseEntity<QuizAttemptResponse> getAttemptById(@PathVariable UUID attemptId) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        return ResponseEntity.ok(quizAttemptService.getAttemptById(attemptId, email));
     }
 }

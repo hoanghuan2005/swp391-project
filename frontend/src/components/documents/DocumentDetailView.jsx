@@ -4,7 +4,7 @@ import axiosClient from "@/api/axiosClient";
 import DocumentReviews from "./DocumentReviews"; // Import component đánh giá
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,

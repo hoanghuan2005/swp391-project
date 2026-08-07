@@ -44,7 +44,7 @@ import {
 import AISidebar from "@/components/ai-sidebar/sidebar/AISidebar";
 import axiosClient, { backendBaseUrl } from "@/api/axiosClient";
 import useDocuments from "@/hooks/useDocuments";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import AIGeneratorInput from "@/components/ai-sidebar/AIGeneratorInput";
 import AIToolHeader from "@/components/ai-sidebar/AIToolHeader";
@@ -59,6 +59,7 @@ import {
   updateQuiz,
   renameQuiz,
   generateQuizFromFile,
+  submitQuiz,
 } from "@/api/quizApi";
 import AiUsageBadge from "@/components/ai-usage/AiUsageBadge";
 import useAiUsage from "@/hooks/useAiUsage";
@@ -67,9 +68,13 @@ import useDocumentQuota from "@/hooks/useDocumentQuota";
 import { isDocumentQuotaExceeded } from "@/api/documentQuotaApi";
 import QuotaExceededDialog from "@/components/quota/QuotaExceededDialog";
 
+const VIEW_MODE = {
+  GENERATE: "GENERATE",
+  PREVIEW: "PREVIEW",
+  STUDY: "STUDY",
+};
+
 export default function AIQuizGenerator() {
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  useStudyTimer(setElapsedSeconds);
   const [inputText, setInputText] = useState("");
   const [file, setFile] = useState(null);
   const [selectedDocs, setSelectedDocs] = useState([]);
@@ -109,11 +114,6 @@ export default function AIQuizGenerator() {
   const [newTitle, setNewTitle] = useState("");
   const [isRenaming, setIsRenaming] = useState(false);
 
-  const VIEW_MODE = {
-    GENERATE: "GENERATE",
-    PREVIEW: "PREVIEW",
-    STUDY: "STUDY",
-  };
   const [viewMode, setViewMode] = useState(VIEW_MODE.GENERATE);
   const [selectedQuiz, setSelectedQuiz] = useState(null);
   const [exportModalOpen, setExportModalOpen] = useState(false);
@@ -121,11 +121,17 @@ export default function AIQuizGenerator() {
   const [publishConfirmOpen, setPublishConfirmOpen] = useState(false);
   const [courses, setCourses] = useState([]);
   const [publishCourseId, setPublishCourseId] = useState("");
+  const [multiPublishDialogOpen, setMultiPublishDialogOpen] = useState(false);
+  const [publishCourseIds, setPublishCourseIds] = useState([]);
+  const [detectedCourses, setDetectedCourses] = useState([]);
 
   // Quiz study mode state
   const [answers, setAnswers] = useState({});
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [score, setScore] = useState(0);
+
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  useStudyTimer(setElapsedSeconds, viewMode === VIEW_MODE.STUDY && !isSubmitted);
 
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
@@ -166,20 +172,27 @@ export default function AIQuizGenerator() {
     toast.success("Quiz reset. Good luck!");
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const totalQuestions = selectedQuiz?.questions?.length || 0;
     if (Object.keys(answers).length < totalQuestions) {
       toast.error("Please answer all questions before submitting.");
       return;
     }
-    let calculatedScore = 0;
-    selectedQuiz.questions.forEach((q) => {
-      if (answers[q.id] === q.correctAnswer) {
-        calculatedScore++;
-      }
-    });
-    setScore(calculatedScore);
-    setIsSubmitted(true);
+    try {
+      setIsSaving(true);
+      const attemptRes = await submitQuiz(selectedQuiz.id, {
+        elapsedSeconds,
+        answers
+      });
+      toast.success("Quiz results saved!");
+      setScore(attemptRes.score);
+      setIsSubmitted(true);
+    } catch (error) {
+      console.error("Failed to submit quiz attempt:", error);
+      toast.error("Failed to save quiz results.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   useEffect(() => {
@@ -265,6 +278,7 @@ export default function AIQuizGenerator() {
       setIsGenerating(true);
       const quizDetails = await getQuizById(quiz.id);
       setSelectedQuiz(quizDetails);
+      setSelectedDocs([]);
       setViewMode(VIEW_MODE.PREVIEW);
     } catch (error) {
       console.error("Failed to load quiz details:", error);
@@ -467,7 +481,6 @@ export default function AIQuizGenerator() {
 
       await refreshAiUsage();
       toast.success("Quiz generated successfully!");
-      clearDocument();
       try {
         await refreshDocuments();
       } catch {
@@ -517,7 +530,26 @@ export default function AIQuizGenerator() {
       return;
     }
 
-    if (detectedCourse) {
+    // Extract unique courses from selectedDocs
+    const selectedCourses = selectedDocs
+      .map(doc => doc.course)
+      .filter(course => course && course.id);
+
+    const uniqueCourses = [];
+    const courseIdsSet = new Set();
+    selectedCourses.forEach(c => {
+      if (!courseIdsSet.has(c.id)) {
+        courseIdsSet.add(c.id);
+        uniqueCourses.push(c);
+      }
+    });
+
+    if (uniqueCourses.length > 1) {
+      // Multiple courses detected!
+      setDetectedCourses(uniqueCourses);
+      setPublishCourseIds(uniqueCourses.map(c => c.id));
+      setMultiPublishDialogOpen(true);
+    } else if (detectedCourse) {
       // Smart publish: document belongs to a course — show confirmation
       setPublishCourseId(detectedCourse.id);
       setPublishConfirmOpen(true);
@@ -536,11 +568,34 @@ export default function AIQuizGenerator() {
         type: "QUIZ",
         id: selectedQuiz.id,
         courseId,
+        courseIds: courseId ? [courseId] : [],
         visibility: "PUBLIC",
       });
       toast.success("Quiz published successfully!");
       setPublishDialogOpen(false);
       setPublishConfirmOpen(false);
+    } catch (e) {
+      toast.error("Failed to publish quiz.");
+      console.error(e);
+    }
+  };
+
+  const handleMultiPublishQuiz = async (selectedIds) => {
+    if (!selectedIds || selectedIds.length === 0) {
+      toast.error("Please select at least one course.");
+      return;
+    }
+
+    try {
+      await publish({
+        type: "QUIZ",
+        id: selectedQuiz.id,
+        courseId: selectedIds[0],
+        courseIds: selectedIds,
+        visibility: "PUBLIC",
+      });
+      toast.success("Quiz published successfully!");
+      setMultiPublishDialogOpen(false);
     } catch (e) {
       toast.error("Failed to publish quiz.");
       console.error(e);
@@ -1039,6 +1094,73 @@ export default function AIQuizGenerator() {
             >
               {publishing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Publish
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Multi-Publish Course Selection Dialog */}
+      <Dialog open={multiPublishDialogOpen} onOpenChange={setMultiPublishDialogOpen}>
+        <DialogContent className="sm:max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-slate-800">
+              Publish to Multiple Courses
+            </DialogTitle>
+            <DialogDescription className="text-slate-500 pt-2">
+              This quiz was generated from documents belonging to different courses. Choose where you want to publish it:
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-4 space-y-3">
+            {detectedCourses.map((c) => {
+              const isChecked = publishCourseIds.includes(c.id);
+              return (
+                <div
+                  key={c.id}
+                  onClick={() => {
+                    setPublishCourseIds(prev =>
+                      prev.includes(c.id)
+                        ? prev.filter(id => id !== c.id)
+                        : [...prev, c.id]
+                    );
+                  }}
+                  className={`p-4 rounded-xl border-2 transition-all cursor-pointer flex items-center justify-between ${
+                    isChecked
+                      ? "border-[#f26522] bg-orange-50/50 ring-1 ring-[#f26522]"
+                      : "border-slate-200 bg-white hover:border-[#f26522]/30 hover:bg-orange-50/20"
+                  }`}
+                >
+                  <div>
+                    <p className="text-sm font-semibold text-slate-800">
+                      {c.code} - {c.name}
+                    </p>
+                  </div>
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                    isChecked ? "border-[#f26522] bg-[#f26522] text-white" : "border-slate-350"
+                  }`}>
+                    {isChecked && <span className="text-[10px] font-black">✓</span>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <DialogFooter className="mt-6 flex gap-3 sm:justify-end">
+            <Button
+              variant="outline"
+              onClick={() => setMultiPublishDialogOpen(false)}
+              className="rounded-xl"
+              disabled={publishing}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => handleMultiPublishQuiz(publishCourseIds)}
+              className="rounded-xl bg-[#f26522] hover:bg-[#d95316] text-white"
+              disabled={publishing || publishCourseIds.length === 0}
+            >
+              {publishing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Publish ({publishCourseIds.length})
             </Button>
           </DialogFooter>
         </DialogContent>

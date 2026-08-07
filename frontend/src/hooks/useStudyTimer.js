@@ -1,7 +1,8 @@
 import { useEffect } from "react";
 
-export default function useStudyTimer(onTick) {
+export default function useStudyTimer(onTick, active = true) {
   useEffect(() => {
+    if (!active) return;
     const startTime = Date.now();
     localStorage.setItem("lastStudyTimeSeconds", "0");
 
@@ -28,5 +29,6 @@ export default function useStudyTimer(onTick) {
       clearInterval(interval);
       localStorage.removeItem("lastStudyTimeSeconds");
     };
-  }, [onTick]);
+  }, [onTick, active]);
 }
+

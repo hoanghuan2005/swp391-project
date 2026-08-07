@@ -220,7 +220,8 @@ public class AiFlashcardService {
         return mapToFlashcardSetResponse(set);
     }
 
-    public void publishFlashcardSet(UUID id, UUID courseId, String visibility, String userEmail) {
+    @Transactional
+    public void publishFlashcardSet(UUID id, List<UUID> courseIds, String visibility, String userEmail) {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
@@ -231,12 +232,41 @@ public class AiFlashcardService {
             throw new RuntimeException("You do not have permission to publish this flashcard set");
         }
 
-        set.setCourseId(courseId);
+        if (courseIds == null || courseIds.isEmpty()) {
+            throw new IllegalArgumentException("At least one courseId is required for publishing");
+        }
+
+        UUID firstCourseId = courseIds.get(0);
+        set.setCourseId(firstCourseId);
         set.setVisibility(visibility != null ? visibility : "PRIVATE");
         set.setStatus("PUBLISHED");
         set.setSavedToLibrary(true);
-
         flashcardSetRepository.save(set);
+
+        // Clones for subsequent courses
+        for (int i = 1; i < courseIds.size(); i++) {
+            UUID cId = courseIds.get(i);
+            FlashcardSet clonedSet = new FlashcardSet();
+            clonedSet.setTitle(set.getTitle());
+            clonedSet.setSourceText(set.getSourceText());
+            clonedSet.setStatus("PUBLISHED");
+            clonedSet.setVisibility(visibility != null ? visibility : "PRIVATE");
+            clonedSet.setSavedToLibrary(true);
+            clonedSet.setCourseId(cId);
+            clonedSet.setUser(set.getUser());
+            clonedSet.setDocument(set.getDocument());
+            FlashcardSet savedClone = flashcardSetRepository.save(clonedSet);
+
+            List<Flashcard> originalCards = flashcardRepository.findByFlashcardSetId(set.getId());
+            List<Flashcard> clonedCards = originalCards.stream().map(card -> {
+                Flashcard clonedCard = new Flashcard();
+                clonedCard.setTerm(card.getTerm());
+                clonedCard.setDefinition(card.getDefinition());
+                clonedCard.setFlashcardSet(savedClone);
+                return clonedCard;
+            }).collect(Collectors.toList());
+            flashcardRepository.saveAll(clonedCards);
+        }
     }
 
     public List<FlashcardSetResponse> getCourseFlashcardSets(UUID courseId) {

@@ -14,7 +14,7 @@ public interface QuizService {
     List<QuizResponse> getUserQuizzes(String userEmail, Boolean savedToLibrary);
     QuizResponse renameQuiz(UUID id, String newTitle, String userEmail);
     void deleteQuiz(UUID id, String userEmail);
-    void publishQuiz(UUID id, UUID courseId, String visibility, String userEmail);
+    void publishQuiz(UUID id, List<UUID> courseIds, String visibility, String userEmail);
     List<QuizResponse> getCourseQuizzes(UUID courseId);
     void toggleFavorite(UUID quizId, String userEmail);
     List<QuizResponse> getMyFavorites(String userEmail);
