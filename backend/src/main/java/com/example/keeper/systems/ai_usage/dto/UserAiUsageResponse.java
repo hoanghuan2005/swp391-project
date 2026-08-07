@@ -16,7 +16,6 @@ public class UserAiUsageResponse {
     private Integer usedAiRequestsToday;
     private Integer remainingUsage;
     private Integer maxSelectedDocs;
-    private Integer maxPersonalDocs;
     private Integer maxWorkspaceDocs;
     private Integer maxAiContextChunks;
     private Integer maxChunkChars;

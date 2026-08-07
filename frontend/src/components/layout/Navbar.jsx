@@ -39,6 +39,8 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import PricingModal from "@/components/modals/PricingModal";
+import MySubscriptionModal from "@/components/modals/MySubscriptionModal";
+import NotificationDetailModal from "@/components/modals/NotificationDetailModal";
 
 // ==========================================
 // COMPONENT TẠO DROPDOWN CÓ TÌM KIẾM (GIỐNG ẢNH)
@@ -178,6 +180,9 @@ export default function Navbar({
   const navigate = useNavigate();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [pricingModalOpen, setPricingModalOpen] = useState(false);
+  const [mySubModalOpen, setMySubModalOpen] = useState(false);
+  const [selectedNotification, setSelectedNotification] = useState(null);
+  const [notificationDetailOpen, setNotificationDetailOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifications, setNotifications] = useState([]);
   const [userName, setUserName] = useState("");
@@ -684,45 +689,16 @@ ${
                                 await axiosClient.put(
                                   `/api/notifications/${item.id}/read`,
                                 );
+                                setNotifications((prev) =>
+                                  prev.map((n) => (n.id === item.id ? { ...n, isRead: true } : n))
+                                );
+                                setUnreadCount((prev) => Math.max(0, prev - 1));
                               }
                             } catch (err) {
                               console.error(err);
                             }
-                            if (
-                              item.referenceType === "DOCUMENT" &&
-                              item.referenceId
-                            ) {
-                              navigate(`/documents/${item.referenceId}`);
-                            } else if (
-                              item.referenceType === "USER" &&
-                              item.referenceId
-                            ) {
-                              navigate(`/users/${item.referenceId}`);
-                            } else if (
-                              item.referenceType === "WORKSPACE" &&
-                              item.referenceId
-                            ) {
-                              // Smart workspace notification: check invitation status
-                              if (item.type === "WORKSPACE_INVITED") {
-                                try {
-                                  const status = await getMyInvitationStatus(item.referenceId);
-                                  if (status.isMember) {
-                                    navigate(`/workspace/${item.referenceId}`);
-                                  } else if (status.invitation?.token && status.invitation?.status === "PENDING") {
-                                    setInviteData(status.invitation);
-                                    setInviteProjectId(item.referenceId);
-                                    setInviteDialogOpen(true);
-                                  } else {
-                                    navigate(`/workspace/${item.referenceId}`);
-                                  }
-                                } catch (err) {
-                                  console.error("Failed to check invitation status", err);
-                                  navigate(`/workspace/${item.referenceId}`);
-                                }
-                              } else {
-                                navigate(`/workspace/${item.referenceId}`);
-                              }
-                            }
+                            setSelectedNotification(item);
+                            setNotificationDetailOpen(true);
                           }}
                           className={`p-3 text-left hover:bg-slate-50 transition-colors cursor-pointer flex gap-3 ${!item.isRead ? "bg-orange-50/20" : ""}`}
                         >
@@ -761,12 +737,12 @@ ${
             {/* Quick Pricing Icon */}
             <button
               onClick={() => setPricingModalOpen(true)}
-              title={subscriptionTier === "PRO" ? "Pro Subscription" : "View Subscription Plans"}
+              title={subscriptionTier && subscriptionTier.toUpperCase() !== "FREE" ? `${subscriptionTier} Subscription` : "View Subscription Plans"}
               className="h-10 w-10 rounded-full flex items-center justify-center transition-all cursor-pointer hover:bg-slate-100"
             >
               <Crown
                 className={`w-5 h-5 transition-transform hover:scale-110 ${
-                  subscriptionTier === "PRO" ? "text-amber-500 fill-amber-400" : "text-slate-600"
+                  subscriptionTier && subscriptionTier.toUpperCase() !== "FREE" ? "text-amber-500 fill-amber-400" : "text-slate-600"
                 }`}
               />
             </button>
@@ -811,7 +787,7 @@ ${
                     className="border-t w-full px-4 py-3 text-left text-xs font-bold text-[#f26522] hover:bg-orange-50 flex items-center gap-2 cursor-pointer"
                   >
                     <Sparkles size={15} />
-                    {subscriptionTier === "PRO" ? "Subscription (PRO)" : "Upgrade to PRO"}
+                    {subscriptionTier && subscriptionTier.toUpperCase() !== "FREE" ? `Subscription (${subscriptionTier})` : "Upgrade Plan"}
                   </button>
 
                   <button
@@ -932,6 +908,18 @@ ${
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Notification Detail Modal */}
+      <NotificationDetailModal
+        open={notificationDetailOpen}
+        onOpenChange={setNotificationDetailOpen}
+        notification={selectedNotification}
+        onOpenSubscription={() => setMySubModalOpen(true)}
+        onOpenPricing={() => setPricingModalOpen(true)}
+      />
+
+      {/* My Subscription Modal */}
+      <MySubscriptionModal open={mySubModalOpen} onOpenChange={setMySubModalOpen} />
 
       {/* Pricing Modal */}
       <PricingModal open={pricingModalOpen} onOpenChange={setPricingModalOpen} />

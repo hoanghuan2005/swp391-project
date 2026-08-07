@@ -27,49 +27,6 @@ function formatVndPrice(priceVnd) {
   return new Intl.NumberFormat("vi-VN").format(priceVnd) + "đ";
 }
 
-const defaultPlans = [
-  {
-    code: "FREE",
-    name: "Free",
-    priceVnd: 0,
-    description: "For trying Study Hub AI features.",
-    price: "0đ",
-    period: "forever",
-    features: [
-      "5 AI requests per day",
-      "Select up to 2 documents per AI query",
-      "Up to 10 documents per workspace",
-      "Up to 15 flashcards per generation",
-      "Up to 20 quiz questions per generation",
-      "Create up to 3 workspaces",
-      "5MB max file size",
-      "100MB total storage capacity",
-      "3 document uploads per day",
-    ],
-    action: "Free Plan",
-  },
-  {
-    code: "PRO",
-    name: "Pro",
-    priceVnd: 99000,
-    description: "For frequent study sessions.",
-    price: "99.000đ",
-    period: "month",
-    features: [
-      "Unlimited AI requests",
-      "Select up to 4 documents per AI query",
-      "Up to 20 documents per workspace",
-      "Unlimited flashcards per generation",
-      "Up to 50 quiz questions per generation",
-      "Unlimited workspaces",
-      "10MB max file size",
-      "1GB total storage capacity",
-      "Unlimited document uploads",
-    ],
-    action: "Upgrade to Pro",
-  },
-];
-
 export default function PricingModal({ open, onOpenChange, isOpen, onClose }) {
   const navigate = useNavigate();
   const [isStartingUpgrade, setIsStartingUpgrade] = useState(false);
@@ -89,6 +46,7 @@ export default function PricingModal({ open, onOpenChange, isOpen, onClose }) {
   useEffect(() => {
     if (!isModalOpen) return;
     let isSubscribed = true;
+    setIsFetchingPlans(true);
     axiosClient.get("/api/subscription/plans")
       .then((res) => {
         if (isSubscribed && res.data && res.data.length > 0) {
@@ -158,19 +116,11 @@ export default function PricingModal({ open, onOpenChange, isOpen, onClose }) {
     }
   };
 
-  const rawPlans = dbPlans.length > 0 ? [...dbPlans].sort((a, b) => (a.priceVnd || 0) - (b.priceVnd || 0)) : defaultPlans;
+  const rawPlans = [...dbPlans].sort((a, b) => (a.priceVnd || 0) - (b.priceVnd || 0));
 
   const displayPlans = rawPlans.map((p) => {
     const isPro = p.code === "PRO";
     const isFree = p.code === "FREE";
-
-    const aiMemoryFeature = p.maxAiContextChunks > 4 
-      ? "Better AI memory & smarter responses" 
-      : "Standard AI memory";
-
-    const docAnalysisFeature = p.maxChunkChars >= 600 
-      ? "Deep document analysis with broader context" 
-      : "Basic document analysis";
 
     return {
       code: p.code,
@@ -181,8 +131,8 @@ export default function PricingModal({ open, onOpenChange, isOpen, onClose }) {
       period: p.priceVnd === 0 ? "forever" : "month",
       features: [
         p.dailyAiLimit === -1 ? "Unlimited AI requests" : `${p.dailyAiLimit} AI requests per day`,
-        `Select up to ${p.maxSelectedDocs ?? (isFree ? 2 : 4)} documents per AI query`,
-        `Up to ${p.maxWorkspaceDocs ?? (isFree ? 10 : 20)} documents per workspace`,
+        `Select up to ${p.maxSelectedDocs ?? 2} documents per AI query`,
+        `Up to ${p.maxWorkspaceDocs ?? 10} documents per workspace`,
         p.maxFlashcardsPerGeneration === -1 ? "Unlimited flashcards per generation" : `Up to ${p.maxFlashcardsPerGeneration} flashcards per generation`,
         p.maxQuizQuestionsPerGeneration === -1 ? "Unlimited quiz questions per generation" : `Up to ${p.maxQuizQuestionsPerGeneration} quiz questions per generation`,
         p.maxOwnedProjects === -1 ? "Unlimited workspaces" : `Create up to ${p.maxOwnedProjects} workspaces`,
@@ -208,8 +158,12 @@ export default function PricingModal({ open, onOpenChange, isOpen, onClose }) {
           </DialogHeader>
 
           {isFetchingPlans && displayPlans.length === 0 ? (
-            <div className="flex items-center justify-center py-8 text-slate-400">
-              <Loader2 className="w-5 h-5 animate-spin mr-2 text-[#f26522]" /> Loading plans...
+            <div className="flex items-center justify-center py-12 text-slate-400 text-sm">
+              <Loader2 className="w-5 h-5 animate-spin mr-2 text-[#f26522]" /> Loading plans from database...
+            </div>
+          ) : displayPlans.length === 0 ? (
+            <div className="flex items-center justify-center py-12 text-slate-400 text-sm">
+              No active subscription plans available.
             </div>
           ) : (
             <div className={`grid gap-4 md:grid-cols-${Math.min(displayPlans.length, 3)} px-6 pb-6`}>

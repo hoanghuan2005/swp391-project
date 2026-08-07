@@ -57,7 +57,7 @@ export default function StorageProgressBar({ isOpen = true, variant = "default" 
     barColor = "bg-gradient-to-r from-amber-500 to-orange-500";
   }
 
-  const isPro = subscriptionTier === "PRO";
+  const isPro = subscriptionTier && subscriptionTier.toUpperCase() !== "FREE";
 
   if (!isOpen) {
     return (

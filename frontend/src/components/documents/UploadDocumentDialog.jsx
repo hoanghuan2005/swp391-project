@@ -365,9 +365,11 @@ export default function UploadDocumentDialog({
         const message = error.response?.data?.message;
         setQuotaDialog({
           open: true,
-          type: message?.toLowerCase().includes("file size")
-            ? "FILE_SIZE"
-            : "DOCUMENT",
+          type: (message?.toLowerCase().includes("storage") || message?.toLowerCase().includes("capacity"))
+            ? "STORAGE"
+            : message?.toLowerCase().includes("file size")
+              ? "FILE_SIZE"
+              : "DOCUMENT",
           message,
           fileSize: selectedFile?.size,
         });

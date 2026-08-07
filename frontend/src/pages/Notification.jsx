@@ -14,10 +14,19 @@ import {
 } from "@/components/ui/dialog";
 import { UserPlus, Shield, Users, Check, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import PricingModal from "@/components/modals/PricingModal";
+import MySubscriptionModal from "@/components/modals/MySubscriptionModal";
+import NotificationDetailModal from "@/components/modals/NotificationDetailModal";
 
 export default function NotificationPage() {
   const [notifications, setNotifications] = useState([]);
   const navigate = useNavigate();
+
+  // Modal states
+  const [selectedNotification, setSelectedNotification] = useState(null);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [pricingModalOpen, setPricingModalOpen] = useState(false);
+  const [mySubModalOpen, setMySubModalOpen] = useState(false);
 
   // Workspace invitation dialog state
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
@@ -45,20 +54,8 @@ export default function NotificationPage() {
   };
 
   const handleNotificationClick = async (item) => {
-    // If it's a mock notification, just navigate
-    if (String(item.id).startsWith("mock-")) {
-      if (item.referenceType === "USER" && item.referenceId) {
-        navigate(`/users/${item.referenceId}`);
-      } else if (item.referenceType === "DOCUMENT" && item.referenceId) {
-        navigate(`/documents/${item.referenceId}`);
-      } else if (item.referenceType === "WORKSPACE" && item.referenceId) {
-        navigate(`/workspace/${item.referenceId}`);
-      }
-      return;
-    }
-
     try {
-      if (!item.isRead) {
+      if (!item.isRead && !String(item.id).startsWith("mock-")) {
         await axiosClient.put(`/api/notifications/${item.id}/read`);
         setNotifications((prev) =>
           prev.map((n) => (n.id === item.id ? { ...n, isRead: true } : n))
@@ -68,32 +65,8 @@ export default function NotificationPage() {
       console.error("Failed to mark notification as read", err);
     }
 
-    if (item.referenceType === "DOCUMENT" && item.referenceId) {
-      navigate(`/documents/${item.referenceId}`);
-    } else if (item.referenceType === "USER" && item.referenceId) {
-      navigate(`/users/${item.referenceId}`);
-    } else if (item.referenceType === "WORKSPACE" && item.referenceId) {
-      // Smart workspace notification: check invitation status
-      if (item.type === "WORKSPACE_INVITED") {
-        try {
-          const status = await getMyInvitationStatus(item.referenceId);
-          if (status.isMember) {
-            navigate(`/workspace/${item.referenceId}`);
-          } else if (status.invitation?.token && status.invitation?.status === "PENDING") {
-            setInviteData(status.invitation);
-            setInviteProjectId(item.referenceId);
-            setInviteDialogOpen(true);
-          } else {
-            navigate(`/workspace/${item.referenceId}`);
-          }
-        } catch (err) {
-          console.error("Failed to check invitation status", err);
-          navigate(`/workspace/${item.referenceId}`);
-        }
-      } else {
-        navigate(`/workspace/${item.referenceId}`);
-      }
-    }
+    setSelectedNotification(item);
+    setDetailModalOpen(true);
   };
 
   const handleMarkAllAsRead = async () => {
@@ -270,6 +243,21 @@ export default function NotificationPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Notification Detail Modal */}
+      <NotificationDetailModal
+        open={detailModalOpen}
+        onOpenChange={setDetailModalOpen}
+        notification={selectedNotification}
+        onOpenSubscription={() => setMySubModalOpen(true)}
+        onOpenPricing={() => setPricingModalOpen(true)}
+      />
+
+      {/* My Subscription Modal */}
+      <MySubscriptionModal open={mySubModalOpen} onOpenChange={setMySubModalOpen} />
+
+      {/* Pricing Modal */}
+      <PricingModal open={pricingModalOpen} onOpenChange={setPricingModalOpen} />
     </div>
   );
 }

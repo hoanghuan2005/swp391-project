@@ -10,7 +10,6 @@ export default function useAiUsage() {
     usedAiRequestsToday: 0,
     isUnlimited: false,
     maxSelectedDocs: 2,
-    maxPersonalDocs: 2,
     maxWorkspaceDocs: 10,
   });
   const [loading, setLoading] = useState(true);
@@ -28,7 +27,6 @@ export default function useAiUsage() {
       maxUsage,
       isUnlimited,
       maxSelectedDocs: usageData.maxSelectedDocs ?? 2,
-      maxPersonalDocs: usageData.maxPersonalDocs ?? 2,
       maxWorkspaceDocs: usageData.maxWorkspaceDocs ?? 10,
     });
   };

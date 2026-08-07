@@ -43,21 +43,19 @@ export default function QuotaExceededDialog({
   const { subscriptionTier } = useAiUsage();
   const content = CONTENT[type] || CONTENT.DOCUMENT;
   const role = getTokenRole();
-  const canUpgrade = role !== "ADMIN" && subscriptionTier === "FREE";
+  const canUpgrade = role !== "ADMIN" && String(subscriptionTier || "FREE").toUpperCase() !== "PRO";
 
   const isOverSystemMax =
     (fileSize && fileSize > 10 * 1024 * 1024) ||
     (message &&
-      (message.includes("10MB") ||
-        message.includes("10 MB") ||
-        message.includes("does not support") ||
-        message.includes("không hỗ trợ") ||
-        message.includes("system maximum")));
+      (message.toLowerCase().includes("does not support files larger than 10mb") ||
+        message.toLowerCase().includes("system maximum file size")));
 
   const isStorageLimit =
     type === "STORAGE" ||
     (message &&
       (message.toLowerCase().includes("storage") ||
+        message.toLowerCase().includes("capacity") ||
         message.toLowerCase().includes("lưu trữ") ||
         message.toLowerCase().includes("dung lượng")));
 
