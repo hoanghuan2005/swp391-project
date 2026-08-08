@@ -38,6 +38,7 @@ import {
   ChevronRight,
   ChevronDown,
   Layout,
+  Monitor,
 } from "lucide-react";
 import UploadDocumentDialog from "@/components/documents/UploadDocumentDialog";
 import useAiUsage from "@/hooks/useAiUsage";
@@ -617,6 +618,15 @@ export default function Sidebar({ isOpen = true }) {
           isOpen={isOpen}
           pathname={location.pathname}
         />
+        {localStorage.getItem("userRole") === "ADMIN" && (
+          <NavItem
+            to="/admin/dashboard"
+            icon={Monitor}
+            label="Admin Dashboard"
+            isOpen={isOpen}
+            pathname={location.pathname}
+          />
+        )}
       </nav>
 
       <Separator className="bg-slate-100 w-full my-2" />

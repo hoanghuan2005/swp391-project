@@ -107,13 +107,7 @@ export default function AdminSidebar({ isOpen = true }) {
 
       {/* Danh sách menu có thể cuộn độc lập */}
       <nav className={cn("w-full flex flex-col pb-8", !isOpen && "items-center")}>
-          <AdminNavItem
-            to="/home"
-            icon={Home}
-            label="Back to Home"
-            isOpen={isOpen}
-            pathname={location.pathname}
-          />
+
           <AdminNavItem
             to="/admin/dashboard"
             icon={LayoutDashboard}
