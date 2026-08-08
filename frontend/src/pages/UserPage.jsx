@@ -328,6 +328,7 @@ export default function UserPage() {
           followersCount: prev.followersCount + 1,
         }));
       }
+      window.dispatchEvent(new CustomEvent("follow:updated"));
     } catch (error) {
       console.error("Follow action failed:", error);
       toast.error(error.response?.data?.message || "System error");

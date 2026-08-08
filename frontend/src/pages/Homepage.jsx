@@ -113,6 +113,7 @@ export default function Homepage() {
         toast.success("Followed");
       }
       fetchSuggestions();
+      window.dispatchEvent(new CustomEvent("follow:updated"));
     } catch (error) {
       console.error("Action failed:", error);
       toast.error("Action failed");

@@ -59,8 +59,8 @@ public class UserSubscriptionController {
         result.put("dailyUploadLimit", plan != null ? plan.getDailyUploadLimit() : 3);
         result.put("totalDocumentLimit", plan != null ? plan.getTotalDocumentLimit() : 20);
         result.put("dailyAiLimit", plan != null && plan.getDailyAiLimit() != null ? plan.getDailyAiLimit() : 10);
-        result.put("maxFlashcardsPerGeneration", plan != null && plan.getMaxFlashcardsPerGeneration() != null ? plan.getMaxFlashcardsPerGeneration() : 15);
-        result.put("maxQuizQuestionsPerGeneration", plan != null && plan.getMaxQuizQuestionsPerGeneration() != null ? plan.getMaxQuizQuestionsPerGeneration() : 20);
+        result.put("maxFlashcardsPerGeneration", plan != null && plan.getMaxFlashcardsPerGeneration() != null ? plan.getMaxFlashcardsPerGeneration() : 10);
+        result.put("maxQuizQuestionsPerGeneration", plan != null && plan.getMaxQuizQuestionsPerGeneration() != null ? plan.getMaxQuizQuestionsPerGeneration() : 10);
         result.put("maxOwnedProjects", plan != null && plan.getMaxOwnedProjects() != null ? plan.getMaxOwnedProjects() : 3);
         result.put("maxJoinedProjects", plan != null && plan.getMaxJoinedProjects() != null ? plan.getMaxJoinedProjects() : 5);
         result.put("maxAiContextChunks", plan != null && plan.getMaxAiContextChunks() != null ? plan.getMaxAiContextChunks() : 4);

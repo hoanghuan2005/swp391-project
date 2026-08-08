@@ -96,8 +96,12 @@ export default function useAiUsage() {
   }, []);
 
   const tierLimits = {
-    maxSelectedDocs: aiUsage.maxSelectedDocs ?? 2,
-    maxWorkspaceDocs: aiUsage.maxWorkspaceDocs ?? 10,
+    ...(aiUsage.tierLimits || {}),
+    maxSelectedDocs: aiUsage.tierLimits?.maxSelectedDocs ?? aiUsage.maxSelectedDocs ?? 2,
+    maxWorkspaceDocs: aiUsage.tierLimits?.maxWorkspaceDocs ?? aiUsage.maxWorkspaceDocs ?? 10,
+    maxQuizQuestionsPerGeneration: aiUsage.tierLimits?.maxQuizQuestionsPerGeneration ?? 10,
+    maxFlashcardsPerGeneration: aiUsage.tierLimits?.maxFlashcardsPerGeneration ?? 10,
+    dailyAiLimit: aiUsage.tierLimits?.dailyAiLimit ?? 10,
   };
 
   return {

@@ -259,6 +259,7 @@ export default function Sidebar({ isOpen = true }) {
     window.addEventListener("survey:completed", handleSurveyCompleted);
     window.addEventListener("subscription-success", fetchSidebarProfile);
     window.addEventListener("subscription:updated", fetchSidebarProfile);
+    window.addEventListener("follow:updated", fetchSidebarProfile);
 
     // Cleanup event khi component unmount
     return () => {
@@ -266,6 +267,7 @@ export default function Sidebar({ isOpen = true }) {
       window.removeEventListener("survey:completed", handleSurveyCompleted);
       window.removeEventListener("subscription-success", fetchSidebarProfile);
       window.removeEventListener("subscription:updated", fetchSidebarProfile);
+      window.removeEventListener("follow:updated", fetchSidebarProfile);
     };
   }, []);
 

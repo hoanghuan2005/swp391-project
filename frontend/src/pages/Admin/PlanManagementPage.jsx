@@ -46,8 +46,8 @@ export default function PlanManagementPage() {
     dailyUploadLimit: 3,
     totalDocumentLimit: 20,
     dailyAiLimit: 10,
-    maxFlashcardsPerGen: 15,
-    maxQuizQuestionsPerGen: 20,
+    maxFlashcardsPerGen: 10,
+    maxQuizQuestionsPerGen: 10,
     maxOwnedProjects: 3,
     maxJoinedProjects: 5,
     maxSelectedDocs: 2,
@@ -100,8 +100,8 @@ export default function PlanManagementPage() {
         dailyUploadLimit: plan.dailyUploadLimit ?? 3,
         totalDocumentLimit: plan.totalDocumentLimit ?? 20,
         dailyAiLimit: plan.dailyAiLimit ?? 10,
-        maxFlashcardsPerGen: plan.maxFlashcardsPerGeneration ?? 15,
-        maxQuizQuestionsPerGen: plan.maxQuizQuestionsPerGeneration ?? 20,
+        maxFlashcardsPerGen: plan.maxFlashcardsPerGeneration ?? 10,
+        maxQuizQuestionsPerGen: plan.maxQuizQuestionsPerGeneration ?? 10,
         maxOwnedProjects: plan.maxOwnedProjects ?? 3,
         maxJoinedProjects: plan.maxJoinedProjects ?? 5,
         maxSelectedDocs: plan.maxSelectedDocs ?? 2,
@@ -121,8 +121,8 @@ export default function PlanManagementPage() {
         dailyUploadLimit: 3,
         totalDocumentLimit: 20,
         dailyAiLimit: 10,
-        maxFlashcardsPerGen: 15,
-        maxQuizQuestionsPerGen: 20,
+        maxFlashcardsPerGen: 10,
+        maxQuizQuestionsPerGen: 10,
         maxOwnedProjects: 3,
         maxJoinedProjects: 5,
         maxSelectedDocs: 2,
@@ -323,14 +323,14 @@ export default function PlanManagementPage() {
                         <div className="flex items-center justify-between text-xs">
                           <span className="text-slate-500 font-medium">Flashcards / Gen:</span>
                           <span className="font-bold text-slate-700">
-                            {plan.maxFlashcardsPerGeneration === -1 ? "Unlimited" : `${plan.maxFlashcardsPerGeneration ?? 15} cards`}
+                            {plan.maxFlashcardsPerGeneration === -1 ? "Unlimited" : `${plan.maxFlashcardsPerGeneration ?? 10} cards`}
                           </span>
                         </div>
 
                         <div className="flex items-center justify-between text-xs">
                           <span className="text-slate-500 font-medium">Quiz Questions / Gen:</span>
                           <span className="font-bold text-slate-700">
-                            {plan.maxQuizQuestionsPerGeneration === -1 ? "Unlimited" : `${plan.maxQuizQuestionsPerGeneration ?? 20} questions`}
+                            {plan.maxQuizQuestionsPerGeneration === -1 ? "Unlimited" : `${plan.maxQuizQuestionsPerGeneration ?? 10} questions`}
                           </span>
                         </div>
 

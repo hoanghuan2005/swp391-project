@@ -96,7 +96,7 @@ export default function AIQuizGenerator() {
   } = useAiUsage();
 
   const maxSelectedDocs = tierLimits?.maxSelectedDocs || 2;
-  const maxQuizQuestions = tierLimits?.maxQuizQuestionsPerGeneration || 20;
+  const maxQuizQuestions = tierLimits?.maxQuizQuestionsPerGeneration || 10;
   const { refreshDocumentQuota } = useDocumentQuota();
   const [searchDocQuery, setSearchDocQuery] = useState("");
   const [openSettings, setOpenSettings] = useState(false);
@@ -993,8 +993,8 @@ export default function AIQuizGenerator() {
                 Number of Questions
               </label>
 
-              <div className="grid grid-cols-4 gap-2">
-                {[5, 10, 15, 20, 30, 50]
+              <div className="grid grid-cols-5 gap-2">
+                {[5, 10, 15, 20, 25, 30, 50]
                   .filter((num) => maxQuizQuestions === -1 || num <= maxQuizQuestions)
                   .map((num) => (
                   <Button
@@ -1011,7 +1011,7 @@ export default function AIQuizGenerator() {
                   </Button>
                 ))}
               </div>
-              {maxQuizQuestions !== -1 && maxQuizQuestions < 30 && (
+              {maxQuizQuestions !== -1 && maxQuizQuestions < 20 && (
                 <p className="text-xs text-slate-400 mt-2">
                   Upgrade your plan to generate more questions at once.
                 </p>

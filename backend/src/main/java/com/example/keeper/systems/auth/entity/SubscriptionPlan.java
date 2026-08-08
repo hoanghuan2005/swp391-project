@@ -43,11 +43,11 @@ public class SubscriptionPlan extends BaseEntity {
 
     @Builder.Default
     @Column(name = "max_flashcards_per_generation", nullable = false)
-    private Integer maxFlashcardsPerGeneration = 15;
+    private Integer maxFlashcardsPerGeneration = 10;
 
     @Builder.Default
     @Column(name = "max_quiz_questions_per_generation", nullable = false)
-    private Integer maxQuizQuestionsPerGeneration = 20;
+    private Integer maxQuizQuestionsPerGeneration = 10;
 
     @Builder.Default
     @Column(name = "max_owned_projects", nullable = false)

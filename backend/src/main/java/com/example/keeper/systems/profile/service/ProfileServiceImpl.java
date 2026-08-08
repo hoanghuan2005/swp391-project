@@ -16,6 +16,7 @@ import com.example.keeper.systems.auth.repository.LanguageRepository;
 import com.example.keeper.systems.auth.repository.UserProfileRepository;
 import com.example.keeper.systems.auth.repository.UserRepository;
 import com.example.keeper.systems.document.repository.DocumentRepository;
+import com.example.keeper.systems.follow.repository.UserFollowRepository;
 import com.example.keeper.systems.school.entity.School;
 import com.example.keeper.systems.school.repository.SchoolRepository;
 
@@ -34,6 +35,7 @@ public class ProfileServiceImpl implements ProfileService {
     private final LanguageRepository languageRepository;
     private final SchoolRepository schoolRepository;
     private final DocumentRepository documentRepository;
+    private final UserFollowRepository userFollowRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Override
@@ -150,6 +152,7 @@ public class ProfileServiceImpl implements ProfileService {
             UserProfile profile) {
 
         long uploads = documentRepository.countByUploadedById(user.getId());
+        long followers = userFollowRepository.countByFollowingId(user.getId());
 
         return ProfileResponse.builder()
                 .id(user.getId())
@@ -179,7 +182,7 @@ public class ProfileServiceImpl implements ProfileService {
                         .collect(Collectors.toList())
                         : List.of())
                 .uploads(uploads)
-                .followers(0)
+                .followers(followers)
                 .upvotes(0)
                 .build();
     }

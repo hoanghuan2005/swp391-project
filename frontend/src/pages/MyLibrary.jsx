@@ -309,6 +309,7 @@ export default function MyLibrary() {
         await axiosClient.delete(`/api/follows/${deleteTarget.id}`);
         toast.success(`Đã bỏ theo dõi ${deleteTarget.name}`);
         setFollowedUsers((prev) => prev.filter((user) => user.id !== deleteTarget.id));
+        window.dispatchEvent(new CustomEvent("follow:updated"));
       }
     } catch (error) {
       console.error("Failed to delete target:", error);

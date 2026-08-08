@@ -71,8 +71,8 @@ public class DataInitializer implements CommandLineRunner {
                                                         .dailyUploadLimit(3L)
                                                         .totalDocumentLimit(20L)
                                                         .dailyAiLimit(10L)
-                                                        .maxFlashcardsPerGeneration(15)
-                                                        .maxQuizQuestionsPerGeneration(20)
+                                                        .maxFlashcardsPerGeneration(10)
+                                                        .maxQuizQuestionsPerGeneration(10)
                                                         .maxOwnedProjects(3)
                                                         .maxJoinedProjects(5)
                                                         .maxSelectedDocs(2)
@@ -89,8 +89,8 @@ public class DataInitializer implements CommandLineRunner {
                                                         .dailyUploadLimit(-1L)
                                                         .totalDocumentLimit(-1L)
                                                         .dailyAiLimit(-1L)
-                                                        .maxFlashcardsPerGeneration(-1)
-                                                        .maxQuizQuestionsPerGeneration(30)
+                                                        .maxFlashcardsPerGeneration(20)
+                                                        .maxQuizQuestionsPerGeneration(20)
                                                         .maxOwnedProjects(-1)
                                                         .maxJoinedProjects(-1)
                                                         .maxSelectedDocs(4)
@@ -112,9 +112,17 @@ public class DataInitializer implements CommandLineRunner {
                                 freePlan.setDailyAiLimit(10L);
                                 updated = true;
                         }
+                        if (freePlan.getMaxFlashcardsPerGeneration() == null || freePlan.getMaxFlashcardsPerGeneration() != 10) {
+                                freePlan.setMaxFlashcardsPerGeneration(10);
+                                updated = true;
+                        }
+                        if (freePlan.getMaxQuizQuestionsPerGeneration() == null || freePlan.getMaxQuizQuestionsPerGeneration() != 10) {
+                                freePlan.setMaxQuizQuestionsPerGeneration(10);
+                                updated = true;
+                        }
                         if (updated) {
                                 subscriptionPlanRepository.save(freePlan);
-                                System.out.println("Updated FREE plan limits (dailyAiLimit: 10)");
+                                System.out.println("Updated FREE plan limits (dailyAiLimit: 10, maxFlashcards: 10, maxQuizQuestions: 10)");
                         }
                 });
 
@@ -125,14 +133,19 @@ public class DataInitializer implements CommandLineRunner {
                                 proPlan.setMaxFileSizeBytes(10L * 1024 * 1024);
                                 updated = true;
                         }
+                        if (proPlan.getMaxFlashcardsPerGeneration() == null
+                                        || proPlan.getMaxFlashcardsPerGeneration() != 20) {
+                                proPlan.setMaxFlashcardsPerGeneration(20);
+                                updated = true;
+                        }
                         if (proPlan.getMaxQuizQuestionsPerGeneration() == null
-                                        || proPlan.getMaxQuizQuestionsPerGeneration() != 30) {
-                                proPlan.setMaxQuizQuestionsPerGeneration(30);
+                                        || proPlan.getMaxQuizQuestionsPerGeneration() != 20) {
+                                proPlan.setMaxQuizQuestionsPerGeneration(20);
                                 updated = true;
                         }
                         if (updated) {
                                 subscriptionPlanRepository.save(proPlan);
-                                System.out.println("Updated PRO plan limits (maxQuizQuestionsPerGeneration: 30)");
+                                System.out.println("Updated PRO plan limits (maxFlashcards: 20, maxQuizQuestions: 20)");
                         }
                 });
 
@@ -241,129 +254,98 @@ public class DataInitializer implements CommandLineRunner {
                                 userRepository.save(u);
                                 System.out.println("Seeded user: " + username);
                         }
-                }
-
-                /*
+                          /*
                  * =========================
-                 * SCHOOL
+                 * SCHOOL, MAJOR, AND COURSE
                  * =========================
                  */
+                School fpt = getOrCreateSchool("FPT", "FPT University", "FPT University Vietnam");
+                School hcmus = getOrCreateSchool("HCMUS", "University of Science", "VNUHCM - University of Science");
+                School uit = getOrCreateSchool("UIT", "University of Information Technology", "VNUHCM - UIT");
+                School hust = getOrCreateSchool("HUST", "Hanoi University of Science and Technology", "Hanoi, Vietnam");
+                School neu = getOrCreateSchool("NEU", "National Economics University", "Hanoi, Vietnam");
+                School ueh = getOrCreateSchool("UEH", "University of Economics Ho Chi Minh City", "Ho Chi Minh City, Vietnam");
 
-                if (schoolRepository.count() == 0) {
+                // FPT Majors & Courses
+                Major fptSe = getOrCreateMajor(fpt, "SE", "Software Engineering", "Software Engineering major");
+                getOrCreateCourse(fptSe, "SWP391", "Software Architecture and Design", "Core architecture concepts and design patterns");
+                getOrCreateCourse(fptSe, "PRF192", "Programming Fundamentals", "Introduction to programming using Java");
+                getOrCreateCourse(fptSe, "DBI202", "Database Systems", "Relational database design and SQL");
+                getOrCreateCourse(fptSe, "WEB301", "Web Application Development", "Building web applications");
+                getOrCreateCourse(fptSe, "PRJ301", "Java Web Application Development", "Advanced Java web development");
+                getOrCreateCourse(fptSe, "SSG104", "Understanding Group Dynamics", "Teamwork and communication");
+                getOrCreateCourse(fptSe, "MAD101", "Mobile Application Development", "Mobile app development fundamentals");
 
-                        schoolRepository.saveAll(List.of(
+                Major fptAi = getOrCreateMajor(fpt, "AI", "Artificial Intelligence", "Artificial Intelligence major");
+                getOrCreateCourse(fptAi, "AI101", "Introduction to AI", "Artificial Intelligence basics");
+                getOrCreateCourse(fptAi, "MLN201", "Machine Learning Fundamentals", "Core machine learning algorithms");
+                getOrCreateCourse(fptAi, "DLP301", "Deep Learning & Neural Networks", "Deep neural network architectures");
 
-                                        School.builder()
-                                                        .code("FPT")
-                                                        .name("FPT University")
-                                                        .description("FPT University Vietnam")
-                                                        .build(),
+                Major fptBa = getOrCreateMajor(fpt, "BA", "Business Administration", "Business Administration major");
+                getOrCreateCourse(fptBa, "MGT101", "Fundamentals of Management", "Basic principles of business management");
+                getOrCreateCourse(fptBa, "MKT101", "Principles of Marketing", "Introduction to marketing strategies");
+                getOrCreateCourse(fptBa, "FIN201", "Corporate Finance", "Financial planning and corporate finance");
 
-                                        School.builder()
-                                                        .code("HCMUS")
-                                                        .name("University of Science")
-                                                        .description("VNUHCM - University of Science")
-                                                        .build(),
+                Major fptGd = getOrCreateMajor(fpt, "GD", "Graphic Design", "Graphic Design major");
+                getOrCreateCourse(fptGd, "DES101", "Fundamentals of Graphic Design", "Design principles and visual typography");
+                getOrCreateCourse(fptGd, "UIX201", "UI/UX Design & Prototyping", "User interface and experience design");
 
-                                        School.builder()
-                                                        .code("UIT")
-                                                        .name("University of Information Technology")
-                                                        .description("VNUHCM - UIT")
-                                                        .build(),
+                Major fptIs = getOrCreateMajor(fpt, "IS", "Information Security", "Information Security major");
+                getOrCreateCourse(fptIs, "SEC201", "Network Security Fundamentals", "Network security protocols and defense");
+                getOrCreateCourse(fptIs, "CYB301", "Cybersecurity & Ethical Hacking", "Ethical hacking and threat analysis");
 
-                                        School.builder()
-                                                        .code("HUST")
-                                                        .name("Hanoi University of Science and Technology")
-                                                        .description("Hanoi, Vietnam")
-                                                        .build(),
+                // HCMUS Majors & Courses
+                Major hcmusCs = getOrCreateMajor(hcmus, "CS", "Computer Science", "Computer Science major");
+                getOrCreateCourse(hcmusCs, "CSC10001", "Introduction to Computer Science", "Basics of computer science and algorithms");
+                getOrCreateCourse(hcmusCs, "CSC10002", "Data Structures and Algorithms", "Core data structures and algorithmic complexity");
+                getOrCreateCourse(hcmusCs, "CSC10003", "Object-Oriented Programming", "OOP principles and design patterns");
 
-                                        School.builder()
-                                                        .code("NEU")
-                                                        .name("National Economics University")
-                                                        .description("Hanoi, Vietnam")
-                                                        .build(),
+                Major hcmusDs = getOrCreateMajor(hcmus, "DS", "Data Science", "Data Science major");
+                getOrCreateCourse(hcmusDs, "DSE20001", "Applied Statistics for Data Science", "Statistical modeling and analysis");
+                getOrCreateCourse(hcmusDs, "DSE20002", "Big Data Analytics", "Distributed data processing and analytics");
 
-                                        School.builder()
-                                                        .code("UEH")
-                                                        .name("University of Economics Ho Chi Minh City")
-                                                        .description("Ho Chi Minh City, Vietnam")
-                                                        .build()));
-                }
+                // UIT Majors & Courses
+                Major uitIt = getOrCreateMajor(uit, "IT", "Information Technology", "Information Technology major");
+                getOrCreateCourse(uitIt, "IT001", "Introduction to Programming", "Foundations of computer programming");
+                getOrCreateCourse(uitIt, "IT002", "Object-Oriented Programming", "OOP concepts and C++ implementation");
+                getOrCreateCourse(uitIt, "IT003", "Data Structures & Algorithms", "Data structures fundamentals");
 
-                /*
-                 * =========================
-                 * MAJOR
-                 * =========================
-                 */
-                if (majorRepository.count() == 0) {
-                        School fpt = schoolRepository.findByCode("FPT").orElseThrow();
-                        School hcmus = schoolRepository.findByCode("HCMUS").orElseThrow();
-                        School uit = schoolRepository.findByCode("UIT").orElseThrow();
+                Major uitSe = getOrCreateMajor(uit, "SE", "Software Engineering", "Software Engineering major");
+                getOrCreateCourse(uitSe, "SE104", "Software Engineering Fundamentals", "Software development lifecycle");
+                getOrCreateCourse(uitSe, "SE347", "Agile Software Development", "Scrum, Kanban, and modern Agile methods");
 
-                        majorRepository.saveAll(List.of(
-                                        Major.builder()
-                                                        .code("SE")
-                                                        .name("Software Engineering")
-                                                        .description("Software Engineering major")
-                                                        .school(fpt)
-                                                        .build(),
-                                        Major.builder()
-                                                        .code("AI")
-                                                        .name("Artificial Intelligence")
-                                                        .description("Artificial Intelligence major")
-                                                        .school(fpt)
-                                                        .build(),
-                                        Major.builder()
-                                                        .code("BA")
-                                                        .name("Business Administration")
-                                                        .description("Business Administration major")
-                                                        .school(fpt)
-                                                        .build(),
-                                        Major.builder()
-                                                        .code("CS")
-                                                        .name("Computer Science")
-                                                        .description("Computer Science major")
-                                                        .school(hcmus)
-                                                        .build(),
-                                        Major.builder()
-                                                        .code("IT")
-                                                        .name("Information Technology")
-                                                        .description("Information Technology major")
-                                                        .school(uit)
-                                                        .build()));
-                }
+                Major uitCe = getOrCreateMajor(uit, "CE", "Computer Engineering", "Computer Engineering major");
+                getOrCreateCourse(uitCe, "CE118", "Digital System Design", "Logic gates and digital circuit design");
+                getOrCreateCourse(uitCe, "CE213", "Microprocessors & Microcontrollers", "Embedded systems programming");
 
-                /*
-                 * =========================
-                 * COURSE
-                 * =========================
-                 */
+                // HUST Majors & Courses
+                Major hustIt = getOrCreateMajor(hust, "IT", "Information Technology", "Information Technology major");
+                getOrCreateCourse(hustIt, "IT3011", "Data Structures and Algorithms", "Advanced data structures and problem solving");
+                getOrCreateCourse(hustIt, "IT3020", "Database Management Systems", "Relational databases and SQL optimization");
 
-                if (courseRepository.count() == 0) {
-                        School fpt = schoolRepository.findByCode("FPT").orElseThrow();
-                        Major se = majorRepository.findBySchoolIdAndCode(fpt.getId(), "SE").orElseThrow();
-                        Major ai = majorRepository.findBySchoolIdAndCode(fpt.getId(), "AI").orElseThrow();
+                Major hustEe = getOrCreateMajor(hust, "EE", "Electrical Engineering", "Electrical Engineering major");
+                getOrCreateCourse(hustEe, "EE2010", "Electric Circuits Analysis", "Circuit theorems and AC/DC analysis");
+                getOrCreateCourse(hustEe, "EE3020", "Control Systems Theory", "Feedback control systems and robotics");
 
-                        Course c1 = new Course("SWP391", "Software Architecture and Design",
-                                        "Core architecture concepts and design patterns");
-                        c1.setMajor(se);
-                        Course c2 = new Course("PRF192", "Programming Fundamentals",
-                                        "Introduction to programming using Java");
-                        c2.setMajor(se);
-                        Course c3 = new Course("SSG104", "Understanding Group Dynamics", "Teamwork and communication");
-                        c3.setMajor(se);
-                        Course c4 = new Course("DBI202", "Database Systems", "Relational database design and SQL");
-                        c4.setMajor(se);
-                        Course c5 = new Course("WEB301", "Web Application Development", "Building web applications");
-                        c5.setMajor(se);
-                        Course c6 = new Course("MAD101", "Mobile Application Development",
-                                        "Mobile app development fundamentals");
-                        c6.setMajor(se);
-                        Course c7 = new Course("AI101", "Introduction to AI", "Artificial Intelligence basics");
-                        c7.setMajor(ai);
+                // NEU Majors & Courses
+                Major neuMkt = getOrCreateMajor(neu, "MKT", "Marketing", "Marketing major");
+                getOrCreateCourse(neuMkt, "MKT1101", "Principles of Marketing", "Core concepts of market analysis");
+                getOrCreateCourse(neuMkt, "MKT2105", "Digital Marketing Strategy", "SEO, Social Media, and Content Marketing");
 
-                        courseRepository.saveAll(List.of(c1, c2, c3, c4, c5, c6, c7));
-                }
+                Major neuFin = getOrCreateMajor(neu, "FIN", "Finance & Banking", "Finance & Banking major");
+                getOrCreateCourse(neuFin, "FIN1102", "Money and Banking", "Monetary policy and financial systems");
+                getOrCreateCourse(neuFin, "FIN2104", "Investment Analysis", "Portfolio management and stock evaluation");
+
+                // UEH Majors & Courses
+                Major uehAcc = getOrCreateMajor(ueh, "ACC", "Accounting", "Accounting major");
+                getOrCreateCourse(uehAcc, "ACC507001", "Financial Accounting", "Financial statements and accounting standards");
+                getOrCreateCourse(uehAcc, "ACC507002", "Management Accounting", "Cost management and decision making");
+
+                Major uehIb = getOrCreateMajor(ueh, "IB", "International Business", "International Business major");
+                getOrCreateCourse(uehIb, "BUS503001", "International Business Management", "Global market strategies and trade");
+                getOrCreateCourse(uehIb, "BUS503002", "Supply Chain & Logistics", "Global supply chain management");
+
+                System.out.println("Seeded schools, majors, and courses");          }
 
                 /*
                  * =========================
@@ -668,5 +650,34 @@ public class DataInitializer implements CommandLineRunner {
                 }
 
                 System.out.println("Data initialized successfully");
+        }
+
+        private School getOrCreateSchool(String code, String name, String description) {
+                return schoolRepository.findByCode(code).orElseGet(() ->
+                        schoolRepository.save(School.builder()
+                                        .code(code)
+                                        .name(name)
+                                        .description(description)
+                                        .build())
+                );
+        }
+
+        private Major getOrCreateMajor(School school, String code, String name, String description) {
+                return majorRepository.findBySchoolIdAndCode(school.getId(), code).orElseGet(() ->
+                        majorRepository.save(Major.builder()
+                                        .school(school)
+                                        .code(code)
+                                        .name(name)
+                                        .description(description)
+                                        .build())
+                );
+        }
+
+        private Course getOrCreateCourse(Major major, String code, String name, String description) {
+                return courseRepository.findByMajorIdAndCode(major.getId(), code).orElseGet(() -> {
+                        Course course = new Course(code, name, description);
+                        course.setMajor(major);
+                        return courseRepository.save(course);
+                });
         }
 }
