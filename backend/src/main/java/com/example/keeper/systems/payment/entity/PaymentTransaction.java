@@ -41,7 +41,7 @@ public class PaymentTransaction extends BaseEntity {
     @Column(name = "order_info", nullable = false)
     private String orderInfo;
 
-    @Column(name = "plan_code", nullable = false)
+    @Column(name = "plan_code")
     private String planCode;
 
     @Enumerated(EnumType.STRING)

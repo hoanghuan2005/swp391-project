@@ -24,9 +24,10 @@ import {
   Users,
   Star,
   Sparkles,
+  MessageSquarePlus,
 } from "lucide-react";
 import axiosClient from "@/api/axiosClient";
-import { askAi, createAiConversation } from "@/api/aiApi";
+import { askAi, createAiConversation, getAiConversationMessages } from "@/api/aiApi";
 import RecentDocuments from "@/components/documents/RecentDocuments";
 import UploadDocumentDialog from "@/components/documents/UploadDocumentDialog";
 import CourseCard from "@/components/ui/CourseCard";
@@ -123,6 +124,31 @@ export default function Homepage() {
   ]);
   const [chatConversationId, setChatConversationId] = useState(null);
   const [isChatSending, setIsChatSending] = useState(false);
+
+  // Restore chat session on mount
+  useEffect(() => {
+    const savedChatId = sessionStorage.getItem("homepageChatId");
+    if (savedChatId && localStorage.getItem("isLoggedIn") === "true") {
+      getAiConversationMessages(savedChatId)
+        .then((messages) => {
+          if (messages && messages.length > 0) {
+            setChatConversationId(savedChatId);
+            setChatMessages(
+              messages.map((m) => ({
+                id: m.id,
+                role: m.role,
+                content: m.content,
+                sources: m.sourcesJson ? JSON.parse(m.sourcesJson) : [],
+              }))
+            );
+          }
+        })
+        .catch((err) => {
+          console.error("Failed to restore homepage chat:", err);
+          sessionStorage.removeItem("homepageChatId");
+        });
+    }
+  }, []);
 
   // Quản lý danh sách ID tài liệu đã thả tim để đồng bộ UI lập tức
   const [favoritedIds, setFavoritedIds] = useState([]);
@@ -305,6 +331,7 @@ export default function Homepage() {
           });
           conversationId = conversation.id;
           setChatConversationId(conversationId);
+          sessionStorage.setItem("homepageChatId", conversationId);
         }
         const response = await askAi({
           conversationId,
@@ -317,6 +344,7 @@ export default function Homepage() {
             id: response.assistantMessageId || `assistant-${Date.now()}`,
             role: "ASSISTANT",
             content: response.answer || "I could not generate a response.",
+            sources: response.sources || [],
           },
         ]);
       } catch (error) {
@@ -1017,6 +1045,19 @@ export default function Homepage() {
               messages={chatMessages}
               isSending={isChatSending}
               onSendMessage={handleSendChatMessage}
+              rightElement={
+                <button
+                  onClick={() => {
+                    sessionStorage.removeItem("homepageChatId");
+                    setChatConversationId(null);
+                    setChatMessages([HOMEPAGE_WELCOME_MESSAGE]);
+                  }}
+                  className="p-1.5 text-slate-400 hover:text-[#f26522] hover:bg-orange-50 rounded-md transition-colors border border-transparent hover:border-orange-100 flex items-center justify-center cursor-pointer shadow-none"
+                  title="New Chat"
+                >
+                  <MessageSquarePlus className="w-4 h-4" />
+                </button>
+              }
             />
           </div>
         ) : null}

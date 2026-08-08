@@ -141,7 +141,8 @@ export default function UnifiedAIChat({
       }
 
       const params = isWorkspace && workspaceId ? { projectId: workspaceId } : {};
-      const chats = (await getAiConversations(params)) || [];
+      const allChats = (await getAiConversations(params)) || [];
+      const chats = allChats.filter((c) => c.title !== "Homepage Chat");
       setConversations(chats);
 
       if (chats.length > 0 && !userSelectedDocumentRef.current && !activeConversation) {

@@ -65,7 +65,7 @@ export default function EditDocumentModal({ open, documentId, onClose, onSuccess
         setLoading(true);
         // Load active options
         const [schoolsRes, coursesRes, tagsRes, categoriesRes, docDetailsRes] =
-          await Promise.all([
+          await Promise.allSettled([
             axiosClient.get("/api/schools"),
             axiosClient.get("/api/courses/all"),
             axiosClient.get("/api/tags"),
@@ -73,26 +73,31 @@ export default function EditDocumentModal({ open, documentId, onClose, onSuccess
             axiosClient.get(`/api/documents/${documentId}/detail`),
           ]);
 
-        setSchoolOptions(
-          Array.isArray(schoolsRes.data)
-            ? schoolsRes.data.map((school) => ({
-                id: school.id,
-                code: school.code,
-                name: school.name,
-              }))
-            : []
-        );
-        const fetchedCourses = Array.isArray(coursesRes.data) ? coursesRes.data : [];
+        if (schoolsRes.status === "fulfilled") {
+          setSchoolOptions(
+            Array.isArray(schoolsRes.value?.data)
+              ? schoolsRes.value.data.map((school) => ({
+                  id: school.id,
+                  code: school.code,
+                  name: school.name,
+                }))
+              : []
+          );
+        }
+
+        const fetchedCourses = coursesRes.status === "fulfilled" && Array.isArray(coursesRes.value?.data) ? coursesRes.value.data : [];
         setAllCourses(fetchedCourses);
 
-        setTagOptions(
-          Array.isArray(tagsRes.data)
-            ? tagsRes.data.map((tag) => tag.name)
-            : []
-        );
+        if (tagsRes.status === "fulfilled") {
+          setTagOptions(
+            Array.isArray(tagsRes.value?.data)
+              ? tagsRes.value.data.map((tag) => tag.name)
+              : []
+          );
+        }
 
-        const fetchedCategories = Array.isArray(categoriesRes.data)
-          ? categoriesRes.data.map((category) => ({
+        const fetchedCategories = categoriesRes.status === "fulfilled" && Array.isArray(categoriesRes.value?.data)
+          ? categoriesRes.value.data.map((category) => ({
               id: category.id,
               code: category.code,
               name: category.name,
@@ -100,8 +105,10 @@ export default function EditDocumentModal({ open, documentId, onClose, onSuccess
           : [];
         setCategoryOptions(fetchedCategories);
 
+        if (docDetailsRes.status !== "fulfilled") return;
+
         // Load document details
-        const doc = docDetailsRes.data;
+        const doc = docDetailsRes.value?.data;
         if (doc) {
           setTitle(doc.title || "");
           setDescription(doc.description || "");

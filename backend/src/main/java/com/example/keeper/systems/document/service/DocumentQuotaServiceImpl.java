@@ -214,7 +214,7 @@ public class DocumentQuotaServiceImpl implements DocumentQuotaService {
                         .orElseGet(() -> subscriptionPlanRepository.findByCode("FREE")
                                 .orElse(SubscriptionPlan.builder()
                                         .code("FREE")
-                                        .name("Gói Miễn Phí")
+                                        .name("Free Plan")
                                         .priceVnd(0L)
                                         .maxFileSizeBytes(5L * 1024 * 1024)
                                         .totalStorageBytes(100L * 1024 * 1024)

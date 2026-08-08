@@ -27,30 +27,20 @@ public class DocumentDiscoveryServiceImpl implements DocumentDiscoveryService {
     private static final int RESULT_LIMIT = 5;
 
     private static final List<String> DOCUMENT_INTENT_PHRASES = List.of(
-            "tim tai lieu",
-            "co tai lieu nao",
-            "tai lieu ve",
-            "tai lieu cho",
-            "can tai lieu",
-            "need document",
-            "need documents",
-            "need material",
-            "need materials",
-            "find document",
-            "find documents",
-            "find material",
-            "find materials",
-            "materials about",
-            "material about",
-            "source for",
-            "sources for",
-            "document about",
-            "documents about"
+            "tai lieu",
+            "document",
+            "material",
+            "bai giang",
+            "de thi",
+            "slide",
+            "lab",
+            "assignment",
+            "bai tap"
     );
 
     private static final Set<String> STOP_WORDS = Set.of(
             "tim", "tai", "lieu", "co", "nao", "ve", "cho", "mon", "toi", "can", "khong",
-            "cua", "gi", "giup", "minh", "ban", "duoc",
+            "cua", "gi", "giup", "minh", "ban", "duoc", "cac", "nhung", "de", "hoc", "thi",
             "find", "document", "documents", "material", "materials", "source", "sources",
             "about", "for", "please", "need", "some", "any", "the", "a", "an", "of", "on"
     );

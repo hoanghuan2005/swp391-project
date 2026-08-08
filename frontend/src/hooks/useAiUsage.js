@@ -17,7 +17,7 @@ export default function useAiUsage() {
 
   const processUsage = (usageData) => {
     if (!usageData) return;
-    
+
     const maxUsage = usageData.maxDailyAiRequests ?? 0;
     const remainingUsage = usageData.remainingUsage ?? 0;
     const isUnlimited = maxUsage === -1 || remainingUsage === -1;
@@ -95,9 +95,15 @@ export default function useAiUsage() {
     };
   }, []);
 
+  const tierLimits = {
+    maxSelectedDocs: aiUsage.maxSelectedDocs ?? 2,
+    maxWorkspaceDocs: aiUsage.maxWorkspaceDocs ?? 10,
+  };
+
   return {
     ...aiUsage,
     subscriptionTier: aiUsage.subscriptionTier || "FREE",
+    tierLimits, 
     loading,
     error,
     refreshAiUsage,
