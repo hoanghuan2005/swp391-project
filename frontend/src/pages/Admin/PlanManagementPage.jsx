@@ -45,7 +45,7 @@ export default function PlanManagementPage() {
     totalStorageMb: 100,
     dailyUploadLimit: 3,
     totalDocumentLimit: 20,
-    dailyAiLimit: 5,
+    dailyAiLimit: 10,
     maxFlashcardsPerGen: 15,
     maxQuizQuestionsPerGen: 20,
     maxOwnedProjects: 3,
@@ -99,7 +99,7 @@ export default function PlanManagementPage() {
         totalStorageMb: plan.totalStorageBytes ? Math.round(plan.totalStorageBytes / (1024 * 1024)) : 100,
         dailyUploadLimit: plan.dailyUploadLimit ?? 3,
         totalDocumentLimit: plan.totalDocumentLimit ?? 20,
-        dailyAiLimit: plan.dailyAiLimit ?? 5,
+        dailyAiLimit: plan.dailyAiLimit ?? 10,
         maxFlashcardsPerGen: plan.maxFlashcardsPerGeneration ?? 15,
         maxQuizQuestionsPerGen: plan.maxQuizQuestionsPerGeneration ?? 20,
         maxOwnedProjects: plan.maxOwnedProjects ?? 3,
@@ -120,7 +120,7 @@ export default function PlanManagementPage() {
         totalStorageMb: 100,
         dailyUploadLimit: 3,
         totalDocumentLimit: 20,
-        dailyAiLimit: 5,
+        dailyAiLimit: 10,
         maxFlashcardsPerGen: 15,
         maxQuizQuestionsPerGen: 20,
         maxOwnedProjects: 3,
@@ -316,7 +316,7 @@ export default function PlanManagementPage() {
                         <div className="flex items-center justify-between text-xs">
                           <span className="text-slate-500 font-medium">Daily AI Requests:</span>
                           <span className="font-bold text-slate-700">
-                            {plan.dailyAiLimit === -1 ? "Unlimited" : `${plan.dailyAiLimit ?? 5} requests`}
+                            {plan.dailyAiLimit === -1 ? "Unlimited" : `${plan.dailyAiLimit ?? 10} requests`}
                           </span>
                         </div>
 
@@ -338,6 +338,13 @@ export default function PlanManagementPage() {
                           <span className="text-slate-500 font-medium">Owned Workspaces:</span>
                           <span className="font-bold text-slate-700">
                             {plan.maxOwnedProjects === -1 ? "Unlimited" : `${plan.maxOwnedProjects ?? 3} workspaces`}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-slate-500 font-medium">Joined Workspaces:</span>
+                          <span className="font-bold text-slate-700">
+                            {plan.maxJoinedProjects === -1 ? "Unlimited" : `${plan.maxJoinedProjects ?? 5} workspaces`}
                           </span>
                         </div>
 

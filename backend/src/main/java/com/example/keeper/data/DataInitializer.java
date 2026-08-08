@@ -11,7 +11,6 @@ import com.example.keeper.systems.category.entity.Category;
 import com.example.keeper.systems.category.repository.CategoryRepository;
 import com.example.keeper.systems.course.entity.Course;
 import com.example.keeper.systems.course.repository.CourseRepository;
-import com.example.keeper.systems.notification.repository.NotificationRepository;
 import com.example.keeper.systems.school.entity.School;
 import com.example.keeper.systems.school.repository.SchoolRepository;
 import com.example.keeper.systems.major.entity.Major;
@@ -21,10 +20,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
-import com.example.keeper.systems.notification.entity.Notification;
-import com.example.keeper.systems.notification.enums.NotificationType;
-import com.example.keeper.systems.notification.enums.ReferenceType;
-import com.example.keeper.systems.notification.repository.NotificationRepository;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -43,7 +38,6 @@ public class DataInitializer implements CommandLineRunner {
         private final CourseRepository courseRepository;
         private final TagRepository tagRepository;
         private final CategoryRepository categoryRepository;
-        private final NotificationRepository notificationRepository;
         private final jakarta.persistence.EntityManager entityManager;
         private final com.example.keeper.systems.major.repository.MajorRepository majorRepository;
         private final com.example.keeper.systems.document.repository.DocumentRepository documentRepository;
@@ -76,7 +70,7 @@ public class DataInitializer implements CommandLineRunner {
                                                         .totalStorageBytes(100L * 1024 * 1024)
                                                         .dailyUploadLimit(3L)
                                                         .totalDocumentLimit(20L)
-                                                        .dailyAiLimit(5L)
+                                                        .dailyAiLimit(10L)
                                                         .maxFlashcardsPerGeneration(15)
                                                         .maxQuizQuestionsPerGeneration(20)
                                                         .maxOwnedProjects(3)
@@ -96,7 +90,7 @@ public class DataInitializer implements CommandLineRunner {
                                                         .totalDocumentLimit(-1L)
                                                         .dailyAiLimit(-1L)
                                                         .maxFlashcardsPerGeneration(-1)
-                                                        .maxQuizQuestionsPerGeneration(50)
+                                                        .maxQuizQuestionsPerGeneration(30)
                                                         .maxOwnedProjects(-1)
                                                         .maxJoinedProjects(-1)
                                                         .maxSelectedDocs(4)
@@ -108,18 +102,37 @@ public class DataInitializer implements CommandLineRunner {
                 }
 
                 subscriptionPlanRepository.findByCode("FREE").ifPresent(freePlan -> {
-                        if (freePlan.getMaxFileSizeBytes() == null || freePlan.getMaxFileSizeBytes() != 5L * 1024 * 1024) {
+                        boolean updated = false;
+                        if (freePlan.getMaxFileSizeBytes() == null
+                                        || freePlan.getMaxFileSizeBytes() != 5L * 1024 * 1024) {
                                 freePlan.setMaxFileSizeBytes(5L * 1024 * 1024);
+                                updated = true;
+                        }
+                        if (freePlan.getDailyAiLimit() == null || freePlan.getDailyAiLimit() != 10L) {
+                                freePlan.setDailyAiLimit(10L);
+                                updated = true;
+                        }
+                        if (updated) {
                                 subscriptionPlanRepository.save(freePlan);
-                                System.out.println("Updated FREE plan maxFileSizeBytes to 5MB");
+                                System.out.println("Updated FREE plan limits (dailyAiLimit: 10)");
                         }
                 });
 
                 subscriptionPlanRepository.findByCode("PRO").ifPresent(proPlan -> {
-                        if (proPlan.getMaxFileSizeBytes() == null || proPlan.getMaxFileSizeBytes() != 10L * 1024 * 1024) {
+                        boolean updated = false;
+                        if (proPlan.getMaxFileSizeBytes() == null
+                                        || proPlan.getMaxFileSizeBytes() != 10L * 1024 * 1024) {
                                 proPlan.setMaxFileSizeBytes(10L * 1024 * 1024);
+                                updated = true;
+                        }
+                        if (proPlan.getMaxQuizQuestionsPerGeneration() == null
+                                        || proPlan.getMaxQuizQuestionsPerGeneration() != 30) {
+                                proPlan.setMaxQuizQuestionsPerGeneration(30);
+                                updated = true;
+                        }
+                        if (updated) {
                                 subscriptionPlanRepository.save(proPlan);
-                                System.out.println("Updated PRO plan maxFileSizeBytes to 10MB");
+                                System.out.println("Updated PRO plan limits (maxQuizQuestionsPerGeneration: 30)");
                         }
                 });
 
@@ -472,115 +485,6 @@ public class DataInitializer implements CommandLineRunner {
                                                         .code("VI")
                                                         .name("Vietnamese")
                                                         .build()));
-                }
-
-                /*
-                 * =========================
-                 * NOTIFICATION
-                 * =========================
-                 */
-
-                if (notificationRepository.count() == 0) {
-
-                        User admin = userRepository
-                                        .findByEmail("admin@example.com")
-                                        .orElseThrow();
-
-                        User student = userRepository
-                                        .findByEmail("student@example.com")
-                                        .orElseThrow();
-
-                        notificationRepository.saveAll(List.of(
-
-                                        Notification.builder()
-                                                        .recipient(student)
-                                                        .sender(admin)
-                                                        .type(NotificationType.DOCUMENT_LIKED)
-                                                        .title("Document Liked")
-                                                        .message("Admin liked your document 'Java Core Notes'")
-                                                        .referenceType(ReferenceType.DOCUMENT)
-                                                        .referenceId(UUID.randomUUID())
-                                                        .isRead(false)
-                                                        .build(),
-
-                                        Notification.builder()
-                                                        .recipient(student)
-                                                        .sender(admin)
-                                                        .type(NotificationType.DOCUMENT_FEEDBACKED)
-                                                        .title("New Feedback")
-                                                        .message("Admin left feedback on your Spring Boot document")
-                                                        .referenceType(ReferenceType.DOCUMENT)
-                                                        .referenceId(UUID.randomUUID())
-                                                        .isRead(false)
-                                                        .build(),
-
-                                        Notification.builder()
-                                                        .recipient(student)
-                                                        .sender(admin)
-                                                        .type(NotificationType.QUIZ_LIKED)
-                                                        .title("Quiz Liked")
-                                                        .message("Admin liked your Java OOP Quiz")
-                                                        .referenceType(ReferenceType.QUIZ)
-                                                        .referenceId(UUID.randomUUID())
-                                                        .isRead(false)
-                                                        .build(),
-
-                                        Notification.builder()
-                                                        .recipient(student)
-                                                        .sender(admin)
-                                                        .type(NotificationType.QUIZ_COMPLETED)
-                                                        .title("Quiz Completed")
-                                                        .message("Admin completed your Java OOP Quiz")
-                                                        .referenceType(ReferenceType.QUIZ)
-                                                        .referenceId(UUID.randomUUID())
-                                                        .isRead(true)
-                                                        .build(),
-
-                                        Notification.builder()
-                                                        .recipient(student)
-                                                        .sender(admin)
-                                                        .type(NotificationType.FLASHCARD_LIKED)
-                                                        .title("Flashcard Liked")
-                                                        .message("Admin liked your Flashcard Set 'N5 Vocabulary'")
-                                                        .referenceType(ReferenceType.FLASHCARD)
-                                                        .referenceId(UUID.randomUUID())
-                                                        .isRead(false)
-                                                        .build(),
-
-                                        Notification.builder()
-                                                        .recipient(student)
-                                                        .sender(admin)
-                                                        .type(NotificationType.FLASHCARD_SAVED)
-                                                        .title("Flashcard Saved")
-                                                        .message("Admin saved your Flashcard Set")
-                                                        .referenceType(ReferenceType.FLASHCARD)
-                                                        .referenceId(UUID.randomUUID())
-                                                        .isRead(false)
-                                                        .build(),
-
-                                        Notification.builder()
-                                                        .recipient(student)
-                                                        .sender(admin)
-                                                        .type(NotificationType.GROUP_INVITED)
-                                                        .title("Group Invitation")
-                                                        .message("You have been invited to Backend Study Group")
-                                                        .referenceType(ReferenceType.GROUP)
-                                                        .referenceId(UUID.randomUUID())
-                                                        .isRead(false)
-                                                        .build(),
-
-                                        Notification.builder()
-                                                        .recipient(student)
-                                                        .sender(admin)
-                                                        .type(NotificationType.GROUP_MEMBER_JOINED)
-                                                        .title("New Member")
-                                                        .message("A new member joined your study group")
-                                                        .referenceType(ReferenceType.GROUP)
-                                                        .referenceId(UUID.randomUUID())
-                                                        .isRead(true)
-                                                        .build()));
-
-                        System.out.println("Seeded notifications");
                 }
 
                 /*

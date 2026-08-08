@@ -75,8 +75,8 @@ export default function MySubscriptionModal({ open, onOpenChange }) {
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-lg rounded-3xl p-6 bg-white max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-lg rounded-3xl p-0 bg-white max-h-[85vh] flex flex-col overflow-hidden border-none shadow-2xl">
+          <DialogHeader className="p-6 pb-4 border-b border-slate-100 shrink-0 bg-white z-10">
             <div className="flex items-center gap-3">
               <div className="p-3 bg-orange-50 text-[#f26522] rounded-2xl">
                 <Crown className="w-6 h-6 fill-orange-500/20" />
@@ -92,122 +92,133 @@ export default function MySubscriptionModal({ open, onOpenChange }) {
             </div>
           </DialogHeader>
 
-          {loading ? (
-            <div className="py-12 text-center text-slate-500 text-sm font-medium">
-              Loading subscription details...
-            </div>
-          ) : subData ? (
-            <div className="space-y-5 py-2">
-              {/* Main Plan Card */}
-              <div
-                className={`p-5 rounded-2xl border transition-all ${
-                  isPaidPlan
-                    ? "bg-gradient-to-br from-orange-50/60 via-white to-amber-50/30 border-orange-300 shadow-md shadow-orange-500/10"
-                    : "bg-slate-50/80 border-slate-200"
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Badge
-                      className={`font-black text-xs px-3 py-1 rounded-full ${
-                        isPaidPlan
-                          ? "bg-[#fff0e5] text-[#f26522] border border-orange-200"
-                          : "bg-slate-200 text-slate-700 border-slate-300"
-                      }`}
-                    >
-                      {subData.subscriptionTier} PLAN
-                    </Badge>
-                    <Badge variant="outline" className="bg-emerald-50 text-emerald-600 border-emerald-200 text-[11px] font-bold">
-                      <CheckCircle className="w-3 h-3 mr-1" /> Active
-                    </Badge>
+          <div className="p-6 overflow-y-auto flex-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] space-y-5">
+            {loading ? (
+              <div className="py-12 text-center text-slate-500 text-sm font-medium">
+                Loading subscription details...
+              </div>
+            ) : subData ? (
+              <>
+                {/* Main Plan Card */}
+                <div
+                  className={`p-5 rounded-2xl border transition-all ${
+                    isPaidPlan
+                      ? "bg-gradient-to-br from-orange-50/60 via-white to-amber-50/30 border-orange-300 shadow-md shadow-orange-500/10"
+                      : "bg-slate-50/80 border-slate-200"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Badge
+                        className={`font-black text-xs px-3 py-1 rounded-full ${
+                          isPaidPlan
+                            ? "bg-[#fff0e5] text-[#f26522] border border-orange-200"
+                            : "bg-slate-200 text-slate-700 border-slate-300"
+                        }`}
+                      >
+                        {subData.subscriptionTier} PLAN
+                      </Badge>
+                      <Badge variant="outline" className="bg-emerald-50 text-emerald-600 border-emerald-200 text-[11px] font-bold">
+                        <CheckCircle className="w-3 h-3 mr-1" /> Active
+                      </Badge>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-lg font-black text-[#f26522]">
+                        {formatVND(subData.priceVnd)}
+                      </span>
+                      <span className="text-xs text-slate-400 font-normal"> / month</span>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <span className="text-lg font-black text-[#f26522]">
-                      {formatVND(subData.priceVnd)}
+
+                  <h3 className="text-lg font-bold text-slate-800 mt-3 flex items-center gap-1.5">
+                    {subData.planName} {isPaidPlan && <Sparkles className="w-4 h-4 text-amber-500 fill-amber-500" />}
+                  </h3>
+                </div>
+
+                {/* Quotas & Features Breakdown */}
+                <div className="space-y-2.5 bg-white p-4 rounded-2xl border border-slate-100 text-xs">
+                  <div className="flex items-center justify-between py-1.5 border-b border-slate-100">
+                    <span className="text-slate-500 font-medium flex items-center gap-2">
+                      <FileUp className="w-4 h-4 text-slate-400" /> Max File Upload Size
                     </span>
-                    <span className="text-xs text-slate-400 font-normal"> / month</span>
+                    <span className="font-bold text-slate-800">{bytesToMB(subData.maxFileSizeBytes)}</span>
+                  </div>
+
+                  <div className="flex items-center justify-between py-1.5 border-b border-slate-100">
+                    <span className="text-slate-500 font-medium flex items-center gap-2">
+                      <HardDrive className="w-4 h-4 text-slate-400" /> Storage Capacity
+                    </span>
+                    <span className="font-bold text-slate-800">{bytesToMB(subData.totalStorageBytes)}</span>
+                  </div>
+
+                  <div className="flex items-center justify-between py-1.5 border-b border-slate-100">
+                    <span className="text-slate-500 font-medium flex items-center gap-2">
+                      <Zap className="w-4 h-4 text-slate-400" /> Daily AI Requests
+                    </span>
+                    <span className="font-bold text-slate-800">
+                      {subData.dailyAiLimit === -1 ? "Unlimited" : `${subData.dailyAiLimit} requests / day`}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between py-1.5 border-b border-slate-100">
+                    <span className="text-slate-500 font-medium flex items-center gap-2">
+                      <BookOpen className="w-4 h-4 text-slate-400" /> Flashcards / Generation
+                    </span>
+                    <span className="font-bold text-slate-800">
+                      {subData.maxFlashcardsPerGeneration === -1 ? "Unlimited" : `${subData.maxFlashcardsPerGeneration} cards`}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between py-1.5 border-b border-slate-100">
+                    <span className="text-slate-500 font-medium flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-slate-400" /> AI Memory & Context
+                    </span>
+                    <span className="font-bold text-slate-800">
+                      {subData.maxAiContextChunks > 4 ? "Extended Context" : "Standard"}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between py-1.5 border-b border-slate-100">
+                    <span className="text-slate-500 font-medium flex items-center gap-2">
+                      <Zap className="w-4 h-4 text-slate-400" /> Document Analysis Depth
+                    </span>
+                    <span className="font-bold text-slate-800">
+                      {subData.maxChunkChars >= 600 ? "Deep Analysis" : "Basic Analysis"}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between py-1.5 border-b border-slate-100">
+                    <span className="text-slate-500 font-medium flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4 text-slate-400" /> Quiz Questions / Generation
+                    </span>
+                    <span className="font-bold text-slate-800">
+                      {subData.maxQuizQuestionsPerGeneration === -1 ? "Unlimited" : `${subData.maxQuizQuestionsPerGeneration} questions`}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between py-1.5 border-b border-slate-100">
+                    <span className="text-slate-500 font-medium flex items-center gap-2">
+                      <Crown className="w-4 h-4 text-slate-400" /> Owned Workspaces Limit
+                    </span>
+                    <span className="font-bold text-slate-800">
+                      {subData.maxOwnedProjects === -1 ? "Unlimited" : `${subData.maxOwnedProjects} workspaces`}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between py-1.5">
+                    <span className="text-slate-500 font-medium flex items-center gap-2">
+                      <Crown className="w-4 h-4 text-slate-400" /> Joined Workspaces Limit
+                    </span>
+                    <span className="font-bold text-slate-800">
+                      {subData.maxJoinedProjects === -1 ? "Unlimited" : `${subData.maxJoinedProjects} workspaces`}
+                    </span>
                   </div>
                 </div>
+              </>
+            ) : null}
+          </div>
 
-                <h3 className="text-lg font-bold text-slate-800 mt-3 flex items-center gap-1.5">
-                  {subData.planName} {isPaidPlan && <Sparkles className="w-4 h-4 text-amber-500 fill-amber-500" />}
-                </h3>
-              </div>
-
-              {/* Quotas & Features Breakdown */}
-              <div className="space-y-2.5 bg-white p-4 rounded-2xl border border-slate-100 text-xs">
-                <div className="flex items-center justify-between py-1.5 border-b border-slate-100">
-                  <span className="text-slate-500 font-medium flex items-center gap-2">
-                    <FileUp className="w-4 h-4 text-slate-400" /> Max File Upload Size
-                  </span>
-                  <span className="font-bold text-slate-800">{bytesToMB(subData.maxFileSizeBytes)}</span>
-                </div>
-
-                <div className="flex items-center justify-between py-1.5 border-b border-slate-100">
-                  <span className="text-slate-500 font-medium flex items-center gap-2">
-                    <HardDrive className="w-4 h-4 text-slate-400" /> Storage Capacity
-                  </span>
-                  <span className="font-bold text-slate-800">{bytesToMB(subData.totalStorageBytes)}</span>
-                </div>
-
-                <div className="flex items-center justify-between py-1.5 border-b border-slate-100">
-                  <span className="text-slate-500 font-medium flex items-center gap-2">
-                    <Zap className="w-4 h-4 text-slate-400" /> Daily AI Requests
-                  </span>
-                  <span className="font-bold text-slate-800">
-                    {subData.dailyAiLimit === -1 ? "Unlimited" : `${subData.dailyAiLimit} requests / day`}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between py-1.5 border-b border-slate-100">
-                  <span className="text-slate-500 font-medium flex items-center gap-2">
-                    <BookOpen className="w-4 h-4 text-slate-400" /> Flashcards / Generation
-                  </span>
-                  <span className="font-bold text-slate-800">
-                    {subData.maxFlashcardsPerGeneration === -1 ? "Unlimited" : `${subData.maxFlashcardsPerGeneration} cards`}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between py-1.5 border-b border-slate-100">
-                  <span className="text-slate-500 font-medium flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-slate-400" /> AI Memory & Context
-                  </span>
-                  <span className="font-bold text-slate-800">
-                    {subData.maxAiContextChunks > 4 ? "Extended Context" : "Standard"}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between py-1.5 border-b border-slate-100">
-                  <span className="text-slate-500 font-medium flex items-center gap-2">
-                    <Zap className="w-4 h-4 text-slate-400" /> Document Analysis Depth
-                  </span>
-                  <span className="font-bold text-slate-800">
-                    {subData.maxChunkChars >= 600 ? "Deep Analysis" : "Basic Analysis"}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between py-1.5 border-b border-slate-100">
-                  <span className="text-slate-500 font-medium flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-slate-400" /> Quiz Questions / Generation
-                  </span>
-                  <span className="font-bold text-slate-800">
-                    {subData.maxQuizQuestionsPerGeneration === -1 ? "Unlimited" : `${subData.maxQuizQuestionsPerGeneration} questions`}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between py-1.5">
-                  <span className="text-slate-500 font-medium flex items-center gap-2">
-                    <Crown className="w-4 h-4 text-slate-400" /> Owned Workspaces Limit
-                  </span>
-                  <span className="font-bold text-slate-800">
-                    {subData.maxOwnedProjects === -1 ? "Unlimited" : `${subData.maxOwnedProjects} workspaces`}
-                  </span>
-                </div>
-              </div>
-            </div>
-          ) : null}
-
-          <DialogFooter className="pt-2 flex flex-col sm:flex-row gap-2 sm:justify-between">
+          <DialogFooter className="p-4 px-6 border-t border-slate-100 shrink-0 bg-slate-50/80 flex flex-row items-center justify-between z-10">
             <div className="flex items-center gap-2 flex-wrap">
               {isPaidPlan && (
                 <Button

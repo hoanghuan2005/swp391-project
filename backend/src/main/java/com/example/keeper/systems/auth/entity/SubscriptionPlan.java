@@ -39,7 +39,7 @@ public class SubscriptionPlan extends BaseEntity {
 
     @Builder.Default
     @Column(name = "daily_ai_limit", nullable = false)
-    private Long dailyAiLimit = 5L;
+    private Long dailyAiLimit = 10L;
 
     @Builder.Default
     @Column(name = "max_flashcards_per_generation", nullable = false)

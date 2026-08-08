@@ -1190,7 +1190,7 @@ export default function MyLibrary() {
               </div>
               <div className="p-4 bg-slate-50/80 rounded-2xl border border-slate-100">
                 <div className="text-xs text-slate-400 font-semibold">AI Requests</div>
-                <div className="text-lg font-black text-slate-800 mt-1">{isUnlimited ? "Unlimited" : `${tierLimits?.dailyAiLimit || 5} per day`}</div>
+                <div className="text-lg font-black text-slate-800 mt-1">{isUnlimited ? "Unlimited" : `${tierLimits?.dailyAiLimit || 10} per day`}</div>
               </div>
             </div>
 

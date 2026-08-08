@@ -1011,7 +1011,7 @@ export default function AIQuizGenerator() {
                   </Button>
                 ))}
               </div>
-              {maxQuizQuestions !== -1 && maxQuizQuestions < 50 && (
+              {maxQuizQuestions !== -1 && maxQuizQuestions < 30 && (
                 <p className="text-xs text-slate-400 mt-2">
                   Upgrade your plan to generate more questions at once.
                 </p>

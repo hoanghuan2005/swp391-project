@@ -5,6 +5,7 @@ import { ArrowRight, BookOpen, BrainCircuit, Users, CheckCircle2, Sparkles, Book
 import studyImage from '../assets/picture-study.png';
 import useAiUsage from "@/hooks/useAiUsage";
 import axiosClient from "@/api/axiosClient";
+import { createVnpayPayment } from "@/api/paymentApi";
 
 function formatBytes(bytes) {
   if (bytes === null || bytes === undefined || bytes === -1) return "Unlimited";
@@ -19,44 +20,12 @@ function formatVndPrice(priceVnd) {
   return new Intl.NumberFormat("vi-VN").format(priceVnd) + "đ";
 }
 
-const defaultPlans = [
-  {
-    code: "FREE",
-    name: "Free",
-    priceVnd: 0,
-    description: "For trying Study Hub AI features.",
-    features: [
-      "5 AI requests per day",
-      "Up to 15 flashcards per generation",
-      "Up to 20 quiz questions per generation",
-      "Create up to 3 workspaces",
-      "5MB max file size",
-      "100MB total storage capacity",
-      "3 document uploads per day",
-    ],
-  },
-  {
-    code: "PRO",
-    name: "Pro",
-    priceVnd: 99000,
-    description: "For frequent study sessions.",
-    features: [
-      "Unlimited AI requests",
-      "Unlimited flashcards per generation",
-      "Up to 50 quiz questions per generation",
-      "Unlimited workspaces",
-      "10MB max file size",
-      "1GB total storage capacity",
-      "Unlimited document uploads",
-    ],
-  },
-];
-
 export default function LandingPage() {
   const isLoggedIn = localStorage.getItem("isLoggedIn") === "true";
   const navigate = useNavigate();
   const [isStartingUpgrade, setIsStartingUpgrade] = useState(false);
   const [dbPlans, setDbPlans] = useState([]);
+  const [isFetchingPlans, setIsFetchingPlans] = useState(true);
   const { subscriptionTier, loading } = useAiUsage();
   const role = getTokenRole();
   const canUpgrade = role !== "ADMIN" && subscriptionTier === "FREE";
@@ -72,6 +41,9 @@ export default function LandingPage() {
       })
       .catch((err) => {
         console.error("Failed to fetch active plans on landing page:", err);
+      })
+      .finally(() => {
+        if (isMounted) setIsFetchingPlans(false);
       });
     return () => {
       isMounted = false;
@@ -306,100 +278,118 @@ export default function LandingPage() {
             <p className="text-slate-500 text-sm sm:text-base">Choose the AI usage level that fits your study routine.</p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-            {(dbPlans.length > 0 ? dbPlans : defaultPlans).map((p) => {
-              const planCode = String(p.code || p.name).toUpperCase();
-              const isPro = planCode === "PRO";
-              const isFree = planCode === "FREE" || p.priceVnd === 0;
-              const currentTier = String(subscriptionTier || "FREE").toUpperCase();
-              const effectiveTier = role === "ADMIN" ? "PRO" : currentTier;
-
-              // Dynamic tier comparison based on plan price (priceVnd)
-              const allPlansList = dbPlans.length > 0 ? dbPlans : defaultPlans;
-              const userCurrentPlanObj = allPlansList.find(
-                (plan) => String(plan.code || plan.name).toUpperCase() === effectiveTier
-              );
-              const currentUserPrice = userCurrentPlanObj ? (userCurrentPlanObj.priceVnd || 0) : 0;
-              const cardPrice = p.priceVnd || 0;
-
-              const isCurrent = isLoggedIn && effectiveTier === planCode;
-              const isLowerTier = isLoggedIn && !isCurrent && currentUserPrice > cardPrice;
-              const isDisabled = isCurrent || isLowerTier || isStartingUpgrade || loading;
-
-              let buttonLabel = `Upgrade to ${p.name || p.code}`;
-              if (isCurrent) {
-                buttonLabel = "Current plan";
-              } else if (isLowerTier) {
-                buttonLabel = `Included in ${effectiveTier}`;
-              } else if (isFree) {
-                buttonLabel = "Free Forever";
+          {isFetchingPlans ? (
+            <div className="flex justify-center items-center py-16">
+              <Loader2 className="h-8 w-8 animate-spin text-[#f26522]" />
+            </div>
+          ) : (
+            <div
+              className={
+                dbPlans.length === 1
+                  ? "max-w-md mx-auto grid grid-cols-1 gap-8"
+                  : dbPlans.length === 2
+                  ? "max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8"
+                  : "max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
               }
+            >
+              {dbPlans.map((p) => {
+                const planCode = String(p.code || p.name).toUpperCase();
+                const isFree = planCode === "FREE" || p.priceVnd === 0;
+                const maxPaidPrice = Math.max(...dbPlans.map((pl) => pl.priceVnd || 0), 0);
+                const isPopular = !isFree && (planCode === "PRO" || (maxPaidPrice > 0 && p.priceVnd === maxPaidPrice));
 
-              const features = p.features || [
-                p.dailyAiLimit === -1 ? "Unlimited AI requests" : `${p.dailyAiLimit} AI requests per day`,
-                p.maxFlashcardsPerGeneration === -1 ? "Unlimited flashcards per generation" : `Up to ${p.maxFlashcardsPerGeneration} flashcards per generation`,
-                p.maxQuizQuestionsPerGeneration === -1 ? "Unlimited quiz questions per generation" : `Up to ${p.maxQuizQuestionsPerGeneration} quiz questions per generation`,
-                p.maxOwnedProjects === -1 ? "Unlimited workspaces" : `Create up to ${p.maxOwnedProjects} workspaces`,
-                `${formatBytes(p.maxFileSizeBytes)} max file size`,
-                `${formatBytes(p.totalStorageBytes)} total storage capacity`,
-                p.dailyUploadLimit === -1 ? "Unlimited document uploads" : `${p.dailyUploadLimit} document uploads per day`,
-              ];
+                const currentTier = String(subscriptionTier || "FREE").toUpperCase();
+                const effectiveTier = role === "ADMIN" ? "PRO" : currentTier;
 
-              return (
-                <div
-                  key={p.code || p.name}
-                  className={`p-8 rounded-xl flex flex-col justify-between transition-all duration-300 relative ${
-                    isPro
-                      ? "bg-white border-2 border-orange-500 shadow-md scale-[1.01] md:scale-105"
-                      : "bg-slate-50/50 border border-slate-200/80 shadow-sm hover:bg-white hover:shadow-md"
-                  }`}
-                >
-                  {isPro && (!isLoggedIn || (!isCurrent && !isLowerTier)) && (
-                    <span className="absolute -top-3.5 right-8 bg-gradient-to-r from-orange-500 to-amber-500 text-white text-[11px] font-extrabold px-3 py-1.5 rounded-full shadow-sm tracking-wider uppercase">
-                      Popular
-                    </span>
-                  )}
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-2xl font-black text-slate-800">{p.name || p.code}</h3>
-                      {isPro && <Sparkles className="h-5 w-5 text-amber-500 fill-amber-500 animate-pulse" />}
-                    </div>
-                    <p className="mt-2 text-sm text-slate-400">
-                      {p.description || (isFree ? "For trying Study Hub AI features." : "For frequent study sessions.")}
-                    </p>
-                    <div className="mt-6 flex items-baseline">
-                      <span className="text-4xl font-black text-slate-800">{formatVndPrice(p.priceVnd)}</span>
-                      <span className="text-slate-400 text-xs ml-1">/ {p.priceVnd === 0 ? "forever" : "month"}</span>
-                    </div>
-                    <ul className="my-8 space-y-3.5">
-                      {features.map((feat, idx) => (
-                        <li key={idx} className="flex items-start gap-2.5 text-sm text-slate-600 font-semibold">
-                          <Check className="h-5 w-5 text-green-500 shrink-0" strokeWidth={3} />
-                          <span>{feat}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                  <Button
-                    className={`w-full rounded-xl py-6 font-bold text-sm shadow-md transition-all duration-300 ${
-                      isCurrent || isLowerTier || isFree
-                        ? "bg-slate-100 hover:bg-slate-100 text-slate-500 cursor-not-allowed border border-slate-200 shadow-none"
-                        : "bg-[#f26522] hover:bg-[#d95316] text-white hover:shadow-orange-500/20 hover:scale-[1.02] cursor-pointer"
+                const userCurrentPlanObj = dbPlans.find(
+                  (plan) => String(plan.code || plan.name).toUpperCase() === effectiveTier
+                );
+                const currentUserPrice = userCurrentPlanObj ? (userCurrentPlanObj.priceVnd || 0) : 0;
+                const cardPrice = p.priceVnd || 0;
+
+                const isCurrent = isLoggedIn && effectiveTier === planCode;
+                const isLowerTier = isLoggedIn && !isCurrent && currentUserPrice > cardPrice;
+                const isDisabled = isCurrent || isLowerTier || isStartingUpgrade || loading;
+
+                let buttonLabel = `Upgrade to ${p.name || p.code}`;
+                if (isCurrent) {
+                  buttonLabel = "Current plan";
+                } else if (isLowerTier) {
+                  buttonLabel = `Included in ${effectiveTier}`;
+                } else if (isFree) {
+                  buttonLabel = "Free Forever";
+                }
+
+                const features = [
+                  p.dailyAiLimit === -1 ? "Unlimited AI requests" : `${p.dailyAiLimit} AI requests per day`,
+                  p.maxFlashcardsPerGeneration === -1 ? "Unlimited flashcards per generation" : `Up to ${p.maxFlashcardsPerGeneration} flashcards per generation`,
+                  p.maxQuizQuestionsPerGeneration === -1 ? "Unlimited quiz questions per generation" : `Up to ${p.maxQuizQuestionsPerGeneration} quiz questions per generation`,
+                  p.maxOwnedProjects === -1 ? "Unlimited created workspaces" : `Create up to ${p.maxOwnedProjects} workspaces`,
+                  p.maxJoinedProjects === -1 ? "Unlimited joined workspaces" : `Join up to ${p.maxJoinedProjects} workspaces`,
+                  `Select up to ${p.maxSelectedDocs ?? 2} docs per AI query`,
+                  p.maxWorkspaceDocs === -1 ? "Unlimited docs per workspace" : `Up to ${p.maxWorkspaceDocs ?? 10} docs per workspace`,
+                  `${formatBytes(p.maxFileSizeBytes)} max file size`,
+                  `${formatBytes(p.totalStorageBytes)} total storage capacity`,
+                  p.dailyUploadLimit === -1 ? "Unlimited daily document uploads" : `${p.dailyUploadLimit} document uploads per day`,
+                  p.totalDocumentLimit === -1 ? "Unlimited total document storage" : `Up to ${p.totalDocumentLimit} total documents limit`,
+                ];
+
+                return (
+                  <div
+                    key={p.code || p.name}
+                    className={`p-6 sm:p-7 rounded-2xl flex flex-col justify-between transition-all duration-300 relative ${
+                      isPopular
+                        ? "bg-white border-2 border-orange-500 shadow-md scale-[1.01] md:scale-[1.02]"
+                        : "bg-slate-50/50 border border-slate-200/80 shadow-sm hover:bg-white hover:shadow-md"
                     }`}
-                    disabled={isDisabled || isFree}
-                    onClick={() => handleUpgrade(p.code)}
                   >
-                    {isStartingUpgrade ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : !isCurrent && !isLowerTier && !isFree ? (
-                      <Sparkles className="mr-2 h-4 w-4 fill-white" />
-                    ) : null}
-                    {buttonLabel}
-                  </Button>
-                </div>
-              );
-            })}
-          </div>
+                    {isPopular && (!isLoggedIn || (!isCurrent && !isLowerTier)) && (
+                      <span className="absolute -top-3.5 right-6 bg-gradient-to-r from-orange-500 to-amber-500 text-white text-[10px] font-extrabold px-3 py-1 rounded-full shadow-sm tracking-wider uppercase">
+                        Popular
+                      </span>
+                    )}
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-xl sm:text-2xl font-black text-slate-800">{p.name || p.code}</h3>
+                        {isPopular && <Sparkles className="h-5 w-5 text-amber-500 fill-amber-500 animate-pulse" />}
+                      </div>
+                      <p className="mt-1 text-xs sm:text-sm text-slate-400">
+                        {p.description || (isFree ? "For trying Study Hub AI features." : `For ${p.name || p.code} study sessions.`)}
+                      </p>
+                      <div className="mt-4 flex items-baseline">
+                        <span className="text-3xl sm:text-4xl font-black text-slate-800">{formatVndPrice(p.priceVnd)}</span>
+                        <span className="text-slate-400 text-xs ml-1">/ {p.priceVnd === 0 ? "forever" : "month"}</span>
+                      </div>
+                      <ul className="my-5 space-y-2">
+                        {features.map((feat, idx) => (
+                          <li key={idx} className="flex items-center gap-2 text-xs sm:text-sm text-slate-600 font-medium">
+                            <Check className="h-4 w-4 text-emerald-500 shrink-0" strokeWidth={2.5} />
+                            <span>{feat}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                    <Button
+                      className={`w-full rounded-xl py-5 font-bold text-sm shadow-md transition-all duration-300 ${
+                        isCurrent || isLowerTier || isFree
+                          ? "bg-slate-100 hover:bg-slate-100 text-slate-500 cursor-not-allowed border border-slate-200 shadow-none"
+                          : "bg-[#f26522] hover:bg-[#d95316] text-white hover:shadow-orange-500/20 hover:scale-[1.01] cursor-pointer"
+                      }`}
+                      disabled={isDisabled || isFree}
+                      onClick={() => handleUpgrade(p.code)}
+                    >
+                      {isStartingUpgrade ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : !isCurrent && !isLowerTier && !isFree ? (
+                        <Sparkles className="mr-2 h-4 w-4 fill-white" />
+                      ) : null}
+                      {buttonLabel}
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </section>
         {/* Footer */}

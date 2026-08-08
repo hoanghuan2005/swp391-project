@@ -45,7 +45,7 @@ public class AiUsageController {
 
         // 2. Lấy giới hạn từ DB (Dùng null-safe getter)
         Map<String, Object> tierLimits = new LinkedHashMap<>();
-        tierLimits.put("dailyAiLimit", plan != null ? plan.getDailyAiLimit() : 5);
+        tierLimits.put("dailyAiLimit", plan != null ? plan.getDailyAiLimit() : 10);
         tierLimits.put("maxFlashcardsPerGeneration", plan != null ? plan.getMaxFlashcardsPerGeneration() : 15);
         tierLimits.put("maxQuizQuestionsPerGeneration", plan != null ? plan.getMaxQuizQuestionsPerGeneration() : 20);
         tierLimits.put("maxOwnedProjects", plan != null ? plan.getMaxOwnedProjects() : 3);
