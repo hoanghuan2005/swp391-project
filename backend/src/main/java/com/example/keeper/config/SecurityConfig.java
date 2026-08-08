@@ -79,7 +79,9 @@ public class SecurityConfig {
                                 "/api/tags",
                                 "/api/tags/**",
                                 "/api/languages",
-                                "/api/languages/**")
+                                "/api/languages/**",
+                                "/api/categories",
+                                "/api/categories/**")
                         .hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT,
                                 "/api/courses",
@@ -91,7 +93,9 @@ public class SecurityConfig {
                                 "/api/tags",
                                 "/api/tags/**",
                                 "/api/languages",
-                                "/api/languages/**")
+                                "/api/languages/**",
+                                "/api/categories",
+                                "/api/categories/**")
                         .hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE,
                                 "/api/courses/*",
@@ -102,7 +106,9 @@ public class SecurityConfig {
                                 "/api/tags",
                                 "/api/tags/**",
                                 "/api/languages",
-                                "/api/languages/**")
+                                "/api/languages/**",
+                                "/api/categories",
+                                "/api/categories/**")
                         .hasRole("ADMIN")
 
                                                 .requestMatchers(
@@ -124,6 +130,8 @@ public class SecurityConfig {
                                                                 "/api/schools/**",
                                                                 "/api/tags",
                                                                 "/api/tags/**",
+                                                                "/api/categories",
+                                                                "/api/categories/**",
 
                                                                 "/api/projects/public",
                                                                 "/api/projects/shared/**",
@@ -153,7 +161,9 @@ public class SecurityConfig {
                                                                 "/api/schools",
                                                                 "/api/schools/**",
                                                                 "/api/tags",
-                                                                "/api/tags/**")
+                                                                "/api/tags/**",
+                                                                "/api/categories",
+                                                                "/api/categories/**")
                                                 .permitAll()
 
                                                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()

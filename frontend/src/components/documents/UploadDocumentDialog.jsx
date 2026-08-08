@@ -96,39 +96,54 @@ export default function UploadDocumentDialog({
   useEffect(() => {
     const fetchOptions = async () => {
       try {
-        const [schoolsRes, coursesRes, tagsRes, categoriesRes] =
-          await Promise.all([
-            axiosClient.get("/api/schools"),
-            axiosClient.get("/api/courses/all"),
-            axiosClient.get("/api/tags"),
-            axiosClient.get("/api/categories/active"),
-          ]);
-        setSchoolOptions(
-          Array.isArray(schoolsRes.data)
-            ? schoolsRes.data.map((school) => ({
-                id: school.id,
-                code: school.code,
-                name: school.name,
-              }))
-            : [],
-        );
-        setAllCourses(Array.isArray(coursesRes.data) ? coursesRes.data : []);
-        setTagOptions(
-          Array.isArray(tagsRes.data)
-            ? tagsRes.data.map((tag) => tag.name)
-            : [],
-        );
-        setCategoryOptions(
-          Array.isArray(categoriesRes.data)
-            ? categoriesRes.data.map((category) => ({
-                id: category.id,
-                code: category.code,
-                name: category.name,
-                icon: category.icon,
-                color: category.color,
-              }))
-            : [],
-        );
+        const results = await Promise.allSettled([
+          axiosClient.get("/api/schools"),
+          axiosClient.get("/api/courses/all"),
+          axiosClient.get("/api/tags"),
+          axiosClient.get("/api/categories/active"),
+        ]);
+
+        const [schoolsRes, coursesRes, tagsRes, categoriesRes] = results;
+
+        if (schoolsRes.status === "fulfilled") {
+          setSchoolOptions(
+            Array.isArray(schoolsRes.value?.data)
+              ? schoolsRes.value.data.map((school) => ({
+                  id: school.id,
+                  code: school.code,
+                  name: school.name,
+                }))
+              : [],
+          );
+        }
+
+        if (coursesRes.status === "fulfilled") {
+          setAllCourses(
+            Array.isArray(coursesRes.value?.data) ? coursesRes.value.data : [],
+          );
+        }
+
+        if (tagsRes.status === "fulfilled") {
+          setTagOptions(
+            Array.isArray(tagsRes.value?.data)
+              ? tagsRes.value.data.map((tag) => tag.name)
+              : [],
+          );
+        }
+
+        if (categoriesRes.status === "fulfilled") {
+          setCategoryOptions(
+            Array.isArray(categoriesRes.value?.data)
+              ? categoriesRes.value.data.map((category) => ({
+                  id: category.id,
+                  code: category.code,
+                  name: category.name,
+                  icon: category.icon,
+                  color: category.color,
+                }))
+              : [],
+          );
+        }
       } catch (error) {
         console.error("Failed to load options", error);
       }
@@ -491,11 +506,11 @@ export default function UploadDocumentDialog({
               easily find it.
             </DialogDescription>
             <p className="pt-2 text-xs font-medium text-slate-500">
-              {quotaLoading || !maxFileSizeMb
+              {quotaLoading
                 ? "Loading document limits..."
                 : subscriptionTier === "PRO"
-                  ? `PRO: Unlimited documents, max ${maxFileSizeMb}MB`
-                  : `Documents: ${uploadsToday}/${dailyUploadLimit} uploads today, ${totalDocuments}/${totalDocumentLimit} stored, max ${maxFileSizeMb}MB`}
+                  ? `PRO: Unlimited documents, max ${maxFileSizeMb || 10}MB`
+                  : `Documents: ${uploadsToday ?? 0}/${dailyUploadLimit ?? "∞"} uploads today, ${totalDocuments ?? 0}/${totalDocumentLimit ?? "∞"} stored, max ${maxFileSizeMb || 10}MB`}
             </p>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar grid gap-5 py-4 min-h-0">
