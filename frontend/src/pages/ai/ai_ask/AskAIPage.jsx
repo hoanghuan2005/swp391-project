@@ -25,6 +25,7 @@ export default function AskAIPage() {
     isUnlimited,
     tierLimits,
     loading: aiUsageLoading,
+    refreshAiUsage,
   } = useAiUsage();
 
   const fileInputRef = useRef(null);
@@ -59,6 +60,7 @@ export default function AskAIPage() {
       toast.success("Document uploaded successfully!", { id: toastId });
       refreshDocuments();
       refreshDocumentQuota();
+      refreshAiUsage();
     } catch (error) {
       console.error("Failed to upload document:", error);
       if (isDocumentQuotaExceeded(error)) {
@@ -100,6 +102,7 @@ export default function AskAIPage() {
         mode="PERSONAL"
         documents={documents}
         onRefreshDocuments={refreshDocuments}
+        onRefreshAiUsage ={refreshAiUsage}
         maxSelectedDocs={tierLimits?.maxSelectedDocs || 2}
         showUploadButton={true}
         fileInputRef={fileInputRef}

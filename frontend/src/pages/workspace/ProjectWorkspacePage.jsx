@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -26,8 +26,10 @@ import AiUsageBadge from "@/components/ai-usage/AiUsageBadge";
 
 export default function ProjectWorkspacePage() {
   const { projectId, token } = useParams();
+  const navigate = useNavigate();
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [accessDeniedInfo, setAccessDeniedInfo] = useState(null);
   const isSharedView = Boolean(token);
 
@@ -54,6 +56,7 @@ export default function ProjectWorkspacePage() {
   const fetchProject = useCallback(async (silent = false) => {
     try {
       if (!silent) setLoading(true);
+      setError(null);
       setAccessDeniedInfo(null);
       let data = token
         ? await getSharedProject(token)
@@ -64,6 +67,7 @@ export default function ProjectWorkspacePage() {
       if (error.response?.status === 403 && error.response?.data?.errorCode === "NEEDS_ACCESS") {
         setAccessDeniedInfo(error.response.data);
       } else {
+        setError(error.message || "Failed to load project workspace");
         toast.error("Failed to load project workspace");
       }
     } finally {
@@ -265,8 +269,8 @@ export default function ProjectWorkspacePage() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-50">
-      {activeTab === "documents" ? (
+    <div className="h-[calc(100vh-73px)] flex overflow-hidden bg-slate-50 rounded-b-xl -mx-4 sm:-mx-6 lg:-mx-8 -my-6">
+      {chatMode === "ai" ? (
         <UnifiedAIChat
           mode="WORKSPACE"
           workspaceId={projectId}

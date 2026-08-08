@@ -122,7 +122,7 @@ public class AiUsageServiceImpl implements AiUsageService {
 
         if (maxAllowed != -1 && selectedCount > maxAllowed) {
             throw new DocumentSelectionQuotaExceededException(
-                    "Gói " + tierCode + " chỉ cho phép chọn tối đa " + maxAllowed + " tài liệu cùng lúc."
+                    "The " + tierCode + " plan only allows you to select up to " + maxAllowed + " documents at a time."
             );
         }
     }
