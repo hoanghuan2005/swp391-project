@@ -62,19 +62,19 @@ public class SubscriptionPlan extends BaseEntity {
     private Integer maxSelectedDocs = 2;
 
     @Builder.Default
-    @Column(name = "max_personal_docs", nullable = false)
+    @Column(name = "max_personal_docs")
     private Integer maxPersonalDocs = 2;
 
     @Builder.Default
-    @Column(name = "max_workspace_docs", nullable = false)
+    @Column(name = "max_workspace_docs")
     private Integer maxWorkspaceDocs = 10;
 
     @Builder.Default
-    @Column(name = "max_ai_context_chunks", nullable = false)
+    @Column(name = "max_ai_context_chunks")
     private Integer maxAiContextChunks = 4;
 
     @Builder.Default
-    @Column(name = "max_chunk_chars", nullable = false)
+    @Column(name = "max_chunk_chars")
     private Integer maxChunkChars = 400;
 
     @Builder.Default
